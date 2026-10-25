@@ -1,0 +1,220 @@
+<project name="DBGL" default="dist" basedir=".">
+	<description>
+		Build file for DBGL
+	</description>
+
+	<!-- set global properties for this build -->
+	<property name="src" location="src"/>
+	<property name="javasrc" location="${src}/java"/>
+	<property name="resources" location="${src}/resources"/>
+	<property name="srcdist" location="${src}/dist"/>
+	<property name="build" location="build_ant"/>
+	<property name="dist" location="dist"/>
+	<property name="libtest.dir" location="libtest"/>
+	<property name="libjersey.dir" location="libjersey"/>
+	<property name="vendorname" value="Ronald Blankendaal"/>
+	<property name="dosboxversionname" value="DOSBox-0.74-3"/>
+
+	<loadproperties srcFile="${resources}/version.properties"/>
+
+	<property name="version" value="${majorversion}.${minorversion}"/>
+	<property name="versionforfilename" value="${majorversion}${minorversion}"/>
+	<property name="dbglfilename" value="dbgl${versionforfilename}"/>
+	<property name="srcfilename" value="src${versionforfilename}"/>
+	<property name="javasrcfilename" value="javasrc${versionforfilename}"/>
+	<property name="jarfilename" value="jar${versionforfilename}"/>
+
+	<condition property="isMacOS"><os family="mac"/></condition>
+
+	<target name="clean" description="clean up build and dist dirs">
+		<!-- Create the time stamp -->
+		<tstamp/>
+		<!-- Delete the ${build} and ${dist} directory trees -->
+		<delete dir="${build}"/>
+		<delete dir="${dist}"/>
+	</target>
+
+	<target name="compile" depends="clean" description="compile the source">
+		<!-- Compile the java code from ${src} into ${build} -->
+		<path id="classpath">
+			<fileset dir="${srcdist}/shared/lib" includes="**/*.jar" />
+			<fileset dir="${srcdist}/winshared/lib" includes="**/*.jar" />
+			<fileset dir="${srcdist}/linuxshared/lib" includes="**/*.jar" />
+			<fileset dir="${srcdist}/mac_x86/DBGL.app/Contents/MacOS/lib" includes="**/*.jar" />
+			<fileset dir="${srcdist}/mac_arm/DBGL.app/Contents/MacOS/lib" includes="**/*.jar" />
+		</path>
+		<path id="classpathfull">
+			<fileset dir="${srcdist}/shared/lib" includes="**/*.jar" />
+			<fileset dir="${srcdist}/winshared/lib" includes="**/*.jar" />
+			<fileset dir="${libtest.dir}" includes="**/*.jar"/>
+		</path>
+		<pathconvert property="class-path" dirsep="/" pathsep=" " refid="classpath">
+			<map from="${srcdist}/shared/lib" to="lib"/>
+			<map from="${srcdist}/winshared/lib" to="lib"/>
+			<map from="${srcdist}/linuxshared/lib" to="lib"/>
+			<map from="${srcdist}/mac_x86/DBGL.app/Contents/MacOS/lib" to="lib"/>
+			<map from="${srcdist}/mac_arm/DBGL.app/Contents/MacOS/lib" to="lib"/>
+		</pathconvert>
+		<mkdir dir="${build}"/>
+		<javac includeantruntime="false" debug="on" srcdir="${javasrc}" destdir="${build}" classpathref="classpathfull" release="17" deprecation="on" />
+	</target>
+
+	<target name="jar" depends="compile" description="create main jar">
+		<copy todir="${build}">
+			<fileset dir="${resources}"/>
+		</copy>
+		<java fork="yes" classname="org.dbgl.preprocess.CompactResourceBundles">
+			<arg value="${build}/i18n"/>
+			<classpath>
+				<pathelement path="${build}"/>
+				<pathelement path="${srcdist}/shared/lib/*"/>
+ 			</classpath>
+		</java>
+		<mkdir dir="${dist}"/>
+		<jar jarfile="${dist}/dbgl.jar" basedir="${build}" excludes="**/test/**, **/preprocess/**, **/app/**" level="9">
+			<manifest>
+				<attribute name="Built-By" value="${user.name}"/>
+				<section name="common">
+					<attribute name="Specification-Title" value="DBGL"/>
+					<attribute name="Specification-Version" value="${version}"/>
+					<attribute name="Specification-Vendor" value="${vendorname}"/>
+					<attribute name="Implementation-Title" value="common"/>
+					<attribute name="Implementation-Version" value="${version} ${TODAY}"/>
+					<attribute name="Implementation-Vendor" value="${vendorname}"/>
+				</section>
+				<attribute name="Class-Path" value="${class-path} ./"/>
+				<attribute name="Main-Class" value="org.dbgl.gui.Launcher"/>
+			</manifest>
+		</jar>
+	</target>
+
+	<target name="distwindows" depends="jar" description="generate the distribution for windows" >
+		<mkdir dir="${dist}/win"/>
+		<mkdir dir="${dist}/win/captures"/>
+		<mkdir dir="${dist}/win/db"/>
+		<mkdir dir="${dist}/win/dosroot"/>
+		<mkdir dir="${dist}/win/export"/>
+		<mkdir dir="${dist}/win/profiles"/>
+		<copy todir="${dist}/win">
+			<fileset dir="${srcdist}/shared"/>
+			<fileset file="${dist}/dbgl.jar"/>
+			<fileset dir="${srcdist}/winshared"/>
+		</copy>
+		<zip destfile="${dist}/${dbglfilename}.zip" basedir="${dist}/win" level="9"/>
+		<delete dir="${dist}/win"/>
+	</target>
+
+	<target name="distlinux" depends="jar" description="generate the distribution for linux" >
+		<mkdir dir="${dist}/linux64"/>
+		<mkdir dir="${dist}/linux64/captures"/>
+		<mkdir dir="${dist}/linux64/db"/>
+		<mkdir dir="${dist}/linux64/dosroot"/>
+		<mkdir dir="${dist}/linux64/export"/>
+		<mkdir dir="${dist}/linux64/profiles"/>
+		<copy todir="${dist}/linux64">
+			<fileset dir="${srcdist}/shared"/>
+			<fileset file="${dist}/dbgl.jar"/>
+			<fileset dir="${srcdist}/linuxshared"/>
+		</copy>
+		<fixcrlf srcdir="${dist}/linux64/templates" eol="unix"/>
+		<fixcrlf srcdir="${dist}/linux64/xsl" eol="unix"/>
+		<fixcrlf srcdir="${dist}/linux64" includes="COPYING,dbgl" eol="unix"/>
+		<tar destfile="${dist}/${dbglfilename}.tar.xz" compression="xz">
+			<tarfileset dir="${dist}/linux64" mode="755">
+			    <include name="dbgl"/>
+			</tarfileset>
+			<tarfileset dir="${dist}/linux64">
+			    <exclude name="dbgl"/>
+			</tarfileset>
+		</tar>
+		<delete dir="${dist}/linux64"/>
+	</target>
+
+	<target name="distmac_x86" if="isMacOS" depends="jar" description="generate the distribution for mac x86">
+		<mkdir dir="${dist}/mac/${dbglfilename}"/>
+		<copy todir="${dist}/mac/${dbglfilename}">
+			<fileset dir="${srcdist}/macshared"/>
+			<fileset dir="${srcdist}/mac_x86"/>
+		</copy>
+		<mkdir dir="${dist}/mac/${dbglfilename}/DBGL.app/Contents/MacOS/captures"/>
+		<mkdir dir="${dist}/mac/${dbglfilename}/DBGL.app/Contents/MacOS/db"/>
+		<mkdir dir="${dist}/mac/${dbglfilename}/DBGL.app/Contents/MacOS/dosroot"/>
+		<mkdir dir="${dist}/mac/${dbglfilename}/DBGL.app/Contents/MacOS/export"/>
+		<mkdir dir="${dist}/mac/${dbglfilename}/DBGL.app/Contents/MacOS/profiles"/>
+		<copy todir="${dist}/mac/${dbglfilename}/DBGL.app/Contents/MacOS">
+			<fileset dir="${srcdist}/shared"/>
+			<fileset file="${dist}/dbgl.jar"/>
+		</copy>	
+		<fixcrlf srcdir="${dist}/mac/${dbglfilename}/DBGL.app/Contents/MacOS/templates"/>
+		<fixcrlf srcdir="${dist}/mac/${dbglfilename}/DBGL.app/Contents/MacOS/xsl"/>
+		<fixcrlf srcdir="${dist}/mac/${dbglfilename}/DBGL.app/Contents/MacOS" includes="COPYING,dbgl"/>
+		<replace file="${dist}/mac/${dbglfilename}/DBGL.app/Contents/Info.plist" token="@@version@@" value="${version}"/>
+		<symlink link="${dist}/mac/${dbglfilename}/DBGL.app/Contents/MacOS/${dosboxversionname}" resource="../Resources/DOSBox.app/Contents/MacOS"/>
+		<chmod file="${dist}/mac/${dbglfilename}/DBGL.app/Contents/MacOS/dbgl" perm="755"/>
+		<chmod file="${dist}/mac/${dbglfilename}/DBGL.app/Contents/MacOS/${dosboxversionname}/DOSBox" perm="755"/>
+		<exec executable="hdiutil">
+			<arg line="create -format UDBZ -srcfolder '${dist}/mac/${dbglfilename}' '${dist}/${dbglfilename}-x86.dmg' -fs UDF"/>
+		</exec>
+		<delete dir="${dist}/mac"/>
+	</target>
+	
+	<target name="distmac_arm" if="isMacOS" depends="jar" description="generate the distribution for mac arm">
+		<mkdir dir="${dist}/mac/${dbglfilename}"/>
+		<copy todir="${dist}/mac/${dbglfilename}">
+			<fileset dir="${srcdist}/macshared"/>
+			<fileset dir="${srcdist}/mac_arm"/>
+		</copy>
+		<mkdir dir="${dist}/mac/${dbglfilename}/DBGL.app/Contents/MacOS/captures"/>
+		<mkdir dir="${dist}/mac/${dbglfilename}/DBGL.app/Contents/MacOS/db"/>
+		<mkdir dir="${dist}/mac/${dbglfilename}/DBGL.app/Contents/MacOS/dosroot"/>
+		<mkdir dir="${dist}/mac/${dbglfilename}/DBGL.app/Contents/MacOS/export"/>
+		<mkdir dir="${dist}/mac/${dbglfilename}/DBGL.app/Contents/MacOS/profiles"/>
+		<copy todir="${dist}/mac/${dbglfilename}/DBGL.app/Contents/MacOS">
+			<fileset dir="${srcdist}/shared"/>
+			<fileset file="${dist}/dbgl.jar"/>
+		</copy>	
+		<fixcrlf srcdir="${dist}/mac/${dbglfilename}/DBGL.app/Contents/MacOS/templates"/>
+		<fixcrlf srcdir="${dist}/mac/${dbglfilename}/DBGL.app/Contents/MacOS/xsl"/>
+		<fixcrlf srcdir="${dist}/mac/${dbglfilename}/DBGL.app/Contents/MacOS" includes="COPYING,dbgl"/>
+		<replace file="${dist}/mac/${dbglfilename}/DBGL.app/Contents/Info.plist" token="@@version@@" value="${version}"/>
+		<symlink link="${dist}/mac/${dbglfilename}/DBGL.app/Contents/MacOS/${dosboxversionname}" resource="../Resources/DOSBox.app/Contents/MacOS"/>
+		<chmod file="${dist}/mac/${dbglfilename}/DBGL.app/Contents/MacOS/dbgl" perm="755"/>
+		<chmod file="${dist}/mac/${dbglfilename}/DBGL.app/Contents/MacOS/${dosboxversionname}/DOSBox" perm="755"/>
+		<exec executable="hdiutil">
+			<arg line="create -format UDBZ -srcfolder '${dist}/mac/${dbglfilename}' '${dist}/${dbglfilename}-arm.dmg' -fs UDF"/>
+		</exec>
+		<delete dir="${dist}/mac"/>
+	</target>
+
+	<target name="distsrc" depends="jar" description="generate src packages">
+		<zip destfile="${dist}/${srcfilename}.zip" level="9">
+			<zipfileset dir="${src}" prefix="src/" excludes="test/"/>
+			<zipfileset dir="${libtest.dir}" prefix="libtest/"/>
+			<zipfileset file="build.xml"/>
+		</zip>
+		<zip destfile="${dist}/${javasrcfilename}.zip" level="9">
+			<zipfileset dir="${javasrc}" prefix="src/java/"/>
+		</zip>
+		<zip destfile="${dist}/${jarfilename}.zip" level="9">
+			<fileset file="${dist}/dbgl.jar"/>
+		</zip>
+		<delete file="${dist}/dbgl.jar"/>
+		<delete dir="${build}"/>
+	</target>
+
+	<target name="disti18n" description="generate i18n package">
+		<zip destfile="${dist}/i18n.zip" level="9">
+			<zipfileset dir="${resources}" prefix="plugins">
+				<include name="**/*.properties"/>
+			</zipfileset>
+		</zip>
+	</target>
+
+	<target name="dist" description="generate the distribution for all platforms" depends="distwindows, distlinux, distmac_x86, distmac_arm, distsrc, disti18n"/>
+
+	<target name="jersey" description="generate fat jersey jar by combining several jersey jar components">
+		<jar destfile="${srcdist}/shared/lib/jersey-2.47.jar" filesetmanifest="merge">
+		    <zipgroupfileset dir="${libjersey.dir}" includes="*.jar"/>
+		</jar>
+	</target>
+</project>
