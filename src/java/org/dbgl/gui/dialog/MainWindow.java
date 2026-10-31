@@ -493,6 +493,16 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				doMigrate();
 			}
 		}).build();
+		MenuItem_.on(profilesMenu).build();
+		MenuItem_.on(profilesMenu).key("dialog.main.menu.checkprofiles").image(ImageService.IMG_MIGRATE).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				if (Boolean.TRUE.equals(new CheckProfilesDialog(shell_).open())) {
+					updateProfilesList(getSelectedProfileIds());
+					displayProfileInformation(false);
+				}
+			}
+		}).build();
 
 		Menu dbversionsMenu = createMenu(appMenuBar, "dialog.main.menu.dosboxversions");
 		MenuItem_.on(dbversionsMenu).key("dialog.main.menu.locatedosbox").image(ImageService.IMG_ZOOM).listen(new SelectionAdapter() {
@@ -505,15 +515,6 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			@Override
 			public void widgetSelected(SelectionEvent event) {
 				if (Boolean.TRUE.equals(new SwitchDosboxVersionDialog(shell_).open())) {
-					updateProfilesList(getSelectedProfileIds());
-					displayProfileInformation(false);
-				}
-			}
-		}).build();
-		MenuItem_.on(dbversionsMenu).key("dialog.main.menu.checkprofiles").image(ImageService.IMG_MIGRATE).listen(new SelectionAdapter() {
-			@Override
-			public void widgetSelected(SelectionEvent event) {
-				if (Boolean.TRUE.equals(new CheckProfilesDialog(shell_).open())) {
 					updateProfilesList(getSelectedProfileIds());
 					displayProfileInformation(false);
 				}
@@ -826,6 +827,27 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				int index = profileTable_.getSelectionIndex();
 				if (index != -1)
 					SystemUtils.openDirForViewing(profilesList_.get(index).getCanonicalCaptures(), getParent());
+			}
+		}).build();
+		MenuItem_.on(menu).key("dialog.main.profile.openprofilesfolder").image(ImageService.IMG_FOLDER).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				int index = profileTable_.getSelectionIndex();
+				if (index != -1) {
+					File conf = profilesList_.get(index).getConfigurationCanonicalFile();
+					if (conf != null)
+						SystemUtils.openDirForViewing(conf.getParentFile(), getParent());
+				}
+			}
+		}).build();
+		MenuItem_.on(menu).key("dialog.main.profile.switchdosboxversion").image(ImageService.IMG_MIGRATE).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				int index = profileTable_.getSelectionIndex();
+				if ((index != -1) && Boolean.TRUE.equals(new SwitchDosboxVersionDialog(shell_, profilesList_.get(index)).open())) {
+					updateProfilesList(getSelectedProfileIds());
+					displayProfileInformation(false);
+				}
 			}
 		}).build();
 		Menu profileViewSubMenu = createMenu(menu, "dialog.main.profile.view", ImageService.IMG_ZOOM);

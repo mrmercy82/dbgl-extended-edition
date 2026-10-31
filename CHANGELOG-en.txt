@@ -4,8 +4,22 @@ DBGL - Changes since 0.100 beta 17
 Based on DBGL 0.100 beta 17 (source code). Newest version first.
 
 
-0.102 beta 12
--------------
+0.101 alpha 13
+--------------
+- New version numbering: the former versions 0.101 and 0.102 beta 1 to 12 are
+  now called 0.101 alpha 0 to 0.101 alpha 12.
+- "Check profiles..." is now the last entry of the "Profiles" menu (with a
+  separator above it) instead of being in the "DOSBox versions" menu.
+- Context menu of a profile (right click), below "Open game folder" and "Open
+  captures folder":
+  - "Open profiles folder" opens the folder with the profile's configuration
+    file.
+  - "Switch profile to another DOSBox version..." does the same as the menu for
+    all profiles, but only for the selected profile, with preview and report.
+
+
+0.101 alpha 12
+--------------
 - Status window: if DOSBox ends within 5 seconds, DBGL reports this as a
   probably failed start and keeps the window open. Even when the status window
   is otherwise not shown, it then appears with the messages of DOSBox (can be
@@ -36,8 +50,8 @@ Based on DBGL 0.100 beta 17 (source code). Newest version first.
   browsed in the archive browser; DBGL sets machine=pc98 for them as well.
 
 
-0.102 beta 11
--------------
+0.101 alpha 11
+--------------
 - Boot lines with a Windows path to the image (e.g. boot "C:\...\win95.hdi")
   are no longer read as a DOS path. Before, DBGL cut off "C:" and added an
   extra, non-working mount "imgmount A".
@@ -45,22 +59,22 @@ Based on DBGL 0.100 beta 17 (source code). Newest version first.
   (imgmount 2 ... -t hdd) instead of as a floppy.
 
 
-0.102 beta 10
--------------
+0.101 alpha 10
+--------------
 - No more 8.3 warning showing "null" for self-booting HDI images. Images that
   are attached directly as a hard disk (imgmount 2) have no DOS name.
 
 
-0.102 beta 9
-------------
+0.101 alpha 9
+-------------
 - DOSBox-X: when a PC-98 hard disk image (.HDI) is mounted, booted or used for
   the game, DBGL sets machine=pc98. This now always happens: on OK in the
   profile dialog, in the add game wizard and when a game is started. In IBM PC
   mode, DOSBox-X crashed when booting such images.
 
 
-0.102 beta 8
-------------
+0.101 alpha 8
+-------------
 - PC-98 hard disk images (.HDI) are supported:
   - Browsing in the archive browser to pick the game executable inside the
     image.
@@ -74,8 +88,8 @@ Based on DBGL 0.100 beta 17 (source code). Newest version first.
   bytes.
 
 
-0.102 beta 7
-------------
+0.101 alpha 7
+-------------
 - "Set" for a DOSBox version keeps only a profile's own changes. All other
   values come from the configuration of the new DOSBox version, as set up under
   "DOSBox versions".
@@ -89,8 +103,8 @@ Based on DBGL 0.100 beta 17 (source code). Newest version first.
   button wrongly.
 
 
-0.102 beta 6
-------------
+0.101 alpha 6
+-------------
 - New page "DOSBox -> More settings": every setting of the selected DOSBox
   version that has no field of its own (e.g. "adlib pcm boost" in DOSBox-X
   2026.05.02 and newer), with a filter, value lists from the values documented
@@ -107,8 +121,8 @@ Based on DBGL 0.100 beta 17 (source code). Newest version first.
   .bak.
 
 
-0.102 beta 5
-------------
+0.101 alpha 5
+-------------
 - Game paths with spaces work (e.g. "M & M\M&M 3\MM 3.EXE"). DBGL writes the
   8.3 short names that DOSBox itself generates into the autoexec
   (e.g. "cd \M&M~1\M&M3~1" and "MM3~1.EXE"), following the same rules as
@@ -120,15 +134,15 @@ Based on DBGL 0.100 beta 17 (source code). Newest version first.
 - No more 8.3 warning for such files on mounted folders.
 
 
-0.102 beta 4
-------------
+0.101 alpha 4
+-------------
 - The status window remembers its position, size and maximized state, also
   across restarts of DBGL. If the position is no longer on any screen, it is
   centered.
 
 
-0.102 beta 3
-------------
+0.101 alpha 3
+-------------
 - Status window: if a DOSBox Staging entry still says an older version while
   the dosbox.exe is already 0.83 or newer, DBGL asks the executable for its
   version and shows the window anyway.
@@ -141,8 +155,8 @@ Based on DBGL 0.100 beta 17 (source code). Newest version first.
 - When DOSBox crashes, the window stays open and comes to the front.
 
 
-0.102 beta 2
-------------
+0.101 alpha 2
+-------------
 - Pages without supported settings are hidden from the navigation tree. A
   parent page stays as long as one of its sub pages has content. The tree is
   rebuilt when the DOSBox version changes.
@@ -156,8 +170,8 @@ Based on DBGL 0.100 beta 17 (source code). Newest version first.
   For Staging 0.82.2, 58 instead of 23 value lists are recognized.
 
 
-0.102 beta 1
-------------
+0.101 alpha 1
+-------------
 - Value lists come from the configuration that each DOSBox writes itself. They
   match the installed version, also for versions DBGL does not know in detail.
 - Settings the selected DOSBox version does not know are hidden (can be turned
@@ -178,8 +192,8 @@ Based on DBGL 0.100 beta 17 (source code). Newest version first.
 - All new texts in 20 languages.
 
 
-0.101
------
+0.101 alpha 0
+-------------
 - Support for DOSBox Staging 0.83.0:
   - Renamed settings, e.g. windowresolution -> window_size,
     fullresolution -> fullscreen_mode, glshader -> shader,
@@ -196,7 +210,7 @@ Based on DBGL 0.100 beta 17 (source code). Newest version first.
 - Status window: DOSBox Staging 0.83 no longer opens a console on Windows.
   DBGL now shows the DOSBox output itself, unless "Hide DOSBox Status Window" is
   turned on.
-- Version number 0.101.
+- Version number 0.101 (now 0.101 alpha 0).
 
 
 Notes

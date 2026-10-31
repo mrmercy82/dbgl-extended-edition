@@ -53,7 +53,7 @@ import org.eclipse.swt.widgets.Text;
 
 /**
  * Switches all profiles of one DOSBox version to another one (like 'Switch' in the profile dialog, so settings are converted),
- * with a preview and a report of what changed in each profile.
+ * with a preview and a report of what changed in each profile. With a profile given, only this one profile is switched.
  */
 public class SwitchDosboxVersionDialog extends SizeControlledButtonDialog<Boolean> {
 
@@ -63,14 +63,21 @@ public class SwitchDosboxVersionDialog extends SizeControlledButtonDialog<Boolea
 	private Label count_;
 	private Text report_;
 	private Font font_;
+	private final Profile single_;
 
 	public SwitchDosboxVersionDialog(Shell parent) {
+		this(parent, null);
+	}
+
+	/** @param single only this profile is switched, or all profiles of a DOSBox version if null */
+	public SwitchDosboxVersionDialog(Shell parent, Profile single) {
 		super(parent, "switchdosboxdialog");
+		single_ = single;
 	}
 
 	@Override
 	protected String getDialogTitle() {
-		return text_.get("dialog.switchdosbox.title");
+		return text_.get(single_ == null ? "dialog.switchdosbox.title": "dialog.switchdosbox.title.single");
 	}
 
 	@Override
@@ -101,7 +108,7 @@ public class SwitchDosboxVersionDialog extends SizeControlledButtonDialog<Boolea
 		report_.setFont(font_);
 		shell_.addDisposeListener(e -> font_.dispose());
 
-		// preselect: from the version with the most profiles, to the newest one of the same family
+		// preselect: from the version with the most profiles (or the version of the single profile), to the newest one
 		int best = 0;
 		for (int i = 0; i < dbversions_.size(); i++)
 			if (profilesOf(dbversions_.get(i)).size() > profilesOf(dbversions_.get(best)).size())
@@ -109,7 +116,10 @@ public class SwitchDosboxVersionDialog extends SizeControlledButtonDialog<Boolea
 		if (!dbversions_.isEmpty()) {
 			from_.select(best);
 			to_.select(dbversions_.size() - 1);
+			if ((single_ != null) && (to_.getSelectionIndex() == best) && (dbversions_.size() > 1))
+				to_.select(dbversions_.size() - 2);
 		}
+		from_.setEnabled(single_ == null);
 		SelectionAdapter update = new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent e) {
@@ -141,13 +151,16 @@ public class SwitchDosboxVersionDialog extends SizeControlledButtonDialog<Boolea
 	}
 
 	private List<Profile> profilesOf(DosboxVersion dbversion) {
-		return profiles_.stream().filter(p -> p.getDosboxVersion().getId() == dbversion.getId()).toList();
+		return profiles_.stream().filter(p -> (p.getDosboxVersion().getId() == dbversion.getId()) && ((single_ == null) || (p.getId() == single_.getId()))).toList();
 	}
 
 	private void updateCount() {
 		if ((from_.getSelectionIndex() < 0) || (to_.getSelectionIndex() < 0))
 			return;
-		count_.setText(text_.get("dialog.switchdosbox.count", new Object[] {profilesOf(dbversions_.get(from_.getSelectionIndex())).size()}));
+		if (single_ != null)
+			count_.setText(text_.get("dialog.switchdosbox.single", new Object[] {single_.getTitle()}));
+		else
+			count_.setText(text_.get("dialog.switchdosbox.count", new Object[] {profilesOf(dbversions_.get(from_.getSelectionIndex())).size()}));
 		count_.getParent().layout();
 	}
 
@@ -210,6 +223,8 @@ public class SwitchDosboxVersionDialog extends SizeControlledButtonDialog<Boolea
 			} catch (SQLException e) {
 				Mess_.on(shell_).exception(e).warning();
 			}
+			if (single_ != null) // the profile now uses the new DOSBox version
+				from_.select(to_.getSelectionIndex());
 			updateCount();
 		}
 	}

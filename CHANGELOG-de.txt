@@ -4,8 +4,23 @@ DBGL - Änderungen seit 0.100 beta 17
 Grundlage: DBGL 0.100 beta 17 (Quellcode). Neueste Version zuerst.
 
 
-0.102 beta 12
--------------
+0.101 alpha 13
+--------------
+- Neue Versionsnummerierung: Die bisherigen Versionen 0.101 und
+  0.102 beta 1 bis 12 heißen jetzt 0.101 alpha 0 bis 0.101 alpha 12.
+- "Profile prüfen..." steht jetzt als unterster Eintrag im Menü "Profile"
+  (mit Trennlinie darüber) statt im Menü "DOSBox".
+- Kontextmenü eines Profils (Rechtsklick), unter "Spiel-Ordner öffnen..." und
+  "Screenshots-Ordner öffnen...":
+  - "Profile-Ordner öffnen..." öffnet den Ordner mit der Konfigurationsdatei
+    des Profils.
+  - "Profil auf neue DOSBox-Version umstellen..." macht dasselbe wie das Menü
+    für alle Profile, aber nur für das ausgewählte Profil, mit Vorschau und
+    Bericht.
+
+
+0.101 alpha 12
+--------------
 - Statusfenster: Endet DOSBox innerhalb von 5 Sekunden, nennt DBGL das als
   vermutlich fehlgeschlagenen Start und lässt das Fenster offen. Auch wenn das
   Statusfenster sonst nicht angezeigt wird, erscheint es dann mit den Meldungen
@@ -39,8 +54,8 @@ Grundlage: DBGL 0.100 beta 17 (Quellcode). Neueste Version zuerst.
   sie machine=pc98.
 
 
-0.102 beta 11
--------------
+0.101 alpha 11
+--------------
 - Boot-Zeilen mit einem Windows-Pfad zum Image (z. B. boot "C:\...\win95.hdi")
   werden nicht mehr als DOS-Pfad gelesen. Vorher schnitt DBGL "C:" ab und legte
   einen zusätzlichen, nicht funktionierenden Mount "imgmount A" an.
@@ -48,22 +63,22 @@ Grundlage: DBGL 0.100 beta 17 (Quellcode). Neueste Version zuerst.
   (imgmount 2 ... -t hdd) statt als Diskette.
 
 
-0.102 beta 10
--------------
+0.101 alpha 10
+--------------
 - Keine 8.3-Warnung mit "null" mehr bei selbstbootenden HDI-Images. Images, die
   direkt als Festplatte angehängt werden (imgmount 2), haben keinen DOS-Namen.
 
 
-0.102 beta 9
-------------
+0.101 alpha 9
+-------------
 - DOSBox-X: Wird ein PC-98-Festplattenimage (.HDI) eingebunden, gebootet oder
   als Spiel benutzt, setzt DBGL machine=pc98. Das geschieht jetzt immer: beim OK
   im Profildialog, im Assistenten für neue Spiele und beim Starten eines Spiels.
   Im IBM-PC-Modus stürzte DOSBox-X beim Booten solcher Images ab.
 
 
-0.102 beta 8
-------------
+0.101 alpha 8
+-------------
 - PC-98-Festplattenimages (.HDI) werden unterstützt:
   - Durchsuchen im Archivbrowser, um das Spielprogramm im Image auszuwählen.
   - Spiel aus einem HDI starten: Einbinden als Festplatte (imgmount ... -t hdd).
@@ -77,8 +92,8 @@ Grundlage: DBGL 0.100 beta 17 (Quellcode). Neueste Version zuerst.
   über 512 Byte.
 
 
-0.102 beta 7
-------------
+0.101 alpha 7
+-------------
 - "Zuordnen" einer DOSBox-Version behält nur die eigenen Änderungen eines
   Profils. Alle anderen Werte kommen aus der Konfiguration der neuen
   DOSBox-Version, die unter "DOSBox-Versionen" hinterlegt ist.
@@ -92,8 +107,8 @@ Grundlage: DBGL 0.100 beta 17 (Quellcode). Neueste Version zuerst.
   "Übernehmen" falsch.
 
 
-0.102 beta 6
-------------
+0.101 alpha 6
+-------------
 - Neue Seite "DOSBox -> Weitere Einstellungen": alle Einstellungen der
   gewählten DOSBox-Version, die kein eigenes Feld haben (z. B. "adlib pcm boost"
   bei DOSBox-X ab 2026.05.02), mit Filterfeld, Auswahllisten aus den in der
@@ -110,8 +125,8 @@ Grundlage: DBGL 0.100 beta 17 (Quellcode). Neueste Version zuerst.
   bleibt als .bak erhalten.
 
 
-0.102 beta 5
-------------
+0.101 alpha 5
+-------------
 - Spielpfade mit Leerzeichen funktionieren (z. B. "M & M\M&M 3\MM 3.EXE"). DBGL
   schreibt in die Autoexec die 8.3-Kurznamen, die DOSBox selbst vergibt
   (z. B. "cd \M&M~1\M&M3~1" und "MM3~1.EXE"), nach denselben Regeln wie DOSBox.
@@ -121,15 +136,15 @@ Grundlage: DBGL 0.100 beta 17 (Quellcode). Neueste Version zuerst.
 - Keine 8.3-Warnung mehr für solche Dateien auf eingebundenen Ordnern.
 
 
-0.102 beta 4
-------------
+0.101 alpha 4
+-------------
 - Das Statusfenster merkt sich Position, Größe und Maximierung, auch über einen
   Neustart von DBGL hinweg. Liegt die Position auf keinem Bildschirm mehr,
   erscheint es mittig.
 
 
-0.102 beta 3
-------------
+0.101 alpha 3
+-------------
 - Statusfenster: Steht im DOSBox-Staging-Eintrag noch eine ältere Version,
   obwohl die dosbox.exe schon 0.83 oder neuer ist, fragt DBGL das Programm nach
   seiner Version und zeigt das Fenster trotzdem.
@@ -142,8 +157,8 @@ Grundlage: DBGL 0.100 beta 17 (Quellcode). Neueste Version zuerst.
 - Bei einem Absturz von DOSBox bleibt das Fenster offen und kommt nach vorne.
 
 
-0.102 beta 2
-------------
+0.101 alpha 2
+-------------
 - Seiten ohne unterstützte Einstellungen werden aus dem Navigationsbaum
   ausgeblendet. Eine übergeordnete Seite bleibt, solange eine Unterseite Inhalt
   hat. Der Baum wird bei einem Wechsel der DOSBox-Version neu aufgebaut.
@@ -158,8 +173,8 @@ Grundlage: DBGL 0.100 beta 17 (Quellcode). Neueste Version zuerst.
   Staging 0.82.2 werden jetzt 58 statt 23 Wertelisten erkannt.
 
 
-0.102 beta 1
-------------
+0.101 alpha 1
+-------------
 - Auswahllisten kommen aus der Konfiguration, die die jeweilige DOSBox selbst
   schreibt. So passen sie zur installierten Version, auch bei Versionen, die
   DBGL nicht im Detail kennt.
@@ -181,8 +196,8 @@ Grundlage: DBGL 0.100 beta 17 (Quellcode). Neueste Version zuerst.
 - Alle neuen Texte in 20 Sprachen.
 
 
-0.101
------
+0.101 alpha 0
+-------------
 - Unterstützung für DOSBox Staging 0.83.0:
   - Umbenannte Einstellungen, z. B. windowresolution -> window_size,
     fullresolution -> fullscreen_mode, glshader -> shader,
@@ -200,7 +215,7 @@ Grundlage: DBGL 0.100 beta 17 (Quellcode). Neueste Version zuerst.
 - Statusfenster: DOSBox Staging 0.83 öffnet unter Windows keine Konsole mehr.
   DBGL zeigt die Ausgabe von DOSBox jetzt selbst an, sofern
   "DOSBox-Statusfenster verstecken" ausgeschaltet ist.
-- Versionsnummer 0.101.
+- Versionsnummer 0.101 (jetzt 0.101 alpha 0).
 
 
 Hinweise
