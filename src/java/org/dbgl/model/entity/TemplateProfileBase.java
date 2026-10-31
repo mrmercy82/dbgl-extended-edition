@@ -38,7 +38,9 @@ import org.dbgl.model.aggregate.DosboxVersion;
 import org.dbgl.model.conf.ConfValueOptions;
 import org.dbgl.model.conf.Configuration;
 import org.dbgl.model.conf.mount.DirMount;
+import org.dbgl.model.conf.Autoexec;
 import org.dbgl.model.conf.mount.Mount;
+import org.dbgl.util.FilesUtils;
 import org.dbgl.model.conf.mount.OverlayMount;
 import org.dbgl.model.factory.MountFactory;
 import org.dbgl.service.ITextService;
@@ -181,6 +183,35 @@ public abstract class TemplateProfileBase extends GenerationAwareConfigurable {
 				}
 			}
 		}
+	}
+
+	/** @return true if a PC-98 hard disk image (.HDI) is mounted, booted or holds the main program */
+	public boolean usesPc98HdImage() {
+		Autoexec autoexec = configuration_.getAutoexec();
+		for (Mount mount: getNettoMountingPoints())
+			if ((mount instanceof org.dbgl.model.conf.mount.ImageMount im) && java.util.stream.Stream.of(im.getImgPathStrings()).anyMatch(FilesUtils::isPc98HdImage))
+				return true;
+		for (int i = 0; i < Autoexec.BOOTER_IMAGES; i++)
+			if (StringUtils.isNotBlank(autoexec.getImg(i)) && FilesUtils.isPc98HdImage(autoexec.getImg(i)))
+				return true;
+		String main = autoexec.getMain();
+		return StringUtils.isNotBlank(main) && (FilesUtils.fatImageIndex(main) != -1) && FilesUtils.isPc98HdImage(main.substring(0, FilesUtils.fatImageIndex(main)));
+	}
+
+	/**
+	 * DOSBox-X can only use PC-98 hard disk images (.HDI) in PC-98 mode; in IBM PC mode it boots them and crashes. Set
+	 * machine=pc98 if such an image is used and DOSBox-X does not run as a PC-98 yet.
+	 *
+	 * @return true if the machine was changed
+	 */
+	public boolean ensurePc98MachineForHdi() {
+		if ((dosboxVersion_ == null) || (gen_ == null) || (familyIdx(gen_) != familyIdx(Generation.x_20241001)) || !usesPc98HdImage())
+			return false;
+		String machine = StringUtils.defaultString(getCombinedConfiguration().getValue("dosbox", "machine")).toLowerCase();
+		if (machine.startsWith("pc98") || machine.startsWith("pc9801") || machine.startsWith("pc9821"))
+			return false;
+		setValue("dosbox", "machine", "pc98");
+		return true;
 	}
 
 	public void setValue(String sectionTitle, String sectionItem, String value) {

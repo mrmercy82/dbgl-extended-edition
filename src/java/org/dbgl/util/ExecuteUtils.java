@@ -175,7 +175,8 @@ public class ExecuteUtils {
 	public static void doRunProfile(ProfileRunMode mode, Profile prof, DosboxVersion dosboxVersion, boolean prepareOnly, Display display) throws IOException {
 		Profile preparedProfile = prof;
 
-		if ((mode == ProfileRunMode.NORMAL) && !prepareOnly && prof.getConfiguration().getAutoexec().hasLongNamesWithSpaces()) {
+		boolean pc98Changed = prof.ensurePc98MachineForHdi(); // DOSBox-X crashes when booting an .HDI in IBM PC mode
+		if ((mode == ProfileRunMode.NORMAL) && !prepareOnly && (pc98Changed || prof.getConfiguration().getAutoexec().hasLongNamesWithSpaces())) {
 			// written by an older DBGL version with names like "cd \M&M 3" and "MM 3.EXE", which DOS can't use; write it again
 			// with the short names DOSBox gives them (M&M3~1, MM3~1.EXE)
 			prof.saveConfiguration(false);

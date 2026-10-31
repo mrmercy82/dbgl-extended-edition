@@ -839,6 +839,7 @@ public class AddGameWizardDialog extends WizardDialog<Profile> {
 
 			updateProfileByControls();
 
+			profile_.ensurePc98MachineForHdi();
 			result_ = new ProfileRepository().add(profile_);
 
 			if (imageInformation_ != null) {

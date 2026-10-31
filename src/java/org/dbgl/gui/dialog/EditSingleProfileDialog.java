@@ -53,7 +53,6 @@ import org.dbgl.model.repository.BaseRepository;
 import org.dbgl.model.repository.ProfileRepository;
 import org.dbgl.service.FileLocationService;
 import org.dbgl.service.ImageService;
-import org.dbgl.model.entity.GenerationAwareConfigurable;
 import org.dbgl.util.FilesUtils;
 import org.dbgl.util.ShortFilenameUtils;
 import org.dbgl.util.StringRelatedUtils;
@@ -652,6 +651,7 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 			mess.key("dialog.profile.required.mountlocation").bind(mountingpointsList_, getTreeItemByControl(mountingpointsList_));
 		}
 		applyPendingDosboxVersion(); // a newly selected DOSBox version is applied like 'Set' does, instead of asking
+		usePc98MachineIfNeeded(); // e.g. a .HDI added through the mount dialog
 		validateMounts(profile_, mess);
 		return mess.valid();
 	}
@@ -672,18 +672,15 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 	 */
 	private void usePc98MachineForHdi(String target) {
 		String image = FilesUtils.fatImageIndex(target) != -1 ? target.substring(0, FilesUtils.fatImageIndex(target)): target;
-		if (!FilesUtils.isPc98HdImage(image) || (profile_.getDosboxVersion() == null))
-			return;
-		GenerationAwareConfigurable.Generation gen = GenerationAwareConfigurable.determineGen(profile_.getDosboxVersion());
-		if ((gen == null) || (GenerationAwareConfigurable.familyIdx(gen) != GenerationAwareConfigurable.familyIdx(GenerationAwareConfigurable.Generation.x_20241001)))
-			return;
+		if (FilesUtils.isPc98HdImage(image))
+			usePc98MachineIfNeeded();
+	}
+
+	private void usePc98MachineIfNeeded() {
 		computeAllPages(profile_);
 		updateConfigurableByControls(profile_);
-		String machine = StringUtils.defaultString(profile_.getCombinedConfiguration().getValue("dosbox", "machine")).toLowerCase();
-		if (machine.startsWith("pc98") || machine.startsWith("pc9801") || machine.startsWith("pc9821"))
-			return;
-		profile_.setValue("dosbox", "machine", "pc98");
-		updateControlsByConfigurable(profile_);
+		if (profile_.ensurePc98MachineForHdi())
+			updateControlsByConfigurable(profile_);
 	}
 
 	private boolean validDosFilename(Text text) {
