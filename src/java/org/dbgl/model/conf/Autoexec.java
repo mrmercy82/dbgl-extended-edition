@@ -630,7 +630,8 @@ public class Autoexec {
 		if (executable.length() > 2 && executable.charAt(1) == ':') {
 			driveletter = executable.charAt(0);
 			executable = executable.substring(2);
-		} else if (image[0].length() > 2 && image[0].charAt(1) == ':') {
+		} else if (image[0].length() > 2 && image[0].charAt(1) == ':' && !new File(image[0]).isFile()) {
+			// a DOS path like A:\GAME.IMG; a host path like C:\Users\...\win95.hdi is an image file on the host, keep it
 			driveletter = image[0].charAt(0);
 			image[0] = image[0].substring(2);
 			for (int i = 1; i < BOOTER_IMAGES; i++) {
@@ -668,10 +669,12 @@ public class Autoexec {
 		if (StringUtils.isBlank(main_) && StringUtils.isBlank(img_[0])) {
 			for (int i = 0; i < BOOTER_IMAGES; i++) {
 				if (StringUtils.isNotBlank(image[i])) {
+					// a self-booting PC-98 hard disk image is attached as first hard disk, see MountFactory
+					String mount = (i == 0) && FilesUtils.isPc98HdImage(image[i]) ? "imgmount 2 \"" + image[i] + "\" -t hdd": "imgmount a \"" + image[i] + "\"";
 					if (cwd == null)
-						addMount("imgmount a \"" + image[i] + "\"");
+						addMount(mount);
 					else
-						addMount("imgmount a \"" + image[i] + "\"", baseDir);
+						addMount(mount, baseDir);
 					img_[i] = image[i];
 				}
 			}
