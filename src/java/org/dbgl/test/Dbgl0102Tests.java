@@ -211,6 +211,34 @@ public class Dbgl0102Tests {
 		}
 	}
 
+	private static File unzipToTemp(String name) throws IOException {
+		File result = File.createTempFile("dbgl", ".hdi");
+		result.deleteOnExit();
+		try (java.io.InputStream in = new java.util.zip.GZIPInputStream(new java.io.FileInputStream(new File(DATA_DIR, name)))) {
+			Files.copy(in, result.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+		}
+		return result;
+	}
+
+	@Test
+	public void testPc98HdiImages() throws IOException {
+		// built with make_pc98_hdi.py: 4096 byte header, IPL1 partition table, FAT12 with 1024 bytes per sector
+		for (String[] t: new String[][] {{"pc98-512.hdi.gz", "512", "139264"}, {"pc98-256.hdi.gz", "256", "72960"}}) {
+			File hdi = unzipToTemp(t[0]);
+			org.dbgl.util.fat.FileDisk disk = new org.dbgl.util.fat.FileDisk(hdi);
+			org.dbgl.util.fat.Pc98HdiImage.Info info = org.dbgl.util.fat.Pc98HdiImage.readInfo(disk);
+			disk.close();
+			assertEquals(4096, info.base());
+			assertEquals(Integer.parseInt(t[1]), info.sectorSize());
+			assertTrue(info.ipl1());
+			assertEquals(1, info.partitions().size());
+			assertEquals("MS-DOS", org.dbgl.util.fat.Pc98HdiImage.chooseFatPartition(info).name());
+			assertEquals(Long.parseLong(t[2]), org.dbgl.util.fat.Pc98HdiImage.chooseFatPartition(info).byteOffset());
+			assertEquals(Arrays.asList("AUTOEXEC.BAT", "GAME/GAME.EXE", "GAME/SETUP.COM", "GAME/DATA/INSTALL.EXE"),
+				Arrays.stream(org.dbgl.util.FilesUtils.listExecutablesInZipOrIsoOrFat(hdi.getPath())).map(x -> x.replace(File.separatorChar, '/')).toList());
+		}
+	}
+
 	@Test
 	public void testSwitchReportDiff() {
 		String before = "[sdl]\nwindowresolution=1024x768\nfullscreen=true\n[dos]\nxms=false\n";

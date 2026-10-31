@@ -57,6 +57,13 @@ public interface BlockDevice {
 	public int getSectorSize() throws IOException;
 
 	/**
+	 * @return true if this device is a single partition (the boot sector is at offset 0), so no partition table must be read
+	 */
+	default boolean isPartition() {
+		return false;
+	}
+
+	/**
 	 * Closes this {@code BlockDevice}. No methods of this device may be accesses after this method was called.
 	 *
 	 * @throws IOException on error closing this device

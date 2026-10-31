@@ -53,6 +53,7 @@ import org.dbgl.model.repository.BaseRepository;
 import org.dbgl.model.repository.ProfileRepository;
 import org.dbgl.service.FileLocationService;
 import org.dbgl.service.ImageService;
+import org.dbgl.model.entity.GenerationAwareConfigurable;
 import org.dbgl.util.FilesUtils;
 import org.dbgl.util.ShortFilenameUtils;
 import org.dbgl.util.StringRelatedUtils;
@@ -519,6 +520,7 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 				boolean booter = Stream.of(img_).anyMatch(x -> event.widget == x);
 				profile_.addRequiredMount(booter, event.text, false);
 				mountingpointsList_.setItems(profile_.getMountStringsForUI());
+				usePc98MachineForHdi(event.text);
 			}
 		};
 
@@ -659,8 +661,29 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 		if (requiredMount != null && Mess_.on(shell_).key("dialog.profile.confirm.addmountlocation", requiredMount).confirm()) {
 			profile_.addRequiredMount(booter, target, false);
 			mountingpointsList_.setItems(profile_.getMountStringsForUI());
+			usePc98MachineForHdi(target);
 		}
 		return profile_.getRequiredMount(booter, target, true, false);
+	}
+
+	/**
+	 * DOSBox-X can only use PC-98 hard disk images (.HDI) in PC-98 mode. When one is used for this profile and DOSBox-X does
+	 * not run as a PC-98 yet, set machine=pc98.
+	 */
+	private void usePc98MachineForHdi(String target) {
+		String image = FilesUtils.fatImageIndex(target) != -1 ? target.substring(0, FilesUtils.fatImageIndex(target)): target;
+		if (!FilesUtils.isPc98HdImage(image) || (profile_.getDosboxVersion() == null))
+			return;
+		GenerationAwareConfigurable.Generation gen = GenerationAwareConfigurable.determineGen(profile_.getDosboxVersion());
+		if ((gen == null) || (GenerationAwareConfigurable.familyIdx(gen) != GenerationAwareConfigurable.familyIdx(GenerationAwareConfigurable.Generation.x_20241001)))
+			return;
+		computeAllPages(profile_);
+		updateConfigurableByControls(profile_);
+		String machine = StringUtils.defaultString(profile_.getCombinedConfiguration().getValue("dosbox", "machine")).toLowerCase();
+		if (machine.startsWith("pc98") || machine.startsWith("pc9801") || machine.startsWith("pc9821"))
+			return;
+		profile_.setValue("dosbox", "machine", "pc98");
+		updateControlsByConfigurable(profile_);
 	}
 
 	private boolean validDosFilename(Text text) {

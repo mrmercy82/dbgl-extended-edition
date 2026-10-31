@@ -51,6 +51,7 @@ import org.dbgl.util.fat.FatFileSystem;
 import org.dbgl.util.fat.FatLfnDirectory;
 import org.dbgl.util.fat.FatLfnDirectoryEntry;
 import org.dbgl.util.fat.FileDisk;
+import org.dbgl.util.fat.Pc98HdiImage;
 import org.dbgl.util.iso.ISO9660FileEntry;
 import org.dbgl.util.iso.ISO9660FileSystem;
 
@@ -61,7 +62,7 @@ public class FilesUtils {
 	private static final String[] EXECUTABLES = {".exe", ".com", ".bat"};
 	private static final String[] EXECUTABLES_UPPERCASE = {"EXE", "COM", "BAT"};
 	private static final String[] ARCHIVES = {".zip", ".7z"};
-	private static final String[] FATIMAGES = {".ima", ".img"};
+	private static final String[] FATIMAGES = {".ima", ".img", ".hdi"}; // .hdi: PC-98 hard disk images
 	private static final String[] BOOTERIMAGES = {".cp2", ".dcf", ".img", ".jrc", ".td0", ".fdd", ".fdi", ".d88", ".hdi", ".hdm"};
 	private static final String[] PICTURES = {".png", ".gif", ".jpg", ".tif", ".tiff", ".ico", ".bmp"};
 
@@ -176,6 +177,11 @@ public class FilesUtils {
 		return Stream.of(FATIMAGES).anyMatch(x -> filename.toLowerCase().endsWith(x));
 	}
 
+	/** PC-98 hard disk image, see {@link Pc98HdiImage} */
+	public static boolean isPc98HdImage(String filename) {
+		return filename.toLowerCase().endsWith(".hdi");
+	}
+
 	public static boolean isBooterImage(String filename) {
 		return Stream.of(BOOTERIMAGES).anyMatch(x -> filename.toLowerCase().endsWith(x));
 	}
@@ -259,7 +265,7 @@ public class FilesUtils {
 				}
 			}
 		} else if (isFatImage(archive)) {
-			BlockDevice device = new FileDisk(new File(archive));
+			BlockDevice device = isPc98HdImage(archive) ? Pc98HdiImage.open(new File(archive)): new FileDisk(new File(archive));
 			result.addAll(listFatExecutables(new FatFileSystem(device).getRoot(), StringUtils.EMPTY));
 			device.close();
 		}

@@ -75,7 +75,7 @@ public abstract class BootSector extends Sector {
 
 		long offset = 0;
 
-		if (device.getSize() > (2880 * 1024)) {
+		if (!device.isPartition() && (device.getSize() > (2880 * 1024))) {
 			offset = 63L * SIZE;
 			device.read(0, bb);
 			if ((bb.get(510) & 0xff) != 0x55 || (bb.get(511) & 0xff) != 0xaa)
@@ -101,7 +101,10 @@ public abstract class BootSector extends Sector {
 			throw new IOException("suspicious sectors per cluster count " + sectorsPerCluster);
 
 		int rootDirEntries = bb.getShort(Fat16BootSector.ROOT_DIR_ENTRIES_OFFSET);
-		int rootDirSectors = ((rootDirEntries * 32) + (device.getSectorSize() - 1)) / device.getSectorSize();
+		int bytesPerSector = bb.getShort(0x0b) & 0xffff; // PC-98 hard disks often use 1024 bytes per (logical) sector
+		if (bytesPerSector <= 0)
+			bytesPerSector = device.getSectorSize();
+		int rootDirSectors = ((rootDirEntries * 32) + (bytesPerSector - 1)) / bytesPerSector;
 
 		int total16 = bb.getShort(TOTAL_SECTORS_16_OFFSET) & 0xffff;
 		long total32 = bb.getInt(TOTAL_SECTORS_32_OFFSET) & 0xffffffffl;

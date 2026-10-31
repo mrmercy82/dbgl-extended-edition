@@ -836,7 +836,14 @@ public class Autoexec {
 				result.append("loadfix -").append(loadfixValue_ > 0 ? loadfixValue_: DEFAULT_LOADFIX_VALUE).append(SystemUtils.EOLN);
 			}
 			insertCustomSection(result, 1);
-			if (!prepareOnly) {
+			Mount hdiMount = FilesUtils.isPc98HdImage(img_[0])
+					? mountingpoints_.stream().filter(x -> (x instanceof ImageMount im) && im.matchesImgPath(img_[0]) && (x.getDrive() >= '0') && (x.getDrive() <= '3')).findFirst().orElse(null)
+					: null;
+			if (!prepareOnly && (hdiMount != null)) {
+				// self-booting PC-98 hard disk image, attached by number (imgmount 2 = C:, 3 = D:)
+				result.append("boot -l ").append((char)(hdiMount.getDrive() + 17)).append(SystemUtils.EOLN);
+				insertCustomSection(result, 2);
+			} else if (!prepareOnly) {
 				result.append("boot");
 
 				if (img_[0].equals("file")) { // booter template

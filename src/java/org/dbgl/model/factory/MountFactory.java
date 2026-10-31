@@ -182,14 +182,19 @@ public class MountFactory {
 	}
 
 	public static Mount create(boolean booter, String hostFile, Set<Character> usedDriveLetters) throws DrivelettersExhaustedException, InvalidMountstringException {
+		if (booter && FilesUtils.isPc98HdImage(hostFile)) // self-booting PC-98 hard disk image: attach as first hard disk, 'boot -l c'
+			return create("imgmount 2 \"" + hostFile + "\" -t hdd");
 		char driveLetter = DriveLetterHelper.getFirstAvailable(booter, usedDriveLetters);
 		if (FilesUtils.physFsIndex(hostFile) != -1) {
 			return create("mount " + driveLetter + " \"" + hostFile.substring(0, FilesUtils.physFsIndex(hostFile)) + ":\\\"");
 		} else if (FilesUtils.cdImageIndex(hostFile) != -1) {
 			return create("imgmount " + driveLetter + " \"" + hostFile.substring(0, FilesUtils.cdImageIndex(hostFile)) + "\" -t cdrom");
 		} else if (FilesUtils.fatImageIndex(hostFile) != -1) {
+			String image = hostFile.substring(0, FilesUtils.fatImageIndex(hostFile));
+			if (FilesUtils.isPc98HdImage(image)) // PC-98 hard disk image (DOSBox-X with machine=pc98 reads the geometry from the header)
+				return create("imgmount " + driveLetter + " \"" + image + "\" -t hdd");
 			driveLetter = DriveLetterHelper.getFirstAvailable(true, usedDriveLetters);
-			return create("imgmount " + driveLetter + " \"" + hostFile.substring(0, FilesUtils.fatImageIndex(hostFile)) + "\" -t floppy");
+			return create("imgmount " + driveLetter + " \"" + image + "\" -t floppy");
 		} else {
 			File file = new FileLocation(hostFile, FileLocationService.getInstance().dosrootRelative()).getFile();
 			File dir = file.getParentFile();

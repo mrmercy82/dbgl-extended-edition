@@ -207,6 +207,8 @@ public final class Button_ {
 							} else if ((builder.browseCanonicalType_ == CanonicalType.CDIMAGE) && (combo != null) && (filenames != null)) {
 								if (FilesUtils.isCdImageFile(filenames[0])) {
 									combo.setText("iso");
+								} else if (FilesUtils.isPc98HdImage(filenames[0])) {
+									combo.setText("hdd");
 								} else if (FilesUtils.isFatImage(filenames[0])) {
 									combo.setText("floppy");
 								}
