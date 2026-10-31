@@ -25,6 +25,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 import org.dbgl.gui.controls.DarkTheme;
 import org.dbgl.gui.controls.Mess_;
@@ -156,11 +157,47 @@ public class DosboxStatusWindow {
 			appendLine(commandLine_, infoColor_);
 		appendLine("", null);
 
-		shell_.setSize(800, 440);
+		restoreBounds();
+		shell_.addListener(SWT.Move, e -> rememberBounds());
+		shell_.addListener(SWT.Resize, e -> rememberBounds());
+		shell_.open(); // in front of DBGL; the DOSBox window appears on top of it moments later
+		if (SettingsService.getInstance().getBooleanValue("gui", "statuswindow_maximized"))
+			shell_.setMaximized(true);
+	}
+
+	/** use the position and size of the last status window, if that is still on one of the screens, else center it */
+	private void restoreBounds() {
+		SettingsService settings = SettingsService.getInstance();
+		int width = Math.max(300, settings.getIntValue("gui", "statuswindow_width"));
+		int height = Math.max(150, settings.getIntValue("gui", "statuswindow_height"));
+		shell_.setSize(width, height);
+		if (settings.hasValue("gui", "statuswindow_x") && settings.hasValue("gui", "statuswindow_y")) {
+			Rectangle saved = new Rectangle(settings.getIntValue("gui", "statuswindow_x"), settings.getIntValue("gui", "statuswindow_y"), width, height);
+			// at least the title bar area must be visible on a screen, the monitor setup may have changed
+			Rectangle titleBar = new Rectangle(saved.x + 40, saved.y, Math.max(1, saved.width - 80), 20);
+			if (Stream.of(display_.getMonitors()).anyMatch(m -> m.getClientArea().intersects(titleBar))) {
+				shell_.setLocation(saved.x, saved.y);
+				return;
+			}
+		}
 		Rectangle area = display_.getPrimaryMonitor().getClientArea();
 		Point size = shell_.getSize();
 		shell_.setLocation(area.x + Math.max(0, (area.width - size.x) / 2), area.y + Math.max(0, (area.height - size.y) / 3));
-		shell_.open(); // in front of DBGL; the DOSBox window appears on top of it moments later
+	}
+
+	private void rememberBounds() {
+		if (shell_.isDisposed() || shell_.getMinimized())
+			return;
+		SettingsService settings = SettingsService.getInstance();
+		boolean maximized = shell_.getMaximized();
+		settings.setBooleanValue("gui", "statuswindow_maximized", maximized);
+		if (maximized)
+			return;
+		Rectangle r = shell_.getBounds();
+		settings.setIntValue("gui", "statuswindow_x", r.x);
+		settings.setIntValue("gui", "statuswindow_y", r.y);
+		settings.setIntValue("gui", "statuswindow_width", r.width);
+		settings.setIntValue("gui", "statuswindow_height", r.height);
 	}
 
 	private void appendLine(String line, Color color) {

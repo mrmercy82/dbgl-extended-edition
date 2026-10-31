@@ -370,6 +370,9 @@ public class SettingsService {
 		settings_.setValue("dosbox", "hideconsole", false);
 		settings_.setValue("gui", "hideunsupportedsettings", true);
 		settings_.setValue("gui", "statuswindowkeepopen", false);
+		settings_.setValue("gui", "statuswindow_width", "800");
+		settings_.setValue("gui", "statuswindow_height", "440");
+		settings_.setValue("gui", "statuswindow_maximized", false);
 
 		settings_.setValue("communication", "port_enabled", SystemUtils.IS_WINDOWS);
 		settings_.setValue("communication", "port", "4740");
