@@ -114,6 +114,11 @@ public class EditTemplateDialog extends EditConfigurableDialog<Template> {
 	}
 
 	@Override
+	protected TemplateProfileBase currentConfigurable() {
+		return template_;
+	}
+
+	@Override
 	protected void onShellCreated() {
 		TreeItem infoItem = addPageGenerator("dialog.template.tab.info", this::createInfoPage);
 		addPageGenerator("dialog.template.tab.mounting", this::createMountingPage);

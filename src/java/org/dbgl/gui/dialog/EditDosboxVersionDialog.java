@@ -285,8 +285,44 @@ public class EditDosboxVersionDialog extends SizeControlledTabbedDialog<DosboxVe
 			} else {
 				checkStagingVersionMatchesConf(configFile, family, version);
 			}
+			if (exeAvailable)
+				maybeRecreateReducedDosboxXConf(family, version, path, exe, conf);
 		}
 		return mess.valid();
+	}
+
+	private static final Pattern CONF_SETTING_PATRN = Pattern.compile("^\\s*[^#\\[\\s][^=]*=");
+	private static final int MIN_DOSBOX_X_SETTINGS = 600; // a complete DOSBox-X configuration has 800 and more
+
+	/**
+	 * Without -all, DOSBox-X writes only its common settings into the configuration file (about 450 of 900), and DBGL can only
+	 * offer what is in there. Older DBGL versions created the file like that for DOSBox-X 2024.10.01 and newer.
+	 */
+	private void maybeRecreateReducedDosboxXConf(Combo family, Combo version, Text path, Text exe, Text conf) {
+		if (!Strings.CI.equals(family.getText(), SettingsService.DOSBOX_X_DOSBOX_FAM.title_))
+			return;
+		DosboxVersion dbversion = DosboxVersionFactory.create(StringUtils.EMPTY, family.getText(), version.getText(), false, false, false, null, path.getText(), exe.getText(), StringUtils.EMPTY, conf.getText());
+		File configFile = dbversion.getConfigurationCanonicalFile();
+		if (!FilesUtils.isReadableFile(configFile))
+			return;
+		long settings;
+		try (java.util.stream.Stream<String> lines = java.nio.file.Files.lines(configFile.toPath(), java.nio.charset.StandardCharsets.ISO_8859_1)) {
+			settings = lines.filter(l -> CONF_SETTING_PATRN.matcher(l).find()).count();
+		} catch (IOException | java.io.UncheckedIOException e) {
+			return;
+		}
+		if ((settings >= MIN_DOSBOX_X_SETTINGS) || !Mess_.on(shell_).key("dialog.dosboxversion.confirm.recreatedosboxxconf", new Object[] {configFile, settings}).confirm())
+			return;
+		File backup = new File(configFile.getPath() + ".bak");
+		try {
+			java.nio.file.Files.copy(configFile.toPath(), backup.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+			java.nio.file.Files.delete(configFile.toPath());
+			ExecuteUtils.doCreateDosboxConf(dbversion);
+			if (!FilesUtils.isReadableFile(configFile))
+				java.nio.file.Files.copy(backup.toPath(), configFile.toPath()); // DOSBox-X did not write it, keep the old one
+		} catch (IOException e) {
+			Mess_.on(shell_).exception(e).warning();
+		}
 	}
 
 	private DosboxVersionDetector.Result detectVersion(Combo family, Combo version, Text path, Text exe, Text conf) {

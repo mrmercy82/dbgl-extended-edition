@@ -308,6 +308,16 @@ public class Chain {
 		builder_ = builder;
 	}
 
+	/** @return the DOSBox settings this chain edits, as "section/item" in lower case */
+	public Set<String> boundSettings() {
+		Set<String> result = new LinkedHashSet<>();
+		for (String s: new String[] {builder_.section_, builder_.sectionNew_})
+			for (String i: new String[] {builder_.item_, builder_.itemNew_})
+				if (StringUtils.isNotBlank(s) && StringUtils.isNotBlank(i))
+					result.add(s.toLowerCase() + '/' + i.toLowerCase());
+		return result;
+	}
+
 	public static Builder on(Composite composite) {
 		return new Builder(composite);
 	}

@@ -148,6 +148,16 @@ public class EditMultiProfileDialog extends EditProfileDialog<List<Profile>> {
 	}
 
 	@Override
+	protected TemplateProfileBase currentConfigurable() {
+		return profile_;
+	}
+
+	@Override
+	protected boolean supportsMoreSettingsPage() {
+		return false; // the values of several profiles can differ, the dedicated fields handle that
+	}
+
+	@Override
 	protected void onShellCreated() {
 		TreeItem infoItem = addPageGenerator("dialog.template.tab.info", this::createInfoPage);
 		addPageGenerator(infoItem, "dialog.profile.tab.custominfo", this::createCustomInfoPage);

@@ -21,7 +21,9 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Stream;
 import org.apache.commons.lang3.StringUtils;
 import org.dbgl.exception.DrivelettersExhaustedException;
@@ -41,6 +43,7 @@ import org.dbgl.gui.interfaces.DaControlConvertor;
 import org.dbgl.model.NativeCommand;
 import org.dbgl.model.aggregate.DosboxVersion;
 import org.dbgl.model.conf.Autoexec;
+import org.dbgl.model.conf.ConfValueOptions;
 import org.dbgl.model.conf.Configuration;
 import org.dbgl.model.entity.GenerationAwareConfigurable;
 import org.dbgl.model.entity.TemplateProfileBase;
@@ -48,6 +51,7 @@ import org.dbgl.model.helper.DriveLetterHelper;
 import org.dbgl.model.repository.BaseRepository;
 import org.dbgl.model.repository.DosboxVersionRepository;
 import org.dbgl.service.SettingsService;
+import org.dbgl.service.TextService;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.MouseAdapter;
 import org.eclipse.swt.events.MouseEvent;
@@ -58,7 +62,9 @@ import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Combo;
 import org.eclipse.swt.widgets.Composite;
+import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Group;
+import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Text;
 import org.eclipse.swt.widgets.TreeItem;
@@ -85,6 +91,21 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 
 	private Button switchButton_, ipx_;
 	private Text ipxNet_;
+
+	/** a setting on the 'more settings' page, which shows all settings of the DOSBox version without a field of their own */
+	private record GenericSetting(String section, String item, Control control, Label label, String initialValue) {
+		String value() {
+			return control instanceof Combo c ? c.getText().strip(): ((Text)control).getText().strip();
+		}
+	}
+
+	private static final String MORE_SETTINGS_PAGE = "dialog.template.tab.moresettings";
+	// managed by DBGL itself (the captures folder of each profile)
+	private static final Set<String> DBGL_MANAGED_SETTINGS = Set.of("dosbox/captures", "capture/capture_dir");
+	private Composite moreSettingsContent_;
+	private Text moreSettingsFilter_;
+	private DosboxVersion moreSettingsBuiltFor_;
+	private final List<GenericSetting> genericSettings_ = new ArrayList<>();
 	protected org.eclipse.swt.widgets.List nativeCommandsList_;
 
 	protected EditConfigurableDialog(Shell parent, String dialogName) {
@@ -144,6 +165,203 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		addPageGenerator(networkTreeItem, "dialog.template.tab.ipx", this::createIpxPage);
 		addPageGenerator(networkTreeItem, "dialog.template.tab.modem", this::createModemPage);
 		addPageGenerator(networkTreeItem, "dialog.template.tab.ne2000", this::createNe2000Page);
+		if (supportsMoreSettingsPage())
+			addPageGenerator(dosboxItem, MORE_SETTINGS_PAGE, this::createMoreSettingsPage); // last, so it knows all other fields
+	}
+
+	/** the 'more settings' page edits one profile or template at a time */
+	protected boolean supportsMoreSettingsPage() {
+		return true;
+	}
+
+	protected Composite createMoreSettingsPage(TemplateProfileBase configurable, Composite parent) {
+		Composite composite = createPage("dialog.template.tab.dosbox", MORE_SETTINGS_PAGE, parent, 1);
+		Label info = new Label(composite, SWT.WRAP);
+		info.setText(TextService.getInstance().get("dialog.template.moresettings.info"));
+		GridData infoData = new GridData(SWT.FILL, SWT.BEGINNING, true, false);
+		infoData.widthHint = 500;
+		info.setLayoutData(infoData);
+		moreSettingsFilter_ = new Text(composite, SWT.SEARCH | SWT.ICON_SEARCH | SWT.ICON_CANCEL);
+		moreSettingsFilter_.setMessage(TextService.getInstance().get("dialog.template.moresettings.filter"));
+		moreSettingsFilter_.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+		moreSettingsFilter_.addListener(SWT.Modify, e -> {
+			applyMoreSettingsFilter();
+			relayoutVisiblePage();
+		});
+		moreSettingsContent_ = new Composite(composite, SWT.NONE);
+		GridLayout layout = new GridLayout(1, false);
+		layout.marginWidth = layout.marginHeight = 0;
+		moreSettingsContent_.setLayout(layout);
+		moreSettingsContent_.setLayoutData(new GridData(SWT.FILL, SWT.BEGINNING, true, false));
+		moreSettingsBuiltFor_ = null;
+		return composite;
+	}
+
+	/**
+	 * (Re)build the 'more settings' page for the DOSBox version of the configurable, or only set the values if it was built
+	 * for that version already. All other pages must exist, they decide which settings have a field of their own.
+	 */
+	protected void fillMoreSettings(TemplateProfileBase configurable) {
+		if ((moreSettingsContent_ == null) || moreSettingsContent_.isDisposed())
+			return;
+		DosboxVersion dbversion = configurable.getDosboxVersion();
+		if (dbversion == null)
+			return;
+		if (dbversion != moreSettingsBuiltFor_) {
+			Set<String> bound = new HashSet<>(DBGL_MANAGED_SETTINGS);
+			metaControls_.forEach(x -> bound.addAll(x.boundSettings()));
+			Stream.of(moreSettingsContent_.getChildren()).forEach(Control::dispose);
+			genericSettings_.clear();
+
+			Configuration dosboxConf = dbversion.getConfiguration();
+			ConfValueOptions documented = dbversion.getConfValueOptions();
+			String defaultText = TextService.getInstance().get("dialog.template.moresettings.default");
+			for (String section: dosboxConf.getSectionNames()) {
+				if (section.equalsIgnoreCase("autoexec"))
+					continue;
+				List<String> items = Stream.of(dosboxConf.getItemNames(section)).filter(i -> !bound.contains(section.toLowerCase() + '/' + i.toLowerCase())).toList();
+				if (items.isEmpty())
+					continue;
+				Group group = new Group(moreSettingsContent_, SWT.NONE);
+				group.setText("[" + section + "]");
+				group.setLayout(new GridLayout(2, false));
+				group.setLayoutData(new GridData(SWT.FILL, SWT.BEGINNING, true, false));
+				for (String item: items) {
+					String defaultValue = dosboxConf.getValue(section, item);
+					String help = documented.getHelp(section, item);
+					String tooltip = (help != null ? help + "\n\n": "") + "[" + section + "] " + item + "\n" + defaultText + ": " + (StringUtils.isEmpty(defaultValue) ? "-": defaultValue);
+					Label label = new Label(group, SWT.NONE);
+					label.setText(item);
+					label.setToolTipText(tooltip);
+					label.setLayoutData(new GridData(SWT.BEGINNING, SWT.CENTER, false, false));
+					ConfValueOptions.Options options = documented.get(section, item);
+					List<String> booleans = booleanValues(defaultValue);
+					Control control;
+					if ((options != null) || (booleans != null)) {
+						boolean readOnly = (options == null) || !options.isFreeForm();
+						List<String> values = options != null ? options.getValues(): booleans;
+						Combo combo = new Combo(group, readOnly ? SWT.DROP_DOWN | SWT.READ_ONLY: SWT.DROP_DOWN);
+						combo.add(""); // empty: DOSBox default
+						values.forEach(combo::add);
+						combo.setVisibleItemCount(Math.min(20, values.size() + 1));
+						control = combo;
+					} else {
+						Text text = new Text(group, SWT.BORDER);
+						text.setMessage(defaultText + ": " + StringUtils.defaultString(defaultValue));
+						control = text;
+					}
+					control.setToolTipText(tooltip);
+					GridData gd = new GridData(SWT.FILL, SWT.CENTER, true, false);
+					gd.widthHint = 220;
+					control.setLayoutData(gd);
+					genericSettings_.add(new GenericSetting(section, item, control, label, null));
+				}
+			}
+			moreSettingsBuiltFor_ = dbversion;
+		}
+
+		// values: what the profile/template sets itself, empty means the DOSBox default
+		for (int i = 0; i < genericSettings_.size(); i++) {
+			GenericSetting g = genericSettings_.get(i);
+			String value = StringUtils.defaultString(configurable.getConfiguration().getValue(g.section(), g.item()));
+			if (g.control() instanceof Combo combo) {
+				if (combo.indexOf(value) == -1)
+					combo.add(value); // e.g. a value from an older DOSBox version
+				if ((combo.getStyle() & SWT.READ_ONLY) != 0)
+					combo.select(combo.indexOf(value));
+				else
+					combo.setText(value);
+			} else {
+				((Text)g.control()).setText(value);
+			}
+			genericSettings_.set(i, new GenericSetting(g.section(), g.item(), g.control(), g.label(), value));
+		}
+		applyMoreSettingsFilter();
+		relayoutVisiblePage();
+	}
+
+	/** DOSBox documents no values for most switches, offer the two values in the notation of the default */
+	private static List<String> booleanValues(String defaultValue) {
+		if (defaultValue == null)
+			return null;
+		switch (defaultValue.strip().toLowerCase()) {
+			case "true", "false": return List.of("true", "false");
+			case "on", "off": return List.of("on", "off");
+			case "yes", "no": return List.of("yes", "no");
+			default: return null;
+		}
+	}
+
+	/** settings of the DOSBox version without a field of their own; cheap, used to decide if the page has content */
+	private boolean hasUnboundSettings(TemplateProfileBase configurable) {
+		DosboxVersion dbversion = configurable.getDosboxVersion();
+		if (dbversion == null)
+			return false;
+		Set<String> bound = new HashSet<>(DBGL_MANAGED_SETTINGS);
+		metaControls_.forEach(x -> bound.addAll(x.boundSettings()));
+		Configuration dosboxConf = dbversion.getConfiguration();
+		return Stream.of(dosboxConf.getSectionNames()).filter(s -> !s.equalsIgnoreCase("autoexec"))
+				.anyMatch(s -> Stream.of(dosboxConf.getItemNames(s)).anyMatch(i -> !bound.contains(s.toLowerCase() + '/' + i.toLowerCase())));
+	}
+
+	private void applyMoreSettingsFilter() {
+		if ((moreSettingsFilter_ == null) || moreSettingsFilter_.isDisposed())
+			return;
+		String filter = moreSettingsFilter_.getText().strip().toLowerCase();
+		for (Control c: moreSettingsContent_.getChildren()) {
+			Group group = (Group)c;
+			boolean sectionMatches = group.getText().toLowerCase().contains(filter);
+			boolean anyVisible = false;
+			for (GenericSetting g: genericSettings_) {
+				if (g.label().getParent() != group)
+					continue;
+				boolean show = filter.isEmpty() || sectionMatches || g.item().toLowerCase().contains(filter)
+						|| StringUtils.containsIgnoreCase(g.label().getToolTipText(), filter);
+				for (Control x: new Control[] {g.label(), g.control()}) {
+					x.setVisible(show);
+					((GridData)x.getLayoutData()).exclude = !show;
+				}
+				anyVisible |= show;
+			}
+			group.setVisible(anyVisible);
+			((GridData)group.getLayoutData()).exclude = !anyVisible;
+			group.layout(true);
+		}
+		moreSettingsContent_.layout(true);
+	}
+
+	/** write the changed values of the 'more settings' page into the profile/template */
+	protected void updateConfigurableByMoreSettings(TemplateProfileBase configurable) {
+		for (GenericSetting g: genericSettings_) {
+			if (g.control().isDisposed())
+				continue;
+			String value = g.value();
+			if (value.equals(StringUtils.defaultString(g.initialValue())))
+				continue; // unchanged
+			if (value.isEmpty())
+				configurable.getConfiguration().removeValueIfSet(g.section(), g.item());
+			else
+				configurable.setValue(g.section(), g.item(), value);
+		}
+	}
+
+	@Override
+	protected void updatePageTree(TemplateProfileBase configurable, boolean hideEmptyPages) {
+		if (hideEmptyPages) {
+			computeAllPages(configurable);
+			// the settings themselves are only created when the page is shown, which takes a moment for DOSBox-X;
+			// without any, hide the description and filter too, so the page counts as empty
+			if ((moreSettingsContent_ != null) && !moreSettingsContent_.isDisposed()) {
+				boolean any = hasUnboundSettings(configurable);
+				for (Control c: moreSettingsContent_.getParent().getChildren()) {
+					if ((c.getData("dbgl.pageheader") == null) && (c != moreSettingsContent_)) {
+						c.setVisible(any);
+						((GridData)c.getLayoutData()).exclude = !any;
+					}
+				}
+			}
+		}
+		super.updatePageTree(configurable, hideEmptyPages);
 	}
 
 	protected void updateControlsByConfigurable(TemplateProfileBase configurable) {
@@ -168,6 +386,8 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		// set control values
 		metaControls_.forEach(x -> x.setControlByConfigurable(configurable, combinedConf));
 		nativeCommandControl_.setControlByConfigurable(configurable, combinedConf);
+		if (moreSettingsBuiltFor_ != null)
+			fillMoreSettings(configurable); // only once the page was shown
 
 		setButton_.setEnabled(false);
 		switchButton_.setEnabled(false);
@@ -181,13 +401,25 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 
 	@Override
 	protected void onPageShown(Composite page) {
+		if ((moreSettingsContent_ != null) && !moreSettingsContent_.isDisposed() && (moreSettingsContent_.getParent() == page) && (moreSettingsBuiltFor_ != currentConfigurable().getDosboxVersion())) {
+			display_.asyncExec(() -> { // all other pages must exist first, which can't be done while this page is being created
+				if (!moreSettingsContent_.isDisposed() && (moreSettingsBuiltFor_ != currentConfigurable().getDosboxVersion())) {
+					computeAllPages(currentConfigurable());
+					fillMoreSettings(currentConfigurable());
+				}
+			});
+		}
 		GridCompactor.compact(page);
 	}
+
+	/** the profile or template being edited */
+	protected abstract TemplateProfileBase currentConfigurable();
 
 	protected void updateConfigurableByControls(TemplateProfileBase configurable) {
 		Configuration combinedConf = configurable.getCombinedConfiguration();
 		metaControls_.forEach(x -> x.updateConfigurableByControl(configurable, combinedConf));
 		nativeCommandControl_.updateConfigurableByControl(configurable, combinedConf);
+		updateConfigurableByMoreSettings(configurable);
 
 		configurable.setBooter(booterRadio_.getSelection());
 	}

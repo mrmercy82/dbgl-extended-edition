@@ -152,7 +152,8 @@ public class ExecuteUtils {
 					? new String[] {"-noprimaryconf", "-c", "config -writeconf " + quote + dbversion.getConfigurationCanonicalFile() + quote, "-c", "exit"}
 					: new String[] {"-noprimaryconf", "-c", "config -writeconf " + quote + dbversion.getConfigurationCanonicalFile() + quote, "-c", "exit", "exit.exe"};
 			case x_08220 -> new String[] {"-c", "config -all -writeconf " + quote + dbversion.getConfigurationCanonicalFile() + quote, "-c", "exit"};
-			case x_20240301 -> new String[] {"-nopromptfolder", "-c", "config -writeconf -all " + dbversion.getConfigurationCanonicalFile(), "-c", "exit"};
+			// -all: without it DOSBox-X only writes the common settings, and DBGL would not know the others
+			case x_20240301, x_20241001 -> new String[] {"-nopromptfolder", "-c", "config -writeconf -all " + dbversion.getConfigurationCanonicalFile(), "-c", "exit"};
 			default -> new String[] {"-c", "config -writeconf " + quote + dbversion.getConfigurationCanonicalFile() + quote, "-c", "exit"};
 		};
 

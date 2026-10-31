@@ -71,6 +71,9 @@ public class ConfValueOptions {
 	private static final Pattern TOKEN_PATRN = Pattern.compile("^[A-Za-z0-9_+\\-.]+$");
 
 	private final Map<String, Map<String, Options>> options_ = new HashMap<>();
+	private final Map<String, Map<String, String>> help_ = new HashMap<>();
+
+	private static final int MAX_HELP_LENGTH = 1500;
 
 	private ConfValueOptions() {
 	}
@@ -94,10 +97,20 @@ public class ConfValueOptions {
 		return options_.isEmpty();
 	}
 
+	/** @return the description DOSBox gives for the setting in its configuration file, or null */
+	public String getHelp(String section, String item) {
+		if ((section == null) || (item == null))
+			return null;
+		Map<String, String> s = help_.get(section.toLowerCase());
+		return s == null ? null: s.get(item.toLowerCase());
+	}
+
 	private void doParse(String[] lines) {
 		String section = null;
 		List<String> block = new ArrayList<>(); // comment lines since the last setting
 		Map<String, String> oldStyleValues = null; // name -> raw 'Possible values' text, within current section
+		Map<String, String> oldStyleHelp = new HashMap<>(); // name -> help text, within current section
+		boolean firstSetting = true;
 
 		for (String line: lines) {
 			String trimmed = line.trim();
@@ -106,6 +119,8 @@ public class ConfValueOptions {
 				section = sm.group(1).trim().toLowerCase();
 				block.clear();
 				oldStyleValues = null;
+				oldStyleHelp = new HashMap<>();
+				firstSetting = true;
 				continue;
 			}
 			if (section == null)
@@ -118,12 +133,16 @@ public class ConfValueOptions {
 			if (setm.find()) {
 				String item = setm.group(1).trim().toLowerCase();
 				if (oldStyleValues == null)
-					oldStyleValues = parseOldStyleHeader(block); // the old format documents all settings of a section in front of the first one
+					oldStyleValues = parseOldStyleHeader(block, oldStyleHelp); // the old format documents all settings of a section in front of the first one
 				Options o = parseNewStyle(block);
 				if ((o == null) && oldStyleValues.containsKey(item))
 					o = parseOldStyle(oldStyleValues.get(item));
 				if (o != null)
 					options_.computeIfAbsent(section, k -> new HashMap<>()).put(item, o);
+				String help = (firstSetting && oldStyleHelp.containsKey(item)) || block.isEmpty() ? oldStyleHelp.get(item): blockText(block);
+				if (StringUtils.isNotBlank(help))
+					help_.computeIfAbsent(section, k -> new HashMap<>()).put(item, StringUtils.abbreviate(help.strip(), MAX_HELP_LENGTH));
+				firstSetting = false;
 				block.clear();
 			}
 		}
@@ -134,7 +153,20 @@ public class ConfValueOptions {
 	 * same column. Lines of the help text that happen to look alike (e.g. "#      opengl:  OpenGL backend") have their colon
 	 * elsewhere and are ignored. "Possible values:" lines belong to the setting name above them.
 	 */
-	private static Map<String, String> parseOldStyleHeader(List<String> block) {
+	private static String stripComment(String line) {
+		String s = line.startsWith("#") ? line.substring(1): line;
+		return s.startsWith(" ") ? s.substring(1): s;
+	}
+
+	/** the comment block above a setting (new format) as plain text */
+	private static String blockText(List<String> block) {
+		StringBuilder sb = new StringBuilder();
+		for (String l: block)
+			sb.append(stripComment(l).stripTrailing()).append('\n');
+		return sb.toString().strip();
+	}
+
+	private static Map<String, String> parseOldStyleHeader(List<String> block, Map<String, String> help) {
 		Map<Integer, Integer> colonColumns = new HashMap<>();
 		for (String l: block) {
 			Matcher nm = OLD_NAME_PATRN.matcher(l);
@@ -148,14 +180,19 @@ public class ConfValueOptions {
 		String current = null;
 		for (String l: block) {
 			Matcher vm = OLD_VALUES_PATRN.matcher(l);
-			if (vm.matches()) {
-				if (current != null)
-					result.merge(current, vm.group(1), (a, b) -> a + ", " + b);
+			Matcher nm = OLD_NAME_PATRN.matcher(l);
+			if (!vm.matches() && nm.find() && (nm.end(1) == nameColumn)) {
+				current = nm.group(1).trim().toLowerCase();
+				help.put(current, l.substring(Math.min(l.length(), nm.end(1) + 1)).strip());
 				continue;
 			}
-			Matcher nm = OLD_NAME_PATRN.matcher(l);
-			if (nm.find() && (nm.end(1) == nameColumn))
-				current = nm.group(1).trim().toLowerCase();
+			if (current == null)
+				continue;
+			String text = l.substring(1).strip();
+			if (!text.isEmpty())
+				help.merge(current, text, (a, b) -> a + '\n' + b);
+			if (vm.matches())
+				result.merge(current, vm.group(1), (a, b) -> a + ", " + b);
 		}
 		return result;
 	}

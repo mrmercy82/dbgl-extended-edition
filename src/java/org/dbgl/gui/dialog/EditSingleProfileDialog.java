@@ -245,6 +245,11 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 	}
 
 	@Override
+	protected TemplateProfileBase currentConfigurable() {
+		return profile_;
+	}
+
+	@Override
 	protected void onShellCreated() {
 		TreeItem infoItem = addPageGenerator("dialog.template.tab.info", this::createInfoPage);
 		addPageGenerator(infoItem, "dialog.profile.tab.custominfo", this::createCustomInfoPage);
