@@ -32,6 +32,7 @@ import java.util.List;
 import org.dbgl.gui.dialog.SwitchDosboxVersionDialog;
 import org.dbgl.model.conf.ConfValueOptions;
 import org.dbgl.model.conf.Configuration;
+import org.dbgl.model.conf.DosboxShortNames;
 import org.dbgl.model.entity.GenerationAwareConfigurable;
 import org.dbgl.model.entity.GenerationAwareConfigurable.Generation;
 import org.dbgl.model.factory.DosboxVersionFactory;
@@ -178,6 +179,36 @@ public class Dbgl0102Tests {
 		assertEquals(Generation.x_20240301, gen(x, "2024.05.01"));
 		assertEquals(Generation.x_08220, gen(x, "2023.09.01"));
 		assertTrue(SettingsService.DOSBOX_X_DOSBOX_FAM.versions_.contains("2026.10.01"));
+	}
+
+	@Test
+	public void testDosboxShortNames() throws IOException {
+		assertTrue(DosboxShortNames.needsShortName("M&M 3"));
+		assertTrue(DosboxShortNames.needsShortName("MM 3.EXE"));
+		assertTrue(DosboxShortNames.needsShortName("LONGFILENAME.EXE"));
+		assertTrue(DosboxShortNames.needsShortName("GAME.EXE1"));
+		assertFalse(DosboxShortNames.needsShortName("M&M"));
+		assertFalse(DosboxShortNames.needsShortName("mm3.exe"));
+
+		File root = Files.createTempDirectory("dbgl short names").toFile();
+		try {
+			File game = new File(root, "M & M" + File.separator + "M&M 3");
+			assertTrue(game.mkdirs());
+			File exe = new File(game, "MM 3.EXE");
+			assertTrue(exe.createNewFile());
+			assertTrue(new File(game, "Setup Program.exe").createNewFile());
+
+			List<String> dos = DosboxShortNames.toDosPath(root, new File("M & M" + File.separator + "M&M 3" + File.separator + "MM 3.EXE"));
+			assertEquals(Arrays.asList("M&M~1", "M&M3~1", "MM3~1.EXE"), dos);
+			assertEquals("SETUPP~1.EXE", DosboxShortNames.toDosName(game, "Setup Program.exe"));
+			assertEquals("plain.exe", DosboxShortNames.toDosName(game, "plain.exe")); // valid 8.3 names stay as they are
+
+			// and back, as when reading an autoexec
+			assertEquals(exe.getCanonicalFile(), DosboxShortNames.toHostPath(root, "M&M~1\\m&m3~1\\MM3~1.EXE").getCanonicalFile());
+			assertEquals(exe.getCanonicalFile(), DosboxShortNames.toHostPath(root, "M & M/M&M 3/MM 3.EXE").getCanonicalFile());
+		} finally {
+			org.apache.commons.io.FileUtils.deleteDirectory(root);
+		}
 	}
 
 	@Test

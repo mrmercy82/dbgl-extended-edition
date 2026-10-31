@@ -57,6 +57,14 @@ public class Autoexec {
 					directory_ = dosboxDir.getParent() == null ? StringUtils.EMPTY: FilenameUtils.separatorsToWindows(dosboxDir.getParent());
 					file_ = hostFileLocation.getFile().getName();
 					minLengthMount = dosboxDir.getPath().length();
+					if (mount instanceof DirMount dirMount) {
+						// names with spaces or longer than 8.3 don't work in DOS commands, use the short names DOSBox gives them
+						List<String> dos = DosboxShortNames.toDosPath(dirMount.getCanonicalPath(), dosboxDir);
+						if (!dos.isEmpty()) {
+							directory_ = String.join("\\", dos.subList(0, dos.size() - 1));
+							file_ = dos.get(dos.size() - 1);
+						}
+					}
 				}
 			}
 		}
@@ -78,6 +86,7 @@ public class Autoexec {
 	private String main_, parameters_, img_[], imgDriveletter_, mixer_, keyb_, ipxnet_;
 	private Boolean loadfix_, loadhigh_, exit_, pause_, booterByDefault_;
 	private Integer loadfixValue_;
+	private boolean longNamesWithSpaces_; // read from an autoexec written by an older DBGL version, DOS can't use these names
 	private String[] customSections_;
 	private List<Mount> mountingpoints_;
 
@@ -398,6 +407,11 @@ public class Autoexec {
 			return true;
 	}
 
+	/** @return true if the autoexec that was read uses names with spaces, which don't work in DOS and must be rewritten */
+	public boolean hasLongNamesWithSpaces() {
+		return longNamesWithSpaces_;
+	}
+
 	public String getDosFilename(String location, List<Mount> combinedMountingpoints) {
 		return new DosPath(new FileLocation(location, FileLocationService.getInstance().dosrootRelative()), combinedMountingpoints).file_;
 	}
@@ -419,6 +433,8 @@ public class Autoexec {
 		char driveletter = '\0';
 		String directory = StringUtils.EMPTY;
 		String executable = StringUtils.EMPTY;
+		String executableWithSpaces = null;
+		longNamesWithSpaces_ = false;
 		String[] image = new String[BOOTER_IMAGES];
 		for (int i = 0; i < BOOTER_IMAGES; i++)
 			image[i] = StringUtils.EMPTY;
@@ -526,6 +542,11 @@ public class Autoexec {
 				// just ignore
 			} else if ((exeIndex = StringUtils.indexOfAny(line, FilesUtils.dosExecutables())) != -1) {
 				executable = orgLine;
+				// older DBGL versions wrote long names with spaces, e.g. "MM 3.EXE", keep the complete name as an alternative
+				String full = orgLine.substring(0, Math.min(orgLine.length(), exeIndex + 4)).trim();
+				if (full.toLowerCase().startsWith("call "))
+					full = full.substring(5).trim();
+				executableWithSpaces = full.indexOf(' ') != -1 ? full: null;
 
 				// D-Fend Reloaded special cases
 				if (executable.startsWith(DFR_4DOS_PREFIX))
@@ -621,8 +642,15 @@ public class Autoexec {
 		List<Mount> mountingpointsForExecutables = dbMounts != null ? Stream.concat(dbMounts.stream(), mountingpoints_.stream()).toList(): mountingpoints_;
 		for (Mount mount: mountingpointsForExecutables) {
 			if (mount instanceof DirMount) {
-				if (StringUtils.isNotBlank(executable) && mount.matchesDrive(driveletter))
+				if (StringUtils.isNotBlank(executable) && mount.matchesDrive(driveletter)) {
 					main_ = constructPath(((DirMount)mount).getPath(), directory, executable);
+					if (!new File(main_).exists() && (executableWithSpaces != null)) {
+						String alternative = constructPath(((DirMount)mount).getPath(), directory, executableWithSpaces);
+						if (new File(alternative).exists())
+							main_ = alternative;
+					}
+					longNamesWithSpaces_ = (executableWithSpaces != null) || directory.contains(" ");
+				}
 				for (int i = 0; i < BOOTER_IMAGES; i++) {
 					if (StringUtils.isNotBlank(image[i]) && mount.matchesDrive(driveletter))
 						img_[i] = constructPath(((DirMount)mount).getPath(), directory, image[i]);
@@ -661,6 +689,15 @@ public class Autoexec {
 		
 		String normalizedPath = Paths.get(mountDir.getPath(), dosPath, executable).normalize().toString();
 		FileLocation location = new FileLocation(normalizedPath, FileLocationService.getInstance().dosrootRelative());
+		if (!location.getFile().exists()) {
+			// the autoexec may use DOS short names like M&M3~1\MM3~1.EXE, find the host names
+			FileLocation mountLocation = new FileLocation(mountDir.getPath(), FileLocationService.getInstance().dosrootRelative());
+			File host = DosboxShortNames.toHostPath(mountLocation.getCanonicalFile(), dosPath + "\\" + executable);
+			if (host.exists()) {
+				File relative = FilesUtils.makeRelativeTo(mountLocation.getCanonicalFile(), host);
+				return new FileLocation(Paths.get(mountDir.getPath(), relative.getPath()).normalize().toString(), FileLocationService.getInstance().dosrootRelative()).getFile().getPath();
+			}
+		}
 		return location.getFile().getPath();
 	}
 
