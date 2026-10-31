@@ -685,6 +685,8 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 
 	private boolean validDosFilename(Text text) {
 		String filename = profile_.getDosFilename(text.getText());
+		if (filename == null)
+			return true; // not reached through a DOS drive, e.g. a hard disk image attached by number (imgmount 2) and booted with 'boot -l c'
 		if (!ShortFilenameUtils.valid(filename) && !Mess_.on(shell_).key("dialog.profile.confirm.filenameinvalid", filename).confirm())
 			return Mess_.on(null).txt(StringUtils.EMPTY).bind(text, getTreeItemByControl(text)).valid();
 		return true;
