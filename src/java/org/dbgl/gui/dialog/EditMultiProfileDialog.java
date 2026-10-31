@@ -220,9 +220,7 @@ public class EditMultiProfileDialog extends EditProfileDialog<List<Profile>> {
 
 	protected boolean isValid() {
 		Mess_.Builder mess = Mess_.on(shell_);
-		if (setButton_.isEnabled()) {
-			mess.key("dialog.template.required.dosboxassociation").bind(setButton_, getTreeItemByControl(setButton_));
-		}
+		applyPendingDosboxVersion(); // a newly selected DOSBox version is applied like 'Set' does, instead of asking
 		return mess.valid();
 	}
 }

@@ -452,7 +452,8 @@ public class Profile extends TemplateProfileBase {
 		if (template.getNativeCommands().size() != 1)
 			setNativeCommands(template.getNativeCommands());
 
-		return setToDosboxVersion(dstDosboxVersion);
+		// keep the own changes and the template's settings, everything else comes from the new DOSBox version
+		return switchToDosboxVersion(dstDosboxVersion);
 	}
 
 	/**
@@ -470,7 +471,7 @@ public class Profile extends TemplateProfileBase {
 		}
 		setNativeCommands(template.getNativeCommands());
 
-		return setToDosboxVersion(dstDosboxVersion);
+		return switchToDosboxVersion(dstDosboxVersion);
 	}
 
 	public void setBaseDir(File baseDir) {

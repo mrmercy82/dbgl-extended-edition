@@ -395,6 +395,15 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		ipxNet_.setEnabled(ipx_.getSelection());
 	}
 
+	/**
+	 * A DOSBox version was selected, but neither 'Set' nor 'Keep all' was clicked: do what 'Set' does, so the profile keeps
+	 * its own changes and takes everything else from the configuration of the selected DOSBox version.
+	 */
+	protected void applyPendingDosboxVersion() {
+		if (setButton_.isEnabled() && (dbversionCombo_.getSelectionIndex() != -1))
+			doPerformDosboxConfAction(DosboxConfAction.SWITCH, dbversionsList_.get(dbversionCombo_.getSelectionIndex()));
+	}
+
 	protected void updatePageTree(TemplateProfileBase configurable) {
 		updatePageTree(configurable, SettingsService.getInstance().getBooleanValue("gui", "hideunsupportedsettings"));
 	}
@@ -430,16 +439,18 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		Group associationGroup = Group_.on(composite).layoutData(new GridData(SWT.FILL, SWT.CENTER, true, false)).layout(new GridLayout(5, false)).key("dialog.template.association").build();
 		dbversionCombo_ = Chain.on(associationGroup).lbl(l -> l.key("dialog.template.dosboxversion")).cmb(
 			c -> c.wide().items(dbversionsList_.stream().map(DosboxVersion::getTitle).toArray(String[]::new)).select(dbversionIndex_).visibleItemCount(20)).combo();
+		// 'Set' keeps only the own changes, everything else comes from the configuration of the new DOSBox version (SWITCH);
+		// 'Keep all' also keeps the values that came from the defaults of the previous DOSBox version (SET)
 		setButton_ = Button_.on(associationGroup).text().key("dialog.template.set").tooltip("dialog.template.set.tooltip").listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
-				doPerformDosboxConfAction(DosboxConfAction.SET, dbversionsList_.get(dbversionCombo_.getSelectionIndex()));
+				doPerformDosboxConfAction(DosboxConfAction.SWITCH, dbversionsList_.get(dbversionCombo_.getSelectionIndex()));
 			}
 		}).enable(false).ctrl();
 		switchButton_ = Button_.on(associationGroup).text().key("dialog.template.switch").tooltip("dialog.template.switch.tooltip").listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
-				doPerformDosboxConfAction(DosboxConfAction.SWITCH, dbversionsList_.get(dbversionCombo_.getSelectionIndex()));
+				doPerformDosboxConfAction(DosboxConfAction.SET, dbversionsList_.get(dbversionCombo_.getSelectionIndex()));
 			}
 		}).enable(false).ctrl();
 		Button_.on(associationGroup).text().key("dialog.template.reloadsettings").tooltip("dialog.template.reloadsettings.tooltip").listen(new SelectionAdapter() {

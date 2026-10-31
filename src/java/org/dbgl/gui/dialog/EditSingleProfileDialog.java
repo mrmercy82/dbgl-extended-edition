@@ -649,9 +649,7 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 		if (requiredMount != null) {
 			mess.key("dialog.profile.required.mountlocation").bind(mountingpointsList_, getTreeItemByControl(mountingpointsList_));
 		}
-		if (setButton_.isEnabled()) {
-			mess.key("dialog.template.required.dosboxassociation").bind(setButton_, getTreeItemByControl(setButton_));
-		}
+		applyPendingDosboxVersion(); // a newly selected DOSBox version is applied like 'Set' does, instead of asking
 		validateMounts(profile_, mess);
 		return mess.valid();
 	}

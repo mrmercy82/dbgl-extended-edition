@@ -191,9 +191,7 @@ public class EditTemplateDialog extends EditConfigurableDialog<Template> {
 		if (StringUtils.isBlank(title_.getText())) {
 			mess.key("dialog.template.required.title").bind(title_, getTreeItemByControl(title_));
 		}
-		if (setButton_.isEnabled()) {
-			mess.key("dialog.template.required.dosboxassociation").bind(setButton_, getTreeItemByControl(setButton_));
-		}
+		applyPendingDosboxVersion(); // a newly selected DOSBox version is applied like 'Set' does, instead of asking
 		validateMounts(template_, mess);
 		return mess.valid();
 	}
