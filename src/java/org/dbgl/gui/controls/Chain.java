@@ -19,9 +19,12 @@ package org.dbgl.gui.controls;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -36,6 +39,7 @@ import org.dbgl.model.NativeCommand;
 import org.dbgl.model.aggregate.Profile;
 import org.dbgl.model.aggregate.Template;
 import org.dbgl.model.conf.Autoexec;
+import org.dbgl.model.conf.ConfValueOptions;
 import org.dbgl.model.conf.Configuration;
 import org.dbgl.model.conf.Settings;
 import org.dbgl.model.entity.GenerationAwareConfigurable;
@@ -110,6 +114,7 @@ public class Chain {
 		private int index_;
 
 		private String section_, sectionNew_, item_, itemNew_;
+		private String newItemLabelKey_, originalLabelText_;
 		private boolean isOnOff_;
 		private DaControlConvertor convertor_ = defaultConvertor;
 		private Function<TemplateProfileBase, DaControlConvertor> customInputConvertorGetter_;
@@ -187,6 +192,12 @@ public class Chain {
 		public Builder item(String itemOld, String itemNew) {
 			item_ = itemOld;
 			itemNew_ = itemNew;
+			return this;
+		}
+
+		/** label to show instead when the DOSBox version uses the new setting name (see item(itemOld, itemNew)) */
+		public Builder newItemLabel(String key) {
+			newItemLabelKey_ = key;
 			return this;
 		}
 
@@ -443,6 +454,24 @@ public class Chain {
 			builder_.controls_.forEach(x -> x.setEnabled(dosboxHasConfSetting));
 			builder_.labels_.get(0).setEnabled(dosboxHasConfSetting);
 			builder_.labels_.get(0).setToolTipText("[" + confSection(conf) +"]  " + confItem(conf));
+
+			// settings the selected DOSBox doesn't have are hidden instead of only disabled, unless the user prefers otherwise
+			boolean visible = dosboxHasConfSetting || !SettingsService.getInstance().getBooleanValue("gui", "hideunsupportedsettings");
+			builder_.controls_.forEach(x -> x.setVisible(visible));
+			builder_.buttons_.forEach(x -> x.setVisible(visible));
+			builder_.labels_.forEach(x -> x.setVisible(visible));
+
+			if (builder_.newItemLabelKey_ != null) {
+				Label label = builder_.labels_.get(0);
+				if (builder_.originalLabelText_ == null)
+					builder_.originalLabelText_ = label.getText();
+				boolean newName = StringUtils.isNotBlank(builder_.itemNew_) && builder_.itemNew_.equals(confItem(conf)) && !builder_.itemNew_.equals(builder_.item_);
+				String text = newName ? TextService.getInstance().get(builder_.newItemLabelKey_): builder_.originalLabelText_;
+				if (!label.getText().equals(text)) {
+					label.setText(text);
+					label.getParent().layout(true);
+				}
+			}
 		}
 	}
 
@@ -712,9 +741,37 @@ public class Chain {
 						System.err.println(toString() + ": control could not be populated by DOSBox Version dynamic values because it's missing [" + item + "]");
 					}
 				}
+				if (((map == null) || !map.containsKey(item)) && (builder_.controls_.size() == 1))
+					items = applyDocumentedValues(configurable, x, items);
 				x.setItems(items);
 			}
 		});
+	}
+
+	/**
+	 * Use the values DOSBox documents in its own configuration file (see ConfValueOptions). For a read-only combo with a
+	 * complete list, that list replaces DBGL's built-in one, so the options always match the installed DOSBox. Otherwise the
+	 * documented values are added to DBGL's suggestions.
+	 */
+	private String[] applyDocumentedValues(TemplateProfileBase configurable, Combo combo, String[] items) {
+		if (StringUtils.isBlank(builder_.section_))
+			return items;
+		Configuration dosboxConf = configurable.getDosboxVersion().getConfiguration();
+		String section = confSection(dosboxConf);
+		String item = confItem(dosboxConf);
+		ConfValueOptions.Options documented = configurable.getDosboxVersion().getConfValueOptions().get(section, item);
+		if (documented == null)
+			return items;
+		List<String> values = documented.getValues();
+		String dosboxDefault = StringUtils.trim(dosboxConf.getValue(section, item));
+		boolean readOnly = (combo.getStyle() & SWT.READ_ONLY) == SWT.READ_ONLY;
+		if (readOnly && !documented.isFreeForm() && (dosboxDefault != null) && values.stream().anyMatch(v -> v.equalsIgnoreCase(dosboxDefault)))
+			return values.toArray(new String[0]);
+		Set<String> union = new LinkedHashSet<>();
+		if (items != null)
+			union.addAll(Arrays.asList(items));
+		union.addAll(values);
+		return union.toArray(new String[0]);
 	}
 
 	private String confSection(Configuration conf) {

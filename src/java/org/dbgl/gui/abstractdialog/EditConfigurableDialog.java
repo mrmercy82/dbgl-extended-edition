@@ -28,6 +28,7 @@ import org.dbgl.exception.DrivelettersExhaustedException;
 import org.dbgl.gui.controls.BaseDaControlConvertor;
 import org.dbgl.gui.controls.Button_;
 import org.dbgl.gui.controls.Chain;
+import org.dbgl.gui.controls.GridCompactor;
 import org.dbgl.gui.controls.Composite_;
 import org.dbgl.gui.controls.Group_;
 import org.dbgl.gui.controls.Label_;
@@ -108,6 +109,7 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		addPageGenerator(dosboxItem, "dialog.template.tab.startup", this::createDosboxStartupPage);
 		addPageGenerator(dosboxItem, "dialog.template.tab.dosboxautoexec", this::createDosboxAutoexecPage);
 		TreeItem renderTreeItem = addPageGenerator(dosboxItem, "dialog.template.tab.rendering", this::createRenderingPage);
+		addPageGenerator(renderTreeItem, "dialog.template.tab.imageadjustments", this::createImageAdjustmentsPage);
 		addPageGenerator(renderTreeItem, "dialog.template.tab.ttf", this::createTtfPage);
 		TreeItem dosTreeItem = addPageGenerator(dosboxItem, "dialog.template.dos", this::createDosPage);
 		addPageGenerator(dosTreeItem, "dialog.template.tab.configsys", this::createConfigSysPage);
@@ -148,6 +150,7 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 
 		// enable or disable controls
 		metaControls_.forEach(x -> x.enableOrDisableControl(configurable));
+		relayoutVisiblePage();
 		// set combo values
 		metaControls_.forEach(x -> x.setComboValues(configurable));
 
@@ -164,6 +167,11 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		switchButton_.setEnabled(false);
 
 		ipxNet_.setEnabled(ipx_.getSelection());
+	}
+
+	@Override
+	protected void onPageShown(Composite page) {
+		GridCompactor.compact(page);
 	}
 
 	protected void updateConfigurableByControls(TemplateProfileBase configurable) {
@@ -333,10 +341,10 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 			metaControls_).init(configurable);
 		
 		Chain.on(composite).lbl(l -> l.key("dialog.template.windowresolution")).cmb(c -> c.editable().tooltip("dialog.template.windowresolution.tooltip").items("profile", configurable.windowresSectionItem()).dynItem(GenerationAwareConfigurable::windowresSectionItem))
-			.section("sdl").item("windowresolution", "window_size").build(metaControls_).init(configurable);
+			.section("sdl").item("windowresolution", "window_size").newItemLabel("dialog.template.windowsize").build(metaControls_).init(configurable);
 		Label_.on(composite).horSpan(2).grabHorSpace().build();
 		Chain.on(composite).lbl(l -> l.key("dialog.template.fullscreenresolution")).cmb(
-			c -> c.tooltip("dialog.template.fullscreenresolution.tooltip").items("profile", configurable.fullscreenmodeSectionItem()).dynItem(GenerationAwareConfigurable::fullscreenmodeSectionItem)).section("sdl").item("fullresolution", "fullscreen_mode").build(metaControls_).init(configurable);
+			c -> c.tooltip("dialog.template.fullscreenresolution.tooltip").items("profile", configurable.fullscreenmodeSectionItem()).dynItem(GenerationAwareConfigurable::fullscreenmodeSectionItem)).section("sdl").item("fullresolution", "fullscreen_mode").newItemLabel("dialog.template.fullscreenmode").build(metaControls_).init(configurable);
 			
 		Chain.on(composite).lbl(l -> l.key("dialog.template.scaler")).cmb(c -> c.tooltip("dialog.template.scaler.tooltip").items("profile", configurable.scalerSectionItem()).dynItem(GenerationAwareConfigurable::scalerSectionItem).visibleItemCount(15)).lbl(
 			l -> l.key("dialog.template.scalerforced")).but(b -> b.tooltip("dialog.template.scalerforced.tooltip")).section("render").item("scaler").convert(new BaseDaControlConvertor() {
@@ -401,7 +409,7 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		gd.verticalIndent = 20;
 		Group expRendering = Group_.on(composite).layoutData(gd).layout(new GridLayout(6, false)).key("dialog.template.tab.experimentaloptions").build();
 		Chain.on(expRendering).lbl(l -> l.key("dialog.template.glshader")).cmb(c -> c.horSpan(4).tooltip("dialog.template.glshader.tooltip").editable().wide().items(configurable.glshaderValues()).dynItems(GenerationAwareConfigurable::glshaderValues))
-			.but(b -> b.browse(true, Button_.BrowseType.FILE, Button_.CanonicalType.GLSHADER, false)).section("render").item("glshader", "shader").build(metaControls_).init(configurable);
+			.but(b -> b.browse(true, Button_.BrowseType.FILE, Button_.CanonicalType.GLSHADER, false)).section("render").item("glshader", "shader").newItemLabel("dialog.template.shader").build(metaControls_).init(configurable);
 		Chain.on(expRendering).lbl(l -> l.key("dialog.template.pixelshader")).txt(t -> t.horSpan(4).tooltip("dialog.template.pixelshader.tooltip"))
 			.but(b -> b.browse(true, Button_.BrowseType.FILE, Button_.CanonicalType.GLSHADER, false)).section("render").item("pixelshader").build(metaControls_).init(configurable);
 		
@@ -502,6 +510,48 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		return composite;
 	}
 	
+	protected Composite createImageAdjustmentsPage(TemplateProfileBase configurable, Composite parent) {
+		Composite composite = createPage("dialog.template.tab.rendering", "dialog.template.tab.imageadjustments", parent, 1);
+		Group expImg = Group_.on(composite).layoutData(new GridData(SWT.FILL, SWT.BEGINNING, true, false)).layout(new GridLayout(5, false)).key("dialog.template.tab.experimentaloptions").build();
+		Chain.on(expImg).lbl(l -> l.key("dialog.template.brightness")).spn(s -> s.min(0).max(100).tooltip("dialog.template.brightness.tooltip"))
+			.section("render").item("brightness").build(metaControls_).init(configurable);
+		Label_.on(expImg).grabHorSpace().build();
+		Chain.on(expImg).lbl(l -> l.key("dialog.template.contrast")).spn(s -> s.min(0).max(100).tooltip("dialog.template.contrast.tooltip"))
+			.section("render").item("contrast").build(metaControls_).init(configurable);
+
+		Chain.on(expImg).lbl(l -> l.key("dialog.template.gamma")).spn(s -> s.min(-50).max(50).tooltip("dialog.template.gamma.tooltip"))
+			.section("render").item("gamma").build(metaControls_).init(configurable);
+		Label_.on(expImg).grabHorSpace().build();
+		Chain.on(expImg).lbl(l -> l.key("dialog.template.saturation")).spn(s -> s.min(-50).max(50).tooltip("dialog.template.saturation.tooltip"))
+			.section("render").item("saturation").build(metaControls_).init(configurable);
+
+		Chain.on(expImg).lbl(l -> l.key("dialog.template.digitalcontrast")).spn(s -> s.min(-50).max(50).tooltip("dialog.template.digitalcontrast.tooltip"))
+			.section("render").item("digital_contrast").build(metaControls_).init(configurable);
+		Label_.on(expImg).grabHorSpace().build();
+		Chain.on(expImg).lbl(l -> l.key("dialog.template.blacklevel")).cmb(c -> c.editable().tooltip("dialog.template.blacklevel.tooltip").items("profile", "blacklevel_staging0830"))
+			.section("render").item("black_level").build(metaControls_).init(configurable);
+
+		Chain.on(expImg).lbl(l -> l.key("dialog.template.colortemperature")).cmb(c -> c.editable().tooltip("dialog.template.colortemperature.tooltip").items("profile", "colortemperature_staging0830"))
+			.section("render").item("color_temperature").build(metaControls_).init(configurable);
+		Label_.on(expImg).grabHorSpace().build();
+		Chain.on(expImg).lbl(l -> l.key("dialog.template.colortemperatureluma")).spn(s -> s.min(0).max(100).tooltip("dialog.template.colortemperatureluma.tooltip"))
+			.section("render").item("color_temperature_luma_preserve").build(metaControls_).init(configurable);
+
+		Chain.on(expImg).lbl(l -> l.key("dialog.template.redgain")).spn(s -> s.min(0).max(200).tooltip("dialog.template.redgain.tooltip"))
+			.section("render").item("red_gain").build(metaControls_).init(configurable);
+		Label_.on(expImg).grabHorSpace().build();
+		Chain.on(expImg).lbl(l -> l.key("dialog.template.greengain")).spn(s -> s.min(0).max(200).tooltip("dialog.template.greengain.tooltip"))
+			.section("render").item("green_gain").build(metaControls_).init(configurable);
+
+		Chain.on(expImg).lbl(l -> l.key("dialog.template.bluegain")).spn(s -> s.min(0).max(200).tooltip("dialog.template.bluegain.tooltip"))
+			.section("render").item("blue_gain").build(metaControls_).init(configurable);
+		Label_.on(expImg).grabHorSpace().build();
+		Chain.on(expImg).lbl(l -> l.key("dialog.template.colorspace")).cmb(c -> c.tooltip("dialog.template.colorspace.tooltip").items("profile", "colorspace_staging0830"))
+			.section("render").item("color_space").build(metaControls_).init(configurable);
+
+		return composite;
+	}
+
 	protected Composite createTtfPage(TemplateProfileBase configurable, Composite parent) {
 		Composite composite = createPage("dialog.template.tab.rendering", "dialog.template.tab.ttf", parent, 1);
 		Group expTtf = Group_.on(composite).layoutData(new GridData(SWT.FILL, SWT.BEGINNING, true, false)).layout(new GridLayout(5, false)).key("dialog.template.tab.experimentaloptions").build();
@@ -607,7 +657,7 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 			.section("dos").item("quick reboot").build(metaControls_).init(configurable);
 		Label_.on(expDos).grabHorSpace().build();
 		Chain.on(expDos).lbl(l -> l.key("dialog.template.share")).cmb(c -> c.tooltip("dialog.template.share.tooltip").items("profile", configurable.filelockingSectionItem()).dynItem(GenerationAwareConfigurable::filelockingSectionItem))
-			.section("dos").item("share", "file_locking").build(metaControls_).init(configurable);
+			.section("dos").item("share", "file_locking").newItemLabel("dialog.template.filelocking").build(metaControls_).init(configurable);
 		
 		Chain.on(expDos).lbl(l -> l.key("dialog.template.doslogconsole")).cmb(c -> c.tooltip("dialog.template.doslogconsole.tooltip").items("profile", "doslogconsole_x20240301"))
 			.section("dos").item("log console").build(metaControls_).init(configurable);
@@ -794,6 +844,8 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 			.section("cpu").item("apmbios").build(metaControls_).init(configurable);
 		Chain.on(expCpu).lbl(l -> l.key("dialog.template.isapnpbios")).but(b -> b.horSpan(3).tooltip("dialog.template.isapnpbios.tooltip"))
 			.section("cpu").item("isapnpbios").build(metaControls_).init(configurable);
+		Chain.on(expCpu).lbl(l -> l.key("dialog.template.cpuidle")).but(b -> b.horSpan(3).tooltip("dialog.template.cpuidle.tooltip"))
+			.section("cpu").item("cpu_idle").build(metaControls_).init(configurable);
 	
 		return composite;
 	}
@@ -871,6 +923,12 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		Chain.on(expDisks).lbl(l -> l.key("dialog.template.ide8pnp")).but(b -> b.tooltip("dialog.template.ide1pnp.tooltip")).section("ide, sexternary").item("pnp").build(metaControls_).init(configurable);
 
 		Chain.on(expDisks).lbl(l -> l.key("dialog.template.hddatarate")).spn(s -> s.min(-1).tooltip("dialog.template.hddatarate.tooltip")).section("dos").item("hard drive data rate limit").build(metaControls_).init(configurable);
+		Label_.on(expDisks).horSpan(3).build();
+		Chain.on(expDisks).lbl(l -> l.key("dialog.template.harddiskspeed")).cmb(c -> c.tooltip("dialog.template.harddiskspeed.tooltip").items("profile", "diskspeed_staging0830"))
+			.section("dosbox").item("hard_disk_speed").build(metaControls_).init(configurable);
+		Label_.on(expDisks).grabHorSpace().build();
+		Chain.on(expDisks).lbl(l -> l.key("dialog.template.floppydiskspeed")).cmb(c -> c.tooltip("dialog.template.floppydiskspeed.tooltip").items("profile", "diskspeed_staging0830"))
+			.section("dosbox").item("floppy_disk_speed").build(metaControls_).init(configurable);
 		return composite;
 	}
 	
@@ -1077,6 +1135,10 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		Chain.on(fluidExpGroup).lbl(l -> l.key("dialog.template.fluidsynth.reverb")).cmb(c -> c.tooltip("dialog.template.fluidsynth.reverb.tooltip").horSpan(2).editable().items("profile", "fluidsynthreverb_staging0810")).section("fluidsynth").item("fsynth_reverb").build(
 				metaControls_).init(configurable);
 		Chain.on(fluidExpGroup).lbl(l -> l.key("dialog.template.fluidsynth.filter")).txt(t -> t.tooltip("dialog.template.fluidsynth.filter.tooltip").horSpan(2)).section("fluidsynth").item("fsynth_filter").build(metaControls_).init(configurable);
+		Chain.on(fluidExpGroup).lbl(l -> l.key("dialog.template.fluidsynth.soundfontdir")).txt(t -> t.tooltip("dialog.template.fluidsynth.soundfontdir.tooltip")).but(b -> b.browse(false, Button_.BrowseType.DIR, Button_.CanonicalType.NONE, false))
+			.section("fluidsynth").item("soundfont_dir").build(metaControls_).init(configurable);
+		Chain.on(fluidExpGroup).lbl(l -> l.key("dialog.template.fluidsynth.soundfontvolume")).spn(s -> s.min(1).max(800).tooltip("dialog.template.fluidsynth.soundfontvolume.tooltip").horSpan(2))
+			.section("fluidsynth").item("soundfont_volume").build(metaControls_).init(configurable);
 		return composite;
 	}
 	
@@ -1373,6 +1435,8 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		Label_.on(keybExpGroup).grabHorSpace().build();
 		Chain.on(keybExpGroup).lbl(l -> l.key("dialog.template.ime")).cmb(c -> c.tooltip("dialog.template.ime.tooltip").items("profile", "ime_x20240301"))
 			.section("dosbox").item("ime").build(metaControls_).init(configurable);
+		Chain.on(keybExpGroup).lbl(l -> l.key("dialog.template.keyboardcapture")).but(b -> b.tooltip("dialog.template.keyboardcapture.tooltip"))
+			.section("sdl").item("keyboard_capture").build(metaControls_).init(configurable);
 	
 		return composite;
 	}

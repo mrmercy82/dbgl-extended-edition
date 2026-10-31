@@ -40,6 +40,7 @@ import org.dbgl.model.factory.DosboxVersionFactory;
 import org.dbgl.model.repository.DosboxVersionRepository;
 import org.dbgl.service.FileLocationService;
 import org.dbgl.service.SettingsService;
+import org.dbgl.util.DosboxVersionDetector;
 import org.dbgl.util.ExecuteUtils;
 import org.dbgl.util.FilesUtils;
 import org.dbgl.util.StringRelatedUtils;
@@ -89,7 +90,8 @@ public class EditDosboxVersionDialog extends SizeControlledTabbedDialog<DosboxVe
 		Composite composite = createTabWithComposite("dialog.dosboxversion.tab.info", 5);
 
 		Combo family = Chain.on(composite).lbl(l -> l.key("dialog.dosboxversion.family")).cmb(c -> c.horSpan(1).items(SettingsService.SUPPORTED_DOSBOX_FAMILIES.stream().map(x -> x.title_).toList())).combo();
-		Combo version = Chain.on(composite).lbl(l -> l.key("dialog.dosboxversion.version")).cmb(c -> c.horSpan(2).visibleItemCount(15)).combo();
+		Combo version = Chain.on(composite).lbl(l -> l.key("dialog.dosboxversion.version")).cmb(c -> c.horSpan(1).visibleItemCount(15)).combo();
+		Button detectButton = Button_.on(composite).text().key("dialog.dosboxversion.detect").tooltip("dialog.dosboxversion.detect.tooltip").ctrl();
 
 		Text title = Chain.on(composite).lbl(l -> l.key("dialog.dosboxversion.title")).txt(t -> t.horSpan(4)).text();
 		Chain chainPath = Chain.on(composite).lbl(l -> l.key("dialog.dosboxversion.path")).txt(t -> t.horSpan(3)).but(
@@ -105,6 +107,18 @@ public class EditDosboxVersionDialog extends SizeControlledTabbedDialog<DosboxVe
 		Button usingCurses = Chain.on(composite).lbl(l -> l.key("dialog.dosboxversion.altstartup")).but(b -> b.horSpan(4).key("dialog.dosboxversion.altstartupexplanation")).button();
 		Button defaultButton = Chain.on(composite).lbl(l -> l.key("dialog.dosboxversion.default")).but(b -> b.horSpan(4)).button();
 
+		detectButton.addSelectionListener(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent e) {
+				DosboxVersionDetector.Result detected = detectVersion(family, version, path, exe, conf);
+				if (detected == null) {
+					Mess_.on(shell_).key("dialog.dosboxversion.notice.notdetected").warning();
+				} else {
+					applyDetectedVersion(detected, family, version);
+					setTitleByVersion(family, version, title);
+				}
+			}
+		});
 		exePath.getButton().setData(Button_.DATA_ALT_CONTROL, path);
 		chainPath.getButton().setData(Button_.DATA_ALT_CONTROL, conf);
 		family.addSelectionListener(new SelectionAdapter() {
@@ -262,9 +276,38 @@ public class EditDosboxVersionDialog extends SizeControlledTabbedDialog<DosboxVe
 			if (!usingCurses.getSelection() && !FilesUtils.isReadableFile(configFile)) {
 				mess.key("dialog.dosboxversion.error.dosboxconfmissing", new Object[] {configFile}).bind(path);
 			}
-			checkStagingVersionMatchesConf(configFile, family, version);
+			DosboxVersionDetector.Result detected = exeAvailable ? DosboxVersionDetector.detect(executable, dbversion.getCwd()): null;
+			if (detected != null) {
+				if (!(Strings.CI.equals(detected.family_, family.getText()) && Strings.CS.equals(detected.version_, version.getText()))
+						&& Mess_.on(shell_).key("dialog.dosboxversion.confirm.detectedversion", new Object[] {executable, detected, family.getText() + " " + version.getText()}).confirm()) {
+					applyDetectedVersion(detected, family, version);
+				}
+			} else {
+				checkStagingVersionMatchesConf(configFile, family, version);
+			}
 		}
 		return mess.valid();
+	}
+
+	private DosboxVersionDetector.Result detectVersion(Combo family, Combo version, Text path, Text exe, Text conf) {
+		DosboxVersion dbversion = DosboxVersionFactory.create(StringUtils.EMPTY, family.getText(), version.getText(), false, false, false, null, path.getText(), exe.getText(), StringUtils.EMPTY, conf.getText());
+		shell_.setCursor(shell_.getDisplay().getSystemCursor(SWT.CURSOR_WAIT));
+		try {
+			return DosboxVersionDetector.detect(dbversion.getCanonicalExecutable(), dbversion.getCwd());
+		} finally {
+			shell_.setCursor(null);
+		}
+	}
+
+	private static void applyDetectedVersion(DosboxVersionDetector.Result detected, Combo family, Combo version) {
+		int famIdx = family.indexOf(detected.family_);
+		if (famIdx < 0)
+			return;
+		family.select(famIdx);
+		version.setItems(SettingsService.SUPPORTED_DOSBOX_FAMILIES.get(famIdx).versions_.toArray(String[]::new));
+		if (version.indexOf(detected.version_) < 0)
+			version.add(detected.version_); // a version DBGL doesn't list yet, its nearest known generation is used
+		version.select(version.indexOf(detected.version_));
 	}
 
 	private static final Pattern STAGING_CONF_HEADER_PATRN = Pattern.compile("DOSBox Staging \\((\\d+\\.\\d+\\.\\d+)");

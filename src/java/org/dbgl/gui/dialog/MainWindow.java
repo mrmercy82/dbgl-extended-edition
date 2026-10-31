@@ -453,6 +453,15 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				doLocateDosbox(true);
 			}
 		}).build();
+		MenuItem_.on(dbversionsMenu).key("dialog.main.menu.switchdosboxversion").image(ImageService.IMG_MIGRATE).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				if (Boolean.TRUE.equals(new SwitchDosboxVersionDialog(shell_).open())) {
+					updateProfilesList(getSelectedProfileIds());
+					displayProfileInformation(false);
+				}
+			}
+		}).build();
 
 		Menu templatesMenu = createMenu(appMenuBar, "dialog.main.menu.templates");
 		if (SystemUtils.IS_WINDOWS && SystemUtils.IS_LINUX) // comment this line out to be able to export templates

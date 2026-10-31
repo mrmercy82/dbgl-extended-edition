@@ -17,11 +17,25 @@
  */
 package org.dbgl.gui;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+
 import org.dbgl.gui.controls.DarkTheme;
+import org.dbgl.gui.controls.Mess_;
+import org.dbgl.service.TextService;
 import org.dbgl.util.SystemUtils;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Font;
-import org.eclipse.swt.layout.FillLayout;
+import org.eclipse.swt.dnd.Clipboard;
+import org.eclipse.swt.dnd.TextTransfer;
+import org.eclipse.swt.dnd.Transfer;
+import org.eclipse.swt.layout.GridData;
+import org.eclipse.swt.layout.GridLayout;
+import org.eclipse.swt.widgets.Button;
+import org.eclipse.swt.widgets.FileDialog;
+import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Text;
@@ -67,8 +81,12 @@ public class DosboxStatusWindow {
 	private void create() {
 		shell_ = new Shell(display_, SWT.SHELL_TRIM);
 		shell_.setText(TITLE);
-		shell_.setLayout(new FillLayout());
+		GridLayout layout = new GridLayout(3, false);
+		layout.marginWidth = 0;
+		layout.marginHeight = 0;
+		shell_.setLayout(layout);
 		text_ = new Text(shell_, SWT.MULTI | SWT.READ_ONLY | SWT.V_SCROLL | SWT.H_SCROLL);
+		text_.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 3, 1));
 		font_ = new Font(display_, SystemUtils.IS_WINDOWS ? "Consolas": (SystemUtils.IS_OSX ? "Menlo": "Monospace"), 9, SWT.NORMAL);
 		text_.setFont(font_);
 		if (DarkTheme.forced()) {
@@ -78,9 +96,43 @@ public class DosboxStatusWindow {
 			text_.setBackground(display_.getSystemColor(SWT.COLOR_BLACK));
 			text_.setForeground(display_.getSystemColor(SWT.COLOR_GRAY));
 		}
+		Label filler = new Label(shell_, SWT.NONE);
+		filler.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+		Button copy = new Button(shell_, SWT.PUSH);
+		copy.setText(TextService.getInstance().get("dialog.statuswindow.copy"));
+		copy.addListener(SWT.Selection, e -> copyToClipboard());
+		Button save = new Button(shell_, SWT.PUSH);
+		save.setText(TextService.getInstance().get("dialog.statuswindow.save"));
+		save.addListener(SWT.Selection, e -> saveToFile());
 		shell_.addDisposeListener(e -> font_.dispose());
 		shell_.setSize(760, 420);
 		shell_.setVisible(true);
+	}
+
+	private void copyToClipboard() {
+		Clipboard clipboard = new Clipboard(display_);
+		try {
+			String content = text_.getSelectionCount() > 0 ? text_.getSelectionText(): text_.getText();
+			if (!content.isEmpty())
+				clipboard.setContents(new Object[] {content}, new Transfer[] {TextTransfer.getInstance()});
+		} finally {
+			clipboard.dispose();
+		}
+	}
+
+	private void saveToFile() {
+		FileDialog dialog = new FileDialog(shell_, SWT.SAVE);
+		dialog.setFilterExtensions(new String[] {"*.txt", "*.*"});
+		dialog.setFileName("dosbox-log.txt");
+		dialog.setOverwrite(true);
+		String file = dialog.open();
+		if (file == null)
+			return;
+		try {
+			Files.writeString(new File(file).toPath(), text_.getText(), StandardCharsets.UTF_8);
+		} catch (IOException e) {
+			Mess_.on(shell_).exception(e).warning();
+		}
 	}
 
 	private boolean isGone() {

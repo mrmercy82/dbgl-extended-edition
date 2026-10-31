@@ -113,12 +113,27 @@ public abstract class SizeControlledPagedDialog<T> extends SizeControlledButtonD
 		Composite page = pages_.computeIfAbsent(key, k -> pageGenerators_.get(k).apply(configurable, rightComposite_));
 		page.setVisible(true);
 		((GridData)page.getLayoutData()).exclude = false;
+		onPageShown(page);
 		
 		page.pack();
 		rightComposite_.setContent(page);
 		rightComposite_.setMinSize(page.computeSize(rightComposite_.getClientArea().width, SWT.DEFAULT));
 	}
 	
+	/** called before a page is laid out and shown */
+	protected void onPageShown(Composite page) {
+	}
+
+	/** re-layout the page currently shown, e.g. after controls were hidden or shown */
+	protected void relayoutVisiblePage() {
+		pages_.values().stream().filter(Composite::isVisible).findAny().ifPresent(page -> {
+			onPageShown(page);
+			page.pack();
+			page.layout(true, true);
+			rightComposite_.setMinSize(page.computeSize(rightComposite_.getClientArea().width, SWT.DEFAULT));
+		});
+	}
+
 	protected void computeAllPages(TemplateProfileBase configurable) {
 		pageGenerators_.keySet().forEach(key -> computePage(configurable, key));
 	}

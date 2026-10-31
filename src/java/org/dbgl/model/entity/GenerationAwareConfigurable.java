@@ -37,6 +37,7 @@ public class GenerationAwareConfigurable extends Configurable {
 	
 	private static final Pattern CYCLES_PATRN = Pattern.compile("^((auto)(\\s+(fixed\\s+)?\\d+\\%?)?(\\s+(fixed\\s+)?\\d+\\%?)?|(max)(\\s+(fixed\\s+)?\\d+\\%?)?|((fixed\\s+)?(\\d+)))(\\s+limit\\s+(\\d+))?$", Pattern.CASE_INSENSITIVE);
 	private static final Pattern CPU_CYCLES_PATRN = Pattern.compile("^((max)(\\s+limit\\s+(\\d+))?|((fixed\\s+)?(\\d+)))$", Pattern.CASE_INSENSITIVE);
+	private static final Pattern STAGING_VERSION_PATRN = Pattern.compile("^0\\.(\\d+)\\.\\d+.*$");
 	private static final Pattern CPU_CYCLES_PROTECTED_PATRN = Pattern.compile("^((auto)|(max)(\\s+limit\\s+(\\d+))?|((fixed\\s+)?(\\d+)))$", Pattern.CASE_INSENSITIVE);
 
 	public static enum Generation {
@@ -101,6 +102,17 @@ public class GenerationAwareConfigurable extends Configurable {
 				return Generation.staging_0820;
 			else if (Strings.CS.equalsAny(ver, "0.83.0"))
 				return Generation.staging_0830;
+			// versions DBGL doesn't list (yet), e.g. bugfix releases: use the generation of the nearest known version
+			Matcher m = STAGING_VERSION_PATRN.matcher(StringUtils.defaultString(ver));
+			if (m.matches()) {
+				int minor = Integer.parseInt(m.group(1));
+				if (minor >= 83)
+					return Generation.staging_0830;
+				if (minor == 82)
+					return Generation.staging_0820;
+				if (minor <= 81)
+					return Generation.staging_0810;
+			}
 		} else if (Strings.CI.equals(fam, "DOSBox-X")) {
 			if (Strings.CS.equals(ver, "0.82.20"))
 				return Generation.x_08220;
@@ -108,6 +120,14 @@ public class GenerationAwareConfigurable extends Configurable {
 				return Generation.x_20240301;
 			else if (Strings.CS.equalsAny(ver, "2024.10.01", "2024.12.04", "2025.01.01", "2025.02.01"))
 				return Generation.x_20241001;
+			// dated releases DBGL doesn't list (yet): compare the dates
+			if (StringUtils.defaultString(ver).matches("\\d{4}\\.\\d{2}\\.\\d{2}")) {
+				if (ver.compareTo("2024.10.01") >= 0)
+					return Generation.x_20241001;
+				if (ver.compareTo("2024.03.01") >= 0)
+					return Generation.x_20240301;
+				return Generation.x_08220;
+			}
 		}
 		
 		System.err.println("DOSBox generation could not be determined, assume official_073");

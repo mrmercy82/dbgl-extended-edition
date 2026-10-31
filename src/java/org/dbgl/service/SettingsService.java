@@ -47,7 +47,8 @@ public class SettingsService {
 	public static final DosboxFamily DAUM_DOSBOX_FAM = new DosboxFamily("DOSBox Daum", Arrays.asList("2015.01.25"));
 	public static final DosboxFamily ECE_DOSBOX_FAM = new DosboxFamily("DOSBox ECE", Arrays.asList("r4482")); 
 	public static final DosboxFamily STAGING_DOSBOX_FAM = new DosboxFamily("DOSBox Staging", Arrays.asList("0.81.0", "0.81.1", "0.81.2", "0.82.0", "0.82.1", "0.82.2", "0.83.0"));
-	public static final DosboxFamily DOSBOX_X_DOSBOX_FAM = new DosboxFamily("DOSBox-X", Arrays.asList("0.82.20", "2024.03.01", "2024.07.01", "2024.10.01", "2024.12.04", "2025.01.01", "2025.02.01"));
+	public static final DosboxFamily DOSBOX_X_DOSBOX_FAM = new DosboxFamily("DOSBox-X", Arrays.asList("0.82.20", "2024.03.01", "2024.07.01", "2024.10.01", "2024.12.04", "2025.01.01", "2025.02.01",
+		"2025.05.03", "2025.10.07", "2025.12.01", "2026.01.02", "2026.03.29", "2026.05.02", "2026.06.02", "2026.07.02", "2026.08.02", "2026.08.31", "2026.10.01"));
 	
 	public static final List<DosboxFamily> SUPPORTED_DOSBOX_FAMILIES = List.of(
 		OFFICIAL_DOSBOX_FAM, SVN_DOSBOX_FAM, DAUM_DOSBOX_FAM, ECE_DOSBOX_FAM, STAGING_DOSBOX_FAM, DOSBOX_X_DOSBOX_FAM
@@ -178,6 +179,8 @@ public class SettingsService {
 		settings_.setValue("gui", "addgamewizard_width", "500");
 		settings_.setValue("gui", "addgamewizard_height", "375");
 		settings_.setValue("gui", "dosboxdialog_width", "600");
+		settings_.setValue("gui", "switchdosboxdialog_width", "760");
+		settings_.setValue("gui", "switchdosboxdialog_height", "560");
 		settings_.setValue("gui", "dosboxdialog_height", "400");
 		settings_.setValue("gui", "templatedialog_width", "768");
 		settings_.setValue("gui", "templatedialog_height", "588");
@@ -365,6 +368,7 @@ public class SettingsService {
 		settings_.setValue("profiledefaults", "capturespath", 1);
 
 		settings_.setValue("dosbox", "hideconsole", false);
+		settings_.setValue("gui", "hideunsupportedsettings", true);
 
 		settings_.setValue("communication", "port_enabled", SystemUtils.IS_WINDOWS);
 		settings_.setValue("communication", "port", "4740");
@@ -517,6 +521,10 @@ public class SettingsService {
 		settings_.setValue("profile", "crtcolorprofile_staging0830", "auto none ebu p22 smpte-c philips trinitron");
 		settings_.setValue("profile", "deinterlacing_staging0830", "off on light medium strong full");
 		settings_.setValue("profile", "dedithering_staging0830", "off on");
+		settings_.setValue("profile", "blacklevel_staging0830", "auto 0 10 20 30 40 50");
+		settings_.setValue("profile", "colortemperature_staging0830", "auto 5000 5500 6500 7500 9300");
+		settings_.setValue("profile", "colorspace_staging0830", "srgb display-p3 dci-p3 dci-p3-d65 modern-p3 adobe-rgb rec-2020");
+		settings_.setValue("profile", "diskspeed_staging0830", "maximum fast medium slow");
 		settings_.setValue("profile", "screensaver_staging0810", "auto allow block");
 		settings_.setValue("profile", "ttfblinkc_x20240301", "true false 0");
 		settings_.setValue("profile", "ttfwp_x20240301", "FE WP WS XY");

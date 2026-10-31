@@ -19,16 +19,19 @@ package org.dbgl.model.aggregate;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.util.Map;
 import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Strings;
 import org.dbgl.model.FileLocation;
 import org.dbgl.model.GenericStats;
 import org.dbgl.model.ICanBeDefault;
+import org.dbgl.model.conf.ConfValueOptions;
 import org.dbgl.model.entity.Configurable;
 import org.dbgl.service.FileLocationService;
 import org.dbgl.service.ITextService;
@@ -44,6 +47,7 @@ public class DosboxVersion extends Configurable implements ICanBeDefault, Compar
 	private Map<String, String> dynamicOptions_;
 	private FileLocation path_, exe_;
 	private GenericStats stats_;
+	private ConfValueOptions confValueOptions_;
 
 	public DosboxVersion() {
 		super();
@@ -171,11 +175,34 @@ public class DosboxVersion extends Configurable implements ICanBeDefault, Compar
 	}
 
 	public String resetAndLoadConfiguration() throws IOException {
-		return configuration_.reloadWithAutoexec(TextService.getInstance(), null);
+		String warnings = configuration_.reloadWithAutoexec(TextService.getInstance(), null);
+		confValueOptions_ = null;
+		return warnings;
 	}
 
 	public String loadConfigurationData(ITextService text, String data, File file) throws IOException {
-		return configuration_.loadDataWithAutoexec(text, data, file, null);
+		String warnings = configuration_.loadDataWithAutoexec(text, data, file, null);
+		confValueOptions_ = ConfValueOptions.parse(data);
+		return warnings;
+	}
+
+	/**
+	 * @return the allowed setting values as documented by this DOSBox in the comments of its configuration file
+	 */
+	public ConfValueOptions getConfValueOptions() {
+		if (confValueOptions_ == null) {
+			String data = null;
+			File file = getConfigurationCanonicalFile();
+			if ((file != null) && file.isFile()) {
+				try {
+					data = FileUtils.readFileToString(file, Charset.defaultCharset());
+				} catch (IOException e) {
+					// no documented values then
+				}
+			}
+			confValueOptions_ = ConfValueOptions.parse(data);
+		}
+		return confValueOptions_;
 	}
 
 	public File getCwd() {

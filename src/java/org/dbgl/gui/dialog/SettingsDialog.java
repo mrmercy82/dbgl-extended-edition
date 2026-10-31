@@ -111,6 +111,7 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 
 		Group dosboxGroup = Group_.on(generalComposite).layout(new GridLayout(2, false)).key("dialog.settings.dosbox").build();
 		Button console = Chain.on(dosboxGroup).lbl(l -> l.key("dialog.settings.hidestatuswindow")).but(b -> b.select(settings_.getBooleanValue("dosbox", "hideconsole"))).button();
+		Button hideUnsupported = Chain.on(dosboxGroup).lbl(l -> l.key("dialog.settings.hideunsupportedsettings")).but(b -> b.select(settings_.getBooleanValue("gui", "hideunsupportedsettings"))).button();
 
 		Group sendToGroup = Group_.on(generalComposite).layout(new GridLayout(2, false)).key("dialog.settings.sendto").build();
 		Button portEnabled = Chain.on(sendToGroup).lbl(l -> l.key("dialog.settings.enableport")).but(b -> b.select(settings_.getBooleanValue("communication", "port_enabled"))).button();
@@ -424,6 +425,7 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 				}
 
 				settings_.setBooleanValue("dosbox", "hideconsole", console.getSelection());
+				settings_.setBooleanValue("gui", "hideunsupportedsettings", hideUnsupported.getSelection());
 				settings_.setBooleanValue("communication", "port_enabled", portEnabled.getSelection());
 				settings_.setValue("communication", "port", port.getText());
 				settings_.setIntValue("profiledefaults", "confpath", confLocation.getSelectionIndex());
