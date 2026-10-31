@@ -309,6 +309,11 @@ public class Chain {
 	}
 
 	/** @return the DOSBox settings this chain edits, as "section/item" in lower case */
+	/** the composite the controls of this chain are in */
+	public Composite composite() {
+		return builder_.composite_;
+	}
+
 	public Set<String> boundSettings() {
 		Set<String> result = new LinkedHashSet<>();
 		for (String s: new String[] {builder_.section_, builder_.sectionNew_})

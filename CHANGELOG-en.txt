@@ -4,6 +4,29 @@ DBGL - Changes since 0.100 beta 17
 Based on DBGL 0.100 beta 17 (source code). Newest version first.
 
 
+0.101 alpha 14
+--------------
+- The page "DOSBox -> More settings" is gone. All settings without a field of
+  their own are now on the page they belong to by topic, in a group "More
+  settings [section]" at the end of the page. This works for every DOSBox
+  version: what is shown comes from the configuration file of the selected
+  version.
+  - Examples: "adlib pcm boost" under Audio -> Sound Blaster, EMS/XMS/UMB under
+    System -> Memory, int33 mouse options under Peripherals -> Mouse,
+    "drive z ..." and "automount" under Mounting, fluid.* under FluidSynth.
+  - New pages, only shown when the DOSBox version has settings for them:
+    DOSBox -> Logging and debugging, System -> Mainboard and BIOS (ACPI, APM,
+    DMA, IRQ, PCI/ISA), System -> PC-98,
+    System -> Disks -> IDE and floppy controllers, Video -> VESA / SVGA,
+    Audio -> Windows Sound System.
+  - Settings no rule knows (e.g. from DOSBox ECE or Daum) go to the page that
+    holds most fields of their section.
+  - The search at the top left finds these settings too.
+- Profile context menu: "Switch profile to another DOSBox version..." is now
+  between "Start manually" and "Open game folder", with separators above and
+  below.
+
+
 0.101 alpha 13
 --------------
 - New version numbering: the former versions 0.101 and 0.102 beta 1 to 12 are

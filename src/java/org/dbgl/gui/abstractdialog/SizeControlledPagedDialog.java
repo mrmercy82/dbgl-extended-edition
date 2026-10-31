@@ -67,6 +67,8 @@ public abstract class SizeControlledPagedDialog<T> extends SizeControlledButtonD
 	private Map<String, BiFunction<TemplateProfileBase, Composite, Composite>> pageGenerators_ = new LinkedHashMap<>(); // in tree order, later pages may use controls of earlier ones
 
 	private static final String PAGE_HEADER = "dbgl.pageheader";
+	/** set on a composite whose content is only created when its page is shown, but which will have some */
+	protected static final String HAS_CONTENT = "dbgl.hascontent";
 
 	/** the complete page tree, in order, so pages without content can be left out of the tree and brought back later */
 	private record PageNode(String key, String parentKey, boolean withImage) {
@@ -125,7 +127,11 @@ public abstract class SizeControlledPagedDialog<T> extends SizeControlledButtonD
 			((GridData) x.getLayoutData()).exclude = true;
 		});
 		
-		Composite page = pages_.computeIfAbsent(key, k -> pageGenerators_.get(k).apply(configurable, rightComposite_));
+		Composite page = pages_.computeIfAbsent(key, k -> {
+			Composite p = pageGenerators_.get(k).apply(configurable, rightComposite_);
+			onPageCreated(k, p);
+			return p;
+		});
 		page.setVisible(true);
 		((GridData)page.getLayoutData()).exclude = false;
 		onPageShown(page);
@@ -137,6 +143,14 @@ public abstract class SizeControlledPagedDialog<T> extends SizeControlledButtonD
 	
 	/** called before a page is laid out and shown */
 	protected void onPageShown(Composite page) {
+	}
+
+	/** called once for every page, right after it was created */
+	protected void onPageCreated(String key, Composite page) {
+	}
+
+	/** called when the search text changed, after all pages were created */
+	protected void beforeSearch(TemplateProfileBase configurable) {
 	}
 
 	/** re-layout the page currently shown, e.g. after controls were hidden or shown */
@@ -156,6 +170,7 @@ public abstract class SizeControlledPagedDialog<T> extends SizeControlledButtonD
 	protected Composite computePage(TemplateProfileBase configurable, String key) {
 		return pages_.computeIfAbsent(key, k -> {
 			Composite page = pageGenerators_.get(k).apply(configurable, rightComposite_);
+			onPageCreated(k, page);
 			page.setVisible(false);
 			((GridData)page.getLayoutData()).exclude = true;
 			return page;
@@ -294,6 +309,8 @@ public abstract class SizeControlledPagedDialog<T> extends SizeControlledButtonD
 	private static boolean hasVisibleContent(Control c) {
 		if ((c == null) || !c.getVisible() || (c.getData(PAGE_HEADER) != null))
 			return false;
+		if (Boolean.TRUE.equals(c.getData(HAS_CONTENT)))
+			return true;
 		if (c instanceof Label label)
 			return ((label.getStyle() & SWT.SEPARATOR) == 0) && (StringUtils.isNotBlank(label.getText()) || (label.getImage() != null));
 		if ((c instanceof Group) || (c.getClass() == Composite.class))
@@ -301,6 +318,19 @@ public abstract class SizeControlledPagedDialog<T> extends SizeControlledButtonD
 		return true;
 	}
 	
+	/** the key of the page the control is on, or null */
+	protected String pageKeyOf(Control control) {
+		Control c = control;
+		while ((c != null) && (c.getParent() != rightComposite_))
+			c = c.getParent();
+		if (c == null)
+			return null;
+		for (Map.Entry<String, Composite> e: pages_.entrySet())
+			if (e.getValue() == c)
+				return e.getKey();
+		return null;
+	}
+
 	protected TreeItem getreeItemByComposite(Composite composite) {
 		String key = pages_.entrySet().stream().filter(x -> x.getValue() == composite).map(x -> x.getKey()).findFirst().orElse(null);
 		return allTreeItems(tree_.getItems()).stream().filter(x -> x.getData().equals(key)).findFirst().orElse(null);
@@ -318,6 +348,7 @@ public abstract class SizeControlledPagedDialog<T> extends SizeControlledButtonD
 			@Override
 			public void modifyText(ModifyEvent arg0) {
 				computeAllPages(base);
+				beforeSearch(base);
 				String s = search_.getText().strip().toLowerCase();
 				Stream.of(tree_.getItems()).forEach(x -> highlight(s, x));
 			}

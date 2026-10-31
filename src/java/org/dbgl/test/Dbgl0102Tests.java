@@ -302,4 +302,39 @@ public class Dbgl0102Tests {
 		assertEquals("output", invalid.get(0)[1]);
 		assertEquals("overlay", invalid.get(0)[2]);
 	}
+	@Test
+	public void testSettingPlacement() {
+		String[][] cases = {
+			{"sblaster", "adlib pcm boost", org.dbgl.gui.abstractdialog.SettingPlacement.SOUNDBLASTER},
+			{"sblaster2", "adlib pcm boost", org.dbgl.gui.abstractdialog.SettingPlacement.SOUNDBLASTER2},
+			{"emu8k", "rompath", org.dbgl.gui.abstractdialog.SettingPlacement.SOUNDBLASTER},
+			{"dosbox", "acpi", org.dbgl.gui.abstractdialog.SettingPlacement.MAINBOARD},
+			{"dosbox", "memsizekb", org.dbgl.gui.abstractdialog.SettingPlacement.MEMORY},
+			{"dosbox", "keyboard hook", org.dbgl.gui.abstractdialog.SettingPlacement.KEYBOARD},
+			{"dosbox", "video debug at startup", org.dbgl.gui.abstractdialog.SettingPlacement.LOGGING},
+			{"dos", "int33 max x", org.dbgl.gui.abstractdialog.SettingPlacement.MOUSE},
+			{"dos", "ems frame", org.dbgl.gui.abstractdialog.SettingPlacement.MEMORY},
+			{"dos", "drive z hide files", org.dbgl.gui.abstractdialog.SettingPlacement.MOUNTING},
+			{"dos", "badcommandhandler", org.dbgl.gui.abstractdialog.SettingPlacement.DOS},
+			{"cpu", "apmbios version", org.dbgl.gui.abstractdialog.SettingPlacement.MAINBOARD},
+			{"cpu", "enable msr", org.dbgl.gui.abstractdialog.SettingPlacement.CPU},
+			{"video", "vesa modelist cap", org.dbgl.gui.abstractdialog.SettingPlacement.VESA},
+			{"video", "cgasnow", org.dbgl.gui.abstractdialog.SettingPlacement.CGACOMPOSITE},
+			{"video", "sierra ramdac", org.dbgl.gui.abstractdialog.SettingPlacement.VIDEO},
+			{"ide, secondary", "irq", org.dbgl.gui.abstractdialog.SettingPlacement.CONTROLLERS},
+			{"fdc, primary", "chip", org.dbgl.gui.abstractdialog.SettingPlacement.CONTROLLERS},
+			{"pc98", "pc-98 fm board irq", org.dbgl.gui.abstractdialog.SettingPlacement.PC98},
+			{"midi", "fluid.reverb", org.dbgl.gui.abstractdialog.SettingPlacement.FLUIDSYNTH},
+			{"midi", "mt32.engage.channel1", org.dbgl.gui.abstractdialog.SettingPlacement.MT32},
+			{"midi", "roland gs sysex", org.dbgl.gui.abstractdialog.SettingPlacement.MIDI},
+			{"speaker", "initial frequency", org.dbgl.gui.abstractdialog.SettingPlacement.PCSPEAKER},
+			{"wss", "wssbase", org.dbgl.gui.abstractdialog.SettingPlacement.WSS},
+			{"ethernet, slirp", "mtu", org.dbgl.gui.abstractdialog.SettingPlacement.NE2000},
+			{"webserver", "webserver_port", org.dbgl.gui.abstractdialog.SettingPlacement.NETWORK},
+			{"soundcanvas", "soundcanvas_filter", org.dbgl.gui.abstractdialog.SettingPlacement.MIDI},
+			{"log", "int21", org.dbgl.gui.abstractdialog.SettingPlacement.LOGGING}};
+		for (String[] c: cases)
+			assertEquals(c[0] + "/" + c[1], c[2], org.dbgl.gui.abstractdialog.SettingPlacement.pageFor(c[0], c[1]));
+		assertNull(org.dbgl.gui.abstractdialog.SettingPlacement.pageFor("sdl", "forcesquarecorner")); // decided by where the [sdl] fields are
+	}
 }
