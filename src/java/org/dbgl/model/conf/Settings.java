@@ -174,7 +174,8 @@ public class Settings {
 	}
 
 	public boolean getBooleanValue(String sectionTitle, String sectionItem) {
-		return Boolean.valueOf(sections_.getValue(sectionTitle, sectionItem));
+		// DOSBox Staging 0.83+ writes booleans as on/off instead of true/false
+		return Strings.CI.equalsAny(StringUtils.trim(sections_.getValue(sectionTitle, sectionItem)), "true", "on", "yes", "1", "enabled");
 	}
 
 	public int getIntValue(String sectionTitle, String sectionItem) {

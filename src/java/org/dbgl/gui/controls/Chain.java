@@ -531,6 +531,15 @@ public class Chain {
 					configurable.setValue(section, item, value);
 				} else {
 					String value = builder_.convertor_.toConfValue(combinedConf.getValue(section, item), fieldValues);
+					if (isSingleReadOnlyCombo() && StringUtils.isBlank(value)) {
+						// nothing selected: never write an empty value, let the DOSBox default apply (also repairs profiles saved with empty values)
+						configurable.getConfiguration().removeValueIfSet(section, item);
+						return;
+					}
+					if (isSingleCheckbox() && !builder_.isOnOff_ && Strings.CI.equalsAny(StringUtils.trim(dosboxConf.getValue(section, item)), "on", "off")) {
+						// DOSBox Staging 0.83+ uses on/off notation for booleans, keep it so values equal to the DOSBox default stay recognizable
+						value = isTrueValue(value) ? "on": "off";
+					}
 					configurable.setValue(section, item, value);
 				}
 			}
@@ -647,11 +656,13 @@ public class Chain {
 					String newValue = Strings.CS.replace(value, SystemUtils.EOLN, ((Text)control).getLineDelimiter());
 					if (!((Text)control).getText().equals(newValue))
 						((Text)control).setText(newValue);
-				} else if (control instanceof Combo) {
-					if (!((Combo)control).getText().equals(value))
-						((Combo)control).setText(value);
+				} else if (control instanceof Combo combo) {
+					if (StringUtils.isNotBlank(value) && ((combo.getStyle() & SWT.READ_ONLY) == SWT.READ_ONLY) && (combo.indexOf(value) == -1))
+						combo.add(value); // keep a value the item list doesn't know instead of silently losing it on save
+					if (!combo.getText().equals(value))
+						combo.setText(value);
 				} else if (control instanceof Button) {
-					boolean newValue = builder_.isOnOff_ ? "on".equalsIgnoreCase(value): Boolean.valueOf(value);
+					boolean newValue = isTrueValue(value); // accepts both true/false and on/off (DOSBox Staging 0.83+)
 					if ((((Button)control).getSelection() != newValue) || ((Button)control).getGrayed()) {
 						((Button)control).setSelection(newValue);
 						((Button)control).notifyListeners(SWT.Selection, new Event());
@@ -715,6 +726,20 @@ public class Chain {
 		return StringUtils.isNotBlank(builder_.itemNew_)
 				&& (conf.hasValue(builder_.section_, builder_.itemNew_) || (StringUtils.isNotBlank(builder_.sectionNew_) && conf.hasValue(builder_.sectionNew_, builder_.itemNew_))) ? builder_.itemNew_
 						: builder_.item_;
+	}
+
+	private static boolean isTrueValue(String value) {
+		return Strings.CI.equalsAny(StringUtils.trim(value), "true", "on", "yes", "1", "enabled");
+	}
+
+	private boolean isSingleReadOnlyCombo() {
+		return (builder_.controls_.size() == 1) && (builder_.controls_.get(0) instanceof Combo)
+				&& ((builder_.controls_.get(0).getStyle() & SWT.READ_ONLY) == SWT.READ_ONLY);
+	}
+
+	private boolean isSingleCheckbox() {
+		return (builder_.controls_.size() == 1) && (builder_.controls_.get(0) instanceof Button)
+				&& ((((Button)builder_.controls_.get(0)).getStyle() & SWT.CHECK) == SWT.CHECK);
 	}
 
 	private boolean allControlsDisabled() {

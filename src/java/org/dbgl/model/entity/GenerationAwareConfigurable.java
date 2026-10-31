@@ -23,6 +23,7 @@ import java.util.regex.Pattern;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Strings;
+import org.apache.commons.lang3.math.NumberUtils;
 import org.dbgl.gui.controls.CommaSeparatedDaControlConvertor;
 import org.dbgl.gui.controls.SeparatedValuesDaControlConvertor;
 import org.dbgl.gui.controls.SpaceSeparatedDaControlConvertor;
@@ -43,7 +44,7 @@ public class GenerationAwareConfigurable extends Configurable {
 		svn_r4483,
 		daum_20150125,
 		ece_r4482,
-		staging_0810, staging_0820,
+		staging_0810, staging_0820, staging_0830,
 		x_08220, x_20240301, x_20241001
 	};
 	
@@ -52,7 +53,7 @@ public class GenerationAwareConfigurable extends Configurable {
 			{ Generation.svn_r4483 },
 			{ Generation.daum_20150125 },
 			{ Generation.ece_r4482 },
-			{ Generation.staging_0810, Generation.staging_0820 },
+			{ Generation.staging_0810, Generation.staging_0820, Generation.staging_0830 },
 			{ Generation.x_08220, Generation.x_20240301, Generation.x_20241001 }
 	};
 
@@ -98,6 +99,8 @@ public class GenerationAwareConfigurable extends Configurable {
 				return Generation.staging_0810;
 			else if (Strings.CS.equalsAny(ver, "0.82.0", "0.82.1", "0.82.2"))
 				return Generation.staging_0820;
+			else if (Strings.CS.equalsAny(ver, "0.83.0"))
+				return Generation.staging_0830;
 		} else if (Strings.CI.equals(fam, "DOSBox-X")) {
 			if (Strings.CS.equals(ver, "0.82.20"))
 				return Generation.x_08220;
@@ -172,35 +175,35 @@ public class GenerationAwareConfigurable extends Configurable {
 	
 	public String capturesConfSection() {
 		return switch (gen_) {
-			case staging_0810, staging_0820 -> "capture";
+			case staging_0810, staging_0820, staging_0830 -> "capture";
 			default -> "dosbox";
 		};
 	}
 	
 	public String capturesConfSectionItem() {
 		return switch (gen_) {
-			case staging_0810, staging_0820 -> "capture_dir";
+			case staging_0810, staging_0820, staging_0830 -> "capture_dir";
 			default -> "captures";
 		};
 	}
 	
 	public DaControlConvertor getPriorityConvertor() {
 		return switch (gen_) {
-			case staging_0810, staging_0820 -> SpaceSeparatedDaControlConvertor.getInstance();
+			case staging_0810, staging_0820, staging_0830 -> SpaceSeparatedDaControlConvertor.getInstance();
 			default -> CommaSeparatedDaControlConvertor.getInstance();
 		};
 	}
 	
 	public String priorityActiveSectionItem() {
 		return switch (gen_) {
-			case staging_0810, staging_0820 -> "priority_active_staging0810";
+			case staging_0810, staging_0820, staging_0830 -> "priority_active_staging0810";
 			default -> "priority_active";
 		};
 	}
 	
 	public String priorityInactiveSectionItem() {
 		return switch (gen_) {
-			case staging_0810, staging_0820 -> "priority_inactive_staging0810";
+			case staging_0810, staging_0820, staging_0830 -> "priority_inactive_staging0810";
 			default -> "priority_inactive";
 		};
 	}
@@ -208,7 +211,7 @@ public class GenerationAwareConfigurable extends Configurable {
 	public String outputSectionItem() {
 		return switch (gen_) {
 			case staging_0810 -> "output_staging0810";
-			case staging_0820 -> "output_staging0820";
+			case staging_0820, staging_0830 -> "output_staging0820";
 			case daum_20150125, x_08220 -> "output_x08220";
 			case x_20240301, x_20241001 -> "output_x20240301";
 			default -> "output";
@@ -217,7 +220,7 @@ public class GenerationAwareConfigurable extends Configurable {
 	
 	public String windowresSectionItem() {
 		return switch (gen_) {
-			case staging_0810, staging_0820 -> "windowresolution_staging0810";
+			case staging_0810, staging_0820, staging_0830 -> "windowresolution_staging0810";
 			default -> "windowresolution";
 		};
 	}
@@ -232,7 +235,7 @@ public class GenerationAwareConfigurable extends Configurable {
 	
 	public String aspectSectionItem() {
 		return switch (gen_) {
-			case staging_0810, staging_0820 -> "aspect_staging0810";
+			case staging_0810, staging_0820, staging_0830 -> "aspect_staging0810";
 			case x_20240301, x_20241001 -> "aspect_x20240301";
 			default -> "aspect";
 		};
@@ -249,6 +252,7 @@ public class GenerationAwareConfigurable extends Configurable {
 			case svn_r4483 -> "glshader_svn4483";
 			case ece_r4482 -> "glshader_ecer4482";
 			case staging_0810, staging_0820 -> "glshader_staging0810";
+			case staging_0830 -> "glshader_staging0830";
 			case x_20240301, x_20241001 -> "glshader_x20240301";
 			default -> null;
 		};
@@ -257,14 +261,50 @@ public class GenerationAwareConfigurable extends Configurable {
 	public String vsyncmodeSectionItem() {
 		return switch (gen_) {
 			case staging_0810, staging_0820 -> "vsyncmode_staging0810";
+			case staging_0830 -> "vsyncmode_staging0830";
 			case daum_20150125, x_08220, x_20240301, x_20241001 -> "vsyncmode_x20240301";
 			default -> null;
+		};
+	}
+
+	public String presentationmodeSectionItem() {
+		return switch (gen_) {
+			case staging_0830 -> "framepresentationmode_staging0830";
+			default -> "framepresentationmode_staging0810";
+		};
+	}
+
+	public String fullscreenmodeSectionItem() {
+		return switch (gen_) {
+			case staging_0830 -> "fullscreenmode_staging0830";
+			default -> "fullresolution";
+		};
+	}
+
+	public String localeperiodSectionItem() {
+		return switch (gen_) {
+			case staging_0830 -> "doslocaleperiod_staging0830";
+			default -> "doslocaleperiod_staging0810";
+		};
+	}
+
+	public String expandshellvarSectionItem() {
+		return switch (gen_) {
+			case staging_0830 -> "dosexpandshellvar_staging0830";
+			default -> "dosexpandshellvar_staging0810";
+		};
+	}
+
+	public String filelockingSectionItem() {
+		return switch (gen_) {
+			case staging_0830 -> "filelocking_staging0830";
+			default -> "booleans";
 		};
 	}
 	
 	public String dosverSectionItem() {
 		return switch (gen_) {
-			case staging_0810, staging_0820 -> "dosversion_staging0810";
+			case staging_0810, staging_0820, staging_0830 -> "dosversion_staging0810";
 			case x_08220, x_20240301, x_20241001 -> "dosversion_x20240301";
 			default -> null;
 		};
@@ -274,7 +314,7 @@ public class GenerationAwareConfigurable extends Configurable {
 		return switch (gen_) {
 			case official_063, official_065, official_070 -> "machine";
 			case daum_20150125 -> "machine_daum20150125";
-			case staging_0810, staging_0820 -> "machine_staging0810";
+			case staging_0810, staging_0820, staging_0830 -> "machine_staging0810";
 			case x_08220 -> "machine_x08220";
 			case x_20240301, x_20241001 -> "machine_x20240301";
 			default -> "machine073";
@@ -291,7 +331,7 @@ public class GenerationAwareConfigurable extends Configurable {
 	public String cputypeSectionItem() {
 		return switch (gen_) {
 			case daum_20150125 -> "cputype_daum20150125";
-			case staging_0820 -> "cputype_staging0820";
+			case staging_0820, staging_0830 -> "cputype_staging0820";
 			case x_20240301, x_20241001 -> "cputype_x20240301";
 			default -> "cputype";
 		};
@@ -299,6 +339,7 @@ public class GenerationAwareConfigurable extends Configurable {
 	
 	public String emsSectionItem() {
 		return switch (gen_) {
+			case staging_0830 -> "ems_staging0830";
 			case x_20240301, x_20241001 -> "ems_x20240301";
 			default -> "ems";
 		};
@@ -306,7 +347,7 @@ public class GenerationAwareConfigurable extends Configurable {
 	
 	public String monochromepalSectionItem() {
 		return switch (gen_) {
-			case staging_0810, staging_0820 -> "monochromepalette_staging0810";
+			case staging_0810, staging_0820, staging_0830 -> "monochromepalette_staging0810";
 			case x_20240301, x_20241001 -> "monochromepalette_x20240301";
 			default -> null;
 		};
@@ -333,6 +374,7 @@ public class GenerationAwareConfigurable extends Configurable {
 			case daum_20150125 -> "mididevice_daum20150125";
 			case ece_r4482 -> "mididevice_ecer4482";
 			case staging_0810, staging_0820 -> "mididevice_staging0810";
+			case staging_0830 -> "mididevice_staging0830";
 			case x_20240301, x_20241001 -> "mididevice_x20240301";
 			default -> "mididevice";
 		};
@@ -348,7 +390,7 @@ public class GenerationAwareConfigurable extends Configurable {
 	
 	public String mt32modelSectionItem() {
 		return switch (gen_) {
-			case staging_0810, staging_0820 -> "mt32model_staging0810";
+			case staging_0810, staging_0820, staging_0830 -> "mt32model_staging0810";
 			case x_20240301, x_20241001 -> "mt32model_x20240301";
 			default -> null;
 		};
@@ -356,7 +398,7 @@ public class GenerationAwareConfigurable extends Configurable {
 	
 	public String sbtypeSectionItem() {
 		return switch (gen_) {
-			case staging_0820 -> "sbtype_staging0820";
+			case staging_0820, staging_0830 -> "sbtype_staging0820";
 			case x_20240301, x_20241001 -> "sbtype_x20240301";
 			default -> "sbtype";
 		};
@@ -381,7 +423,7 @@ public class GenerationAwareConfigurable extends Configurable {
 			case svn_r4483 -> "oplmode_svn4483";
 			case ece_r4482 -> "oplmode_ecer4482";
 			case staging_0810 -> "oplmode_staging0810";
-			case staging_0820 -> "oplmode_staging0820";
+			case staging_0820, staging_0830 -> "oplmode_staging0820";
 			case x_20240301 -> "oplmode_x20240301";
 			case x_20241001 -> "oplmode_x20241001";
 			default -> "oplmode";
@@ -413,7 +455,7 @@ public class GenerationAwareConfigurable extends Configurable {
 	
 	public String sbcmsSectionItem() {
 		return switch (gen_) {
-			case staging_0820 -> "sbcms_staging0820";
+			case staging_0820, staging_0830 -> "sbcms_staging0820";
 			case x_20241001 -> "sbcms_x20241001";
 			default -> null;
 		};
@@ -421,28 +463,28 @@ public class GenerationAwareConfigurable extends Configurable {
 	
 	public String gusbaseSectionItem() {
 		return switch (gen_) {
-			case staging_0820 -> "gusbase_staging0820";
+			case staging_0820, staging_0830 -> "gusbase_staging0820";
 			default -> "gusbase";
 		};
 	}
 	
 	public String gusirq1SectionItem() {
 		return switch (gen_) {
-			case staging_0820 -> "irq1_staging0820";
+			case staging_0820, staging_0830 -> "irq1_staging0820";
 			default -> "irq1";
 		};
 	}
 	
 	public String gusdma1SectionItem() {
 		return switch (gen_) {
-			case staging_0820 -> "dma1_staging0820";
+			case staging_0820, staging_0830 -> "dma1_staging0820";
 			default -> "dma1";
 		};
 	}
 	
 	public String pcspeakerSectionItem() {
 		return switch (gen_) {
-			case staging_0810, staging_0820 -> "pcspeaker_staging0810";
+			case staging_0810, staging_0820, staging_0830 -> "pcspeaker_staging0810";
 			default -> "pcspeaker";
 		};
 	}
@@ -456,7 +498,7 @@ public class GenerationAwareConfigurable extends Configurable {
 	
 	public String tandySectionItem() {
 		return switch (gen_) {
-			case staging_0810, staging_0820 -> "tandy_staging0810";
+			case staging_0810, staging_0820, staging_0830 -> "tandy_staging0810";
 			default -> "tandy";
 		};
 	}
@@ -464,14 +506,14 @@ public class GenerationAwareConfigurable extends Configurable {
 	public String ps1SectionItem() {
 		return switch (gen_) {
 			case staging_0810, staging_0820 -> "ps1_staging0810";
-			case daum_20150125, x_08220, x_20240301, x_20241001 -> "ps1_x20240301";
+			case staging_0830, daum_20150125, x_08220, x_20240301, x_20241001 -> "ps1_x20240301"; // on/off
 			default -> null;
 		};
 	}
 	
 	public String innovaportSectionItem() {
 		return switch (gen_) {
-			case staging_0810, staging_0820 -> "innovaport_staging0810";
+			case staging_0810, staging_0820, staging_0830 -> "innovaport_staging0810";
 			case daum_20150125, x_08220, x_20240301, x_20241001 -> "innovaport_x20240301";
 			default -> null;
 		};
@@ -486,21 +528,21 @@ public class GenerationAwareConfigurable extends Configurable {
 
 	public String joysticktypeSectionItem() {
 		return switch (gen_) {
-			case staging_0810, staging_0820 -> "joysticktype_staging0810";
+			case staging_0810, staging_0820, staging_0830 -> "joysticktype_staging0810";
 			default -> "joysticktype";
 		};
 	}
 	
 	public String[] mixerDeviceNames() {
 		return switch (gen_) {
-			case staging_0810, staging_0820 -> new String[] {"master", "pcspeaker", "sb", "gus", "opl", "disney", "cdaudio"};
+			case staging_0810, staging_0820, staging_0830 -> new String[] {"master", "pcspeaker", "sb", "gus", "opl", "disney", "cdaudio"};
 			default -> new String[] {"master", "spkr", "sb", "gus", "fm", "disney", "cdaudio"};
 		};
 	}
 	
 	public boolean[] enabledMixerDevices() {
 		return switch (gen_) {
-			case staging_0810, staging_0820 -> new boolean[] {
+			case staging_0810, staging_0820, staging_0830 -> new boolean[] {
 					true,
 					!Strings.CI.equalsAny(configuration_.getValue("speaker", "pcspeaker"), "none", "off"),
 					!Strings.CI.equalsAny(configuration_.getValue("sblaster", "sbtype"), "none", "off"),
@@ -582,6 +624,9 @@ public class GenerationAwareConfigurable extends Configurable {
 	
 	public void downgradeOneStagingGeneration(Generation generation) {
 		switch(generation) {
+			case staging_0830:
+				stagingFrom0830(configuration_);
+				break;
 			case staging_0820:
 				cputypeToOfficial(configuration_);
 				cyclesToOfficial(configuration_);
@@ -616,8 +661,170 @@ public class GenerationAwareConfigurable extends Configurable {
 				configuration_.removeValueIfAny("gus", "gusirq", "9", "10");
 				configuration_.removeValueIfAny("gus", "gusdma", "0");
 				break;
+			case staging_0820:
+				stagingTo0830(configuration_);
+				break;
 			default:
-				throw new RuntimeException("Cannot upgrade above generation staging_0820");
+				throw new RuntimeException("Cannot upgrade above generation staging_0830");
+		}
+	}
+
+	private static boolean isTrueValue(String value) {
+		return Strings.CI.equalsAny(StringUtils.trim(value), "true", "on", "yes", "1", "enabled");
+	}
+
+	private static boolean isBooleanValue(String value) {
+		return Strings.CI.equalsAny(StringUtils.trim(value), "true", "false", "on", "off", "yes", "no", "1", "0", "enabled", "disabled");
+	}
+
+	/**
+	 * DOSBox Staging 0.82.x to 0.83.0: renamed, removed and changed settings.
+	 * See https://www.dosbox-staging.org/releases/release-notes/0.83.0/
+	 */
+	private static void stagingTo0830(Configuration configuration) {
+		// [sdl] window & fullscreen
+		configuration.switchSetting("sdl", "windowresolution", "sdl", "window_size");
+		if (configuration.hasValue("sdl", "fullresolution")) {
+			if (Strings.CI.equals(configuration.getValue("sdl", "fullresolution"), "desktop"))
+				configuration.setValue("sdl", "fullscreen_mode", "standard");
+			configuration.removeValue("sdl", "fullresolution"); // 'original' and WxH are gone
+		}
+		configuration.switchSetting("sdl", "transparency", "sdl", "window_transparency");
+		configuration.removeValueIfSet("sdl", "priority");
+		configuration.removeValueIfSet("sdl", "waitonerror");
+
+		// [sdl] frame presentation
+		configuration.removeValueIfAny("sdl", "vsync", "auto");
+		configuration.setValueIfAny("sdl", "vsync", "on", "adaptive");
+		configuration.setValueIfAny("sdl", "vsync", "off", "yield");
+		configuration.setValueIfAny("sdl", "presentation_mode", "dos-rate", "cfr");
+		configuration.setValueIfAny("sdl", "presentation_mode", "host-rate", "vfr");
+		if (configuration.hasValue("sdl", "vsync_skip")) {
+			// vsync_skip is gone, 'presentation_mode = host-rate' with 'vsync = off' is the replacement
+			if (NumberUtils.toInt(configuration.getValue("sdl", "vsync_skip"), 0) > 0) {
+				configuration.setValue("sdl", "presentation_mode", "host-rate");
+				configuration.setValue("sdl", "vsync", "off");
+			}
+			configuration.removeValue("sdl", "vsync_skip");
+		}
+		configuration.removeValueIfSet("sdl", "host_rate");
+
+		// [render]
+		configuration.switchSetting("render", "glshader", "render", "shader");
+		configuration.removeValueIfSet("composite", "brightness"); // moved to [render] with a different range
+		configuration.removeValueIfSet("composite", "contrast");
+		configuration.removeValueIfSet("composite", "saturation");
+		configuration.removeValueIfSet("dosbox", "vga_render_per_scanline");
+
+		// [dos]
+		configuration.switchSetting("dos", "keyboardlayout", "dos", "keyboard_layout");
+		configuration.setValueIfAny("dos", "file_locking", "on", "true", "1");
+		configuration.setValueIfAny("dos", "file_locking", "off", "false", "0");
+		configuration.setValueIfAny("dos", "expand_shell_variable", "on", "true", "1");
+		configuration.setValueIfAny("dos", "expand_shell_variable", "off", "false", "0");
+		configuration.setValueIfAny("dos", "ems", "on", "true", "1");
+		configuration.setValueIfAny("dos", "ems", "off", "false", "0");
+
+		// [midi]
+		configuration.setValueIfAny("midi", "mididevice", "port", "auto", "win32", "alsa", "oss", "coremidi");
+
+		// [innovation]
+		if (configuration.hasValue("innovation", "sidmodel")) {
+			configuration.setValue("innovation", "innovation", Strings.CI.equals(configuration.getValue("innovation", "sidmodel"), "none") ? "off": "on");
+			configuration.removeValue("innovation", "sidmodel");
+		}
+		configuration.switchSetting("innovation", "6581filter", "innovation", "innovation_sid_filter");
+		configuration.removeValueIfSet("innovation", "8580filter");
+		configuration.removeValueIfSet("innovation", "sidclock");
+		configuration.removeValueIfSet("innovation", "sidport");
+
+		// [mouse]
+		if (configuration.hasValue("mouse", "dos_mouse_driver")) {
+			configuration.setValue("mouse", "builtin_dos_mouse_driver", isTrueValue(configuration.getValue("mouse", "dos_mouse_driver")) ? "on": "off");
+			configuration.removeValue("mouse", "dos_mouse_driver");
+		}
+		if (configuration.hasValue("mouse", "dos_mouse_immediate")) {
+			if (isTrueValue(configuration.getValue("mouse", "dos_mouse_immediate")))
+				configuration.setValue("mouse", "builtin_dos_mouse_driver_options", "immediate");
+			configuration.removeValue("mouse", "dos_mouse_immediate");
+		}
+	}
+
+	/**
+	 * DOSBox Staging 0.83.0 back to 0.82.x, the reverse of stagingTo0830. Settings that only exist in 0.83 are
+	 * dropped later on anyway because the 0.82 DOSBox configuration doesn't contain them.
+	 */
+	private static void stagingFrom0830(Configuration configuration) {
+		// [sdl] window & fullscreen
+		configuration.switchSetting("sdl", "window_size", "sdl", "windowresolution");
+		if (configuration.hasValue("sdl", "fullscreen_mode")) {
+			configuration.setValue("sdl", "fullresolution", "desktop"); // closest match for both standard and forced-borderless
+			configuration.removeValue("sdl", "fullscreen_mode");
+		}
+		configuration.switchSetting("sdl", "window_transparency", "sdl", "transparency");
+
+		// [sdl] frame presentation
+		configuration.setValueIfAny("sdl", "vsync", "auto", "fullscreen-only");
+		configuration.setValueIfAny("sdl", "presentation_mode", "cfr", "dos-rate");
+		configuration.setValueIfAny("sdl", "presentation_mode", "vfr", "host-rate");
+
+		// [render]
+		configuration.switchSetting("render", "shader", "render", "glshader");
+
+		// [dos]
+		configuration.switchSetting("dos", "keyboard_layout", "dos", "keyboardlayout");
+		configuration.removeValueIfAny("dos", "file_locking", "auto");
+		configuration.setValueIfAny("dos", "file_locking", "true", "on");
+		configuration.setValueIfAny("dos", "file_locking", "false", "off");
+		configuration.setValueIfAny("dos", "expand_shell_variable", "true", "on");
+		configuration.setValueIfAny("dos", "expand_shell_variable", "false", "off");
+		configuration.setValueIfAny("dos", "ems", "true", "on");
+		configuration.setValueIfAny("dos", "ems", "false", "off");
+		configuration.removeValueIfAny("dos", "locale_period", "native");
+
+		// [midi]
+		configuration.setValueIfAny("midi", "mididevice", "auto", "port");
+		configuration.removeValueIfAny("midi", "mididevice", "soundcanvas");
+
+		// [innovation]
+		if (configuration.hasValue("innovation", "innovation")) {
+			configuration.setValue("innovation", "sidmodel", isTrueValue(configuration.getValue("innovation", "innovation")) ? "6581": "none");
+			configuration.removeValue("innovation", "innovation");
+		}
+		configuration.switchSetting("innovation", "innovation_sid_filter", "innovation", "6581filter");
+
+		// [mouse]
+		if (configuration.hasValue("mouse", "builtin_dos_mouse_driver")) {
+			configuration.setValue("mouse", "dos_mouse_driver", !Strings.CI.equals(configuration.getValue("mouse", "builtin_dos_mouse_driver"), "off"));
+			configuration.removeValue("mouse", "builtin_dos_mouse_driver");
+		}
+		if (configuration.hasValue("mouse", "builtin_dos_mouse_driver_options")) {
+			if (Strings.CI.contains(configuration.getValue("mouse", "builtin_dos_mouse_driver_options"), "immediate"))
+				configuration.setValue("mouse", "dos_mouse_immediate", true);
+			configuration.removeValue("mouse", "builtin_dos_mouse_driver_options");
+		}
+	}
+
+	/**
+	 * Makes boolean values use the same notation as the DOSBox configuration they're compared against. DOSBox Staging 0.83 writes
+	 * 'on' and 'off' where earlier versions (and other DOSBox variants) write 'true' and 'false'. Without this, values that are
+	 * effectively equal to the DOSBox defaults would no longer be recognized as such.
+	 */
+	public static void alignBooleanNotation(Configuration configuration, Configuration dosboxConfiguration) {
+		for (String section: configuration.getSectionNames()) {
+			for (String item: configuration.getItemNames(section)) {
+				String value = configuration.getValue(section, item);
+				if (!dosboxConfiguration.hasValue(section, item) || !isBooleanValue(value))
+					continue;
+				String dosboxValue = StringUtils.trim(dosboxConfiguration.getValue(section, item));
+				String newValue = null;
+				if (Strings.CI.equalsAny(dosboxValue, "on", "off"))
+					newValue = isTrueValue(value) ? "on": "off";
+				else if (Strings.CI.equalsAny(dosboxValue, "true", "false"))
+					newValue = isTrueValue(value) ? "true": "false";
+				if ((newValue != null) && !newValue.equals(value))
+					configuration.setValue(section, item, newValue);
+			}
 		}
 	}
 	
@@ -658,6 +865,11 @@ public class GenerationAwareConfigurable extends Configurable {
 				vSource[1] = "pause";
 			configuration.removeValueIfSet("sdl", "pause_when_inactive");
 			configuration.setValue("sdl", "priority", CommaSeparatedDaControlConvertor.getInstance().toConfValue(null, vSource));
+		} else if (configuration.hasValue("sdl", "pause_when_inactive")) {
+			// Staging 0.83 has no 'priority' setting anymore, keep 'pause when inactive' anyway
+			if (configuration.getBooleanValue("sdl", "pause_when_inactive"))
+				configuration.setValue("sdl", "priority", "higher,pause");
+			configuration.removeValue("sdl", "pause_when_inactive");
 		}
 	}
 	
@@ -867,6 +1079,23 @@ public class GenerationAwareConfigurable extends Configurable {
 	}
 	
 	public void switchFamily(Generation src, Generation dst) {
+		// The family conversions below were written against staging_0820 as the latest Staging generation.
+		// Staging 0.83 is handled by stepping through 0.82 on the way in or out.
+		if (src == Generation.staging_0830) {
+			downgradeOneStagingGeneration(Generation.staging_0830);
+			src = Generation.staging_0820;
+		}
+		boolean upgradeToStaging0830 = (dst == Generation.staging_0830);
+		if (upgradeToStaging0830)
+			dst = Generation.staging_0820;
+
+		switchFamilyViaStaging0820(src, dst);
+
+		if (upgradeToStaging0830)
+			upgradeOneStagingGeneration(Generation.staging_0820);
+	}
+
+	private void switchFamilyViaStaging0820(Generation src, Generation dst) {
 		switch (src) {
 			case official_073: 
 				switch (dst) {

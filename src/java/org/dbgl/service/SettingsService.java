@@ -46,7 +46,7 @@ public class SettingsService {
 	public static final DosboxFamily SVN_DOSBOX_FAM = new DosboxFamily("DOSBox SVN", Arrays.asList("r4483"));
 	public static final DosboxFamily DAUM_DOSBOX_FAM = new DosboxFamily("DOSBox Daum", Arrays.asList("2015.01.25"));
 	public static final DosboxFamily ECE_DOSBOX_FAM = new DosboxFamily("DOSBox ECE", Arrays.asList("r4482")); 
-	public static final DosboxFamily STAGING_DOSBOX_FAM = new DosboxFamily("DOSBox Staging", Arrays.asList("0.81.0", "0.81.1", "0.81.2", "0.82.0", "0.82.1", "0.82.2"));
+	public static final DosboxFamily STAGING_DOSBOX_FAM = new DosboxFamily("DOSBox Staging", Arrays.asList("0.81.0", "0.81.1", "0.81.2", "0.82.0", "0.82.1", "0.82.2", "0.83.0"));
 	public static final DosboxFamily DOSBOX_X_DOSBOX_FAM = new DosboxFamily("DOSBox-X", Arrays.asList("0.82.20", "2024.03.01", "2024.07.01", "2024.10.01", "2024.12.04", "2025.01.01", "2025.02.01"));
 	
 	public static final List<DosboxFamily> SUPPORTED_DOSBOX_FAMILIES = List.of(
@@ -489,6 +489,7 @@ public class SettingsService {
 		settings_.setValue("profile", "windowresolution", "original desktop 320x200 640x480 800x600 1024x768 1280x768 1280x960 1280x1024");
 		settings_.setValue("profile", "windowresolution_staging0810", "default small s medium m large l 320x200 640x480 800x600 1024x768 1280x768 1280x960 1280x1024");
 		settings_.setValue("profile", "fullresolution", "original desktop 0x0 320x200 640x480 800x600 1024x768 1280x768 1280x960 1280x1024");
+		settings_.setValue("profile", "fullscreenmode_staging0830", "standard forced-borderless");
 		settings_.setValue("profile", "scaler", "none normal2x normal3x advmame2x advmame3x advinterp2x advinterp3x hq2x hq3x 2xsai super2xsai supereagle tv2x tv3x rgb2x rgb3x scan2x scan3x");
 		settings_.setValue("profile", "scaler_daum20150125", "none normal2x normal3x normal4x normal5x advmame2x advmame3x advinterp2x advinterp3x hq2x hq3x 2xsai super2xsai supereagle tv2x tv3x rgb2x rgb3x scan2x scan3x hardware_none hardware2x hardware3x hardware4x hardware5x xbrz");
 		settings_.setValue("profile", "scaler_x20240301", "none normal2x normal3x normal4x normal5x advmame2x advmame3x advinterp2x advinterp3x hq2x hq3x 2xsai super2xsai supereagle tv2x tv3x rgb2x rgb3x scan2x scan3x gray gray2x hardware_none hardware2x hardware3x hardware4x hardware5x xbrz xbrz_bilinear");
@@ -499,6 +500,7 @@ public class SettingsService {
 		settings_.setValue("profile", "glshader_svn4483", "none advinterp2x advinterp3x advmame2x advmame3x rgb2x rgb3x scan2x scan3x tv2x tv3x sharp");
 		settings_.setValue("profile", "glshader_ecer4482", "none advinterp2x advinterp3x advmame2x advmame3x rgb2x rgb3x scan2x scan3x tv2x tv3x sharp");
 		settings_.setValue("profile", "glshader_staging0810", "none crt-auto crt-auto-machine crt-auto-arcade crt-auto-arcade-sharp sharp");
+		settings_.setValue("profile", "glshader_staging0830", "crt-auto crt-auto-machine crt-auto-arcade crt-auto-arcade-sharp sharp bilinear nearest");
 		settings_.setValue("profile", "glshader_x20240301", "none default advinterp2x advinterp3x advmame2x advmame3x rgb2x rgb3x scan2x scan3x tv2x tv3x sharp");
 		settings_.setValue("profile", "texturerenderer_staging0810", "auto direct3d direct3d11 direct3d12 opengl opengles2 software");
 		settings_.setValue("profile", "dpiaware_x20240301", "true false 1 0 auto");
@@ -507,9 +509,14 @@ public class SettingsService {
 		settings_.setValue("profile", "aspectratio_x20240301", "-1:-1 0:0 4:3 16:9");
 		settings_.setValue("profile", "integerscaling_staging0810", "auto vertical horizontal off");
 		settings_.setValue("profile", "vsyncmode_staging0810", "auto on adaptive off yield");
+		settings_.setValue("profile", "vsyncmode_staging0830", "off on fullscreen-only");
 		settings_.setValue("profile", "vsyncmode_x20240301", "on off force host");
 		settings_.setValue("profile", "hostrefreshrate_staging0810", "auto sdi vrr");
 		settings_.setValue("profile", "framepresentationmode_staging0810", "auto cfr vfr");
+		settings_.setValue("profile", "framepresentationmode_staging0830", "auto dos-rate host-rate");
+		settings_.setValue("profile", "crtcolorprofile_staging0830", "auto none ebu p22 smpte-c philips trinitron");
+		settings_.setValue("profile", "deinterlacing_staging0830", "off on light medium strong full");
+		settings_.setValue("profile", "dedithering_staging0830", "off on");
 		settings_.setValue("profile", "screensaver_staging0810", "auto allow block");
 		settings_.setValue("profile", "ttfblinkc_x20240301", "true false 0");
 		settings_.setValue("profile", "ttfwp_x20240301", "FE WP WS XY");
@@ -519,7 +526,11 @@ public class SettingsService {
 		settings_.setValue("profile", "dosclipboarddevice_x20240301", "read write full true false disabled");
 		settings_.setValue("profile", "fat32setversion_x20240301", "ask auto manual");
 		settings_.setValue("profile", "doslocaleperiod_staging0810", "historic modern");
+		settings_.setValue("profile", "doslocaleperiod_staging0830", "native historic modern");
 		settings_.setValue("profile", "dosexpandshellvar_staging0810", "auto true false");
+		settings_.setValue("profile", "dosexpandshellvar_staging0830", "auto on off");
+		settings_.setValue("profile", "filelocking_staging0830", "auto on off");
+		settings_.setValue("profile", "booleans", "true false");
 		settings_.setValue("profile", "longfilenames_x20240301", "true false 1 0 auto autostart");
 		settings_.setValue("profile", "doslogconsole_x20240301", "true false 1 0 quiet");
 		settings_.setValue("profile", "autofixwarning_x20240301", "true false 1 0 both a20fix loadfix none");
@@ -558,6 +569,7 @@ public class SettingsService {
 		settings_.setValue("profile", "memsize", "0 1 2 4 8 16 32 63");
 		settings_.setValue("profile", "ems", "false emsboard emm386 true");
 		settings_.setValue("profile", "ems_x20240301", "false emsboard emm386 true 1 0");
+		settings_.setValue("profile", "ems_staging0830", "on off emsboard emm386");
 		settings_.setValue("profile", "loadfix_value", "1 63 64 127");
 		settings_.setValue("profile", "shellhigh_x20240301", "true false 1 0 auto");
 		settings_.setValue("profile", "a20_x20240301", "fast mask off off_fake on on_fake");
@@ -589,11 +601,14 @@ public class SettingsService {
 		settings_.setValue("profile", "audiocrossfeed_staging0810", "off on light normal strong");
 		settings_.setValue("profile", "audioreverb_staging0810", "off on tiny small medium large huge");
 		settings_.setValue("profile", "audiochorus_staging0810", "off on light normal strong");
+		settings_.setValue("profile", "disknoise_staging0830", "off seek-only on");
 		settings_.setValue("profile", "mpu401", "none intelligent uart");
 		settings_.setValue("profile", "mididevice", "alsa default coreaudio coremidi none oss win32");
 		settings_.setValue("profile", "mididevice_daum20150125", "alsa default coreaudio coremidi none oss win32 mt32 synth timidity");
 		settings_.setValue("profile", "mididevice_ecer4482", "alsa default coreaudio coremidi none oss win32 mt32 fluidsynth");
 		settings_.setValue("profile", "mididevice_staging0810", "auto win32 fluidsynth mt32 none");
+		settings_.setValue("profile", "mididevice_staging0830", "port coreaudio fluidsynth mt32 soundcanvas none");
+		settings_.setValue("profile", "soundcanvasmodel_staging0830", "auto sc55 sc55_121 sc55_120 sc55_110 sc55_100 sc55_200 sc55mk2 sc55mk2_100 sc55mk2_101");
 		settings_.setValue("profile", "mididevice_x20240301", "alsa default coreaudio coremidi none oss win32 mt32 fluidsynth synth timidity");
 		settings_.setValue("profile", "midisamplerate_x20240301", SAMPLE_RATES);
 		settings_.setValue("profile", "mpubase_x20240301", "0 300 310 320 330 332 334 336 340 360 c0d0 c8d0 d0d0 d8d0 e0d0 e8d0 f0d0 f8d0 80d2 80d4 80d6 80d8 80da 80dc 80de");
@@ -701,6 +716,10 @@ public class SettingsService {
 		settings_.setValue("profile", "autolockfeedback_x20240301", "none beep flash");
 		settings_.setValue("profile", "mousecommodel_staging0810", "2button 3button wheel msm 2button+msm 3button+msm wheel+msm");
 		settings_.setValue("profile", "mouseps2model_staging0810", "standard intellimouse explorer none");
+		settings_.setValue("profile", "builtindosmousedriver_staging0830", "on no-tsr off");
+		settings_.setValue("profile", "builtindosmousedrivermodel_staging0830", "2button 3button wheel");
+		settings_.setValue("profile", "builtindosmousedrivermovethreshold_staging0830", "1 2 3 4 5 6 7 8 9");
+		settings_.setValue("profile", "builtindosmousedriveroptions_staging0830", "immediate modern no-granularity");
 		settings_.setValue("profile", "auxdevice_x20240301", "none 2button 3button intellimouse intellimouse45");
 		settings_.setValue("profile", "joysticktype", "auto none 2axis 4axis 4axis_2 ch fcs");
 		settings_.setValue("profile", "joysticktype_staging0810", "auto hidden disabled 2axis 4axis 4axis_2 ch fcs");

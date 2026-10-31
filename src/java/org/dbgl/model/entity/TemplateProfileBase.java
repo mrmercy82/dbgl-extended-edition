@@ -148,11 +148,30 @@ public abstract class TemplateProfileBase extends GenerationAwareConfigurable {
 	}
 
 	public void saveConfiguration() throws IOException {
+		removeEmptyValuesOverridingDosboxDefaults();
 		configuration_.save(false, getNettoMountingPoints());
 	}
 
 	public void saveConfiguration(boolean prepareOnly) throws IOException {
+		removeEmptyValuesOverridingDosboxDefaults();
 		configuration_.save(prepareOnly, getNettoMountingPoints());
+	}
+
+	/**
+	 * DOSBox Staging: an empty value in a profile while the DOSBox configuration has a value for the same setting is invalid
+	 * (Staging rejects it and warns), so leave it out and let the DOSBox default apply. Such entries could be left behind by
+	 * profiles edited with a mismatching DOSBox version.
+	 */
+	private void removeEmptyValuesOverridingDosboxDefaults() {
+		if ((dosboxVersion_ == null) || (gen_ == null) || (familyIdx(gen_) != familyIdx(Generation.staging_0830)))
+			return;
+		Configuration dosboxConf = dosboxVersion_.getConfiguration();
+		for (String section: configuration_.getSectionNames()) {
+			for (String item: configuration_.getItemNames(section)) {
+				if (StringUtils.isBlank(configuration_.getValue(section, item)) && StringUtils.isNotBlank(dosboxConf.getValue(section, item)))
+					configuration_.removeValue(section, item);
+			}
+		}
 	}
 
 	public void setValue(String sectionTitle, String sectionItem, String value) {
@@ -167,6 +186,8 @@ public abstract class TemplateProfileBase extends GenerationAwareConfigurable {
 	}
 	
 	public DaControlConvertor detectPriorityConvertor() {
+		if (!getCombinedConfiguration().hasValue("sdl", "priority"))
+			return null; // e.g. DOSBox Staging 0.83+, which has no priority setting anymore
 		return SeparatedValuesDaControlConvertor.detect(getCombinedConfiguration().getValue("sdl", "priority"));
 	}
 
@@ -237,6 +258,7 @@ public abstract class TemplateProfileBase extends GenerationAwareConfigurable {
 		}
 		
 		configuration_.removeValuesNotSetIn(dstDosboxVersion.getConfiguration());
+		alignBooleanNotation(configuration_, dstDosboxVersion.getConfiguration());
 		configuration_.removeDuplicateValuesIn(dstDosboxVersion.getConfiguration());
 		setDosboxVersion(dstDosboxVersion);
 		return warningsLog;

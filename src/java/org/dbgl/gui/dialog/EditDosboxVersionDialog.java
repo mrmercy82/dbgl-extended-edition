@@ -17,10 +17,14 @@
  */
 package org.dbgl.gui.dialog;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.LinkedHashMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Strings;
@@ -258,7 +262,41 @@ public class EditDosboxVersionDialog extends SizeControlledTabbedDialog<DosboxVe
 			if (!usingCurses.getSelection() && !FilesUtils.isReadableFile(configFile)) {
 				mess.key("dialog.dosboxversion.error.dosboxconfmissing", new Object[] {configFile}).bind(path);
 			}
+			checkStagingVersionMatchesConf(configFile, family, version);
 		}
 		return mess.valid();
+	}
+
+	private static final Pattern STAGING_CONF_HEADER_PATRN = Pattern.compile("DOSBox Staging \\((\\d+\\.\\d+\\.\\d+)");
+
+	/**
+	 * DOSBox Staging writes its version into the first line of its configuration file. If it doesn't match the selected version,
+	 * DBGL would use the wrong option lists for this DOSBox and can lose settings, so offer to correct the version.
+	 */
+	private void checkStagingVersionMatchesConf(File configFile, Combo family, Combo version) {
+		if (!Strings.CI.equals(family.getText(), SettingsService.STAGING_DOSBOX_FAM.title_) || !FilesUtils.isReadableFile(configFile))
+			return;
+		String confVersion = null;
+		try (BufferedReader reader = new BufferedReader(new FileReader(configFile))) {
+			for (int i = 0; i < 5 && confVersion == null; i++) {
+				String line = reader.readLine();
+				if (line == null)
+					break;
+				Matcher m = STAGING_CONF_HEADER_PATRN.matcher(line);
+				if (m.find())
+					confVersion = m.group(1);
+			}
+		} catch (IOException e) {
+			return;
+		}
+		if ((confVersion == null) || confVersion.equals(version.getText()) || !SettingsService.STAGING_DOSBOX_FAM.versions_.contains(confVersion))
+			return;
+		if (Mess_.on(shell_).key("dialog.dosboxversion.confirm.versionmismatch", new Object[] {configFile, confVersion, version.getText()}).confirm()) {
+			int idx = version.indexOf(confVersion);
+			if (idx >= 0)
+				version.select(idx);
+			else
+				version.setText(confVersion);
+		}
 	}
 }

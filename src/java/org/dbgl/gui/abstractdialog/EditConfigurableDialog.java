@@ -333,10 +333,10 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 			metaControls_).init(configurable);
 		
 		Chain.on(composite).lbl(l -> l.key("dialog.template.windowresolution")).cmb(c -> c.editable().tooltip("dialog.template.windowresolution.tooltip").items("profile", configurable.windowresSectionItem()).dynItem(GenerationAwareConfigurable::windowresSectionItem))
-			.section("sdl").item("windowresolution").build(metaControls_).init(configurable);
+			.section("sdl").item("windowresolution", "window_size").build(metaControls_).init(configurable);
 		Label_.on(composite).horSpan(2).grabHorSpace().build();
 		Chain.on(composite).lbl(l -> l.key("dialog.template.fullscreenresolution")).cmb(
-			c -> c.tooltip("dialog.template.fullscreenresolution.tooltip").items("profile", "fullresolution")).section("sdl").item("fullresolution").build(metaControls_).init(configurable);
+			c -> c.tooltip("dialog.template.fullscreenresolution.tooltip").items("profile", configurable.fullscreenmodeSectionItem()).dynItem(GenerationAwareConfigurable::fullscreenmodeSectionItem)).section("sdl").item("fullresolution", "fullscreen_mode").build(metaControls_).init(configurable);
 			
 		Chain.on(composite).lbl(l -> l.key("dialog.template.scaler")).cmb(c -> c.tooltip("dialog.template.scaler.tooltip").items("profile", configurable.scalerSectionItem()).dynItem(GenerationAwareConfigurable::scalerSectionItem).visibleItemCount(15)).lbl(
 			l -> l.key("dialog.template.scalerforced")).but(b -> b.tooltip("dialog.template.scalerforced.tooltip")).section("render").item("scaler").convert(new BaseDaControlConvertor() {
@@ -401,7 +401,7 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		gd.verticalIndent = 20;
 		Group expRendering = Group_.on(composite).layoutData(gd).layout(new GridLayout(6, false)).key("dialog.template.tab.experimentaloptions").build();
 		Chain.on(expRendering).lbl(l -> l.key("dialog.template.glshader")).cmb(c -> c.horSpan(4).tooltip("dialog.template.glshader.tooltip").editable().wide().items(configurable.glshaderValues()).dynItems(GenerationAwareConfigurable::glshaderValues))
-			.but(b -> b.browse(true, Button_.BrowseType.FILE, Button_.CanonicalType.GLSHADER, false)).section("render").item("glshader").build(metaControls_).init(configurable);
+			.but(b -> b.browse(true, Button_.BrowseType.FILE, Button_.CanonicalType.GLSHADER, false)).section("render").item("glshader", "shader").build(metaControls_).init(configurable);
 		Chain.on(expRendering).lbl(l -> l.key("dialog.template.pixelshader")).txt(t -> t.horSpan(4).tooltip("dialog.template.pixelshader.tooltip"))
 			.but(b -> b.browse(true, Button_.BrowseType.FILE, Button_.CanonicalType.GLSHADER, false)).section("render").item("pixelshader").build(metaControls_).init(configurable);
 		
@@ -461,10 +461,10 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 			.section("sdl").item("host_rate").build(metaControls_).init(configurable);
 		Label_.on(expRendering).grabHorSpace().build();
 	
-		Chain.on(expRendering).lbl(l -> l.key("dialog.template.framepresentationmode")).cmb(c -> c.tooltip("dialog.template.framepresentationmode.tooltip").items("profile", "framepresentationmode_staging0810"))
+		Chain.on(expRendering).lbl(l -> l.key("dialog.template.framepresentationmode")).cmb(c -> c.tooltip("dialog.template.framepresentationmode.tooltip").items("profile", configurable.presentationmodeSectionItem()).dynItem(GenerationAwareConfigurable::presentationmodeSectionItem))
 			.section("sdl").item("presentation_mode").build(metaControls_).init(configurable);
 		Label_.on(expRendering).grabHorSpace().build();
-		Chain.on(expRendering).lbl(l -> l.key("dialog.template.transparency")).spn(s -> s.min(0).max(90).tooltip("dialog.template.transparency.tooltip")).section("sdl").item("transparency")
+		Chain.on(expRendering).lbl(l -> l.key("dialog.template.transparency")).spn(s -> s.min(0).max(90).tooltip("dialog.template.transparency.tooltip")).section("sdl").item("transparency", "window_transparency")
 			.build(metaControls_).init(configurable);
 		Label_.on(expRendering).grabHorSpace().build();
 	
@@ -483,6 +483,20 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		Label_.on(expRendering).grabHorSpace().build();
 
 		Chain.on(expRendering).lbl(l -> l.key("dialog.template.char9")).but(b -> b.tooltip("dialog.template.char9.tooltip")).section("render").item("char9")
+			.build(metaControls_).init(configurable);
+		Label_.on(expRendering).grabHorSpace().build();
+		Chain.on(expRendering).lbl(l -> l.key("dialog.template.crtcolorprofile")).cmb(c -> c.tooltip("dialog.template.crtcolorprofile.tooltip").items("profile", "crtcolorprofile_staging0830"))
+			.section("render").item("crt_color_profile").build(metaControls_).init(configurable);
+		Label_.on(expRendering).grabHorSpace().build();
+
+		Chain.on(expRendering).lbl(l -> l.key("dialog.template.deinterlacing")).cmb(c -> c.tooltip("dialog.template.deinterlacing.tooltip").items("profile", "deinterlacing_staging0830"))
+			.section("render").item("deinterlacing").build(metaControls_).init(configurable);
+		Label_.on(expRendering).grabHorSpace().build();
+		Chain.on(expRendering).lbl(l -> l.key("dialog.template.dedithering")).cmb(c -> c.editable().tooltip("dialog.template.dedithering.tooltip").items("profile", "dedithering_staging0830"))
+			.section("render").item("dedithering").build(metaControls_).init(configurable);
+		Label_.on(expRendering).grabHorSpace().build();
+
+		Chain.on(expRendering).lbl(l -> l.key("dialog.template.imageadjustments")).but(b -> b.tooltip("dialog.template.imageadjustments.tooltip")).section("render").item("image_adjustments")
 			.build(metaControls_).init(configurable);
 		
 		return composite;
@@ -571,13 +585,13 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		Chain.on(expDos).lbl(l -> l.key("dialog.template.dosclipboarddevicename")).txt(t -> t.tooltip("dialog.template.dosclipboarddevicename.tooltip"))
 			.section("dos").item("dos clipboard device name").build(metaControls_).init(configurable);
 		
-		Chain.on(expDos).lbl(l -> l.key("dialog.template.dos.localeperiod")).cmb(c -> c.tooltip("dialog.template.dos.localeperiod.tooltip").items("profile", "doslocaleperiod_staging0810")).section("dos").item("locale_period").build(
+		Chain.on(expDos).lbl(l -> l.key("dialog.template.dos.localeperiod")).cmb(c -> c.tooltip("dialog.template.dos.localeperiod.tooltip").items("profile", configurable.localeperiodSectionItem()).dynItem(GenerationAwareConfigurable::localeperiodSectionItem)).section("dos").item("locale_period").build(
 			metaControls_).init(configurable);
 		Label_.on(expDos).grabHorSpace().build();
 		Chain.on(expDos).lbl(l -> l.key("dialog.template.dos.country")).txt(t -> t.tooltip("dialog.template.dos.country.tooltip")).section("dos").item("country").build(
 			metaControls_).init(configurable);
 		
-		Chain.on(expDos).lbl(l -> l.key("dialog.template.dos.expandshellvar")).cmb(c -> c.tooltip("dialog.template.dos.expandshellvar.tooltip").items("profile", "dosexpandshellvar_staging0810")).section("dos").item("expand_shell_variable").build(
+		Chain.on(expDos).lbl(l -> l.key("dialog.template.dos.expandshellvar")).cmb(c -> c.tooltip("dialog.template.dos.expandshellvar.tooltip").items("profile", configurable.expandshellvarSectionItem()).dynItem(GenerationAwareConfigurable::expandshellvarSectionItem)).section("dos").item("expand_shell_variable").build(
 			metaControls_).init(configurable);
 		Label_.on(expDos).grabHorSpace().build();
 		Chain.on(expDos).lbl(l -> l.key("dialog.template.dos.shellhistoryfile")).txt(t -> t.tooltip("dialog.template.dos.shellhistoryfile.tooltip")).section("dos").item("shell_history_file").build(
@@ -592,7 +606,7 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		Chain.on(expDos).lbl(l -> l.key("dialog.template.quickreboot")).but(b -> b.tooltip("dialog.template.quickreboot.tooltip"))
 			.section("dos").item("quick reboot").build(metaControls_).init(configurable);
 		Label_.on(expDos).grabHorSpace().build();
-		Chain.on(expDos).lbl(l -> l.key("dialog.template.share")).but(b -> b.tooltip("dialog.template.share.tooltip"))
+		Chain.on(expDos).lbl(l -> l.key("dialog.template.share")).cmb(c -> c.tooltip("dialog.template.share.tooltip").items("profile", configurable.filelockingSectionItem()).dynItem(GenerationAwareConfigurable::filelockingSectionItem))
 			.section("dos").item("share", "file_locking").build(metaControls_).init(configurable);
 		
 		Chain.on(expDos).lbl(l -> l.key("dialog.template.doslogconsole")).cmb(c -> c.tooltip("dialog.template.doslogconsole.tooltip").items("profile", "doslogconsole_x20240301"))
@@ -973,6 +987,16 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		Label_.on(audioExpGroup).grabHorSpace().build();
 		Chain.on(audioExpGroup).lbl(l -> l.key("dialog.template.audioleveling")).but(b -> b.tooltip("dialog.template.audioleveling.tooltip")).section("mixer").item("compressor")
 			.build(metaControls_).init(configurable);
+
+		Chain.on(audioExpGroup).lbl(l -> l.key("dialog.template.audiodenoiser")).but(b -> b.tooltip("dialog.template.audiodenoiser.tooltip")).section("mixer").item("denoiser")
+			.build(metaControls_).init(configurable);
+		Label_.on(audioExpGroup).grabHorSpace().build();
+		Chain.on(audioExpGroup).lbl(l -> l.key("dialog.template.harddisknoise")).cmb(c -> c.tooltip("dialog.template.harddisknoise.tooltip").items("profile", "disknoise_staging0830"))
+			.section("disknoise").item("hard_disk_noise").build(metaControls_).init(configurable);
+
+		Label_.on(audioExpGroup).horSpan(3).build();
+		Chain.on(audioExpGroup).lbl(l -> l.key("dialog.template.floppydisknoise")).cmb(c -> c.tooltip("dialog.template.floppydisknoise.tooltip").items("profile", "disknoise_staging0830"))
+			.section("disknoise").item("floppy_disk_noise").build(metaControls_).init(configurable);
 		return generalGroup;
 	}
 	
@@ -1030,6 +1054,10 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 				metaControls_).init(configurable);
 		Chain.on(midiExpGroup).lbl(l -> l.key("dialog.template.rawmidioutput")).but(b -> b.tooltip("dialog.template.rawmidioutput.tooltip")).section("midi").item("raw_midi_output")
 			.build(metaControls_).init(configurable);
+		Chain.on(midiExpGroup).lbl(l -> l.key("dialog.template.soundcanvasmodel")).cmb(c -> c.tooltip("dialog.template.soundcanvasmodel.tooltip").items("profile", "soundcanvasmodel_staging0830"))
+			.section("soundcanvas").item("soundcanvas_model").build(metaControls_).init(configurable);
+		Chain.on(midiExpGroup).lbl(l -> l.key("dialog.template.soundcanvasromdir")).txt(t -> t.tooltip("dialog.template.soundcanvasromdir.tooltip"))
+			.section("soundcanvas").item("soundcanvas_rom_dir").build(metaControls_).init(configurable);
 		return composite;
 	}
 	
@@ -1296,7 +1324,7 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		Composite composite = createPage("dialog.template.tab.audio", "dialog.template.tab.innova", parent, 1);
 		Group innovaExpGroup = Group_.on(composite).layoutData(new GridData(SWT.FILL, SWT.FILL, true, false)).layout(new GridLayout(2, false)).key(
 			"dialog.template.tab.experimentaloptions").build();
-		Chain.on(innovaExpGroup).lbl(l -> l.key("dialog.template.innovaenable")).but(b -> b.tooltip("dialog.template.innovaenable.tooltip")).section("innova").item("innova").build(metaControls_).init(configurable);
+		Chain.on(innovaExpGroup).lbl(l -> l.key("dialog.template.innovaenable")).but(b -> b.tooltip("dialog.template.innovaenable.tooltip")).section("innova", "innovation").item("innova", "innovation").build(metaControls_).init(configurable);
 		Chain.on(innovaExpGroup).lbl(l -> l.key("dialog.template.innovamodel")).cmb(c -> c.tooltip("dialog.template.innovamodel.tooltip").items("profile", "innovamodel_staging0810")).section("innovation").item("sidmodel").build(metaControls_).init(configurable);
 		Chain.on(innovaExpGroup).lbl(l -> l.key("dialog.template.innovarate")).cmb(c -> c.tooltip("dialog.template.innovarate.tooltip").items("profile", "innovarate_x20240301")).section("innova").item("samplerate").build(metaControls_).init(configurable);
 		Chain.on(innovaExpGroup).lbl(l -> l.key("dialog.template.innovaport")).cmb(c -> c.tooltip("dialog.template.innovaport.tooltip").items("profile", configurable.innovaportSectionItem()).dynItem(GenerationAwareConfigurable::innovaportSectionItem))
@@ -1306,6 +1334,7 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		Chain.on(innovaExpGroup).lbl(l -> l.key("dialog.template.innovafilter")).cmb(c -> c.tooltip("dialog.template.innovafilter.tooltip").editable().items("profile", "innovafilter_staging0810")).section("innovation").item("innovation_filter").build(metaControls_).init(configurable);
 		Chain.on(innovaExpGroup).lbl(l -> l.key("dialog.template.innova6581")).spn(s -> s.tooltip("dialog.template.innova6581.tooltip").min(0).max(100)).section("innovation").item("6581filter").build(metaControls_).init(configurable).init(configurable);
 		Chain.on(innovaExpGroup).lbl(l -> l.key("dialog.template.innova8580")).spn(s -> s.tooltip("dialog.template.innova8580.tooltip").min(0).max(100)).section("innovation").item("8580filter").build(metaControls_).init(configurable).init(configurable);
+		Chain.on(innovaExpGroup).lbl(l -> l.key("dialog.template.innovasidfilter")).spn(s -> s.tooltip("dialog.template.innovasidfilter.tooltip").min(0).max(100)).section("innovation").item("innovation_sid_filter").build(metaControls_).init(configurable);
 		return composite;
 	}
 	
@@ -1326,7 +1355,7 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 			}
 		}).ctrl();
 		Chain.on(composite).lbl(l -> l.key("dialog.template.keyboardlayout")).cmb(
-			c -> c.horSpan(2).wide().editable().tooltip("dialog.template.keyboardlayout.tooltip").items("profile", "keyboardlayout").visibleItemCount(15)).section("dos").item("keyboardlayout").build(
+			c -> c.horSpan(2).wide().editable().tooltip("dialog.template.keyboardlayout.tooltip").items("profile", "keyboardlayout").visibleItemCount(15)).section("dos").item("keyboardlayout", "keyboard_layout").build(
 				metaControls_).init(configurable);
 		Chain.on(composite).lbl(l -> l.key("dialog.template.keybcommand")).txt(t -> t.tooltip("dialog.template.keybcommand.tooltip").horSpan(2)).autoexec(Autoexec::getKeyb, Autoexec::setKeyb).build(metaControls_).init(configurable);
 		
@@ -1429,7 +1458,19 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 
 		Chain.on(mouseExpGroup).lbl(l -> l.key("dialog.template.mousewheelkey")).spn(s -> s.min(-7).max(7).tooltip("dialog.template.mousewheelkey.tooltip"))
 			.section("sdl").item("mouse_wheel_key").build(metaControls_).init(configurable);
-	
+		Label_.on(mouseExpGroup).grabHorSpace().build();
+		Chain.on(mouseExpGroup).lbl(l -> l.key("dialog.template.builtindosmousedriver")).cmb(c -> c.tooltip("dialog.template.builtindosmousedriver.tooltip").items("profile", "builtindosmousedriver_staging0830"))
+			.section("mouse").item("builtin_dos_mouse_driver").build(metaControls_).init(configurable);
+
+		Chain.on(mouseExpGroup).lbl(l -> l.key("dialog.template.builtindosmousedrivermodel")).cmb(c -> c.tooltip("dialog.template.builtindosmousedrivermodel.tooltip").items("profile", "builtindosmousedrivermodel_staging0830"))
+			.section("mouse").item("builtin_dos_mouse_driver_model").build(metaControls_).init(configurable);
+		Label_.on(mouseExpGroup).grabHorSpace().build();
+		Chain.on(mouseExpGroup).lbl(l -> l.key("dialog.template.builtindosmousedrivermovethreshold")).cmb(c -> c.editable().tooltip("dialog.template.builtindosmousedrivermovethreshold.tooltip").items("profile", "builtindosmousedrivermovethreshold_staging0830"))
+			.section("mouse").item("builtin_dos_mouse_driver_move_threshold").build(metaControls_).init(configurable);
+
+		Chain.on(mouseExpGroup).lbl(l -> l.key("dialog.template.builtindosmousedriveroptions")).cmb(c -> c.editable().tooltip("dialog.template.builtindosmousedriveroptions.tooltip").items("profile", "builtindosmousedriveroptions_staging0830"))
+			.section("mouse").item("builtin_dos_mouse_driver_options").build(metaControls_).init(configurable);
+
 		return composite;
 	}
 	

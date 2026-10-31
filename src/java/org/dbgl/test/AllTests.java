@@ -23,6 +23,6 @@ import org.junit.runners.Suite.SuiteClasses;
 
 
 @RunWith(Suite.class)
-@SuiteClasses({MobyGamesTest.class, PouetTest.class, TheGamesDBTest.class, DBConfWSTest.class})
+@SuiteClasses({MobyGamesTest.class, PouetTest.class, TheGamesDBTest.class, DBConfWSTest.class, Staging083Tests.class})
 public class AllTests {
 }

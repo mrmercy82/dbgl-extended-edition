@@ -38,6 +38,7 @@ import javax.swing.filechooser.FileSystemView;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Strings;
+import org.dbgl.gui.DosboxStatusWindow;
 import org.dbgl.gui.controls.Mess_;
 import org.dbgl.model.FileLocation;
 import org.dbgl.model.NativeCommand;
@@ -96,18 +97,27 @@ public class ExecuteUtils {
 
 		private final InputStream istream_;
 		private final String logType_;
+		private final DosboxStatusWindow statusWindow_;
 
 		public StreamGobbler(InputStream istream, String logType) {
+			this(istream, logType, null);
+		}
+
+		public StreamGobbler(InputStream istream, String logType, DosboxStatusWindow statusWindow) {
 			istream_ = istream;
 			logType_ = logType;
+			statusWindow_ = statusWindow;
 		}
 
 		@Override
 		public void run() {
 			try (BufferedReader bReader = new BufferedReader(new InputStreamReader(istream_))) {
 				String line = null;
-				while ((line = bReader.readLine()) != null)
+				while ((line = bReader.readLine()) != null) {
 					System.out.println(logType_ + "> " + line);
+					if (statusWindow_ != null)
+						statusWindow_.append(line);
+				}
 
 			} catch (IOException ioe) {
 				ioe.printStackTrace();
@@ -117,6 +127,8 @@ public class ExecuteUtils {
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
+				if (statusWindow_ != null)
+					statusWindow_.streamClosed();
 			}
 		}
 	}
@@ -133,7 +145,8 @@ public class ExecuteUtils {
 		String[] cmds = switch (GenerationAwareConfigurable.determineGen(dbversion)) {
 			case daum_20150125 -> new String[] {"-c", "config -writeconf " + quote +
 				(SystemUtils.IS_LINUX ? dbversion.getConfigurationFile().getName(): dbversion.getConfigurationCanonicalFile()) + quote, "-c", "exit"};
-			case staging_0810 -> new String[] {"-noprimaryconf", "-c", "config -writeconf " + quote + dbversion.getConfigurationCanonicalFile() + quote, "-c", "exit"};
+			// 0.83 dropped the early-exit protection of 0.82.1/0.82.2, so the plain 'exit' works again
+			case staging_0810, staging_0830 -> new String[] {"-noprimaryconf", "-c", "config -writeconf " + quote + dbversion.getConfigurationCanonicalFile() + quote, "-c", "exit"};
 			case staging_0820 -> 
 				dbversion.getVersion().equals("0.82.0")
 					? new String[] {"-noprimaryconf", "-c", "config -writeconf " + quote + dbversion.getConfigurationCanonicalFile() + quote, "-c", "exit"}
@@ -143,7 +156,7 @@ public class ExecuteUtils {
 			default -> new String[] {"-c", "config -writeconf " + quote + dbversion.getConfigurationCanonicalFile() + quote, "-c", "exit"};
 		};
 
-		doRunDosbox(dbversion, cmds, false, dbversion.getCwd(), true);
+		doRunDosbox(dbversion, cmds, false, dbversion.getCwd(), true, false); // no status window when just creating the config
 	}
 
 	public static void doRunTemplate(Template template, Display display) throws IOException {
@@ -281,6 +294,21 @@ public class ExecuteUtils {
 	}
 
 	private static void doRunDosbox(DosboxVersion dbversion, String[] parameters, boolean forceDBConf, File cwd, boolean waitFor) throws IOException {
+		doRunDosbox(dbversion, parameters, forceDBConf, cwd, waitFor, true);
+	}
+
+	/**
+	 * DOSBox Staging 0.83 no longer opens a status window (console) on Windows by itself, so DBGL shows the DOSBox output
+	 * itself unless the 'hide status window' option is set. The system property dbgl.statuswindow=true enables this on
+	 * other platforms as well.
+	 */
+	private static boolean dbglShowsStatusWindow(DosboxVersion dbversion) {
+		return !SettingsService.getInstance().getBooleanValue("dosbox", "hideconsole") && !dbversion.isUsingCurses()
+				&& (GenerationAwareConfigurable.determineGen(dbversion) == GenerationAwareConfigurable.Generation.staging_0830)
+				&& (SystemUtils.IS_WINDOWS || Boolean.getBoolean("dbgl.statuswindow"));
+	}
+
+	private static void doRunDosbox(DosboxVersion dbversion, String[] parameters, boolean forceDBConf, File cwd, boolean waitFor, boolean allowStatusWindow) throws IOException {
 		List<String> commandItems = new ArrayList<>();
 		if (dbversion.isUsingCurses()) {
 			if (SystemUtils.IS_WINDOWS) {
@@ -312,7 +340,7 @@ public class ExecuteUtils {
 		}
 
 		try {
-			execute(commandItems, cwd, waitFor);
+			execute(commandItems, cwd, waitFor, allowStatusWindow && dbglShowsStatusWindow(dbversion));
 		} catch (IOException e) {
 			e.printStackTrace();
 			throw new IOException(TextService.getInstance().get("general.error.startdosbox", new Object[] {StringUtils.join(commandItems, ' ')}));
@@ -320,6 +348,10 @@ public class ExecuteUtils {
 	}
 
 	private static void execute(List<String> execCommands, File cwd, boolean waitFor) throws IOException {
+		execute(execCommands, cwd, waitFor, false);
+	}
+
+	private static void execute(List<String> execCommands, File cwd, boolean waitFor, boolean showStatusWindow) throws IOException {
 		System.out.print(StringUtils.join(execCommands, ' '));
 		ProcessBuilder pb = new ProcessBuilder(execCommands.toArray(new String[execCommands.size()]));
 		pb.directory(cwd);
@@ -333,9 +365,12 @@ public class ExecuteUtils {
 		}
 		System.out.println();
 		Process proc = pb.start();
+		DosboxStatusWindow statusWindow = showStatusWindow ? DosboxStatusWindow.open(): null;
+		if (statusWindow != null)
+			proc.onExit().thenAccept(p -> statusWindow.processEnded(p.exitValue()));
 		try {
-			StreamGobbler errorGobbler = new StreamGobbler(proc.getErrorStream(), "DOSBox stderr");
-			StreamGobbler outputGobbler = new StreamGobbler(proc.getInputStream(), "DOSBox stdout");
+			StreamGobbler errorGobbler = new StreamGobbler(proc.getErrorStream(), "DOSBox stderr", statusWindow);
+			StreamGobbler outputGobbler = new StreamGobbler(proc.getInputStream(), "DOSBox stdout", statusWindow);
 			outputGobbler.start();
 			errorGobbler.start();
 			if (waitFor)
