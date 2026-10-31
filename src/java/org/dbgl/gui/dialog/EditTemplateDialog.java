@@ -122,6 +122,7 @@ public class EditTemplateDialog extends EditConfigurableDialog<Template> {
 
 		addSearchListener(template_);
 		Stream.of(tree_.getItems()).forEach(x -> x.setExpanded(true));
+		updatePageTree(template_);
 		tree_.addListener(SWT.Selection, event -> renderPage(template_, event.item));
 
 		// MacOS does not automatically select the first entry in the tree, so do that now, manually 

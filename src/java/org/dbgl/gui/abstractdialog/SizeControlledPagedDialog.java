@@ -17,8 +17,14 @@
  */
 package org.dbgl.gui.abstractdialog;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.stream.Stream;
 
@@ -43,6 +49,7 @@ import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
+import org.eclipse.swt.widgets.Group;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Text;
@@ -57,7 +64,15 @@ public abstract class SizeControlledPagedDialog<T> extends SizeControlledButtonD
 	protected Tree tree_;
 	protected ScrolledComposite rightComposite_;
 	
-	private Map<String, BiFunction<TemplateProfileBase, Composite, Composite>> pageGenerators_ = new HashMap<>();
+	private Map<String, BiFunction<TemplateProfileBase, Composite, Composite>> pageGenerators_ = new LinkedHashMap<>(); // in tree order, later pages may use controls of earlier ones
+
+	private static final String PAGE_HEADER = "dbgl.pageheader";
+
+	/** the complete page tree, in order, so pages without content can be left out of the tree and brought back later */
+	private record PageNode(String key, String parentKey, boolean withImage) {
+	}
+
+	private final List<PageNode> pageNodes_ = new ArrayList<>();
 	private Map<String, Composite> pages_ = new HashMap<>();
 
 	private static Font bold_;
@@ -151,7 +166,12 @@ public abstract class SizeControlledPagedDialog<T> extends SizeControlledButtonD
 		Composite page = Composite_.on(composite).grabAllSpace().pageLayout(numColumns).build();
 		Chain.on(page).lbl(l -> l.key(key).large().horSpan(numColumns))
 			.lbl(l -> l.style(SWT.SEPARATOR | SWT.HORIZONTAL).grabHorSpace().horSpan(numColumns)).build();
+		markPageHeader(page);
 		return page;
+	}
+
+	private static void markPageHeader(Composite page) {
+		Stream.of(page.getChildren()).forEach(x -> x.setData(PAGE_HEADER, Boolean.TRUE));
 	}
 	
 	protected Composite createPage(String parentKey, String childKey, Composite composite, int numColumns) {
@@ -159,32 +179,131 @@ public abstract class SizeControlledPagedDialog<T> extends SizeControlledButtonD
 		Chain.on(page)
 			.lbl(l -> l.txt(TextService.getInstance().get(parentKey) + " - " + TextService.getInstance().get(childKey)).large().horSpan(numColumns))
 			.lbl(l -> l.style(SWT.SEPARATOR | SWT.HORIZONTAL).grabHorSpace().horSpan(numColumns)).build();
+		markPageHeader(page);
 		return page;
 	}
 	
 	protected TreeItem addPageGenerator(String key, BiFunction<TemplateProfileBase, Composite, Composite> pageGenerator) {
 		pageGenerators_.put(key, pageGenerator);
-		
-		TreeItem treeItem = new TreeItem(tree_, SWT.NONE);
-		treeItem.setData(key);
-		treeItem.setText(TextService.getInstance().get(key));
-		String img = "bs/" + key.substring(key.lastIndexOf('.') + 1) + ".png";
-		treeItem.setImage(ImageService.getResourceImage(getParent().getDisplay(), img));
-		return treeItem;
+		pageNodes_.add(new PageNode(key, null, true));
+		return createTreeItem(null, key, true);
 	}
 	
 	protected TreeItem addPageGenerator(TreeItem parentItem, String key, BiFunction<TemplateProfileBase, Composite, Composite> pageGenerator) {
 		pageGenerators_.put(key, pageGenerator);
-		
-		TreeItem treeItem = new TreeItem(parentItem, SWT.NONE);
+		pageNodes_.add(new PageNode(key, (String)parentItem.getData(), false));
+		return createTreeItem(parentItem, key, false);
+	}
+
+	private TreeItem createTreeItem(TreeItem parentItem, String key, boolean withImage) {
+		TreeItem treeItem = parentItem == null ? new TreeItem(tree_, SWT.NONE): new TreeItem(parentItem, SWT.NONE);
 		treeItem.setData(key);
 		treeItem.setText(TextService.getInstance().get(key));
+		if (withImage) {
+			String img = "bs/" + key.substring(key.lastIndexOf('.') + 1) + ".png";
+			treeItem.setImage(ImageService.getResourceImage(getParent().getDisplay(), img));
+		}
 		return treeItem;
+	}
+
+	private static List<TreeItem> allTreeItems(TreeItem[] items) {
+		List<TreeItem> result = new ArrayList<>();
+		for (TreeItem item: items) {
+			result.add(item);
+			result.addAll(allTreeItems(item.getItems()));
+		}
+		return result;
+	}
+
+	/**
+	 * Leave pages out of the navigation tree when none of their settings are supported by the selected DOSBox version (the
+	 * controls are hidden then), and bring them back when they are. A parent page stays as long as one of its sub pages has
+	 * content. All pages are created for this, since only a created page knows which of its controls are visible.
+	 */
+	protected void updatePageTree(TemplateProfileBase configurable, boolean hideEmptyPages) {
+		Set<String> shown = new LinkedHashSet<>();
+		if (hideEmptyPages) {
+			computeAllPages(configurable);
+			Set<String> withContent = new HashSet<>();
+			pageNodes_.stream().filter(n -> Stream.of(pages_.get(n.key()).getChildren()).anyMatch(SizeControlledPagedDialog::hasVisibleContent)).forEach(n -> withContent.add(n.key()));
+			for (PageNode n: pageNodes_) {
+				if (withContent.contains(n.key()) || hasDescendantIn(n.key(), withContent))
+					shown.add(n.key());
+			}
+		} else {
+			pageNodes_.forEach(n -> shown.add(n.key()));
+		}
+
+		List<TreeItem> current = allTreeItems(tree_.getItems());
+		if (current.stream().map(x -> (String)x.getData()).toList().equals(new ArrayList<>(shown)))
+			return; // nothing changed
+
+		Set<String> expanded = new HashSet<>();
+		Set<String> known = new HashSet<>();
+		current.forEach(x -> {
+			known.add((String)x.getData());
+			if (x.getExpanded())
+				expanded.add((String)x.getData());
+		});
+		TreeItem[] sel = tree_.getSelection();
+		String selectedKey = sel.length > 0 ? (String)sel[0].getData(): null;
+
+		tree_.setRedraw(false);
+		try {
+			tree_.removeAll();
+			Map<String, TreeItem> items = new HashMap<>();
+			for (PageNode n: pageNodes_) {
+				if (shown.contains(n.key()))
+					items.put(n.key(), createTreeItem(n.parentKey() == null ? null: items.get(n.parentKey()), n.key(), n.withImage()));
+			}
+			// expand like before; pages that were not in the tree before are expanded like at the start (top level only)
+			for (PageNode n: pageNodes_) {
+				TreeItem item = items.get(n.key());
+				if ((item != null) && (expanded.contains(n.key()) || (!known.contains(n.key()) && (n.parentKey() == null))))
+					item.setExpanded(true);
+			}
+			if (selectedKey != null) {
+				String key = selectedKey;
+				while ((key != null) && !items.containsKey(key))
+					key = parentKeyOf(key);
+				if ((key == null) && (tree_.getItemCount() > 0))
+					key = (String)tree_.getItem(0).getData(); // the page and all its parents are gone
+				if (key != null) {
+					tree_.setSelection(items.get(key));
+					if (!key.equals(selectedKey))
+						renderPage(configurable, items.get(key));
+				}
+			}
+		} finally {
+			tree_.setRedraw(true);
+		}
+	}
+
+	private String parentKeyOf(String key) {
+		for (PageNode n: pageNodes_)
+			if (n.key().equals(key))
+				return n.parentKey();
+		return null;
+	}
+
+	private boolean hasDescendantIn(String key, Set<String> keys) {
+		return pageNodes_.stream().filter(n -> key.equals(n.parentKey())).anyMatch(n -> keys.contains(n.key()) || hasDescendantIn(n.key(), keys));
+	}
+
+	/** true if the control shows something besides the page header, separators and filler labels */
+	private static boolean hasVisibleContent(Control c) {
+		if ((c == null) || !c.getVisible() || (c.getData(PAGE_HEADER) != null))
+			return false;
+		if (c instanceof Label label)
+			return ((label.getStyle() & SWT.SEPARATOR) == 0) && (StringUtils.isNotBlank(label.getText()) || (label.getImage() != null));
+		if ((c instanceof Group) || (c.getClass() == Composite.class))
+			return Stream.of(((Composite)c).getChildren()).anyMatch(SizeControlledPagedDialog::hasVisibleContent);
+		return true;
 	}
 	
 	protected TreeItem getreeItemByComposite(Composite composite) {
 		String key = pages_.entrySet().stream().filter(x -> x.getValue() == composite).map(x -> x.getKey()).findFirst().orElse(null);
-		return Stream.of(tree_.getItems()).filter(x -> x.getData().equals(key)).findFirst().orElse(null);
+		return allTreeItems(tree_.getItems()).stream().filter(x -> x.getData().equals(key)).findFirst().orElse(null);
 	}
 
 	protected TreeItem getTreeItemByControl(Control control) {

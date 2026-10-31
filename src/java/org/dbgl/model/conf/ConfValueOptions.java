@@ -67,7 +67,7 @@ public class ConfValueOptions {
 	private static final Pattern SETTING_PATRN = Pattern.compile("^\\s*([^#=\\s][^=]*?)\\s*=");
 	private static final Pattern OLD_NAME_PATRN = Pattern.compile("^#\\s*([A-Za-z0-9_][A-Za-z0-9_ .\\-]*?):\\s");
 	private static final Pattern OLD_VALUES_PATRN = Pattern.compile("^#\\s*Possible values:\\s*(.*)$", Pattern.CASE_INSENSITIVE);
-	private static final Pattern NEW_OPTION_PATRN = Pattern.compile("^#   (\\S[^:]*?):(\\s|$)");
+	private static final Pattern NEW_OPTION_PATRN = Pattern.compile("^#\\s{3,6}(\\S[^:]*?):(\\s|$)"); // values may be right aligned, e.g. "#    4:"
 	private static final Pattern TOKEN_PATRN = Pattern.compile("^[A-Za-z0-9_+\\-.]+$");
 
 	private final Map<String, Map<String, Options>> options_ = new HashMap<>();
@@ -97,8 +97,7 @@ public class ConfValueOptions {
 	private void doParse(String[] lines) {
 		String section = null;
 		List<String> block = new ArrayList<>(); // comment lines since the last setting
-		Map<String, String> oldStyleValues = new HashMap<>(); // name -> raw 'Possible values' text, within current section
-		String lastOldName = null;
+		Map<String, String> oldStyleValues = null; // name -> raw 'Possible values' text, within current section
 
 		for (String line: lines) {
 			String trimmed = line.trim();
@@ -106,28 +105,20 @@ public class ConfValueOptions {
 			if (sm.find()) {
 				section = sm.group(1).trim().toLowerCase();
 				block.clear();
-				oldStyleValues.clear();
-				lastOldName = null;
+				oldStyleValues = null;
 				continue;
 			}
 			if (section == null)
 				continue;
 			if (trimmed.startsWith("#")) {
 				block.add(trimmed);
-				Matcher vm = OLD_VALUES_PATRN.matcher(trimmed);
-				if (vm.matches()) {
-					if (lastOldName != null)
-						oldStyleValues.merge(lastOldName, vm.group(1), (a, b) -> a + ", " + b);
-				} else {
-					Matcher nm = OLD_NAME_PATRN.matcher(trimmed);
-					if (nm.find())
-						lastOldName = nm.group(1).trim().toLowerCase();
-				}
 				continue;
 			}
 			Matcher setm = SETTING_PATRN.matcher(trimmed);
 			if (setm.find()) {
 				String item = setm.group(1).trim().toLowerCase();
+				if (oldStyleValues == null)
+					oldStyleValues = parseOldStyleHeader(block); // the old format documents all settings of a section in front of the first one
 				Options o = parseNewStyle(block);
 				if ((o == null) && oldStyleValues.containsKey(item))
 					o = parseOldStyle(oldStyleValues.get(item));
@@ -136,6 +127,37 @@ public class ConfValueOptions {
 				block.clear();
 			}
 		}
+	}
+
+	/**
+	 * Old format: "# name: help" lines with the names right aligned, so the colons of all setting names of a section are in the
+	 * same column. Lines of the help text that happen to look alike (e.g. "#      opengl:  OpenGL backend") have their colon
+	 * elsewhere and are ignored. "Possible values:" lines belong to the setting name above them.
+	 */
+	private static Map<String, String> parseOldStyleHeader(List<String> block) {
+		Map<Integer, Integer> colonColumns = new HashMap<>();
+		for (String l: block) {
+			Matcher nm = OLD_NAME_PATRN.matcher(l);
+			if (nm.find() && !OLD_VALUES_PATRN.matcher(l).matches())
+				colonColumns.merge(nm.end(1), 1, Integer::sum);
+		}
+		Map<String, String> result = new HashMap<>();
+		if (colonColumns.isEmpty())
+			return result;
+		int nameColumn = colonColumns.entrySet().stream().max(Map.Entry.comparingByValue()).get().getKey();
+		String current = null;
+		for (String l: block) {
+			Matcher vm = OLD_VALUES_PATRN.matcher(l);
+			if (vm.matches()) {
+				if (current != null)
+					result.merge(current, vm.group(1), (a, b) -> a + ", " + b);
+				continue;
+			}
+			Matcher nm = OLD_NAME_PATRN.matcher(l);
+			if (nm.find() && (nm.end(1) == nameColumn))
+				current = nm.group(1).trim().toLowerCase();
+		}
+		return result;
 	}
 
 	/** values are lower case words; mixed case names like WxH or X are placeholders */

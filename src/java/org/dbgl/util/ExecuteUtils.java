@@ -298,14 +298,17 @@ public class ExecuteUtils {
 	}
 
 	/**
-	 * DOSBox Staging 0.83 no longer opens a status window (console) on Windows by itself, so DBGL shows the DOSBox output
-	 * itself unless the 'hide status window' option is set. The system property dbgl.statuswindow=true enables this on
-	 * other platforms as well.
+	 * DOSBox Staging 0.83 no longer opens a status window (console) on Windows by itself, and DOSBox-X never did (it is a
+	 * Windows GUI program that only opens a console with -console), so DBGL shows the DOSBox output itself unless the 'hide
+	 * status window' option is set. DOSBox, SVN, ECE, Daum and DOSBox Staging up to 0.82 open their own console. The system
+	 * property dbgl.statuswindow=true enables this on other platforms as well.
 	 */
-	private static boolean dbglShowsStatusWindow(DosboxVersion dbversion) {
-		return !SettingsService.getInstance().getBooleanValue("dosbox", "hideconsole") && !dbversion.isUsingCurses()
-				&& (GenerationAwareConfigurable.determineGen(dbversion) == GenerationAwareConfigurable.Generation.staging_0830)
-				&& (SystemUtils.IS_WINDOWS || Boolean.getBoolean("dbgl.statuswindow"));
+	static boolean dbglShowsStatusWindow(DosboxVersion dbversion) {
+		if (SettingsService.getInstance().getBooleanValue("dosbox", "hideconsole") || dbversion.isUsingCurses() || !(SystemUtils.IS_WINDOWS || Boolean.getBoolean("dbgl.statuswindow")))
+			return false;
+		GenerationAwareConfigurable.Generation gen = GenerationAwareConfigurable.determineGen(dbversion);
+		return (gen == GenerationAwareConfigurable.Generation.staging_0830)
+				|| ((gen != null) && (GenerationAwareConfigurable.familyIdx(gen) == GenerationAwareConfigurable.familyIdx(GenerationAwareConfigurable.Generation.x_20241001)));
 	}
 
 	private static void doRunDosbox(DosboxVersion dbversion, String[] parameters, boolean forceDBConf, File cwd, boolean waitFor, boolean allowStatusWindow) throws IOException {

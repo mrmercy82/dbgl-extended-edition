@@ -51,6 +51,12 @@ public class DosboxVersionDetector {
 
 	private static final Pattern STAGING_PATRN = Pattern.compile("dosbox[- ]staging,?\\s+version\\s+(\\d+\\.\\d+\\.\\d+)", Pattern.CASE_INSENSITIVE);
 	private static final Pattern X_PATRN = Pattern.compile("DOSBox-X\\s+version\\s+(\\d{4}\\.\\d{2}\\.\\d{2})", Pattern.CASE_INSENSITIVE);
+	// ECE, Daum and SVN builds don't report a precise version in a uniform way ("DOSBox version SVN", "SVN-Daum", "ECE r4482"),
+	// so these are recognized by name and mapped to the version DBGL supports for that family
+	private static final Pattern ECE_PATRN = Pattern.compile("^DOSBox\\b.*\\bECE\\b", Pattern.CASE_INSENSITIVE | Pattern.MULTILINE);
+	private static final Pattern DAUM_PATRN = Pattern.compile("^DOSBox\\b.*\\bDaum\\b", Pattern.CASE_INSENSITIVE | Pattern.MULTILINE);
+	private static final Pattern SVN_PATRN = Pattern.compile("^DOSBox\\s+version\\s+(?:\\S*-)?SVN\\b", Pattern.CASE_INSENSITIVE | Pattern.MULTILINE);
+	private static final Pattern REVISION_PATRN = Pattern.compile("\\b(r\\d{4,})\\b");
 	private static final Pattern OFFICIAL_PATRN = Pattern.compile("^DOSBox\\s+version\\s+(0\\.\\d+(?:-\\d+)?)\\b", Pattern.CASE_INSENSITIVE | Pattern.MULTILINE);
 
 	private static final int TIMEOUT_SECONDS = 10;
@@ -102,9 +108,22 @@ public class DosboxVersionDetector {
 		m = X_PATRN.matcher(output);
 		if (m.find())
 			return new Result(SettingsService.DOSBOX_X_DOSBOX_FAM.title_, m.group(1));
+		if (ECE_PATRN.matcher(output).find())
+			return new Result(SettingsService.ECE_DOSBOX_FAM.title_, revisionOrDefault(output, SettingsService.ECE_DOSBOX_FAM.versions_));
+		if (DAUM_PATRN.matcher(output).find())
+			return new Result(SettingsService.DAUM_DOSBOX_FAM.title_, SettingsService.DAUM_DOSBOX_FAM.versions_.get(SettingsService.DAUM_DOSBOX_FAM.versions_.size() - 1));
+		if (SVN_PATRN.matcher(output).find())
+			return new Result(SettingsService.SVN_DOSBOX_FAM.title_, revisionOrDefault(output, SettingsService.SVN_DOSBOX_FAM.versions_));
 		m = OFFICIAL_PATRN.matcher(output);
 		if (m.find())
 			return new Result(SettingsService.OFFICIAL_DOSBOX_FAM.title_, m.group(1));
 		return null;
+	}
+
+	private static String revisionOrDefault(String output, java.util.List<String> versions) {
+		Matcher m = REVISION_PATRN.matcher(output);
+		if (m.find() && versions.contains(m.group(1).toLowerCase()))
+			return m.group(1).toLowerCase();
+		return versions.get(versions.size() - 1);
 	}
 }

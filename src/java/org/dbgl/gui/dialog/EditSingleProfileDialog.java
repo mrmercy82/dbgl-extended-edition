@@ -254,6 +254,7 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 
 		addSearchListener(profile_);
 		Stream.of(tree_.getItems()).forEach(x -> x.setExpanded(true));
+		updatePageTree(profile_);
 		tree_.addListener(SWT.Selection, event -> renderPage(profile_, event.item));
 		
 		// MacOS does not automatically select the first entry in the tree, so do that now, manually 

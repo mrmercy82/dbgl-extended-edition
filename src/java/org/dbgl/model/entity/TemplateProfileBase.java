@@ -35,6 +35,7 @@ import org.dbgl.gui.interfaces.DaControlConvertor;
 import org.dbgl.model.GenericStats;
 import org.dbgl.model.NativeCommand;
 import org.dbgl.model.aggregate.DosboxVersion;
+import org.dbgl.model.conf.ConfValueOptions;
 import org.dbgl.model.conf.Configuration;
 import org.dbgl.model.conf.mount.DirMount;
 import org.dbgl.model.conf.mount.Mount;
@@ -158,18 +159,26 @@ public abstract class TemplateProfileBase extends GenerationAwareConfigurable {
 	}
 
 	/**
-	 * DOSBox Staging: an empty value in a profile while the DOSBox configuration has a value for the same setting is invalid
-	 * (Staging rejects it and warns), so leave it out and let the DOSBox default apply. Such entries could be left behind by
-	 * profiles edited with a mismatching DOSBox version.
+	 * An empty value in a profile while the DOSBox configuration has a value for the same setting is invalid, so leave it out
+	 * and let the DOSBox default apply. Such entries could be left behind by profiles edited with a mismatching DOSBox
+	 * version. DOSBox Staging rejects every such empty value and warns. For the other DOSBox versions an empty value can be
+	 * meaningful (e.g. a path), so it is only left out if DOSBox documents a fixed list of values for the setting.
 	 */
 	private void removeEmptyValuesOverridingDosboxDefaults() {
-		if ((dosboxVersion_ == null) || (gen_ == null) || (familyIdx(gen_) != familyIdx(Generation.staging_0830)))
+		if ((dosboxVersion_ == null) || (gen_ == null))
+			return;
+		boolean staging = familyIdx(gen_) == familyIdx(Generation.staging_0830);
+		ConfValueOptions documented = staging ? null: dosboxVersion_.getConfValueOptions();
+		if (!staging && ((documented == null) || documented.isEmpty()))
 			return;
 		Configuration dosboxConf = dosboxVersion_.getConfiguration();
 		for (String section: configuration_.getSectionNames()) {
 			for (String item: configuration_.getItemNames(section)) {
-				if (StringUtils.isBlank(configuration_.getValue(section, item)) && StringUtils.isNotBlank(dosboxConf.getValue(section, item)))
-					configuration_.removeValue(section, item);
+				if (StringUtils.isBlank(configuration_.getValue(section, item)) && StringUtils.isNotBlank(dosboxConf.getValue(section, item))) {
+					ConfValueOptions.Options options = staging ? null: documented.get(section, item);
+					if (staging || ((options != null) && !options.isFreeForm()))
+						configuration_.removeValue(section, item);
+				}
 			}
 		}
 	}

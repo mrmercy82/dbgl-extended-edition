@@ -47,6 +47,7 @@ import org.dbgl.model.entity.TemplateProfileBase;
 import org.dbgl.model.helper.DriveLetterHelper;
 import org.dbgl.model.repository.BaseRepository;
 import org.dbgl.model.repository.DosboxVersionRepository;
+import org.dbgl.service.SettingsService;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.MouseAdapter;
 import org.eclipse.swt.events.MouseEvent;
@@ -126,6 +127,7 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		addPageGenerator(midiTreeItem, "dialog.template.tab.fluidsynth", this::createFluidsynthPage);
 		addPageGenerator(midiTreeItem, "dialog.template.tab.mt32", this::createMt32Page);
 		addPageGenerator(audioTreeItem, "dialog.template.tab.soundblaster", this::createSoundBlasterPage);
+		addPageGenerator(audioTreeItem, "dialog.template.tab.soundblaster2", this::createSoundBlaster2Page);
 		addPageGenerator(audioTreeItem, "dialog.template.tab.gravisultrasound", this::createGravisUltrasoundPage);
 		addPageGenerator(audioTreeItem, "dialog.template.tab.pcspeaker", this::createPCSpeakerPage);
 		addPageGenerator(audioTreeItem, "dialog.template.tab.tandy", this::createTandyAudioPage);
@@ -148,8 +150,12 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		Configuration combinedConf = configurable.getCombinedConfiguration();
 		Autoexec combinedAuto = combinedConf.getAutoexec();
 
-		// enable or disable controls
+		// enable or disable controls, and leave pages without supported settings out of the tree
+		boolean hideEmptyPages = SettingsService.getInstance().getBooleanValue("gui", "hideunsupportedsettings");
+		if (hideEmptyPages)
+			computeAllPages(configurable);
 		metaControls_.forEach(x -> x.enableOrDisableControl(configurable));
+		updatePageTree(configurable, hideEmptyPages);
 		relayoutVisiblePage();
 		// set combo values
 		metaControls_.forEach(x -> x.setComboValues(configurable));
@@ -167,6 +173,10 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		switchButton_.setEnabled(false);
 
 		ipxNet_.setEnabled(ipx_.getSelection());
+	}
+
+	protected void updatePageTree(TemplateProfileBase configurable) {
+		updatePageTree(configurable, SettingsService.getInstance().getBooleanValue("gui", "hideunsupportedsettings"));
 	}
 
 	@Override
@@ -1203,6 +1213,43 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		return composite;
 	}
 	
+	/** DOSBox-X can emulate a second Sound Blaster card, section [sblaster2] */
+	protected Composite createSoundBlaster2Page(TemplateProfileBase configurable, Composite parent) {
+		Composite composite = createPage("dialog.template.tab.audio", "dialog.template.tab.soundblaster2", parent, 5);
+		Chain.on(composite).lbl(l -> l.key("dialog.template.sbtype")).cmb(c -> c.tooltip("dialog.template.sbtype.tooltip").items("profile", configurable.sbtypeSectionItem()).dynItem(GenerationAwareConfigurable::sbtypeSectionItem))
+			.section("sblaster2").item("sbtype").build(metaControls_).init(configurable);
+		Label_.on(composite).build();
+		Chain.on(composite).lbl(l -> l.key("dialog.template.sbaddress")).cmb(c -> c.editable().tooltip("dialog.template.sbaddress.tooltip").items("profile", configurable.sbbaseSectionItem())
+				.dynItem(GenerationAwareConfigurable::sbbaseSectionItem)).section("sblaster2").item("sbbase").build(metaControls_).init(configurable);
+		Chain.on(composite).lbl(l -> l.key("dialog.template.sboplrate")).cmb(c -> c.tooltip("dialog.template.sboplrate.tooltip").items("profile", "oplrate")).section("sblaster2").item("oplrate")
+			.build(metaControls_).init(configurable);
+		Label_.on(composite).build();
+		Chain.on(composite).lbl(l -> l.key("dialog.template.sbirq")).cmb(c -> c.editable().tooltip("dialog.template.sbirq.tooltip").items("profile", configurable.sbirqSectionItem()).dynItem(GenerationAwareConfigurable::sbirqSectionItem))
+			.section("sblaster2").item("irq").build(metaControls_).init(configurable);
+		Chain.on(composite).lbl(l -> l.key("dialog.template.sboplmode")).cmb(c -> c.tooltip("dialog.template.sboplmode.tooltip").items("profile", configurable.oplmodeSectionItem()).dynItem(GenerationAwareConfigurable::oplmodeSectionItem))
+			.section("sblaster2").item("oplmode").build(metaControls_).init(configurable);
+		Label_.on(composite).build();
+		Chain.on(composite).lbl(l -> l.key("dialog.template.sbdma")).cmb(c -> c.editable().tooltip("dialog.template.sbdma.tooltip").items("profile", configurable.sbdmaSectionItem()).dynItem(GenerationAwareConfigurable::sbdmaSectionItem))
+			.section("sblaster2").item("dma").build(metaControls_).init(configurable);
+		Chain.on(composite).lbl(l -> l.key("dialog.template.sboplemu")).cmb(c -> c.tooltip("dialog.template.sboplemu.tooltip").items("profile", configurable.oplemuSectionItem()).dynItem(GenerationAwareConfigurable::oplemuSectionItem))
+			.section("sblaster2").item("oplemu").build(metaControls_).init(configurable);
+		Label_.on(composite).build();
+		Chain.on(composite).lbl(l -> l.key("dialog.template.sbhdma")).cmb(c -> c.editable().tooltip("dialog.template.sbhdma.tooltip").items("profile", configurable.sbhdmaSectionItem()).dynItem(GenerationAwareConfigurable::sbhdmaSectionItem))
+			.section("sblaster2").item("hdma").build(metaControls_).init(configurable);
+		Chain.on(composite).lbl(l -> l.key("dialog.template.mixer")).but(b -> b.tooltip("dialog.template.mixer.tooltip")).section("sblaster2").item("sbmixer").build(metaControls_).init(configurable);
+		Label_.on(composite).build();
+		Chain.on(composite).lbl(l -> l.key("dialog.template.cms")).cmb(c -> c.editable().tooltip("dialog.template.cms.tooltip").items("profile", configurable.sbcmsSectionItem()).dynItem(GenerationAwareConfigurable::sbcmsSectionItem))
+			.section("sblaster2").item("cms").build(metaControls_).init(configurable);
+		Chain.on(composite).lbl(l -> l.key("dialog.template.sbenablespeaker")).but(b -> b.tooltip("dialog.template.sbenablespeaker.tooltip")).section("sblaster2").item("enable speaker").build(metaControls_).init(configurable);
+		Label_.on(composite).build();
+		Chain.on(composite).lbl(l -> l.key("dialog.template.goldplay")).but(b -> b.tooltip("dialog.template.goldplay.tooltip")).section("sblaster2").item("goldplay").build(metaControls_).init(configurable);
+		Chain.on(composite).lbl(l -> l.key("dialog.template.sbenv")).but(b -> b.tooltip("dialog.template.sbenv.tooltip")).section("sblaster2").item("blaster environment variable").build(metaControls_).init(configurable);
+		Label_.on(composite).build();
+		Chain.on(composite).lbl(l -> l.key("dialog.template.sbrecordingsource")).cmb(c -> c.tooltip("dialog.template.sbrecordingsource.tooltip").items("profile", "sbrecordingsource_x20240301")).section("sblaster2").item("recording source")
+			.build(metaControls_).init(configurable);
+		return composite;
+	}
+
 	protected Composite createSoundBlasterPage(TemplateProfileBase configurable, Composite parent) {
 		Composite composite = createPage("dialog.template.tab.audio", "dialog.template.tab.soundblaster", parent, 5);
 		Chain.on(composite).lbl(l -> l.key("dialog.template.sbtype")).cmb(c -> c.tooltip("dialog.template.sbtype.tooltip").items("profile", configurable.sbtypeSectionItem()).dynItem(GenerationAwareConfigurable::sbtypeSectionItem))

@@ -31,9 +31,11 @@ import java.util.List;
 
 import org.dbgl.gui.dialog.SwitchDosboxVersionDialog;
 import org.dbgl.model.conf.ConfValueOptions;
+import org.dbgl.model.conf.Configuration;
 import org.dbgl.model.entity.GenerationAwareConfigurable;
 import org.dbgl.model.entity.GenerationAwareConfigurable.Generation;
 import org.dbgl.model.factory.DosboxVersionFactory;
+import org.dbgl.service.GenericTextService;
 import org.dbgl.service.SettingsService;
 import org.dbgl.util.DosboxVersionDetector;
 import org.junit.Test;
@@ -81,6 +83,54 @@ public class Dbgl0102Tests {
 	}
 
 	@Test
+	public void testDocumentedValuesOldFormatWithNestedHelp() {
+		// DOSBox Staging up to 0.82 and DOSBox-X: help texts may contain "name:" lines of their own, which are not settings
+		String conf = String.join("\n",
+			"[sdl]",
+			"#              output: Rendering backend to use for graphics output ('opengl' by default).",
+			"#                        opengl:     OpenGL backend with shader support (default).",
+			"#                        texture:    SDL's texture backend with bilinear interpolation.",
+			"#                      Possible values: opengl, texture, texturenb.",
+			"#",
+			"#    texture_renderer: Render driver to use in 'texture' output mode ('auto' by default).",
+			"#                      Possible values: auto, opengl, opengles2, software.",
+			"#",
+			"#    windowresolution: Set intial window size for windowed mode.",
+			"#                        WxH:       Specify window size in WxH format.",
+			"",
+			"output           = opengl",
+			"texture_renderer = auto",
+			"windowresolution = default",
+			"[cpu]",
+			"# core: CPU Core used in emulation.",
+			"#       Possible values: auto, dynamic, normal, simple.",
+			"core=auto");
+		ConfValueOptions o = ConfValueOptions.parse(conf);
+		assertValues(o, "sdl", "output", false, "opengl", "texture", "texturenb");
+		assertValues(o, "sdl", "texture_renderer", false, "auto", "opengl", "opengles2", "software");
+		assertNull(o.get("sdl", "windowresolution"));
+		assertNull("not a setting, part of a help text", o.get("sdl", "opengl"));
+		assertValues(o, "cpu", "core", false, "auto", "dynamic", "normal", "simple");
+	}
+
+	@Test
+	public void testDocumentedValuesStaging082() throws IOException {
+		File conf = new File(DATA_DIR, "dosbox-staging-0.82.2.conf");
+		ConfValueOptions o = parse(conf);
+		assertValues(o, "sdl", "output", false, "opengl", "texture", "texturenb");
+		assertValues(o, "sdl", "texture_renderer", false, "auto", "opengl", "opengles2", "software");
+		// every documented list contains the default DOSBox writes, otherwise the dialog would offer wrong values
+		Configuration c = new Configuration();
+		c.loadDataWithAutoexec(GenericTextService.getInstance(), Files.readString(conf.toPath(), StandardCharsets.UTF_8), conf, null);
+		for (String section: c.getSectionNames())
+			for (String item: c.getItemNames(section)) {
+				ConfValueOptions.Options v = o.get(section, item);
+				if ((v != null) && !v.isFreeForm() && !item.equals("priority")) // priority holds two values
+					assertTrue("[" + section + "] " + item + "=" + c.getValue(section, item) + " in " + v.getValues(), v.getValues().contains(c.getValue(section, item).toLowerCase()));
+			}
+	}
+
+	@Test
 	public void testVersionDetectionParsing() {
 		DosboxVersionDetector.Result r = DosboxVersionDetector.parse("dosbox-staging, version 0.83.0 (7b400)\n\nCopyright (C) 2020-2026 The DOSBox Staging Team");
 		assertEquals(SettingsService.STAGING_DOSBOX_FAM.title_, r.family_);
@@ -91,6 +141,17 @@ public class Dbgl0102Tests {
 		r = DosboxVersionDetector.parse("DOSBox version 0.74-3, copyright 2002-2019 DOSBox Team.");
 		assertEquals(SettingsService.OFFICIAL_DOSBOX_FAM.title_, r.family_);
 		assertEquals("0.74-3", r.version_);
+		r = DosboxVersionDetector.parse("DOSBox version SVN, copyright 2002-2021 DOSBox Team.");
+		assertEquals(SettingsService.SVN_DOSBOX_FAM.title_, r.family_);
+		assertEquals("r4483", r.version_);
+		r = DosboxVersionDetector.parse("DOSBox version 0.74-SVN-r4483, copyright 2002-2021 DOSBox Team.");
+		assertEquals(SettingsService.SVN_DOSBOX_FAM.title_, r.family_);
+		r = DosboxVersionDetector.parse("DOSBox ECE version r4482, copyright 2002-2021 DOSBox Team.");
+		assertEquals(SettingsService.ECE_DOSBOX_FAM.title_, r.family_);
+		assertEquals("r4482", r.version_);
+		r = DosboxVersionDetector.parse("DOSBox version SVN-Daum, copyright 2002-2015 DOSBox Team.");
+		assertEquals(SettingsService.DAUM_DOSBOX_FAM.title_, r.family_);
+		assertEquals("2015.01.25", r.version_);
 		assertNull(DosboxVersionDetector.parse("something else"));
 		assertNull(DosboxVersionDetector.parse(null));
 	}
