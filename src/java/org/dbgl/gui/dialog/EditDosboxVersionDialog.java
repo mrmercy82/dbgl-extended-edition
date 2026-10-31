@@ -285,10 +285,27 @@ public class EditDosboxVersionDialog extends SizeControlledTabbedDialog<DosboxVe
 			} else {
 				checkStagingVersionMatchesConf(configFile, family, version);
 			}
-			if (exeAvailable)
+			if (exeAvailable) {
 				maybeRecreateReducedDosboxXConf(family, version, path, exe, conf);
+				noticeSpecialDosboxXBuild(family, executable);
+			}
 		}
 		return mess.valid();
+	}
+
+	/** tell once per executable if it is a DOSBox-X build that may surprise: without DOS shell, or made for old Windows 9x PCs */
+	private void noticeSpecialDosboxXBuild(Combo family, File executable) {
+		if (!Strings.CI.equals(family.getText(), SettingsService.DOSBOX_X_DOSBOX_FAM.title_))
+			return;
+		String id = executable.getAbsolutePath() + '|' + executable.length() + '|' + executable.lastModified();
+		if (id.equals(settings_.getValue("gui", "xbuildnoticeshown")))
+			return;
+		java.util.Set<DosboxVersionDetector.XBuild> build = DosboxVersionDetector.dosboxXBuild(executable);
+		settings_.setValue("gui", "xbuildnoticeshown", id);
+		if (build.contains(DosboxVersionDetector.XBuild.OSFREE))
+			Mess_.on(shell_).key("dialog.dosboxversion.notice.osfreebuild", new Object[] {executable}).display();
+		if (build.contains(DosboxVersionDetector.XBuild.LOWEND))
+			Mess_.on(shell_).key("dialog.dosboxversion.notice.lowendbuild", new Object[] {executable}).display();
 	}
 
 	private static final Pattern CONF_SETTING_PATRN = Pattern.compile("^\\s*[^#\\[\\s][^=]*=");

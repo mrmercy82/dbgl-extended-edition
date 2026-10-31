@@ -421,6 +421,61 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		GridCompactor.compact(page);
 	}
 
+	/**
+	 * Settings the DOSBox-X guide recommends for booting Windows 95/98 from a disk image: 64 MB memory, Pentium MMX, the
+	 * normal (most compatible) CPU core and no EMS of the built-in DOS. Only values the DOSBox version supports are set.
+	 */
+	protected void applyWindows9xSettings() {
+		TemplateProfileBase configurable = currentConfigurable();
+		computeAllPages(configurable);
+		updateConfigurableByControls(configurable);
+		setFirstSupported(configurable, "dosbox", "memsize", "64");
+		setFirstSupported(configurable, "cpu", "cputype", "pentium_mmx", "pentium", "pentium_slow");
+		setFirstSupported(configurable, "cpu", "core", "normal");
+		String ems = StringUtils.defaultString(configurable.getDosboxVersion().getConfiguration().getValue("dos", "ems")).toLowerCase();
+		setFirstSupported(configurable, "dos", "ems", ems.equals("on") || ems.equals("off") ? "off": "false");
+		updateControlsByConfigurable(configurable);
+	}
+
+	private static void setFirstSupported(TemplateProfileBase configurable, String section, String item, String... candidates) {
+		Configuration dosboxConf = configurable.getDosboxVersion().getConfiguration();
+		if (!dosboxConf.hasValue(section, item))
+			return;
+		ConfValueOptions.Options options = configurable.getDosboxVersion().getConfValueOptions().get(section, item);
+		for (String candidate: candidates) {
+			if ((options == null) || options.isFreeForm() || options.getValues().contains(candidate)) {
+				configurable.setValue(section, item, candidate);
+				return;
+			}
+		}
+	}
+
+	/** list the settings that differ from the defaults of the DOSBox version, as they are in the dialog right now */
+	protected void showDifferences() {
+		TemplateProfileBase configurable = currentConfigurable();
+		computeAllPages(configurable);
+		updateConfigurableByControls(configurable);
+		Configuration own = configurable.getConfiguration();
+		Configuration dosboxConf = configurable.getDosboxVersion().getConfiguration();
+		String defaultText = TextService.getInstance().get("dialog.template.moresettings.default");
+		StringBuilder sb = new StringBuilder(configurable.getDosboxVersion().getTitle()).append(Text.DELIMITER).append(Text.DELIMITER);
+		int count = 0;
+		for (String section: own.getSectionNames()) {
+			for (String item: own.getItemNames(section)) {
+				String value = own.getValue(section, item);
+				String def = dosboxConf.getValue(section, item);
+				if (StringUtils.equals(value, def) || DBGL_MANAGED_SETTINGS.contains(section + '/' + item))
+					continue;
+				sb.append('[').append(section).append("] ").append(item).append(" = ").append(value).append("   (").append(defaultText).append(": ")
+						.append(def == null ? "-": def).append(')').append(Text.DELIMITER);
+				count++;
+			}
+		}
+		if (count == 0)
+			sb.append(TextService.getInstance().get("dialog.differences.none"));
+		new org.dbgl.gui.dialog.DifferencesDialog(shell_, TextService.getInstance().get("dialog.differences.title"), sb.toString()).open();
+	}
+
 	/** the profile or template being edited */
 	protected abstract TemplateProfileBase currentConfigurable();
 
@@ -466,6 +521,12 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 				switchButton_.setEnabled(true);
 			}
 		});
+		Button_.on(associationGroup).text().key("dialog.template.showdifferences").tooltip("dialog.template.showdifferences.tooltip").listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				showDifferences();
+			}
+		}).ctrl().setLayoutData(new GridData(SWT.BEGINNING, SWT.CENTER, false, false, 5, 1));
 
 		Group miscGroup = Group_.on(composite).layoutData(new GridData(SWT.FILL, SWT.FILL, true, true)).layout(new GridLayout(3, false)).key("dialog.template.miscellaneous").build();
 		Chain.on(miscGroup).lbl(l -> l).lbl(l -> l.key("dialog.template.active")).lbl(l -> l.key("dialog.template.inactive")).build();

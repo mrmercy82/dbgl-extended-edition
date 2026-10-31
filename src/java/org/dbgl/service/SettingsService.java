@@ -181,6 +181,10 @@ public class SettingsService {
 		settings_.setValue("gui", "dosboxdialog_width", "600");
 		settings_.setValue("gui", "switchdosboxdialog_width", "760");
 		settings_.setValue("gui", "switchdosboxdialog_height", "560");
+		settings_.setValue("gui", "checkprofilesdialog_width", "760");
+		settings_.setValue("gui", "checkprofilesdialog_height", "560");
+		settings_.setValue("gui", "differencesdialog_width", "600");
+		settings_.setValue("gui", "differencesdialog_height", "460");
 		settings_.setValue("gui", "dosboxdialog_height", "400");
 		settings_.setValue("gui", "templatedialog_width", "768");
 		settings_.setValue("gui", "templatedialog_height", "588");
@@ -370,6 +374,9 @@ public class SettingsService {
 		settings_.setValue("dosbox", "hideconsole", false);
 		settings_.setValue("gui", "hideunsupportedsettings", true);
 		settings_.setValue("gui", "statuswindowkeepopen", false);
+		settings_.setValue("gui", "xbuildnoticeshown", "");
+		settings_.setValue("dosbox", "detectfailedstart", true);
+		settings_.setValue("dosbox", "checkversionsatstartup", true);
 		settings_.setValue("gui", "statuswindow_width", "800");
 		settings_.setValue("gui", "statuswindow_height", "440");
 		settings_.setValue("gui", "statuswindow_maximized", false);

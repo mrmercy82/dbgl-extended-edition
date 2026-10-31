@@ -21,6 +21,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -75,6 +76,12 @@ public class DosboxVersionDetector {
 	public static Result detect(File executable, File cwd) {
 		if ((executable == null) || !executable.isFile())
 			return null;
+		if (executable.getName().toLowerCase().contains("dosbox-x")) {
+			// DOSBox-X on Windows prints its version into a console of its own, not to us; read it from the executable instead
+			Result scanned = scanDosboxXExecutable(executable);
+			if (scanned != null)
+				return scanned;
+		}
 		try {
 			ProcessBuilder pb = new ProcessBuilder(executable.getPath(), "-version");
 			if ((cwd != null) && cwd.isDirectory())
@@ -96,6 +103,103 @@ public class DosboxVersionDetector {
 				proc.destroyForcibly();
 			reader.join(2000);
 			return parse(output.toString());
+		} catch (IOException e) {
+			return null;
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+			return null;
+		}
+	}
+
+	private static final Pattern X_DATE_PATRN = Pattern.compile("\\b(20\\d{2}\\.[01]\\d\\.[0-3]\\d)\\b");
+
+	private static String readAsText(File file) {
+		try {
+			return new String(java.nio.file.Files.readAllBytes(file.toPath()), java.nio.charset.StandardCharsets.ISO_8859_1);
+		} catch (IOException | OutOfMemoryError e) {
+			return null;
+		}
+	}
+
+	/**
+	 * The version of a DOSBox-X executable, without running it: the version (e.g. "2026.10.01") is stored in the program as
+	 * text, and it is the latest date of this form in there.
+	 */
+	public static Result scanDosboxXExecutable(File executable) {
+		String text = readAsText(executable);
+		if ((text == null) || !text.contains("DOSBox-X"))
+			return null;
+		Matcher m = X_DATE_PATRN.matcher(text);
+		String latest = null;
+		while (m.find())
+			if ((latest == null) || (m.group(1).compareTo(latest) > 0))
+				latest = m.group(1);
+		return latest == null ? null: new Result(SettingsService.DOSBOX_X_DOSBOX_FAM.title_, latest);
+	}
+
+	/** special DOSBox-X builds, as far as the executable tells */
+	public enum XBuild {
+		OSFREE, LOWEND
+	}
+
+	public static java.util.Set<XBuild> dosboxXBuild(File executable) {
+		java.util.Set<XBuild> result = java.util.EnumSet.noneOf(XBuild.class);
+		String text = executable == null ? null: readAsText(executable);
+		if (text == null)
+			return result;
+		if (text.contains("OS-Free build"))
+			result.add(XBuild.OSFREE);
+		if (text.contains("Low-end") || text.contains("low-end") || text.contains("LOWEND"))
+			result.add(XBuild.LOWEND);
+		return result;
+	}
+
+	private static final Map<String, List<String>> SHADER_CACHE = new ConcurrentHashMap<>();
+	private static final Pattern SHADER_LINE_PATRN = Pattern.compile("^\\s*[|`]-\\s+(\\S+)\\s*$");
+
+	/**
+	 * The shaders a DOSBox Staging executable finds in its resource folders, by running it with --list-shaders (0.83+) or
+	 * --list-glshaders (0.81/0.82). Every executable file is asked only once.
+	 */
+	public static List<String> listShadersCached(File executable, File cwd, boolean staging083) {
+		if ((executable == null) || !executable.isFile())
+			return List.of();
+		String key = executable.getAbsolutePath() + '|' + executable.length() + '|' + executable.lastModified() + '|' + staging083;
+		return SHADER_CACHE.computeIfAbsent(key, k -> {
+			String output = run(executable, cwd, staging083 ? "--list-shaders": "--list-glshaders");
+			List<String> result = new java.util.ArrayList<>();
+			if (output != null)
+				for (String line: output.split("\\R")) {
+					Matcher m = SHADER_LINE_PATRN.matcher(line);
+					if (m.matches())
+						result.add(m.group(1));
+				}
+			return result;
+		});
+	}
+
+	private static String run(File executable, File cwd, String argument) {
+		try {
+			ProcessBuilder pb = new ProcessBuilder(executable.getPath(), argument);
+			if ((cwd != null) && cwd.isDirectory())
+				pb.directory(cwd);
+			pb.redirectErrorStream(true);
+			Process proc = pb.start();
+			proc.getOutputStream().close();
+			StringBuilder output = new StringBuilder();
+			Thread reader = new Thread(() -> {
+				try (InputStream is = proc.getInputStream()) {
+					output.append(IOUtils.toString(is, Charset.defaultCharset()));
+				} catch (IOException e) {
+					// use what we have
+				}
+			});
+			reader.setDaemon(true);
+			reader.start();
+			if (!proc.waitFor(TIMEOUT_SECONDS, TimeUnit.SECONDS))
+				proc.destroyForcibly();
+			reader.join(2000);
+			return output.toString();
 		} catch (IOException e) {
 			return null;
 		} catch (InterruptedException e) {

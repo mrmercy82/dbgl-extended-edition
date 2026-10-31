@@ -212,7 +212,7 @@ public class Dbgl0102Tests {
 	}
 
 	private static File unzipToTemp(String name) throws IOException {
-		File result = File.createTempFile("dbgl", ".hdi");
+		File result = File.createTempFile("dbgl", name.substring(name.lastIndexOf('.', name.length() - 4), name.length() - 3));
 		result.deleteOnExit();
 		try (java.io.InputStream in = new java.util.zip.GZIPInputStream(new java.io.FileInputStream(new File(DATA_DIR, name)))) {
 			Files.copy(in, result.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
@@ -247,5 +247,59 @@ public class Dbgl0102Tests {
 		assertEquals(Arrays.asList("- [sdl] windowresolution=1024x768", "- [dos] xms=false", "+ [sdl] window_size=1024x768", "+ [dos] xms=off"), diff);
 		assertFalse(diff.stream().anyMatch(l -> l.contains("fullscreen")));
 		assertTrue(SwitchDosboxVersionDialog.diff(before, before).isEmpty());
+	}
+	@Test
+	public void testPc98OtherImageFormats() throws IOException {
+		// built with make_pc98_floppy.py: .NHD (from an .HDI), .FDI and .D88 floppies with 1024 byte sectors
+		File nhd = unzipToTemp("pc98-512.nhd.gz");
+		org.dbgl.util.fat.FileDisk disk = new org.dbgl.util.fat.FileDisk(nhd);
+		org.dbgl.util.fat.Pc98HdiImage.Info info = org.dbgl.util.fat.Pc98HdiImage.readInfo(disk);
+		disk.close();
+		assertEquals(512, info.base());
+		assertEquals(512, info.sectorSize());
+		assertTrue(info.ipl1());
+		assertTrue(org.dbgl.util.FilesUtils.isPc98HdImage(nhd.getPath()));
+		assertTrue(org.dbgl.util.FilesUtils.listExecutablesInZipOrIsoOrFat(nhd.getPath()).length > 0);
+
+		for (String name: new String[] {"pc98-floppy.fdi.gz", "pc98-floppy.d88.gz"}) {
+			File floppy = unzipToTemp(name);
+			assertTrue(name, org.dbgl.util.FilesUtils.isPc98Image(floppy.getPath()));
+			assertFalse(name, org.dbgl.util.FilesUtils.isPc98HdImage(floppy.getPath()));
+			assertEquals(name, Arrays.asList("GAME.EXE", "UTIL/SETUP.COM"),
+				Arrays.stream(org.dbgl.util.FilesUtils.listExecutablesInZipOrIsoOrFat(floppy.getPath())).map(x -> x.replace(File.separatorChar, '/')).toList());
+		}
+	}
+
+	@Test
+	public void testDosboxXExecutableScan() throws IOException {
+		File exe = File.createTempFile("dbgl-dosbox-x-", ".exe");
+		exe.deleteOnExit();
+		Files.write(exe.toPath(), ("\0\0MZ...DOSBox-X\0built 2024.03.01\0" + "DOSBox-X 2026.05.02\0OS-Free build\0").getBytes(StandardCharsets.ISO_8859_1));
+		DosboxVersionDetector.Result r = DosboxVersionDetector.scanDosboxXExecutable(exe);
+		assertEquals(SettingsService.DOSBOX_X_DOSBOX_FAM.title_, r.family_);
+		assertEquals("2026.05.02", r.version_);
+		assertEquals(java.util.EnumSet.of(DosboxVersionDetector.XBuild.OSFREE), DosboxVersionDetector.dosboxXBuild(exe));
+
+		Files.write(exe.toPath(), "DOSBox Staging 0.83.0".getBytes(StandardCharsets.ISO_8859_1));
+		assertNull(DosboxVersionDetector.scanDosboxXExecutable(exe));
+		assertTrue(DosboxVersionDetector.dosboxXBuild(exe).isEmpty());
+	}
+
+	@Test
+	public void testInvalidValues() throws IOException {
+		org.dbgl.model.aggregate.DosboxVersion v083 = DosboxVersionFactory.create("DOSBox Staging 0.83.0", SettingsService.STAGING_DOSBOX_FAM.title_, "0.83.0", false, true, false, null,
+			"staging083", "", "", "staging083/dosbox.conf");
+		File dosboxConfFile = new File(DATA_DIR, "dosbox-staging-0.83.0.conf");
+		v083.loadConfigurationData(GenericTextService.getInstance(), Files.readString(dosboxConfFile.toPath(), StandardCharsets.UTF_8), dosboxConfFile);
+		org.dbgl.model.aggregate.Profile profile = org.dbgl.model.factory.ProfileFactory.create(v083, null);
+		Configuration c = profile.getConfiguration();
+		c.setValue("dos", "xms", "on");
+		c.setValue("dos", "ems", "true");
+		c.setValue("sdl", "output", "overlay");
+		c.setValue("cpu", "cpu_cycles", "40000");
+		List<String[]> invalid = profile.listInvalidValues();
+		assertEquals(1, invalid.size());
+		assertEquals("output", invalid.get(0)[1]);
+		assertEquals("overlay", invalid.get(0)[2]);
 	}
 }

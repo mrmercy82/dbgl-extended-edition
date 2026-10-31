@@ -339,6 +339,15 @@ public class Autoexec {
 		return mountingpoints_.stream().filter(ImageMount.class::isInstance).findFirst().map(x -> ((ImageMount)x).getCanonicalImgPaths()).orElse(new File[0]);
 	}
 
+	/**
+	 * After a successful boot, DOSBox never returns to the autoexec. If booting fails, this line keeps the message of BOOT on
+	 * the screen, instead of 'exit' closing DOSBox right away. Not read back by parse (only 'pause' is the pause option).
+	 */
+	private void appendPauseAfterFailedBoot(StringBuilder result) {
+		if (BooleanUtils.isTrue(exit_))
+			result.append("@pause").append(SystemUtils.EOLN);
+	}
+
 	private boolean hasImageMountMatch(String file) {
 		return mountingpoints_.stream().anyMatch(x -> x instanceof ImageMount && ((ImageMount)x).matchesImgPath(file));
 	}
@@ -845,6 +854,7 @@ public class Autoexec {
 			if (!prepareOnly && (hdiMount != null)) {
 				// self-booting PC-98 hard disk image, attached by number (imgmount 2 = C:, 3 = D:)
 				result.append("boot -l ").append((char)(hdiMount.getDrive() + 17)).append(SystemUtils.EOLN);
+				appendPauseAfterFailedBoot(result);
 				insertCustomSection(result, 2);
 			} else if (!prepareOnly) {
 				result.append("boot");
@@ -888,6 +898,7 @@ public class Autoexec {
 					result.append(" -l ").append(imgDriveletter_);
 				}
 				result.append(SystemUtils.EOLN);
+				appendPauseAfterFailedBoot(result);
 				insertCustomSection(result, 2);
 			}
 

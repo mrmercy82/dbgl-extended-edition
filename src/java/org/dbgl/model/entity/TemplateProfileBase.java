@@ -185,17 +185,90 @@ public abstract class TemplateProfileBase extends GenerationAwareConfigurable {
 		}
 	}
 
+	/**
+	 * @return the folders and files this profile needs that do not exist: mounted folders and images, the main program or the
+	 *         image holding it, booter images. Physical floppy and CD drives are skipped, they may just be empty.
+	 */
+	public List<String> listMissingPaths() {
+		List<String> result = new ArrayList<>();
+		for (Mount mount: getNettoMountingPoints()) {
+			if (mount.isUnmounted())
+				continue;
+			if (mount instanceof org.dbgl.model.conf.mount.ImageMount im) {
+				for (File f: im.getCanonicalImgPaths())
+					if (!f.exists() && !result.contains(f.getPath()))
+						result.add(f.getPath());
+			} else if (mount instanceof DirMount dm) {
+				String type = StringUtils.defaultString(mount.getMountAs()).toLowerCase();
+				File f = dm.getCanonicalPath();
+				if (!type.equals("floppy") && !type.equals("cdrom") && !f.exists() && !result.contains(f.getPath()))
+					result.add(f.getPath());
+			}
+		}
+		Autoexec autoexec = configuration_.getAutoexec();
+		List<String> files = new ArrayList<>();
+		if (StringUtils.isNotBlank(autoexec.getMain()))
+			files.add(autoexec.getMain());
+		for (int i = 0; i < Autoexec.BOOTER_IMAGES; i++)
+			if (StringUtils.isNotBlank(autoexec.getImg(i)) && !autoexec.getImg(i).equals("file"))
+				files.add(autoexec.getImg(i));
+		for (String file: files) {
+			File f = FilesUtils.determineMainFile(new org.dbgl.model.FileLocation(file, org.dbgl.service.FileLocationService.getInstance().dosrootRelative()).getCanonicalFile());
+			if (!f.exists() && !result.contains(f.getPath()))
+				result.add(f.getPath());
+		}
+		return result;
+	}
+
+	private static final java.util.Set<String> SWITCH_VALUES = java.util.Set.of("on", "off", "true", "false", "yes", "no", "1", "0", "enabled", "disabled");
+
+	/**
+	 * @return the values in this profile that the DOSBox version does not allow, as {section, item, value, allowed values}.
+	 *         Only settings for which DOSBox documents a fixed list of values are checked.
+	 */
+	public List<String[]> listInvalidValues() {
+		List<String[]> result = new ArrayList<>();
+		if (dosboxVersion_ == null)
+			return result;
+		org.dbgl.model.conf.ConfValueOptions documented = dosboxVersion_.getConfValueOptions();
+		for (String section: configuration_.getSectionNames()) {
+			for (String item: configuration_.getItemNames(section)) {
+				org.dbgl.model.conf.ConfValueOptions.Options options = documented.get(section, item);
+				String value = StringUtils.defaultString(configuration_.getValue(section, item)).trim().toLowerCase();
+				if ((options == null) || options.isFreeForm() || value.isEmpty())
+					continue;
+				List<String> allowed = options.getValues();
+				boolean switchSetting = SWITCH_VALUES.containsAll(allowed);
+				boolean valid = java.util.Arrays.stream(value.split("[,\\s]+")).allMatch(v -> allowed.contains(v) || (switchSetting && SWITCH_VALUES.contains(v)));
+				if (!valid)
+					result.add(new String[] {section, item, configuration_.getValue(section, item), String.join(", ", allowed)});
+			}
+		}
+		return result;
+	}
+
+	/** for DOSBox Staging, also the shaders the executable finds in its resource folders (--list-shaders) */
+	@Override
+	public String[] glshaderValues() {
+		String[] values = super.glshaderValues();
+		if ((dosboxVersion_ == null) || (gen_ == null) || (familyIdx(gen_) != familyIdx(Generation.staging_0830)))
+			return values;
+		java.util.Set<String> result = new java.util.LinkedHashSet<>(java.util.Arrays.asList(values));
+		result.addAll(org.dbgl.util.DosboxVersionDetector.listShadersCached(dosboxVersion_.getCanonicalExecutable(), dosboxVersion_.getCwd(), gen_ == Generation.staging_0830));
+		return result.toArray(new String[0]);
+	}
+
 	/** @return true if a PC-98 hard disk image (.HDI) is mounted, booted or holds the main program */
 	public boolean usesPc98HdImage() {
 		Autoexec autoexec = configuration_.getAutoexec();
 		for (Mount mount: getNettoMountingPoints())
-			if ((mount instanceof org.dbgl.model.conf.mount.ImageMount im) && java.util.stream.Stream.of(im.getImgPathStrings()).anyMatch(FilesUtils::isPc98HdImage))
+			if ((mount instanceof org.dbgl.model.conf.mount.ImageMount im) && java.util.stream.Stream.of(im.getImgPathStrings()).anyMatch(FilesUtils::isPc98Image))
 				return true;
 		for (int i = 0; i < Autoexec.BOOTER_IMAGES; i++)
-			if (StringUtils.isNotBlank(autoexec.getImg(i)) && FilesUtils.isPc98HdImage(autoexec.getImg(i)))
+			if (StringUtils.isNotBlank(autoexec.getImg(i)) && FilesUtils.isPc98Image(autoexec.getImg(i)))
 				return true;
 		String main = autoexec.getMain();
-		return StringUtils.isNotBlank(main) && (FilesUtils.fatImageIndex(main) != -1) && FilesUtils.isPc98HdImage(main.substring(0, FilesUtils.fatImageIndex(main)));
+		return StringUtils.isNotBlank(main) && (FilesUtils.fatImageIndex(main) != -1) && FilesUtils.isPc98Image(main.substring(0, FilesUtils.fatImageIndex(main)));
 	}
 
 	/**

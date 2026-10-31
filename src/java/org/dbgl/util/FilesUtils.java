@@ -62,8 +62,11 @@ public class FilesUtils {
 	private static final String[] EXECUTABLES = {".exe", ".com", ".bat"};
 	private static final String[] EXECUTABLES_UPPERCASE = {"EXE", "COM", "BAT"};
 	private static final String[] ARCHIVES = {".zip", ".7z"};
-	private static final String[] FATIMAGES = {".ima", ".img", ".hdi"}; // .hdi: PC-98 hard disk images
-	private static final String[] BOOTERIMAGES = {".cp2", ".dcf", ".img", ".jrc", ".td0", ".fdd", ".fdi", ".d88", ".hdi", ".hdm"};
+	// .hdi/.nhd: PC-98 hard disk images, .fdi/.d88: PC-98 floppy disk images
+	private static final String[] FATIMAGES = {".ima", ".img", ".hdi", ".nhd", ".fdi", ".d88"};
+	private static final String[] PC98_HD_IMAGES = {".hdi", ".nhd"};
+	private static final String[] PC98_IMAGES = {".hdi", ".nhd", ".fdi", ".d88"};
+	private static final String[] BOOTERIMAGES = {".cp2", ".dcf", ".img", ".jrc", ".td0", ".fdd", ".fdi", ".d88", ".hdi", ".nhd", ".hdm"};
 	private static final String[] PICTURES = {".png", ".gif", ".jpg", ".tif", ".tiff", ".ico", ".bmp"};
 
 	public static final String NATIVE_EXE_FILTER = SystemUtils.IS_WINDOWS ? "*.exe;*.EXE": SystemUtils.IS_OSX ? "*.app": "*";
@@ -72,10 +75,10 @@ public class FilesUtils {
 	public static final String EXE_FILTER = "*.com;*.COM;*.exe;*.EXE;*.bat;*.BAT";
 	public static final String ARC_FILTER = "*.zip;*.ZIP;*.7z;*.7Z";
 	public static final String DBGLZIP_FILTER = "*.dbgl.zip;*.DBGL.ZIP";
-	public static final String BTR_FILTER = "*.cp2;*.CP2;*.dcf;*.DCF;*.img;*.IMG;*.jrc;*.JRC;*.td0;*.TD0;*.fdd;*.FDD;*.fdi;*.FDI;*.d88;*.D88;*.hdi;*.HDI;*.hdm;*.HDM";
-	public static final String HDI_FILTER = "*.hdi;*.HDI";
+	public static final String BTR_FILTER = "*.cp2;*.CP2;*.dcf;*.DCF;*.img;*.IMG;*.jrc;*.JRC;*.td0;*.TD0;*.fdd;*.FDD;*.fdi;*.FDI;*.d88;*.D88;*.hdi;*.HDI;*.nhd;*.NHD;*.hdm;*.HDM";
+	public static final String HDI_FILTER = "*.hdi;*.HDI;*.nhd;*.NHD";
 	public static final String CDI_FILTER = "*.iso;*.ISO;*.cue;*.CUE";
-	public static final String FATI_FILTER = "*.ima;*.IMA;*.img;*.IMG";
+	public static final String FATI_FILTER = "*.ima;*.IMA;*.img;*.IMG;*.fdi;*.FDI;*.d88;*.D88";
 	public static final String ALL_FILTER = "*";
 
 	public static final String XML_EXT = ".xml";
@@ -177,9 +180,14 @@ public class FilesUtils {
 		return Stream.of(FATIMAGES).anyMatch(x -> filename.toLowerCase().endsWith(x));
 	}
 
-	/** PC-98 hard disk image, see {@link Pc98HdiImage} */
+	/** PC-98 hard disk image (.hdi, .nhd), see {@link Pc98HdiImage} */
 	public static boolean isPc98HdImage(String filename) {
-		return filename.toLowerCase().endsWith(".hdi");
+		return Stream.of(PC98_HD_IMAGES).anyMatch(x -> filename.toLowerCase().endsWith(x));
+	}
+
+	/** PC-98 hard or floppy disk image (.hdi, .nhd, .fdi, .d88), DOSBox-X needs machine=pc98 for these */
+	public static boolean isPc98Image(String filename) {
+		return Stream.of(PC98_IMAGES).anyMatch(x -> filename.toLowerCase().endsWith(x));
 	}
 
 	public static boolean isBooterImage(String filename) {
@@ -265,7 +273,7 @@ public class FilesUtils {
 				}
 			}
 		} else if (isFatImage(archive)) {
-			BlockDevice device = isPc98HdImage(archive) ? Pc98HdiImage.open(new File(archive)): new FileDisk(new File(archive));
+			BlockDevice device = isPc98Image(archive) ? Pc98HdiImage.open(new File(archive)): new FileDisk(new File(archive));
 			result.addAll(listFatExecutables(new FatFileSystem(device).getRoot(), StringUtils.EMPTY));
 			device.close();
 		}

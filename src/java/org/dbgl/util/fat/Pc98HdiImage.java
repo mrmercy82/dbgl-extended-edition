@@ -27,7 +27,8 @@ import java.util.List;
 
 
 /**
- * PC-98 hard disk images in the .HDI format (Anex86, used by Neko Project II and DOSBox-X).
+ * PC-98 disk images: .HDI (Anex86, used by Neko Project II and DOSBox-X), .NHD (T98-Next), .FDI (floppy, same header as
+ * .HDI) and .D88 (floppy, see {@link D88Disk}).
  *
  * Layout, as DOSBox-X reads it (bios_disk.cpp, drive_fat.cpp):
  * <ul>
@@ -42,6 +43,8 @@ import java.util.List;
 public final class Pc98HdiImage {
 
 	public static final int HEADER_SIZE = 0x20;
+	private static final int NHD_HEADER_SIZE = 0x200;
+	private static final byte[] NHD_ID = "T98HDDIMAGE.R0\0".getBytes(StandardCharsets.ISO_8859_1);
 	private static final int ENTRY_SIZE = 32;
 
 	/** an entry of the PC-98 partition table */
@@ -53,6 +56,13 @@ public final class Pc98HdiImage {
 	}
 
 	private Pc98HdiImage() {
+	}
+
+	private static boolean isNhd(ByteBuffer first16) {
+		for (int i = 0; i < NHD_ID.length; i++)
+			if (first16.get(i) != NHD_ID[i])
+				return false;
+		return true;
 	}
 
 	/** a part of another device, e.g. one partition */
@@ -113,7 +123,20 @@ public final class Pc98HdiImage {
 		long size = device.getSize();
 		long base = 0;
 		int sectorSize = 512, sectors = 0, heads = 0, cylinders = 0;
-		if (size >= HEADER_SIZE) {
+		if (size >= NHD_HEADER_SIZE && isNhd(read(device, 0, 16))) {
+			// T98-Next .NHD: "T98HDDIMAGE.R0", header size at 0x110, cylinders 0x114, heads 0x118, sectors 0x11A, sector size 0x11C
+			ByteBuffer h = read(device, 0, NHD_HEADER_SIZE);
+			long headerSize = h.getInt(0x110) & 0xffffffffL;
+			int ss = h.getShort(0x11c) & 0xffff;
+			if ((headerSize >= NHD_HEADER_SIZE) && (ss >= 256) && (ss <= 1024) && ((ss & (ss - 1)) == 0) && ((headerSize % ss) == 0) && (headerSize < size)) {
+				base = headerSize;
+				sectorSize = ss;
+				cylinders = h.getInt(0x114);
+				heads = h.getShort(0x118) & 0xffff;
+				sectors = h.getShort(0x11a) & 0xffff;
+			}
+		} else if (size >= HEADER_SIZE) {
+			// .HDI (Anex86) and .FDI share this header
 			ByteBuffer h = read(device, 0, HEADER_SIZE);
 			long headerSize = h.getInt(0x08) & 0xffffffffL;
 			long hddSize = h.getInt(0x0c) & 0xffffffffL;
@@ -185,6 +208,8 @@ public final class Pc98HdiImage {
 
 	/** @return a device for the FAT file system in the image (the first MS-DOS partition of a PC-98 disk) */
 	public static BlockDevice open(File file) throws IOException {
+		if (file.getName().toLowerCase().endsWith(".d88"))
+			return D88Disk.open(file);
 		FileDisk disk = new FileDisk(file);
 		try {
 			Info info = readInfo(disk);

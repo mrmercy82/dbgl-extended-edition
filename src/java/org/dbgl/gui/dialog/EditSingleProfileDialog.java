@@ -672,7 +672,7 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 	 */
 	private void usePc98MachineForHdi(String target) {
 		String image = FilesUtils.fatImageIndex(target) != -1 ? target.substring(0, FilesUtils.fatImageIndex(target)): target;
-		if (FilesUtils.isPc98HdImage(image))
+		if (FilesUtils.isPc98Image(image))
 			usePc98MachineIfNeeded();
 	}
 

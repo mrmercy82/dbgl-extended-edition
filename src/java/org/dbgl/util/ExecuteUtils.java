@@ -98,15 +98,17 @@ public class ExecuteUtils {
 		private final InputStream istream_;
 		private final String logType_;
 		private final DosboxStatusWindow statusWindow_;
+		private final List<String> collector_;
 
 		public StreamGobbler(InputStream istream, String logType) {
-			this(istream, logType, null);
+			this(istream, logType, null, null);
 		}
 
-		public StreamGobbler(InputStream istream, String logType, DosboxStatusWindow statusWindow) {
+		public StreamGobbler(InputStream istream, String logType, DosboxStatusWindow statusWindow, List<String> collector) {
 			istream_ = istream;
 			logType_ = logType;
 			statusWindow_ = statusWindow;
+			collector_ = collector;
 		}
 
 		@Override
@@ -117,6 +119,12 @@ public class ExecuteUtils {
 					System.out.println(logType_ + "> " + line);
 					if (statusWindow_ != null)
 						statusWindow_.append(line);
+					if (collector_ != null) {
+						synchronized (collector_) {
+							if (collector_.size() < MAX_COLLECTED_LINES)
+								collector_.add(line);
+						}
+					}
 				}
 
 			} catch (IOException ioe) {
@@ -175,6 +183,12 @@ public class ExecuteUtils {
 	public static void doRunProfile(ProfileRunMode mode, Profile prof, DosboxVersion dosboxVersion, boolean prepareOnly, Display display) throws IOException {
 		Profile preparedProfile = prof;
 
+		if (!prepareOnly && (mode != ProfileRunMode.INSTALLER) && (display != null) && !display.isDisposed()) {
+			// say which folder or image is missing, instead of DOSBox failing with a message that is hard to relate to it
+			List<String> missing = prof.listMissingPaths();
+			if (!missing.isEmpty() && !Mess_.on(display.getActiveShell()).key("general.confirm.missingpaths", new Object[] {String.join("\n", missing)}).confirm())
+				return;
+		}
 		boolean pc98Changed = prof.ensurePc98MachineForHdi(); // DOSBox-X crashes when booting an .HDI in IBM PC mode
 		if ((mode == ProfileRunMode.NORMAL) && !prepareOnly && (pc98Changed || prof.getConfiguration().getAutoexec().hasLongNamesWithSpaces())) {
 			// written by an older DBGL version with names like "cd \M&M 3" and "MM 3.EXE", which DOS can't use; write it again
@@ -362,18 +376,25 @@ public class ExecuteUtils {
 		}
 
 		try {
-			execute(commandItems, cwd, waitFor, allowStatusWindow && dbglShowsStatusWindow(dbversion));
+			execute(commandItems, cwd, waitFor, allowStatusWindow && dbglShowsStatusWindow(dbversion), allowStatusWindow && !dbversion.isUsingCurses());
 		} catch (IOException e) {
 			e.printStackTrace();
 			throw new IOException(TextService.getInstance().get("general.error.startdosbox", new Object[] {StringUtils.join(commandItems, ' ')}));
 		}
 	}
 
+	private static final int MAX_COLLECTED_LINES = 5000;
+
 	private static void execute(List<String> execCommands, File cwd, boolean waitFor) throws IOException {
-		execute(execCommands, cwd, waitFor, false);
+		execute(execCommands, cwd, waitFor, false, false);
 	}
 
-	private static void execute(List<String> execCommands, File cwd, boolean waitFor, boolean showStatusWindow) throws IOException {
+	/**
+	 * @param showStatusWindow show DBGL's status window with the output of DOSBox
+	 * @param detectFailedStart if DOSBox ends within moments without a status window, show its output afterwards, as starting
+	 *                          the game most likely failed and DOSBox closed before its message could be read
+	 */
+	private static void execute(List<String> execCommands, File cwd, boolean waitFor, boolean showStatusWindow, boolean detectFailedStart) throws IOException {
 		System.out.print(StringUtils.join(execCommands, ' '));
 		ProcessBuilder pb = new ProcessBuilder(execCommands.toArray(new String[execCommands.size()]));
 		pb.directory(cwd);
@@ -386,15 +407,35 @@ public class ExecuteUtils {
 			System.out.print(env);
 		}
 		System.out.println();
+		long startMillis = System.currentTimeMillis();
 		Process proc = pb.start();
 		DosboxStatusWindow statusWindow = showStatusWindow ? DosboxStatusWindow.open(StringUtils.join(execCommands, ' ')): null;
+		List<String> collected = (statusWindow == null) && detectFailedStart && SettingsService.getInstance().getBooleanValue("dosbox", "detectfailedstart") ? new ArrayList<>(): null;
 		if (statusWindow != null)
 			proc.onExit().thenAccept(p -> statusWindow.processEnded(p.exitValue()));
 		try {
-			StreamGobbler errorGobbler = new StreamGobbler(proc.getErrorStream(), "DOSBox stderr", statusWindow);
-			StreamGobbler outputGobbler = new StreamGobbler(proc.getInputStream(), "DOSBox stdout", statusWindow);
+			StreamGobbler errorGobbler = new StreamGobbler(proc.getErrorStream(), "DOSBox stderr", statusWindow, collected);
+			StreamGobbler outputGobbler = new StreamGobbler(proc.getInputStream(), "DOSBox stdout", statusWindow, collected);
 			outputGobbler.start();
 			errorGobbler.start();
+			if (collected != null) {
+				proc.onExit().thenAccept(p -> {
+					long elapsed = System.currentTimeMillis() - startMillis;
+					if (elapsed >= DosboxStatusWindow.QUICK_EXIT_MILLIS)
+						return;
+					try {
+						outputGobbler.join(2000);
+						errorGobbler.join(2000);
+					} catch (InterruptedException e) {
+						Thread.currentThread().interrupt();
+					}
+					List<String> lines;
+					synchronized (collected) {
+						lines = new ArrayList<>(collected);
+					}
+					DosboxStatusWindow.showAfterQuickExit(StringUtils.join(execCommands, ' '), lines, p.exitValue(), elapsed);
+				});
+			}
 			if (waitFor)
 				proc.waitFor();
 		} catch (InterruptedException e) {

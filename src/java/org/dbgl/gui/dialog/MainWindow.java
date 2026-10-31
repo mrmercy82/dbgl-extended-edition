@@ -74,6 +74,7 @@ import org.dbgl.service.FileLocationService;
 import org.dbgl.service.ImageService;
 import org.dbgl.service.ImportExportTemplatesService;
 import org.dbgl.service.SettingsService;
+import org.dbgl.util.DosboxVersionDetector;
 import org.dbgl.util.ExecuteUtils;
 import org.dbgl.util.ExecuteUtils.ProfileRunMode;
 import org.dbgl.util.FilesUtils;
@@ -273,6 +274,53 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		if (selected >= 0)
 			profileTable_.setSelection(selected);
 		displayProfileInformation(false);
+
+		if (settings_.getBooleanValue("dosbox", "checkversionsatstartup"))
+			checkDosboxVersionsInBackground();
+	}
+
+	/**
+	 * Compare the family and version of every DOSBox entry with what the executable reports. A wrong version makes DBGL use the
+	 * wrong setting names and leads to empty or invalid entries in the profiles. Runs in the background, as each check starts
+	 * the executable once (the results are cached per executable file).
+	 */
+	private void checkDosboxVersionsInBackground() {
+		List<DosboxVersion> versions = new ArrayList<>(dbversionsList_);
+		Thread checker = new Thread(() -> {
+			List<DosboxVersion> mismatching = new ArrayList<>();
+			List<DosboxVersionDetector.Result> detected = new ArrayList<>();
+			for (DosboxVersion v: versions) {
+				DosboxVersionDetector.Result r = DosboxVersionDetector.detectCached(v.getCanonicalExecutable(), v.getCwd());
+				if ((r != null) && !(r.family_.equalsIgnoreCase(v.getFamily()) && r.version_.equals(v.getVersion()))) {
+					mismatching.add(v);
+					detected.add(r);
+				}
+			}
+			if (mismatching.isEmpty() || display_.isDisposed())
+				return;
+			display_.asyncExec(() -> {
+				if (shell_.isDisposed())
+					return;
+				StringBuilder list = new StringBuilder();
+				for (int i = 0; i < mismatching.size(); i++)
+					list.append(mismatching.get(i).getTitle()).append(": ").append(mismatching.get(i).getFamily()).append(' ').append(mismatching.get(i).getVersion()).append(" -> ").append(detected.get(i)).append('\n');
+				if (!Mess_.on(shell_).key("dialog.main.confirm.versionmismatch", new Object[] {list.toString().trim()}).confirm())
+					return;
+				try {
+					for (int i = 0; i < mismatching.size(); i++) {
+						DosboxVersion v = mismatching.get(i);
+						v.setFamily(detected.get(i).family_);
+						v.setVersion(detected.get(i).version_);
+						new DosboxVersionRepository().update(v);
+					}
+				} catch (SQLException e) {
+					Mess_.on(shell_).exception(e).warning();
+				}
+				updateDosboxVersionList(mismatching.get(0));
+			});
+		}, "DOSBox version check");
+		checker.setDaemon(true);
+		checker.start();
 	}
 
 	@Override
@@ -457,6 +505,15 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			@Override
 			public void widgetSelected(SelectionEvent event) {
 				if (Boolean.TRUE.equals(new SwitchDosboxVersionDialog(shell_).open())) {
+					updateProfilesList(getSelectedProfileIds());
+					displayProfileInformation(false);
+				}
+			}
+		}).build();
+		MenuItem_.on(dbversionsMenu).key("dialog.main.menu.checkprofiles").image(ImageService.IMG_MIGRATE).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				if (Boolean.TRUE.equals(new CheckProfilesDialog(shell_).open())) {
 					updateProfilesList(getSelectedProfileIds());
 					displayProfileInformation(false);
 				}

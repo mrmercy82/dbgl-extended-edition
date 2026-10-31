@@ -276,6 +276,13 @@ public abstract class EditProfileDialog<T> extends EditConfigurableDialog<T> {
 		
 		Chain.on(booterComposite).lbl(l -> l.key("dialog.profile.booterdriveletter")).cmb(c -> c.horSpan(3).items(new String[] {"", "A", "C", "D"}).visibleItemCount(4)).autoexec(
 			Autoexec::getImgDriveletter, Autoexec::setImgDriveletter).build(metaControls_).init(configurable);
+		new org.eclipse.swt.widgets.Label(booterComposite, SWT.NONE);
+		Button_.on(booterComposite).text().key("dialog.profile.win9xsettings").tooltip("dialog.profile.win9xsettings.tooltip").listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				applyWindows9xSettings();
+			}
+		}).ctrl().setLayoutData(new GridData(SWT.BEGINNING, SWT.CENTER, false, false, 3, 1));
 
 		for (int i = 0; i < Profile.NR_OF_LINK_DESTINATIONS; i++) {
 			linkBrowseButton_[i].setData(Button_.DATA_ALT_CONTROL, main_);

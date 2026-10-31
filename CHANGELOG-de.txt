@@ -4,6 +4,41 @@ DBGL - Änderungen seit 0.100 beta 17
 Grundlage: DBGL 0.100 beta 17 (Quellcode). Neueste Version zuerst.
 
 
+0.102 beta 12
+-------------
+- Statusfenster: Endet DOSBox innerhalb von 5 Sekunden, nennt DBGL das als
+  vermutlich fehlgeschlagenen Start und lässt das Fenster offen. Auch wenn das
+  Statusfenster sonst nicht angezeigt wird, erscheint es dann mit den Meldungen
+  von DOSBox (abschaltbar in den Einstellungen).
+- Statusfenster: Viele gleichartige Zeilen hintereinander werden zu einer Zeile
+  "... weitere ähnliche Zeile(n)" zusammengefasst. Kopieren und Speichern
+  enthalten weiterhin alles.
+- Vor dem Start prüft DBGL, ob die eingebundenen Ordner und Images existieren,
+  und fragt nach, wenn etwas fehlt.
+- Schlägt ein Booten fehl, bleibt die Meldung von DOSBox mit "@pause" stehen,
+  statt dass DOSBox sofort schließt.
+- Profildialog: Knopf "Einstellungen für Windows 9x" setzt die Werte, die die
+  DOSBox-X-Anleitung für Windows 95/98 empfiehlt (64 MB Speicher, Pentium MMX,
+  CPU-Kern normal, kein EMS), soweit die DOSBox-Version sie kennt.
+- Profil- und Vorlagendialog: Knopf "Unterschiede zum Standard..." listet alle
+  Einstellungen, die vom Standard der DOSBox-Version abweichen.
+- Neues Menü "Profile prüfen...": findet in allen Profilen Werte, die die
+  DOSBox-Version nicht kennt, und nicht vorhandene Ordner oder Dateien.
+  Ungültige Werte lassen sich entfernen, der Bericht lässt sich speichern.
+- Beim Start von DBGL werden die DOSBox-Versionen im Hintergrund geprüft.
+  Passt ein Eintrag nicht zum Programm, bietet DBGL die Korrektur an
+  (abschaltbar in den Einstellungen).
+- DOSBox-X: Die Version wird aus der dosbox-x.exe gelesen, ohne sie zu starten
+  (DOSBox-X öffnet bei -version ein eigenes Konsolenfenster). Für die
+  OS-freie Version und die Low-End-Version für Windows 9x gibt es einen
+  einmaligen Hinweis.
+- DOSBox Staging: Die Shader-Auswahl enthält zusätzlich die Shader, die das
+  Programm in seinen Ordnern findet (--list-shaders).
+- Weitere PC-98-Formate: .NHD-Festplattenimages sowie .FDI- und
+  .D88-Disketten lassen sich im Archivbrowser durchsuchen; DBGL setzt auch für
+  sie machine=pc98.
+
+
 0.102 beta 11
 -------------
 - Boot-Zeilen mit einem Windows-Pfad zum Image (z. B. boot "C:\...\win95.hdi")

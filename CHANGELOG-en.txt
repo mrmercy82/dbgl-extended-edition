@@ -4,6 +4,38 @@ DBGL - Changes since 0.100 beta 17
 Based on DBGL 0.100 beta 17 (source code). Newest version first.
 
 
+0.102 beta 12
+-------------
+- Status window: if DOSBox ends within 5 seconds, DBGL reports this as a
+  probably failed start and keeps the window open. Even when the status window
+  is otherwise not shown, it then appears with the messages of DOSBox (can be
+  turned off in the settings).
+- Status window: many similar lines in a row are collapsed into one line
+  "... similar line(s) more". Copy and save still contain everything.
+- Before starting, DBGL checks that the mounted folders and images exist and
+  asks if something is missing.
+- When booting fails, the message of DOSBox stays visible ("@pause") instead of
+  DOSBox closing right away.
+- Profile dialog: button "Settings for Windows 9x" sets the values the
+  DOSBox-X guide recommends for Windows 95/98 (64 MB memory, Pentium MMX,
+  normal CPU core, no EMS), as far as the DOSBox version knows them.
+- Profile and template dialog: button "Differences from the defaults..." lists
+  all settings that differ from the defaults of the DOSBox version.
+- New menu "Check profiles...": finds values the DOSBox version does not know
+  and folders or files that do not exist, in all profiles. Invalid values can
+  be removed, the report can be saved.
+- When DBGL starts, the DOSBox versions are checked in the background. If an
+  entry does not match the program, DBGL offers to correct it (can be turned
+  off in the settings).
+- DOSBox-X: the version is read from dosbox-x.exe without running it
+  (DOSBox-X opens a console window of its own for -version). There is a
+  one-time notice for the OS-free build and the low-end build for Windows 9x.
+- DOSBox Staging: the shader list also contains the shaders the program finds
+  in its folders (--list-shaders).
+- More PC-98 formats: .NHD hard disk images and .FDI and .D88 floppies can be
+  browsed in the archive browser; DBGL sets machine=pc98 for them as well.
+
+
 0.102 beta 11
 -------------
 - Boot lines with a Windows path to the image (e.g. boot "C:\...\win95.hdi")
