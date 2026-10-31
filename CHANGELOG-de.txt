@@ -1,0 +1,177 @@
+DBGL - Änderungen seit 0.100 beta 17
+====================================
+
+Grundlage: DBGL 0.100 beta 17 (Quellcode). Neueste Version zuerst.
+
+
+0.102 beta 11
+-------------
+- Boot-Zeilen mit einem Windows-Pfad zum Image (z. B. boot "C:\...\win95.hdi")
+  werden nicht mehr als DOS-Pfad gelesen. Vorher schnitt DBGL "C:" ab und legte
+  einen zusätzlichen, nicht funktionierenden Mount "imgmount A" an.
+- Wird ein .HDI über eine Boot-Zeile gebootet, hängt DBGL es als Festplatte an
+  (imgmount 2 ... -t hdd) statt als Diskette.
+
+
+0.102 beta 10
+-------------
+- Keine 8.3-Warnung mit "null" mehr bei selbstbootenden HDI-Images. Images, die
+  direkt als Festplatte angehängt werden (imgmount 2), haben keinen DOS-Namen.
+
+
+0.102 beta 9
+------------
+- DOSBox-X: Wird ein PC-98-Festplattenimage (.HDI) eingebunden, gebootet oder
+  als Spiel benutzt, setzt DBGL machine=pc98. Das geschieht jetzt immer: beim OK
+  im Profildialog, im Assistenten für neue Spiele und beim Starten eines Spiels.
+  Im IBM-PC-Modus stürzte DOSBox-X beim Booten solcher Images ab.
+
+
+0.102 beta 8
+------------
+- PC-98-Festplattenimages (.HDI) werden unterstützt:
+  - Durchsuchen im Archivbrowser, um das Spielprogramm im Image auszuwählen.
+  - Spiel aus einem HDI starten: Einbinden als Festplatte (imgmount ... -t hdd).
+  - Selbstbootende HDIs (z. B. Windows 95 für PC-98): imgmount 2 ... -t hdd und
+    boot -l C.
+  - Gelesen werden der HDI-Header (Sektorgröße, Geometrie), die
+    PC-98-Partitionstabelle (IPL1) und FAT-Partitionen mit 1024 Byte großen
+    logischen Sektoren auf Festplatten mit 256 oder 512 Byte pro Sektor, nach
+    denselben Regeln wie DOSBox-X.
+- Der FAT-Leser in DBGL versteht jetzt einzelne Partitionen und Sektorgrößen
+  über 512 Byte.
+
+
+0.102 beta 7
+------------
+- "Zuordnen" einer DOSBox-Version behält nur die eigenen Änderungen eines
+  Profils. Alle anderen Werte kommen aus der Konfiguration der neuen
+  DOSBox-Version, die unter "DOSBox-Versionen" hinterlegt ist.
+- Der bisherige zweite Knopf heißt jetzt "Alles behalten". Er übernimmt wie
+  früher alle aktuellen Werte, auch die Standardwerte der alten Version.
+- Wird eine andere DOSBox-Version gewählt und direkt OK geklickt, macht DBGL
+  dasselbe wie "Zuordnen", statt eine Fehlermeldung zu zeigen.
+- Beim Laden einer Vorlage gilt dasselbe: eigene Änderungen und die Werte der
+  Vorlage bleiben, der Rest kommt aus der DOSBox-Konfiguration.
+- Die Tooltips der Knöpfe sind korrigiert, der deutsche Text beschrieb
+  "Übernehmen" falsch.
+
+
+0.102 beta 6
+------------
+- Neue Seite "DOSBox -> Weitere Einstellungen": alle Einstellungen der
+  gewählten DOSBox-Version, die kein eigenes Feld haben (z. B. "adlib pcm boost"
+  bei DOSBox-X ab 2026.05.02), mit Filterfeld, Auswahllisten aus den in der
+  DOSBox-Konfiguration dokumentierten Werten, Schaltern als true/false- bzw.
+  on/off-Liste, Standardwert und Beschreibung als Tooltip. Leer bedeutet
+  DOSBox-Standard. Gespeichert werden nur geänderte Werte.
+- DBGL liest die Beschreibungen der Einstellungen aus der Konfigurationsdatei,
+  die die jeweilige DOSBox selbst schreibt.
+- Fehler behoben (schon in 0.100 beta 17): Für DOSBox-X ab 2024.10.01 wurde die
+  Konfiguration ohne "-all" erzeugt und enthielt nur etwa die Hälfte der
+  Einstellungen.
+- Erkennt DBGL eine unvollständige DOSBox-X-Konfiguration, bietet es beim
+  Speichern des DOSBox-Versionseintrags an, sie neu zu erstellen. Die alte Datei
+  bleibt als .bak erhalten.
+
+
+0.102 beta 5
+------------
+- Spielpfade mit Leerzeichen funktionieren (z. B. "M & M\M&M 3\MM 3.EXE"). DBGL
+  schreibt in die Autoexec die 8.3-Kurznamen, die DOSBox selbst vergibt
+  (z. B. "cd \M&M~1\M&M3~1" und "MM3~1.EXE"), nach denselben Regeln wie DOSBox.
+- Kurznamen werden beim Einlesen wieder in die echten Pfade übersetzt.
+- Profile älterer Versionen mit Leerzeichen im Pfad werden beim ersten Start
+  automatisch repariert. Vorher schnitt DBGL den Dateinamen am Leerzeichen ab.
+- Keine 8.3-Warnung mehr für solche Dateien auf eingebundenen Ordnern.
+
+
+0.102 beta 4
+------------
+- Das Statusfenster merkt sich Position, Größe und Maximierung, auch über einen
+  Neustart von DBGL hinweg. Liegt die Position auf keinem Bildschirm mehr,
+  erscheint es mittig.
+
+
+0.102 beta 3
+------------
+- Statusfenster: Steht im DOSBox-Staging-Eintrag noch eine ältere Version,
+  obwohl die dosbox.exe schon 0.83 oder neuer ist, fragt DBGL das Programm nach
+  seiner Version und zeigt das Fenster trotzdem.
+- Das Statusfenster öffnet sich im Vordergrund und zeigt Startzeit und
+  DOSBox-Aufruf.
+- Fehler werden rot, Warnungen gelb hervorgehoben, mit Anzahl im Fenstertitel.
+- Neu: "Nach dem Beenden von DOSBox offen lassen" (wird gemerkt) und ein Knopf
+  "Schließen".
+- Beim Speichern wird ein Dateiname mit Datum und Uhrzeit vorgeschlagen.
+- Bei einem Absturz von DOSBox bleibt das Fenster offen und kommt nach vorne.
+
+
+0.102 beta 2
+------------
+- Seiten ohne unterstützte Einstellungen werden aus dem Navigationsbaum
+  ausgeblendet. Eine übergeordnete Seite bleibt, solange eine Unterseite Inhalt
+  hat. Der Baum wird bei einem Wechsel der DOSBox-Version neu aufgebaut.
+- Neue Seite "Sound Blaster 2" für DOSBox-X ([sblaster2]).
+- Statusfenster auch für DOSBox-X, das unter Windows keine eigene Konsole
+  öffnet.
+- Versionserkennung auch für DOSBox SVN, ECE und Daum.
+- Leere Einträge werden jetzt bei allen DOSBox-Familien beim Speichern
+  weggelassen, wenn DOSBox für die Einstellung eine feste Werteliste
+  dokumentiert.
+- Leser für das ältere Kommentarformat der DOSBox-Konfiguration korrigiert. Bei
+  Staging 0.82.2 werden jetzt 58 statt 23 Wertelisten erkannt.
+
+
+0.102 beta 1
+------------
+- Auswahllisten kommen aus der Konfiguration, die die jeweilige DOSBox selbst
+  schreibt. So passen sie zur installierten Version, auch bei Versionen, die
+  DBGL nicht im Detail kennt.
+- Einstellungen, die die gewählte DOSBox-Version nicht kennt, werden
+  ausgeblendet (abschaltbar in den Einstellungen) und die Seiten zusammengerückt.
+- Versionserkennung: Knopf "Erkennen" im DOSBox-Versionsdialog. Beim Speichern
+  wird die eingetragene Version mit der tatsächlichen verglichen und bei
+  Abweichung nachgefragt.
+- Nicht aufgeführte Versionen werden der nächstpassenden Generation zugeordnet,
+  z. B. Staging 0.83.x/0.84 oder neuere DOSBox-X-Versionen.
+- DOSBox-X-Versionsliste bis 2026.10.01 ergänzt.
+- Weitere Felder für DOSBox Staging 0.83: Festplatten- und
+  Diskettengeschwindigkeit, cpu_idle, keyboard_capture, SoundFont-Ordner und
+  -Lautstärke, Sound Canvas, neue Seite "Bildanpassungen", Rauschunterdrückung,
+  Laufwerksgeräusche, Optionen des eingebauten DOS-Maustreibers.
+- Neues Menü "Profile auf andere DOSBox-Version umstellen": stellt alle Profile
+  einer DOSBox-Version um, mit Vorschau und speicherbarem Bericht.
+- Statusfenster: Ausgabe kopieren und als Textdatei speichern.
+- Alle neuen Texte in 20 Sprachen.
+
+
+0.101
+-----
+- Unterstützung für DOSBox Staging 0.83.0:
+  - Umbenannte Einstellungen, z. B. windowresolution -> window_size,
+    fullresolution -> fullscreen_mode, glshader -> shader,
+    share -> file_locking.
+  - Entfallene Einstellungen und Schalter im Format on/off.
+  - Automatische Umrechnung beim Umstellen von und auf 0.83.
+  - Neue Felder: CRT-Farbprofil, Deinterlacing, Dedithering,
+    Bildanpassungen, Sound-Canvas-Modell und ROM-Ordner, Rauschunterdrückung,
+    Festplatten- und Diskettengeräusche, SID-Filter, eingebauter
+    DOS-Maustreiber.
+  - Erzeugen der DOSBox-Konfiguration für 0.83 angepasst.
+- Fehler behoben: Profile enthielten leere Einträge wie "locale_period=" oder
+  "file_locking=". Leere Werte, die einen DOSBox-Standardwert überschreiben
+  würden, werden jetzt weggelassen.
+- Statusfenster: DOSBox Staging 0.83 öffnet unter Windows keine Konsole mehr.
+  DBGL zeigt die Ausgabe von DOSBox jetzt selbst an, sofern
+  "DOSBox-Statusfenster verstecken" ausgeschaltet ist.
+- Versionsnummer 0.101.
+
+
+Hinweise
+--------
+- DOSBox SVN, ECE und Daum sind nur mit Beispieltexten getestet, nicht mit
+  echten Programmen und Konfigurationen.
+- PC-98-HDI ist mit einem echten Image (Windows 95 für PC-98) getestet:
+  Durchsuchen und Booten funktionieren. Die Stabilität von Windows 95 hängt von
+  der PC-98-Emulation in DOSBox-X ab.

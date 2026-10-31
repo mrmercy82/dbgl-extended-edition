@@ -1,0 +1,176 @@
+DBGL - Changes since 0.100 beta 17
+==================================
+
+Based on DBGL 0.100 beta 17 (source code). Newest version first.
+
+
+0.102 beta 11
+-------------
+- Boot lines with a Windows path to the image (e.g. boot "C:\...\win95.hdi")
+  are no longer read as a DOS path. Before, DBGL cut off "C:" and added an
+  extra, non-working mount "imgmount A".
+- When an .HDI is booted through a boot line, DBGL attaches it as a hard disk
+  (imgmount 2 ... -t hdd) instead of as a floppy.
+
+
+0.102 beta 10
+-------------
+- No more 8.3 warning showing "null" for self-booting HDI images. Images that
+  are attached directly as a hard disk (imgmount 2) have no DOS name.
+
+
+0.102 beta 9
+------------
+- DOSBox-X: when a PC-98 hard disk image (.HDI) is mounted, booted or used for
+  the game, DBGL sets machine=pc98. This now always happens: on OK in the
+  profile dialog, in the add game wizard and when a game is started. In IBM PC
+  mode, DOSBox-X crashed when booting such images.
+
+
+0.102 beta 8
+------------
+- PC-98 hard disk images (.HDI) are supported:
+  - Browsing in the archive browser to pick the game executable inside the
+    image.
+  - Starting a game from an HDI: mounted as a hard disk (imgmount ... -t hdd).
+  - Self-booting HDIs (e.g. Windows 95 for PC-98): imgmount 2 ... -t hdd and
+    boot -l C.
+  - DBGL reads the HDI header (sector size, geometry), the PC-98 partition
+    table (IPL1) and FAT partitions with 1024 byte logical sectors on disks with
+    256 or 512 bytes per sector, following the same rules as DOSBox-X.
+- DBGL's FAT reader now handles single partitions and sector sizes above 512
+  bytes.
+
+
+0.102 beta 7
+------------
+- "Set" for a DOSBox version keeps only a profile's own changes. All other
+  values come from the configuration of the new DOSBox version, as set up under
+  "DOSBox versions".
+- The former second button is now called "Keep all". Like before, it keeps all
+  current values, including the defaults of the previous version.
+- When another DOSBox version is selected and OK is clicked right away, DBGL
+  does the same as "Set" instead of showing an error.
+- Loading a template works the same way: own changes and the template's values
+  stay, everything else comes from the DOSBox configuration.
+- The buttons' tooltips were corrected; the German text described the second
+  button wrongly.
+
+
+0.102 beta 6
+------------
+- New page "DOSBox -> More settings": every setting of the selected DOSBox
+  version that has no field of its own (e.g. "adlib pcm boost" in DOSBox-X
+  2026.05.02 and newer), with a filter, value lists from the values documented
+  in the DOSBox configuration, switches as true/false or on/off lists, the
+  default value and the description as tooltip. Empty means the DOSBox default.
+  Only changed values are saved.
+- DBGL reads the descriptions of the settings from the configuration file that
+  each DOSBox writes itself.
+- Fixed (already present in 0.100 beta 17): for DOSBox-X 2024.10.01 and newer,
+  the configuration was created without "-all" and contained only about half
+  of the settings.
+- When DBGL detects an incomplete DOSBox-X configuration, it offers to create
+  it again when the DOSBox version entry is saved. The old file is kept as
+  .bak.
+
+
+0.102 beta 5
+------------
+- Game paths with spaces work (e.g. "M & M\M&M 3\MM 3.EXE"). DBGL writes the
+  8.3 short names that DOSBox itself generates into the autoexec
+  (e.g. "cd \M&M~1\M&M3~1" and "MM3~1.EXE"), following the same rules as
+  DOSBox.
+- Short names are translated back to the real paths when a profile is read.
+- Profiles of older versions with spaces in the path are repaired
+  automatically on the first start. Before, DBGL cut the file name off at the
+  space.
+- No more 8.3 warning for such files on mounted folders.
+
+
+0.102 beta 4
+------------
+- The status window remembers its position, size and maximized state, also
+  across restarts of DBGL. If the position is no longer on any screen, it is
+  centered.
+
+
+0.102 beta 3
+------------
+- Status window: if a DOSBox Staging entry still says an older version while
+  the dosbox.exe is already 0.83 or newer, DBGL asks the executable for its
+  version and shows the window anyway.
+- The status window opens in front and shows the start time and the DOSBox
+  command line.
+- Errors are highlighted in red, warnings in yellow, with their count in the
+  window title.
+- New: "Keep open after DOSBox has ended" (remembered) and a "Close" button.
+- Saving suggests a file name with date and time.
+- When DOSBox crashes, the window stays open and comes to the front.
+
+
+0.102 beta 2
+------------
+- Pages without supported settings are hidden from the navigation tree. A
+  parent page stays as long as one of its sub pages has content. The tree is
+  rebuilt when the DOSBox version changes.
+- New page "Sound Blaster 2" for DOSBox-X ([sblaster2]).
+- Status window for DOSBox-X too, which opens no console of its own on
+  Windows.
+- Version detection for DOSBox SVN, ECE and Daum.
+- Empty entries are now left out when saving for all DOSBox families, if DOSBox
+  documents a fixed list of values for the setting.
+- Fixed the reader for the older comment format of the DOSBox configuration.
+  For Staging 0.82.2, 58 instead of 23 value lists are recognized.
+
+
+0.102 beta 1
+------------
+- Value lists come from the configuration that each DOSBox writes itself. They
+  match the installed version, also for versions DBGL does not know in detail.
+- Settings the selected DOSBox version does not know are hidden (can be turned
+  off in the settings) and the pages are compacted.
+- Version detection: "Detect" button in the DOSBox version dialog. On save, the
+  entered version is compared with the actual one and DBGL asks if they
+  differ.
+- Versions that are not listed are mapped to the nearest generation, e.g.
+  Staging 0.83.x/0.84 or newer DOSBox-X versions.
+- DOSBox-X version list extended up to 2026.10.01.
+- More fields for DOSBox Staging 0.83: hard disk and floppy disk speed,
+  cpu_idle, keyboard_capture, SoundFont folder and volume, Sound Canvas, new
+  page "Image adjustments", denoiser, disk noise, options of the built-in DOS
+  mouse driver.
+- New menu "Switch profiles to another DOSBox version": switches all profiles
+  of one DOSBox version, with a preview and a report that can be saved.
+- Status window: copy the output and save it as a text file.
+- All new texts in 20 languages.
+
+
+0.101
+-----
+- Support for DOSBox Staging 0.83.0:
+  - Renamed settings, e.g. windowresolution -> window_size,
+    fullresolution -> fullscreen_mode, glshader -> shader,
+    share -> file_locking.
+  - Removed settings and switches in on/off notation.
+  - Automatic conversion when switching from and to 0.83.
+  - New fields: CRT color profile, deinterlacing, dedithering, image
+    adjustments, Sound Canvas model and ROM folder, denoiser, hard disk and
+    floppy disk noise, SID filter, built-in DOS mouse driver.
+  - Creating the DOSBox configuration adapted for 0.83.
+- Fixed: profiles contained empty entries like "locale_period=" or
+  "file_locking=". Empty values that would override a DOSBox default are now
+  left out.
+- Status window: DOSBox Staging 0.83 no longer opens a console on Windows.
+  DBGL now shows the DOSBox output itself, unless "Hide DOSBox Status Window" is
+  turned on.
+- Version number 0.101.
+
+
+Notes
+-----
+- DOSBox SVN, ECE and Daum are only tested with sample texts, not with real
+  executables and configurations.
+- PC-98 HDI support is tested with one real image (Windows 95 for PC-98):
+  browsing and booting work. How stable Windows 95 runs depends on the PC-98
+  emulation of DOSBox-X.
