@@ -21,6 +21,9 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -61,6 +64,8 @@ public class DosboxVersionDetector {
 
 	private static final int TIMEOUT_SECONDS = 10;
 
+	private static final Map<String, Optional<Result>> CACHE = new ConcurrentHashMap<>();
+
 	private DosboxVersionDetector() {
 	}
 
@@ -97,6 +102,24 @@ public class DosboxVersionDetector {
 			Thread.currentThread().interrupt();
 			return null;
 		}
+	}
+
+	/** like detect, but runs every executable file (path, size and date) only once */
+	public static Result detectCached(File executable, File cwd) {
+		if ((executable == null) || !executable.isFile())
+			return null;
+		String key = executable.getAbsolutePath() + '|' + executable.length() + '|' + executable.lastModified();
+		return CACHE.computeIfAbsent(key, k -> Optional.ofNullable(detect(executable, cwd))).orElse(null);
+	}
+
+	/** @return true for DOSBox Staging version strings 0.83.0 and newer */
+	public static boolean isStaging083OrNewer(String version) {
+		Matcher m = Pattern.compile("^(\\d+)\\.(\\d+)").matcher(version == null ? "": version);
+		if (!m.find())
+			return false;
+		int major = Integer.parseInt(m.group(1));
+		int minor = Integer.parseInt(m.group(2));
+		return (major > 0) || (minor >= 83);
 	}
 
 	public static Result parse(String output) {

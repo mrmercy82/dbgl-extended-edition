@@ -307,8 +307,19 @@ public class ExecuteUtils {
 		if (SettingsService.getInstance().getBooleanValue("dosbox", "hideconsole") || dbversion.isUsingCurses() || !(SystemUtils.IS_WINDOWS || Boolean.getBoolean("dbgl.statuswindow")))
 			return false;
 		GenerationAwareConfigurable.Generation gen = GenerationAwareConfigurable.determineGen(dbversion);
-		return (gen == GenerationAwareConfigurable.Generation.staging_0830)
-				|| ((gen != null) && (GenerationAwareConfigurable.familyIdx(gen) == GenerationAwareConfigurable.familyIdx(GenerationAwareConfigurable.Generation.x_20241001)));
+		if ((gen == GenerationAwareConfigurable.Generation.staging_0830)
+				|| ((gen != null) && (GenerationAwareConfigurable.familyIdx(gen) == GenerationAwareConfigurable.familyIdx(GenerationAwareConfigurable.Generation.x_20241001))))
+			return true;
+		if ((gen != null) && (GenerationAwareConfigurable.familyIdx(gen) == GenerationAwareConfigurable.familyIdx(GenerationAwareConfigurable.Generation.staging_0830))) {
+			// The DOSBox version in DBGL may still say 0.82 or older while the executable was updated to 0.83 or newer, then
+			// nothing at all would be shown. Ask the executable itself (the result is cached per executable file).
+			DosboxVersionDetector.Result detected = DosboxVersionDetector.detectCached(dbversion.getCanonicalExecutable(), dbversion.getCwd());
+			boolean newer = (detected != null) && SettingsService.STAGING_DOSBOX_FAM.title_.equals(detected.family_) && DosboxVersionDetector.isStaging083OrNewer(detected.version_);
+			if (newer)
+				System.out.println("DOSBox version '" + dbversion.getTitle() + "' is set to " + dbversion.getVersion() + ", but the executable is " + detected + "; showing the status window");
+			return newer;
+		}
+		return false;
 	}
 
 	private static void doRunDosbox(DosboxVersion dbversion, String[] parameters, boolean forceDBConf, File cwd, boolean waitFor, boolean allowStatusWindow) throws IOException {
@@ -368,7 +379,7 @@ public class ExecuteUtils {
 		}
 		System.out.println();
 		Process proc = pb.start();
-		DosboxStatusWindow statusWindow = showStatusWindow ? DosboxStatusWindow.open(): null;
+		DosboxStatusWindow statusWindow = showStatusWindow ? DosboxStatusWindow.open(StringUtils.join(execCommands, ' ')): null;
 		if (statusWindow != null)
 			proc.onExit().thenAccept(p -> statusWindow.processEnded(p.exitValue()));
 		try {

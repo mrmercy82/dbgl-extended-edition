@@ -153,6 +153,11 @@ public class Dbgl0102Tests {
 		assertEquals(SettingsService.DAUM_DOSBOX_FAM.title_, r.family_);
 		assertEquals("2015.01.25", r.version_);
 		assertNull(DosboxVersionDetector.parse("something else"));
+		assertTrue(DosboxVersionDetector.isStaging083OrNewer("0.83.0"));
+		assertTrue(DosboxVersionDetector.isStaging083OrNewer("0.84.1"));
+		assertTrue(DosboxVersionDetector.isStaging083OrNewer("1.0.0"));
+		assertFalse(DosboxVersionDetector.isStaging083OrNewer("0.82.2"));
+		assertFalse(DosboxVersionDetector.isStaging083OrNewer(null));
 		assertNull(DosboxVersionDetector.parse(null));
 	}
 

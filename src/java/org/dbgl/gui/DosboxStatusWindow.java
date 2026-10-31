@@ -21,72 +21,100 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Locale;
+import java.util.regex.Pattern;
 
 import org.dbgl.gui.controls.DarkTheme;
 import org.dbgl.gui.controls.Mess_;
+import org.dbgl.service.SettingsService;
 import org.dbgl.service.TextService;
 import org.dbgl.util.SystemUtils;
 import org.eclipse.swt.SWT;
-import org.eclipse.swt.graphics.Font;
+import org.eclipse.swt.custom.StyleRange;
+import org.eclipse.swt.custom.StyledText;
 import org.eclipse.swt.dnd.Clipboard;
 import org.eclipse.swt.dnd.TextTransfer;
 import org.eclipse.swt.dnd.Transfer;
+import org.eclipse.swt.graphics.Color;
+import org.eclipse.swt.graphics.Font;
+import org.eclipse.swt.graphics.Point;
+import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Button;
+import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.FileDialog;
 import org.eclipse.swt.widgets.Label;
-import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Shell;
-import org.eclipse.swt.widgets.Text;
 
 
 /**
  * Shows the output (log) of a running DOSBox process.
  *
  * Up to 0.82, DOSBox Staging opened such a "status window" (a console) on Windows by itself, unless started with -noconsole.
- * DOSBox Staging 0.83 no longer does, and since DBGL starts DOSBox without a console, nothing would be shown at all.
- * DBGL reads the output of DOSBox anyway, so it can show it itself.
+ * DOSBox Staging 0.83 no longer does, and DOSBox-X never did. DBGL reads the output of DOSBox anyway, so it can show it
+ * itself.
  *
- * The window closes when DOSBox ends normally, like the console did. If DOSBox ends with an error, it stays open so the
- * messages can be read.
+ * The window closes when DOSBox ends normally, like the console did, unless 'keep open' is checked. If DOSBox ends with an
+ * error, it stays open and comes to the front so the messages can be read. Warnings and errors are highlighted, and the log
+ * can be copied or saved (exported) to a text file.
  */
 public class DosboxStatusWindow {
 
 	public static final String TITLE = "DOSBox Status Window";
 
+	private static final Pattern ERROR_PATRN = Pattern.compile("\\b(error|fatal|failed|exception|cannot|can't|unable)\\b", Pattern.CASE_INSENSITIVE);
+	private static final Pattern WARNING_PATRN = Pattern.compile("\\b(warning|warn|deprecated|invalid|not found|unknown)\\b", Pattern.CASE_INSENSITIVE);
+
 	private final Display display_;
+	private final String commandLine_;
 	private Shell shell_;
-	private Text text_;
+	private StyledText text_;
 	private Font font_;
+	private Color errorColor_, warningColor_, infoColor_;
+	private Button keepOpen_;
 	private int pendingEvents_ = 3; // stdout closed, stderr closed, process ended
 	private int exitCode_ = 0;
+	private int warnings_ = 0, errors_ = 0;
 
-	private DosboxStatusWindow(Display display) {
+	private DosboxStatusWindow(Display display, String commandLine) {
 		display_ = display;
+		commandLine_ = commandLine;
 	}
 
 	/**
+	 * May be called from any thread.
+	 *
 	 * @return the window, or null if there is no user interface to show it in
 	 */
-	public static DosboxStatusWindow open() {
+	public static DosboxStatusWindow open(String commandLine) {
 		Display display = Display.getDefault();
 		if ((display == null) || display.isDisposed())
 			return null;
-		DosboxStatusWindow window = new DosboxStatusWindow(display);
-		display.syncExec(window::create);
+		DosboxStatusWindow window = new DosboxStatusWindow(display, commandLine);
+		if (display.getThread() == Thread.currentThread())
+			window.create();
+		else
+			display.syncExec(window::create);
 		return window;
+	}
+
+	private static String text(String key) {
+		return TextService.getInstance().get(key);
 	}
 
 	private void create() {
 		shell_ = new Shell(display_, SWT.SHELL_TRIM);
 		shell_.setText(TITLE);
-		GridLayout layout = new GridLayout(3, false);
-		layout.marginWidth = 0;
-		layout.marginHeight = 0;
+		GridLayout layout = new GridLayout(5, false);
+		layout.marginWidth = 4;
+		layout.marginHeight = 4;
 		shell_.setLayout(layout);
-		text_ = new Text(shell_, SWT.MULTI | SWT.READ_ONLY | SWT.V_SCROLL | SWT.H_SCROLL);
-		text_.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 3, 1));
+
+		text_ = new StyledText(shell_, SWT.MULTI | SWT.READ_ONLY | SWT.V_SCROLL | SWT.H_SCROLL | SWT.BORDER);
+		text_.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 5, 1));
 		font_ = new Font(display_, SystemUtils.IS_WINDOWS ? "Consolas": (SystemUtils.IS_OSX ? "Menlo": "Monospace"), 9, SWT.NORMAL);
 		text_.setFont(font_);
 		if (DarkTheme.forced()) {
@@ -96,17 +124,56 @@ public class DosboxStatusWindow {
 			text_.setBackground(display_.getSystemColor(SWT.COLOR_BLACK));
 			text_.setForeground(display_.getSystemColor(SWT.COLOR_GRAY));
 		}
+		errorColor_ = new Color(255, 96, 96);
+		warningColor_ = new Color(240, 200, 80);
+		infoColor_ = new Color(120, 170, 255);
+
+		keepOpen_ = new Button(shell_, SWT.CHECK);
+		keepOpen_.setText(text("dialog.statuswindow.keepopen"));
+		keepOpen_.setSelection(SettingsService.getInstance().getBooleanValue("gui", "statuswindowkeepopen"));
+		keepOpen_.addListener(SWT.Selection, e -> SettingsService.getInstance().setBooleanValue("gui", "statuswindowkeepopen", keepOpen_.getSelection()));
 		Label filler = new Label(shell_, SWT.NONE);
 		filler.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
 		Button copy = new Button(shell_, SWT.PUSH);
-		copy.setText(TextService.getInstance().get("dialog.statuswindow.copy"));
+		copy.setText(text("dialog.statuswindow.copy"));
 		copy.addListener(SWT.Selection, e -> copyToClipboard());
 		Button save = new Button(shell_, SWT.PUSH);
-		save.setText(TextService.getInstance().get("dialog.statuswindow.save"));
+		save.setText(text("dialog.statuswindow.save"));
 		save.addListener(SWT.Selection, e -> saveToFile());
-		shell_.addDisposeListener(e -> font_.dispose());
-		shell_.setSize(760, 420);
-		shell_.setVisible(true);
+		Button close = new Button(shell_, SWT.PUSH);
+		close.setText(text("dialog.statuswindow.close"));
+		close.addListener(SWT.Selection, e -> shell_.close());
+
+		shell_.addDisposeListener(e -> {
+			font_.dispose();
+			errorColor_.dispose();
+			warningColor_.dispose();
+			infoColor_.dispose();
+		});
+
+		appendLine(text("dialog.statuswindow.started") + ": " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss", Locale.ROOT)), infoColor_);
+		if (commandLine_ != null)
+			appendLine(commandLine_, infoColor_);
+		appendLine("", null);
+
+		shell_.setSize(800, 440);
+		Rectangle area = display_.getPrimaryMonitor().getClientArea();
+		Point size = shell_.getSize();
+		shell_.setLocation(area.x + Math.max(0, (area.width - size.x) / 2), area.y + Math.max(0, (area.height - size.y) / 3));
+		shell_.open(); // in front of DBGL; the DOSBox window appears on top of it moments later
+	}
+
+	private void appendLine(String line, Color color) {
+		int start = text_.getCharCount();
+		text_.append(line + text_.getLineDelimiter());
+		if ((color != null) && !line.isEmpty()) {
+			StyleRange range = new StyleRange();
+			range.start = start;
+			range.length = line.length();
+			range.foreground = color;
+			text_.setStyleRange(range);
+		}
+		text_.setTopIndex(text_.getLineCount() - 1);
 	}
 
 	private void copyToClipboard() {
@@ -122,8 +189,8 @@ public class DosboxStatusWindow {
 
 	private void saveToFile() {
 		FileDialog dialog = new FileDialog(shell_, SWT.SAVE);
-		dialog.setFilterExtensions(new String[] {"*.txt", "*.*"});
-		dialog.setFileName("dosbox-log.txt");
+		dialog.setFilterExtensions(new String[] {"*.txt", "*.log", "*.*"});
+		dialog.setFileName("dosbox-log-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss", Locale.ROOT)) + ".txt");
 		dialog.setOverwrite(true);
 		String file = dialog.open();
 		if (file == null)
@@ -144,9 +211,29 @@ public class DosboxStatusWindow {
 		if (display_.isDisposed())
 			return;
 		display_.asyncExec(() -> {
-			if (!isGone())
-				text_.append(line + Text.DELIMITER);
+			if (isGone())
+				return;
+			Color color = null;
+			if (ERROR_PATRN.matcher(line).find()) {
+				color = errorColor_;
+				errors_++;
+			} else if (WARNING_PATRN.matcher(line).find()) {
+				color = warningColor_;
+				warnings_++;
+			}
+			appendLine(line, color);
+			if (color != null)
+				updateTitle(null);
 		});
+	}
+
+	private void updateTitle(Integer exitCode) {
+		StringBuilder title = new StringBuilder(TITLE);
+		if (exitCode != null)
+			title.append(" - ").append(text("dialog.statuswindow.ended")).append(exitCode != 0 ? " (exit code " + exitCode + ")": "");
+		if ((errors_ > 0) || (warnings_ > 0))
+			title.append(" [").append(errors_).append(" / ").append(warnings_).append("]");
+		shell_.setText(title.toString());
 	}
 
 	/** may be called from any thread, once per output stream */
@@ -174,11 +261,16 @@ public class DosboxStatusWindow {
 		display_.asyncExec(() -> {
 			if (isGone())
 				return;
-			if (exitCode == 0) {
+			if ((exitCode == 0) && !keepOpen_.getSelection()) {
 				shell_.dispose();
-			} else {
-				text_.append(Text.DELIMITER + "DOSBox exited with code " + exitCode + Text.DELIMITER);
-				shell_.setText(TITLE + " (exit code " + exitCode + ")");
+				return;
+			}
+			appendLine("", null);
+			appendLine(text("dialog.statuswindow.ended") + (exitCode != 0 ? " (exit code " + exitCode + ")": ""), exitCode != 0 ? errorColor_: infoColor_);
+			updateTitle(exitCode);
+			if (exitCode != 0) {
+				shell_.setMinimized(false);
+				shell_.forceActive();
 			}
 		});
 	}
