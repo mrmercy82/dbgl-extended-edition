@@ -4,6 +4,55 @@ DBGL - Änderungen seit 0.100 beta 17
 Grundlage: DBGL 0.100 beta 17 (Quellcode). Neueste Version zuerst.
 
 
+0.101 alpha 18
+--------------
+- Übersetzungen: In den 17 Sprachen außer Deutsch und Englisch sind rund 7.000
+  kurze Texte übersetzt, die bisher englisch waren (Seiten- und Feldnamen,
+  Menüs, Spaltenköpfe, Assistenten). Feste Begriffe wie IRQ, HDMA oder APM BIOS
+  bleiben unverändert.
+- Der Profildialog öffnet sich auch beim ersten Mal nach dem Programmstart
+  schnell: Welche Seiten eine DOSBox-Version braucht, speichert DBGL jetzt im
+  Datenordner (cache/pages). Ändert sich die Konfigurationsdatei der
+  DOSBox-Version oder die DBGL-Version, wird neu ermittelt.
+- Knopf "Erkennen" ohne DOSBox zu starten, jetzt auch für DOSBox 0.74, SVN, ECE
+  und Daum: DBGL liest den Namen der Mapper-Datei aus der Programmdatei
+  (z. B. mapper-ECE.map, mapper-SVN-Daum.map). Unter Windows blitzt kein Fenster
+  mehr auf.
+- DOSBox ECE r4482 und DOSBox Daum 2015.01.25 mit echten Konfigurationsdateien
+  geprüft: Alle Einstellungen stehen auf passenden Seiten. Bei Daum kommen die
+  VESA- und VGA-Schalter aus [dosbox] unter Video bzw. VESA / SVGA, CGA-Schnee
+  unter CGA composite und die Größe der Shell-Umgebung unter DOS.
+- DOSBox-X: 55 gebräuchliche Einstellungen haben jetzt echte Felder mit
+  deutscher Beschriftung, jeweils in einer Gruppe "Zusätzliche Optionen" auf
+  Sound Blaster, Midi, Fluidsynth, Gravis Ultrasound, VESA / SVGA, Video,
+  CGA composite, CPU, Hauptplatine und BIOS, Speicher, Maus, Tastatur und
+  Datenträger (z. B. Adlib-PCM verstärken, Hall und Chorus von Fluidsynth,
+  VESA-Modusliste, ISA-/PCI-Bustakt, VCPI, INT-13h-Erweiterungen). Der Tooltip
+  ist der Hilfetext der DOSBox-Version. Daum und ECE nutzen die Felder, soweit
+  sie die Einstellungen kennen. Bei DOSBox-X 2026.10.01 bleiben 461 statt 516
+  weitere Einstellungen.
+- Shader-Liste auch für DOSBox-X: DBGL sucht die .glsl-Dateien in den
+  glshaders-Ordnern von DOSBox-X (neben dem Programm, im Arbeitsordner und im
+  Konfigurationsordner).
+- Voreinstellungen für mehrere Profile: Im Kontextmenü der Profilliste gibt es
+  "Voreinstellung anwenden" mit allen eingebauten und eigenen Voreinstellungen.
+  Sie gilt für alle markierten Profile, gesetzt wird nur, was die DOSBox-Version
+  des jeweiligen Profils kennt.
+- Die weiteren Einstellungen gibt es jetzt auch im Dialog für mehrere Profile.
+  Einstellungen mit unterschiedlichen Werten sind rot markiert. Nur geänderte
+  Einstellungen werden in die Profile übernommen.
+- Warnsymbol in der Profilliste: Profile mit ungültigen Werten oder fehlenden
+  Ordnern und Dateien bekommen ein kleines Warnsymbol vor dem Titel. DBGL prüft
+  im Hintergrund und nur dann neu, wenn sich die Konfiguration geändert hat.
+  Abschaltbar unter Einstellungen -> "Profile mit Problemen in der Liste
+  markieren" (Standard: an).
+- Neues Paket zum Entpacken: dbgl-0.101alpha18-update.zip enthält dbgl.jar,
+  die Sprachdateien und die Changelogs und wird einfach über eine bestehende
+  DBGL-Installation entpackt.
+- Intern: Der Profildialog ist aufgeteilt, weitere Einstellungen,
+  Voreinstellungsmenü und Seitenspeicher sind eigene Klassen.
+
+
 0.101 alpha 17
 --------------
 - DOSBox Staging 0.83: "Sound-Canvas-Filter" steht jetzt unter Audio -> Midi

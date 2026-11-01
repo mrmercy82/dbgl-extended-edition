@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.stream.IntStream;
 
 import org.dbgl.gui.abstractdialog.JobWizardDialog;
+import org.dbgl.gui.abstractdialog.ExtraSettings;
 import org.dbgl.gui.controls.Chain;
 import org.dbgl.gui.controls.Group_;
 import org.dbgl.gui.controls.Mess_;
@@ -43,10 +44,11 @@ public class UpdateMultiProfileDialog extends JobWizardDialog<Boolean> {
 	private final boolean dbversionChanged_, templateReloaded_;
 	private final List<Chain> metaControls_;
 	private final Chain nativeCommandControl_;
+	private final List<ExtraSettings.Change> extraChanges_;
 	private final WebSearchEngine engine_;
 
 	public UpdateMultiProfileDialog(Shell parent, List<Profile> orgProfs, List<Profile> profs, boolean dbversionChanged, boolean templateReloaded, List<Chain> metaControls, Chain nativeCommandControl,
-			WebSearchEngine engine) {
+			List<ExtraSettings.Change> extraChanges, WebSearchEngine engine) {
 		super(parent, "multiprofiledialog");
 		orgProfs_ = orgProfs;
 		profs_ = profs;
@@ -54,6 +56,7 @@ public class UpdateMultiProfileDialog extends JobWizardDialog<Boolean> {
 		templateReloaded_ = templateReloaded;
 		metaControls_ = metaControls.stream().filter(Chain::hasChangedValue).toList();
 		nativeCommandControl_ = nativeCommandControl.hasChangedValue() ? nativeCommandControl: null;
+		extraChanges_ = extraChanges;
 		engine_ = engine;
 	}
 
@@ -80,8 +83,11 @@ public class UpdateMultiProfileDialog extends JobWizardDialog<Boolean> {
 		}
 		metaControls_.forEach(x -> info.append(x.toString()).append(": ").append(x.conflictingValues() ? conflicting: '"' + x.getInitialStringValue() + '"').append(" -> ").append(
 			'"' + x.getCurrentStringValueForDisplay() + '"').append(SystemUtils.EOLN));
+		String defaultText = text_.get("dialog.template.moresettings.default");
+		extraChanges_.forEach(x -> info.append('[').append(x.section()).append("] ").append(x.item()).append(": ").append(x.conflicting() && x.oldValue().isEmpty() ? conflicting: '"' + x.oldValue() + '"')
+				.append(" -> ").append(x.newValue().isEmpty() ? defaultText: '"' + x.newValue() + '"').append(SystemUtils.EOLN));
 
-		if (!dbversionChanged_ && !templateReloaded_ && (nativeCommandControl_ == null) && metaControls_.isEmpty()) {
+		if (!dbversionChanged_ && !templateReloaded_ && (nativeCommandControl_ == null) && metaControls_.isEmpty() && extraChanges_.isEmpty()) {
 			info.append(text_.get("dialog.multiprofile.notice.nochanges")).append(SystemUtils.EOLN);
 			nextButton_.setEnabled(false);
 		}
@@ -102,6 +108,7 @@ public class UpdateMultiProfileDialog extends JobWizardDialog<Boolean> {
 				metaControls_.forEach(x -> x.updateConfigurableByControl(prof, combinedConf));
 				if (nativeCommandControl_ != null)
 					nativeCommandControl_.updateConfigurableByControl(prof, combinedConf);
+				ExtraSettings.apply(extraChanges_, prof);
 
 				try {
 					new ProfileRepository().update(prof);

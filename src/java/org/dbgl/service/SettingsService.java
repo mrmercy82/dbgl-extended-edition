@@ -390,6 +390,7 @@ public class SettingsService {
 		settings_.setValue("dosbox", "checkversionsatstartup", true);
 		settings_.setValue("dosbox", "checkforupdates", true);
 		settings_.setValue("dosbox", "checkbeforestart", false);
+		settings_.setValue("gui", "profilewarnings", true);
 		settings_.setValue("gui", "extrasexpand", "changed");
 		settings_.setValue("gui", "extrasexpandonextraspages", false);
 		settings_.setValue("gui", "extrascountchanges", true);

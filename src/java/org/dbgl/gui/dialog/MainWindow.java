@@ -349,6 +349,36 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		}
 	}
 
+	/** set the values of a preset in all selected profiles, as far as their DOSBox version has the settings */
+	private void doApplyPreset(org.dbgl.util.Presets.Preset preset) {
+		List<Profile> selected = getSelectedProfiles();
+		if (selected.isEmpty())
+			return;
+		String name = org.dbgl.gui.abstractdialog.PresetsMenu.nameOf(preset);
+		if (!Mess_.on(shell_).key("dialog.main.profile.applypreset.confirm", new Object[] {name, selected.size()}).confirm())
+			return;
+		int changed = 0;
+		StringBuilder problems = new StringBuilder();
+		for (Profile prof: selected) {
+			try {
+				String warnings = prof.resetAndLoadConfiguration();
+				if (StringUtils.isNotBlank(warnings))
+					System.err.println(warnings);
+				if (org.dbgl.util.Presets.apply(prof, preset) > 0) {
+					new ProfileRepository().update(prof);
+					changed++;
+				}
+			} catch (IOException | SQLException e) {
+				problems.append(prof.getTitle()).append(": ").append(e.getMessage()).append(SystemUtils.EOLN);
+			}
+		}
+		updateProfilesList(getSelectedProfileIds());
+		displayProfileInformation(false);
+		if (problems.length() > 0)
+			Mess_.on(shell_).txt(problems.toString()).warning();
+		Mess_.on(shell_).key("dialog.main.profile.applypreset.done", new Object[] {name, changed, selected.size()}).display();
+	}
+
 	private void doRestoreProfileVersion() {
 		int index = profileTable_.getSelectionIndex();
 		if (index == -1)
@@ -1063,6 +1093,16 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				}
 			}
 		}).build();
+		MenuItem presetsItem = MenuItem_.on(menu).key("dialog.main.profile.applypreset").build();
+		Menu presetsMenu = new Menu(presetsItem);
+		presetsItem.setMenu(presetsMenu);
+		presetsMenu.addMenuListener(new MenuAdapter() {
+			@Override
+			public void menuShown(MenuEvent event) {
+				Stream.of(presetsMenu.getItems()).forEach(MenuItem::dispose); // own presets may have been added
+				org.dbgl.gui.abstractdialog.PresetsMenu.addPresetItems(presetsMenu, MainWindow.this::doApplyPreset);
+			}
+		});
 		MenuItem_.on(menu).key("dialog.main.profile.checkprofile").image(ImageService.IMG_ZOOM).listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
@@ -1826,6 +1866,55 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			}
 		}
 		newItemTableItem.setData(new ThumbInfo(prof.getCapturesString()));
+		if (settings_.getBooleanValue("gui", "profilewarnings")) {
+			List<String> problems = org.dbgl.util.ProfileWarnings.known(prof);
+			newItemTableItem.setWarning((problems != null) && !problems.isEmpty());
+			if (problems == null)
+				scheduleProfileWarnings();
+		} else {
+			newItemTableItem.setWarning(false);
+		}
+	}
+
+	private volatile int warningsGeneration_;
+	private boolean warningsScheduled_;
+
+	/**
+	 * Check the profiles in the list in the background, and mark those with invalid values or missing folders or files with a
+	 * warning sign. A profile is only checked again when its configuration file or that of its DOSBox version changed.
+	 */
+	private void scheduleProfileWarnings() {
+		if (warningsScheduled_)
+			return;
+		warningsScheduled_ = true;
+		display_.asyncExec(() -> {
+			warningsScheduled_ = false;
+			if (shell_.isDisposed() || (profilesList_ == null))
+				return;
+			int generation = ++warningsGeneration_;
+			List<Profile> profiles = new ArrayList<>(profilesList_);
+			Thread checker = new Thread(() -> {
+				for (Profile prof: profiles) {
+					if ((generation != warningsGeneration_) || display_.isDisposed())
+						return;
+					if (org.dbgl.util.ProfileWarnings.known(prof) != null)
+						continue;
+					boolean warning = !org.dbgl.util.ProfileWarnings.check(prof).isEmpty();
+					if (!warning || display_.isDisposed())
+						continue;
+					display_.asyncExec(() -> {
+						if (shell_.isDisposed() || (generation != warningsGeneration_))
+							return;
+						int index = BaseRepository.indexOf(profilesList_, prof);
+						if ((index >= 0) && (index < profileTable_.getItemCount()))
+							profileTable_.getItem(index).setWarning(true);
+					});
+				}
+			}, "DBGL profile warnings");
+			checker.setDaemon(true);
+			checker.setPriority(Thread.MIN_PRIORITY);
+			checker.start();
+		});
 	}
 
 	private void setDosboxTableItem(TableItem newItemTableItem, DosboxVersion dbversion) {

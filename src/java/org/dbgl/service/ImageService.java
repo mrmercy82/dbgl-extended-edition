@@ -89,6 +89,8 @@ public class ImageService {
 	public static final String IMG_SHARE = "share.png";
 	public static final String IMG_UNDO = "undo.png";
 	public static final String IMG_TOPDOG = "topdog.png";
+	public static final String IMG_WARNING = "warning.png";
+	public static final String IMG_WARNING_LARGE = "warning_large.png";
 	public static final String IMG_TILES_LARGE = "tiles_large.png";
 	public static final String IMG_TILES_MEDIUM = "tiles_medium.png";
 	public static final String IMG_TILES_SMALL = "tiles_small.png";

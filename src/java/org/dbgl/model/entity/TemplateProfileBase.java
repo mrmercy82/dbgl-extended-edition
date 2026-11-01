@@ -275,6 +275,11 @@ public abstract class TemplateProfileBase extends GenerationAwareConfigurable {
 	@Override
 	public String[] glshaderValues() {
 		String[] values = super.glshaderValues();
+		if ((dosboxVersion_ != null) && (gen_ != null) && (familyIdx(gen_) == familyIdx(Generation.x_20241001))) {
+			java.util.Set<String> result = new java.util.LinkedHashSet<>(java.util.Arrays.asList(values));
+			result.addAll(org.dbgl.util.DosboxVersionDetector.listDosboxXShadersCached(dosboxVersion_.getCanonicalExecutable(), dosboxVersion_.getCwd()));
+			return result.toArray(new String[0]);
+		}
 		if ((dosboxVersion_ == null) || (gen_ == null) || (familyIdx(gen_) != familyIdx(Generation.staging_0830)))
 			return values;
 		java.util.Set<String> result = new java.util.LinkedHashSet<>(java.util.Arrays.asList(values));

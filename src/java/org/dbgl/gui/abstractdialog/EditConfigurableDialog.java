@@ -21,8 +21,6 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -46,7 +44,6 @@ import org.dbgl.gui.interfaces.DaControlConvertor;
 import org.dbgl.model.NativeCommand;
 import org.dbgl.model.aggregate.DosboxVersion;
 import org.dbgl.model.conf.Autoexec;
-import org.dbgl.model.conf.ConfValueOptions;
 import org.dbgl.model.conf.Configuration;
 import org.dbgl.model.entity.GenerationAwareConfigurable;
 import org.dbgl.model.entity.TemplateProfileBase;
@@ -60,16 +57,12 @@ import org.eclipse.swt.events.MouseAdapter;
 import org.eclipse.swt.events.MouseEvent;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
-import org.eclipse.swt.graphics.Font;
-import org.eclipse.swt.graphics.FontData;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Combo;
 import org.eclipse.swt.widgets.Composite;
-import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Group;
-import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Text;
 import org.eclipse.swt.widgets.TreeItem;
@@ -97,42 +90,8 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 	private Button switchButton_, ipx_;
 	private Text ipxNet_;
 
-	/**
-	 * a setting of the DOSBox version without a field of its own; it is shown on the page that fits its topic (see
-	 * {@link SettingPlacement}), in a group at the end of that page
-	 */
-	private record GenericSetting(String section, String item, Control control, Label label, String initialValue, String defaultValue) {
-		String value() {
-			return control instanceof Combo c ? c.getText().strip(): ((Text)control).getText().strip();
-		}
-
-		/** set by the profile/template, and not just the DOSBox default */
-		boolean isChanged() {
-			String v = value();
-			return !v.isEmpty() && !v.equalsIgnoreCase(StringUtils.defaultString(defaultValue).strip());
-		}
-	}
-
-	private static final String EXTRAS_ONLY_CHANGED = "dbgl.extras.onlychanged";
-	private static final String EXTRAS_HEADER = "dbgl.extras.header";
-	private static final String EXTRAS_GROUP_KEY = "dbgl.extras.groupkey";
-	private static final String EXTRAS_GROUP_TITLE = "dbgl.extras.grouptitle";
-	private static final String EXTRAS_BOLD = "dbgl.extras.bold";
-	private static final String EXTRAS_ONLY_EXTRAS_PAGE = "dbgl.extras.onlyextraspage";
-	/** per page and section: group open or collapsed, for as long as the dialog is open */
-	private final Map<String, Boolean> extrasExpanded_ = new HashMap<>();
-	private Font extrasBold_;
-
-	// managed by DBGL itself (the captures folder of each profile)
-	private static final Set<String> DBGL_MANAGED_SETTINGS = Set.of("dosbox/captures", "capture/capture_dir");
-	/** per page: the composite at its end that takes the settings without a field of their own */
-	private final Map<String, Composite> extrasAreas_ = new HashMap<>();
-	/** per page: the DOSBox version its settings were created for */
-	private final Map<String, DosboxVersion> extrasBuiltFor_ = new HashMap<>();
-	/** per page: the settings without a field of their own, as {section, item}, for one DOSBox version */
-	private Map<String, List<String[]>> extrasByPage_ = new HashMap<>();
-	private DosboxVersion extrasComputedFor_;
-	private final List<GenericSetting> genericSettings_ = new ArrayList<>();
+	/** the settings of the DOSBox version without a field of their own, on the pages of their topic */
+	protected final ExtraSettings extras_ = new ExtraSettings(this);
 	protected org.eclipse.swt.widgets.List nativeCommandsList_;
 
 	protected EditConfigurableDialog(Shell parent, String dialogName) {
@@ -169,10 +128,10 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		addPageGenerator(machineTreeItem, "dialog.template.tab.memory", this::createMemoryPage);
 		TreeItem disksTreeItem = addPageGenerator(machineTreeItem, "dialog.template.tab.disks", this::createDisksPage);
 		addPageGenerator(disksTreeItem, SettingPlacement.CONTROLLERS, (c, p) -> createPage("dialog.template.tab.disks", SettingPlacement.CONTROLLERS, p, 1));
-		addPageGenerator(machineTreeItem, SettingPlacement.MAINBOARD, (c, p) -> createPage("dialog.template.tab.system", SettingPlacement.MAINBOARD, p, 1));
+		addPageGenerator(machineTreeItem, SettingPlacement.MAINBOARD, this::createMainboardPage);
 		addPageGenerator(machineTreeItem, SettingPlacement.PC98, (c, p) -> createPage("dialog.template.tab.system", SettingPlacement.PC98, p, 1));
 		TreeItem videoTreeItem = addPageGenerator("dialog.template.tab.video", this::createVideoPage);
-		addPageGenerator(videoTreeItem, SettingPlacement.VESA, (c, p) -> createPage("dialog.template.tab.video", SettingPlacement.VESA, p, 1));
+		addPageGenerator(videoTreeItem, SettingPlacement.VESA, this::createVesaPage);
 		addPageGenerator(videoTreeItem, "dialog.template.tab.cgacomposite", this::createCgaCompositePage);
 		addPageGenerator(videoTreeItem, "dialog.template.tab.voodoo", this::createVoodooPage);
 		TreeItem audioTreeItem = addPageGenerator("dialog.template.tab.audio", this::createAudioPage);
@@ -208,397 +167,48 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 	/** every page gets a place at its end for the settings without a field of their own that belong there */
 	@Override
 	protected void onPageCreated(String key, Composite page) {
-		if (!supportsMoreSettingsPage())
-			return;
-		Composite area = new Composite(page, SWT.NONE);
-		GridLayout layout = new GridLayout(1, false);
-		layout.marginWidth = layout.marginHeight = 0;
-		area.setLayout(layout);
-		int span = page.getLayout() instanceof GridLayout gl ? gl.numColumns: 1;
-		area.setLayoutData(new GridData(SWT.FILL, SWT.BEGINNING, true, false, span, 1));
-		extrasAreas_.put(key, area);
-	}
-
-	/**
-	 * Decide for every setting of the DOSBox version without a field of its own on which page it goes. All pages must exist,
-	 * they tell which settings have a field of their own, and where the fields of each section are.
-	 */
-	private void computeExtras(TemplateProfileBase configurable) {
-		DosboxVersion dbversion = configurable.getDosboxVersion();
-		if ((dbversion == null) || (dbversion == extrasComputedFor_))
-			return;
-		computeAllPages(configurable);
-		Set<String> bound = new HashSet<>(DBGL_MANAGED_SETTINGS);
-		Map<String, Map<String, Integer>> pagesOfSection = new HashMap<>();
-		for (Chain chain: metaControls_) {
-			Set<String> settings = chain.boundSettings();
-			bound.addAll(settings);
-			String page = pageKeyOf(chain.composite());
-			if (page != null)
-				settings.forEach(x -> pagesOfSection.computeIfAbsent(x.substring(0, x.indexOf('/')), k -> new HashMap<>()).merge(page, 1, Integer::sum));
-		}
-
-		Map<String, List<String[]>> result = new HashMap<>();
-		Configuration dosboxConf = dbversion.getConfiguration();
-		for (String section: dosboxConf.getSectionNames()) {
-			if (section.equalsIgnoreCase("autoexec"))
-				continue;
-			for (String item: dosboxConf.getItemNames(section)) {
-				if (bound.contains(section.toLowerCase() + '/' + item.toLowerCase()))
-					continue;
-				String page = SettingPlacement.pageFor(section, item);
-				if ((page == null) || !extrasAreas_.containsKey(page)) // no rule: where most fields of the section are
-					page = pagesOfSection.getOrDefault(section.toLowerCase(), Map.of()).entrySet().stream().filter(e -> extrasAreas_.containsKey(e.getKey()))
-							.max(Map.Entry.comparingByValue()).map(Map.Entry::getKey).orElse(SettingPlacement.DOSBOX);
-				if (extrasAreas_.containsKey(page))
-					result.computeIfAbsent(page, k -> new ArrayList<>()).add(new String[] {section, item});
-			}
-		}
-		extrasByPage_ = result;
-		extrasComputedFor_ = dbversion;
-	}
-
-	/** after a change of the DOSBox version, the settings created for the previous one are removed, and created again when needed */
-	private void discardOutdatedExtras(TemplateProfileBase configurable) {
-		DosboxVersion dbversion = configurable.getDosboxVersion();
-		for (Map.Entry<String, Composite> e: extrasAreas_.entrySet()) {
-			if (extrasBuiltFor_.containsKey(e.getKey()) && (extrasBuiltFor_.get(e.getKey()) != dbversion)) {
-				Stream.of(e.getValue().getChildren()).forEach(Control::dispose);
-				extrasBuiltFor_.remove(e.getKey());
-			}
-		}
-		genericSettings_.removeIf(g -> g.control().isDisposed());
-	}
-
-	/**
-	 * create the settings without a field of their own for one page: one collapsible group per section, each setting with its
-	 * name (bold when the profile changes it), the field, a button to go back to the DOSBox default and a short description
-	 */
-	private void buildExtras(TemplateProfileBase configurable, String key) {
-		DosboxVersion dbversion = configurable.getDosboxVersion();
-		Composite area = extrasAreas_.get(key);
-		if ((dbversion == null) || (area == null) || area.isDisposed())
-			return;
-		computeExtras(configurable);
-		Stream.of(area.getChildren()).forEach(Control::dispose);
-		genericSettings_.removeIf(g -> g.control().isDisposed());
-
-		Configuration dosboxConf = dbversion.getConfiguration();
-		ConfValueOptions documented = dbversion.getConfValueOptions();
-		var text = TextService.getInstance();
-		String defaultText = text.get("dialog.template.moresettings.default");
-		String groupText = text.get("dialog.template.tab.moresettings");
-		String info = text.get("dialog.template.moresettings.tooltip");
-		List<String[]> settings = extrasByPage_.getOrDefault(key, List.of());
-		// on the pages that only hold such settings, the groups are open from the start
-		boolean onlyExtras = Stream.of(area.getParent().getChildren()).allMatch(c -> (c == area) || (c.getData("dbgl.pageheader") != null));
-
-		if (!settings.isEmpty()) {
-			Button onlyChanged = new Button(area, SWT.CHECK);
-			onlyChanged.setText(text.get("dialog.template.moresettings.onlychanged"));
-			onlyChanged.setToolTipText(info);
-			onlyChanged.setLayoutData(new GridData(SWT.BEGINNING, SWT.CENTER, false, false));
-			onlyChanged.setData(EXTRAS_ONLY_CHANGED, Boolean.TRUE);
-			onlyChanged.addListener(SWT.Selection, e -> {
-				applyExtrasFilter(key);
-				relayoutVisiblePage();
-			});
-		}
-
-		Map<String, Group> groups = new LinkedHashMap<>();
-		for (String[] setting: settings) {
-			String section = setting[0], item = setting[1];
-			Group group = groups.computeIfAbsent(section, s -> {
-				long count = settings.stream().filter(x -> x[0].equals(s)).count();
-				String groupKey = key + '|' + s;
-				Button header = new Button(area, SWT.FLAT);
-				header.setAlignment(SWT.LEFT);
-				header.setToolTipText(info);
-				header.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
-				Group g = new Group(area, SWT.NONE);
-				g.setLayout(new GridLayout(4, false));
-				g.setLayoutData(new GridData(SWT.FILL, SWT.BEGINNING, true, false));
-				g.setData(EXTRAS_HEADER, header);
-				header.setData(EXTRAS_GROUP_TITLE, groupText + " [" + s + "] (" + count + ")");
-				if (onlyExtras)
-					g.setData(EXTRAS_ONLY_EXTRAS_PAGE, Boolean.TRUE);
-				header.addListener(SWT.Selection, e -> {
-					extrasExpanded_.put(groupKey, !Boolean.TRUE.equals(extrasExpanded_.get(groupKey)));
-					applyExtrasFilter(key);
-					relayoutVisiblePage();
-				});
-				g.setData(EXTRAS_GROUP_KEY, groupKey);
-				return g;
-			});
-			String defaultValue = dosboxConf.getValue(section, item);
-			String help = documented.getHelp(section, item);
-			String tooltip = (help != null ? help + "\n\n": "") + "[" + section + "] " + item + "\n" + defaultText + ": " + (StringUtils.isEmpty(defaultValue) ? "-": defaultValue);
-			Label label = new Label(group, SWT.NONE);
-			label.setText(item.replace("&", "&&"));
-			label.setToolTipText(tooltip);
-			label.setLayoutData(new GridData(SWT.BEGINNING, SWT.CENTER, false, false));
-			ConfValueOptions.Options options = documented.get(section, item);
-			List<String> booleans = booleanValues(defaultValue);
-			Control control;
-			if ((options != null) || (booleans != null)) {
-				boolean readOnly = (options == null) || !options.isFreeForm();
-				List<String> values = options != null ? options.getValues(): booleans;
-				Combo combo = new Combo(group, readOnly ? SWT.DROP_DOWN | SWT.READ_ONLY: SWT.DROP_DOWN);
-				combo.add(""); // empty: DOSBox default
-				values.forEach(combo::add);
-				combo.setVisibleItemCount(Math.min(20, values.size() + 1));
-				control = combo;
-			} else {
-				Text txt = new Text(group, SWT.BORDER);
-				txt.setMessage(defaultText + ": " + StringUtils.defaultString(defaultValue));
-				control = txt;
-			}
-			control.setToolTipText(tooltip);
-			GridData gd = new GridData(SWT.FILL, SWT.CENTER, false, false);
-			gd.widthHint = 200;
-			control.setLayoutData(gd);
-			Button reset = new Button(group, SWT.PUSH);
-			reset.setText("↺");
-			reset.setToolTipText(text.get("dialog.template.moresettings.reset") + " (" + (StringUtils.isEmpty(defaultValue) ? "-": defaultValue) + ")");
-			reset.setLayoutData(new GridData(SWT.BEGINNING, SWT.CENTER, false, false));
-			Label description = new Label(group, SWT.WRAP);
-			description.setText(SettingPlacement.summary(help, 120).replace("&", "&&"));
-			description.setToolTipText(tooltip);
-			description.setForeground(display_.getSystemColor(SWT.COLOR_WIDGET_DARK_SHADOW));
-			GridData dd = new GridData(SWT.FILL, SWT.CENTER, true, false);
-			dd.widthHint = 200; // wraps within the width of the page instead of widening it
-			description.setLayoutData(dd);
-
-			GenericSetting g = new GenericSetting(section, item, control, label, null, defaultValue);
-			genericSettings_.add(g);
-			control.addListener(control instanceof Combo ? SWT.Selection: SWT.Modify, e -> markChanged(g));
-			if (control instanceof Combo)
-				control.addListener(SWT.Modify, e -> markChanged(g));
-			reset.addListener(SWT.Selection, e -> {
-				if (g.control() instanceof Combo combo) {
-					if ((combo.getStyle() & SWT.READ_ONLY) != 0)
-						combo.select(0);
-					else
-						combo.setText("");
-				} else {
-					((Text)g.control()).setText("");
-				}
-				markChanged(g);
-			});
-		}
-		extrasBuiltFor_.put(key, dbversion);
-		area.setData(HAS_CONTENT, groups.isEmpty() ? null: Boolean.TRUE);
-		setGenericValues(configurable);
-		applyExtrasFilter(key);
-		area.layout(true, true);
-	}
-
-	/** a setting the profile/template changes (not empty and not the DOSBox default) is shown in bold */
-	private void markChanged(GenericSetting g) {
-		if (g.label().isDisposed())
-			return;
-		boolean changed = g.isChanged();
-		if (Boolean.valueOf(changed).equals(g.label().getData(EXTRAS_BOLD)))
-			return;
-		if (changed && (extrasBold_ == null)) {
-			FontData[] fd = g.label().getFont().getFontData();
-			Stream.of(fd).forEach(x -> x.setStyle(SWT.BOLD));
-			extrasBold_ = new Font(display_, fd);
-			shell_.addDisposeListener(e -> extrasBold_.dispose());
-		}
-		g.label().setFont(changed ? extrasBold_: null);
-		g.label().setData(EXTRAS_BOLD, changed);
-		g.label().getParent().layout(true);
-		if (g.label().getParent() instanceof Group group)
-			updateExtrasHeader(group, null);
-	}
-
-	/**
-	 * Whether a group starts open, as set under 'Settings': always, only when the profile/template changes one of its
-	 * settings, or collapsed. Pages that only hold such settings may always start open.
-	 */
-	private boolean initiallyExpanded(Group group, int changedCount) {
-		SettingsService settings = SettingsService.getInstance();
-		if ((group.getData(EXTRAS_ONLY_EXTRAS_PAGE) != null) && !settings.getBooleanValue("gui", "extrasexpandonextraspages"))
-			return true;
-		switch (settings.getValue("gui", "extrasexpand")) {
-			case "always": return true;
-			case "collapsed": return false;
-			default: return changedCount > 0;
-		}
-	}
-
-	private int changedCount(Group group) {
-		return (int)genericSettings_.stream().filter(g -> !g.label().isDisposed() && (g.label().getParent() == group) && g.isChanged()).count();
-	}
-
-	/** the heading of a group: open or closed, title, and if wanted the number of changed settings */
-	private void updateExtrasHeader(Group group, Boolean open) {
-		Button header = (Button)group.getData(EXTRAS_HEADER);
-		if ((header == null) || header.isDisposed())
-			return;
-		boolean isOpen = open != null ? open: group.getVisible();
-		String title = (String)header.getData(EXTRAS_GROUP_TITLE);
-		int changed = changedCount(group);
-		if ((changed > 0) && SettingsService.getInstance().getBooleanValue("gui", "extrascountchanges"))
-			title += " - " + TextService.getInstance().get("dialog.template.moresettings.changedcount", new Object[] {changed});
-		String text = (isOpen ? "▾ ": "▸ ") + title.replace("&", "&&");
-		if (!text.equals(header.getText()))
-			header.setText(text);
-	}
-
-	/** collapsed or open groups, and 'only changed values' */
-	private void applyExtrasFilter(String key) {
-		Composite area = extrasAreas_.get(key);
-		if ((area == null) || area.isDisposed())
-			return;
-		boolean onlyChanged = Stream.of(area.getChildren()).anyMatch(c -> (c.getData(EXTRAS_ONLY_CHANGED) != null) && ((Button)c).getSelection());
-		for (Control c: area.getChildren()) {
-			if (!(c instanceof Group group) || (group.getData(EXTRAS_HEADER) == null))
-				continue;
-			Button header = (Button)group.getData(EXTRAS_HEADER);
-			boolean expanded = extrasExpanded_.computeIfAbsent((String)group.getData(EXTRAS_GROUP_KEY), k -> initiallyExpanded(group, changedCount(group)));
-			int shown = 0;
-			Map<Control, GenericSetting> byLabel = new HashMap<>();
-			genericSettings_.stream().filter(g -> !g.label().isDisposed() && (g.label().getParent() == group)).forEach(g -> byLabel.put(g.label(), g));
-			Control[] row = group.getChildren(); // per setting: label, field, reset button, description
-			for (int i = 0; i + 3 < row.length; i += 4) {
-				GenericSetting g = byLabel.get(row[i]);
-				if (g == null)
-					continue;
-				boolean show = !onlyChanged || g.isChanged();
-				for (int j = 0; j < 4; j++)
-					setShown(row[i + j], show);
-				if (show)
-					shown++;
-			}
-			setShown(header, !onlyChanged || (shown > 0));
-			boolean open = (onlyChanged && (shown > 0)) || (!onlyChanged && expanded);
-			setShown(group, open);
-			updateExtrasHeader(group, open);
-		}
-		area.layout(true, true);
-	}
-
-	private static void setShown(Control c, boolean show) {
-		c.setVisible(show);
-		((GridData)c.getLayoutData()).exclude = !show;
+		if (supportsMoreSettingsPage())
+			extras_.addArea(key, page);
 	}
 
 	/** the search jumped to a page: open its collapsed groups that contain a match */
 	@Override
 	protected void onSearchJump(Composite page, String s) {
-		for (Map.Entry<String, Composite> e: extrasAreas_.entrySet()) {
-			if (e.getValue().isDisposed() || (e.getValue().getParent() != page))
-				continue;
-			boolean changed = false;
-			for (Control c: e.getValue().getChildren()) {
-				if (!(c instanceof Group group) || (group.getData(EXTRAS_GROUP_KEY) == null))
-					continue;
-				boolean hit = Stream.of(group.getChildren()).anyMatch(x -> (x instanceof Label l) && (StringUtils.containsIgnoreCase(l.getText(), s) || StringUtils.containsIgnoreCase(l.getToolTipText(), s)));
-				if (hit && !Boolean.TRUE.equals(extrasExpanded_.get(group.getData(EXTRAS_GROUP_KEY)))) {
-					extrasExpanded_.put((String)group.getData(EXTRAS_GROUP_KEY), true);
-					changed = true;
-				}
-			}
-			if (changed) {
-				applyExtrasFilter(e.getKey());
-				relayoutVisiblePage();
-			}
-		}
+		extras_.onSearchJump(page, s);
 	}
 
 	/** the search looks through all pages, so all settings must exist */
 	@Override
 	protected void beforeSearch(TemplateProfileBase base) {
-		if (!supportsMoreSettingsPage())
-			return;
-		TemplateProfileBase configurable = currentConfigurable();
-		computeExtras(configurable);
-		for (String key: extrasByPage_.keySet())
-			if (extrasBuiltFor_.get(key) != configurable.getDosboxVersion())
-				buildExtras(configurable, key);
-	}
-
-	/** values: what the profile/template sets itself, empty means the DOSBox default */
-	private void setGenericValues(TemplateProfileBase configurable) {
-		for (int i = 0; i < genericSettings_.size(); i++) {
-			GenericSetting g = genericSettings_.get(i);
-			if (g.control().isDisposed())
-				continue;
-			String value = StringUtils.defaultString(configurable.getConfiguration().getValue(g.section(), g.item()));
-			if (g.control() instanceof Combo combo) {
-				if (combo.indexOf(value) == -1)
-					combo.add(value); // e.g. a value from an older DOSBox version
-				if ((combo.getStyle() & SWT.READ_ONLY) != 0)
-					combo.select(combo.indexOf(value));
-				else
-					combo.setText(value);
-			} else {
-				((Text)g.control()).setText(value);
-			}
-			genericSettings_.set(i, new GenericSetting(g.section(), g.item(), g.control(), g.label(), value, g.defaultValue()));
-			markChanged(genericSettings_.get(i));
-		}
-	}
-
-	/** DOSBox documents no values for most switches, offer the two values in the notation of the default */
-	private static List<String> booleanValues(String defaultValue) {
-		if (defaultValue == null)
-			return null;
-		switch (defaultValue.strip().toLowerCase()) {
-			case "true", "false": return List.of("true", "false");
-			case "on", "off": return List.of("on", "off");
-			case "yes", "no": return List.of("yes", "no");
-			default: return null;
-		}
+		if (supportsMoreSettingsPage())
+			extras_.buildAll(currentConfigurable());
 	}
 
 	/** write the changed settings without a field of their own into the profile/template */
 	protected void updateConfigurableByMoreSettings(TemplateProfileBase configurable) {
-		for (GenericSetting g: genericSettings_) {
-			if (g.control().isDisposed())
-				continue;
-			String value = g.value();
-			if (value.equals(StringUtils.defaultString(g.initialValue())))
-				continue; // unchanged
-			if (value.isEmpty())
-				configurable.getConfiguration().removeValueIfSet(g.section(), g.item());
-			else
-				configurable.setValue(g.section(), g.item(), value);
-		}
+		extras_.writeTo(configurable);
 	}
 
 	@Override
 	protected void updatePageTree(TemplateProfileBase configurable, boolean hideEmptyPages) {
 		String cacheKey = hideEmptyPages ? pageTreeCacheKey(configurable): null;
-		PageTreeInfo known = cacheKey != null ? PAGE_TREE_CACHE.get(cacheKey): null;
+		PageTreeCache.Info known = cacheKey != null ? PageTreeCache.get(cacheKey): null;
 		if (known != null) {
 			// the same DOSBox version was shown before: no need to create all pages to find out which ones have content
-			if (supportsMoreSettingsPage() && (extrasComputedFor_ != configurable.getDosboxVersion())) {
-				extrasByPage_ = known.extrasByPage();
-				extrasComputedFor_ = configurable.getDosboxVersion();
-			}
+			if (supportsMoreSettingsPage())
+				extras_.useKnown(configurable.getDosboxVersion(), known.extrasByPage());
 			showPages(configurable, known.shownPages());
 			return;
 		}
 		if (hideEmptyPages && supportsMoreSettingsPage()) {
 			// the settings themselves are only created when their page is shown; until then, mark the pages that will have some
-			computeExtras(configurable);
-			for (Map.Entry<String, Composite> e: extrasAreas_.entrySet())
-				if (!e.getValue().isDisposed())
-					e.getValue().setData(HAS_CONTENT, extrasByPage_.containsKey(e.getKey()) ? Boolean.TRUE: null);
+			extras_.compute(configurable);
+			extras_.markPagesWithContent();
 		}
 		super.updatePageTree(configurable, hideEmptyPages);
 		if (cacheKey != null)
-			PAGE_TREE_CACHE.put(cacheKey, new PageTreeInfo(shownPageKeys(), supportsMoreSettingsPage() ? extrasByPage_: Map.of()));
+			PageTreeCache.put(cacheKey, new PageTreeCache.Info(shownPageKeys(), supportsMoreSettingsPage() ? extras_.byPage(): Map.of()));
 	}
-
-	/** which pages have content and where the settings without a field of their own go, per dialog and DOSBox version */
-	private record PageTreeInfo(Set<String> shownPages, Map<String, List<String[]>> extrasByPage) {
-	}
-
-	private static final Map<String, PageTreeInfo> PAGE_TREE_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
 
 	private String pageTreeCacheKey(TemplateProfileBase configurable) {
 		DosboxVersion dbversion = configurable.getDosboxVersion();
@@ -616,7 +226,7 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		// enable or disable controls, and leave pages without supported settings out of the tree
 		// pages without any setting of the selected DOSBox version are always left out, hiding single settings is up to the user
 		boolean hideEmptyPages = true;
-		discardOutdatedExtras(configurable);
+		extras_.discardOutdated(configurable);
 		metaControls_.forEach(x -> x.enableOrDisableControl(configurable));
 		updatePageTree(configurable, hideEmptyPages);
 		relayoutVisiblePage();
@@ -631,7 +241,7 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		// set control values
 		metaControls_.forEach(x -> x.setControlByConfigurable(configurable, combinedConf));
 		nativeCommandControl_.setControlByConfigurable(configurable, combinedConf);
-		setGenericValues(configurable); // the settings of the pages shown so far
+		extras_.setValues(configurable); // the settings of the pages shown so far
 
 		setButton_.setEnabled(false);
 		switchButton_.setEnabled(false);
@@ -655,7 +265,7 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 	 */
 	protected void updatePageTree(TemplateProfileBase configurable) {
 		String cacheKey = pageTreeCacheKey(configurable);
-		if ((cacheKey != null) && !PAGE_TREE_CACHE.containsKey(cacheKey)) {
+		if ((cacheKey != null) && !PageTreeCache.contains(cacheKey)) {
 			display_.asyncExec(() -> {
 				if (!shell_.isDisposed())
 					updatePageTree(currentConfigurable(), true);
@@ -667,11 +277,11 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 
 	@Override
 	protected void onPageShown(Composite page) {
-		String key = extrasAreas_.entrySet().stream().filter(e -> !e.getValue().isDisposed() && (e.getValue().getParent() == page)).map(Map.Entry::getKey).findFirst().orElse(null);
-		if ((key != null) && (extrasBuiltFor_.get(key) != currentConfigurable().getDosboxVersion())) {
+		String key = extras_.keyOfPage(page);
+		if ((key != null) && !extras_.isBuilt(key, currentConfigurable().getDosboxVersion())) {
 			display_.asyncExec(() -> { // all other pages must exist first, which can't be done while this page is being created
-				if (!page.isDisposed() && (extrasBuiltFor_.get(key) != currentConfigurable().getDosboxVersion())) {
-					buildExtras(currentConfigurable(), key);
+				if (!page.isDisposed() && !extras_.isBuilt(key, currentConfigurable().getDosboxVersion())) {
+					extras_.build(currentConfigurable(), key);
 					relayoutVisiblePage();
 				}
 			});
@@ -687,61 +297,14 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		applyPreset(org.dbgl.util.Presets.BUILT_IN.get(0));
 	}
 
-	/** the menu of the presets button: built-in and own presets, save the current values as a preset, delete own presets */
-	private void showPresetsMenu(Button button) {
-		org.eclipse.swt.widgets.Menu menu = new org.eclipse.swt.widgets.Menu(button);
-		var text = TextService.getInstance();
-		for (org.dbgl.util.Presets.Preset preset: org.dbgl.util.Presets.BUILT_IN) {
-			org.eclipse.swt.widgets.MenuItem item = new org.eclipse.swt.widgets.MenuItem(menu, SWT.PUSH);
-			item.setText(text.get(preset.key()).replace("&", "&&"));
-			item.addListener(SWT.Selection, e -> applyPreset(preset));
-		}
-		List<org.dbgl.util.Presets.Preset> own = org.dbgl.util.Presets.listOwn();
-		if (!own.isEmpty()) {
-			new org.eclipse.swt.widgets.MenuItem(menu, SWT.SEPARATOR);
-			for (org.dbgl.util.Presets.Preset preset: own) {
-				org.eclipse.swt.widgets.MenuItem item = new org.eclipse.swt.widgets.MenuItem(menu, SWT.PUSH);
-				item.setText(preset.key().replace("&", "&&"));
-				item.addListener(SWT.Selection, e -> applyPreset(preset));
-			}
-		}
-		new org.eclipse.swt.widgets.MenuItem(menu, SWT.SEPARATOR);
-		org.eclipse.swt.widgets.MenuItem save = new org.eclipse.swt.widgets.MenuItem(menu, SWT.PUSH);
-		save.setText(text.get("dialog.template.presets.save"));
-		save.addListener(SWT.Selection, e -> saveAsPreset());
-		if (!own.isEmpty()) {
-			org.eclipse.swt.widgets.MenuItem delete = new org.eclipse.swt.widgets.MenuItem(menu, SWT.CASCADE);
-			delete.setText(text.get("dialog.template.presets.delete"));
-			org.eclipse.swt.widgets.Menu deleteMenu = new org.eclipse.swt.widgets.Menu(delete);
-			delete.setMenu(deleteMenu);
-			for (org.dbgl.util.Presets.Preset preset: own) {
-				org.eclipse.swt.widgets.MenuItem item = new org.eclipse.swt.widgets.MenuItem(deleteMenu, SWT.PUSH);
-				item.setText(preset.key().replace("&", "&&"));
-				item.addListener(SWT.Selection, e -> {
-					if (Mess_.on(shell_).key("dialog.template.presets.confirmdelete", new Object[] {preset.key()}).confirm()) {
-						try {
-							org.dbgl.util.Presets.delete(preset.key());
-						} catch (java.io.IOException ex) {
-							Mess_.on(shell_).exception(ex).warning();
-						}
-					}
-				});
-			}
-		}
-		org.eclipse.swt.graphics.Rectangle r = button.getBounds();
-		menu.setLocation(button.getParent().toDisplay(r.x, r.y + r.height));
-		menu.setVisible(true);
-	}
-
 	/** set the values of a preset, as far as the DOSBox version has the settings and accepts the values */
 	protected void applyPreset(org.dbgl.util.Presets.Preset preset) {
 		TemplateProfileBase configurable = currentConfigurable();
 		computeAllPages(configurable);
+		if (supportsMoreSettingsPage())
+			extras_.buildAll(configurable); // a preset may set settings without a field of their own, on pages not shown yet
 		updateConfigurableByControls(configurable);
-		int applied = 0;
-		for (org.dbgl.util.Presets.Entry entry: preset.entries())
-			if (setFirstSupported(configurable, entry.section(), entry.item(), entry.candidates()))
-				applied++;
+		int applied = org.dbgl.util.Presets.apply(configurable, preset);
 		updateControlsByConfigurable(configurable);
 		if (applied == 0)
 			Mess_.on(shell_).key("dialog.template.presets.nothing").display();
@@ -760,7 +323,7 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 				continue;
 			for (String item: own.getItemNames(section)) {
 				String value = own.getValue(section, item);
-				if (StringUtils.isBlank(value) || DBGL_MANAGED_SETTINGS.contains(section.toLowerCase() + '/' + item.toLowerCase())
+				if (StringUtils.isBlank(value) || ExtraSettings.DBGL_MANAGED_SETTINGS.contains(section.toLowerCase() + '/' + item.toLowerCase())
 						|| StringUtils.equals(StringUtils.strip(value), StringUtils.strip(dosboxConf.getValue(section, item))))
 					continue;
 				values.computeIfAbsent(section.toLowerCase(), k -> new LinkedHashMap<>()).put(item, value);
@@ -782,21 +345,6 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		}
 	}
 
-	/** @return true if one of the values was set */
-	private static boolean setFirstSupported(TemplateProfileBase configurable, String section, String item, String... candidates) {
-		Configuration dosboxConf = configurable.getDosboxVersion().getConfiguration();
-		if (!dosboxConf.hasValue(section, item))
-			return false;
-		ConfValueOptions.Options options = configurable.getDosboxVersion().getConfValueOptions().get(section, item);
-		for (String candidate: candidates) {
-			if ((options == null) || options.isFreeForm() || options.getValues().stream().anyMatch(v -> v.equalsIgnoreCase(candidate))) {
-				configurable.setValue(section, item, candidate);
-				return true;
-			}
-		}
-		return false;
-	}
-
 	/** list the settings that differ from the defaults of the DOSBox version, as they are in the dialog right now */
 	protected void showDifferences() {
 		TemplateProfileBase configurable = currentConfigurable();
@@ -811,7 +359,7 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 			for (String item: own.getItemNames(section)) {
 				String value = own.getValue(section, item);
 				String def = dosboxConf.getValue(section, item);
-				if (StringUtils.equals(value, def) || DBGL_MANAGED_SETTINGS.contains(section + '/' + item))
+				if (StringUtils.equals(value, def) || ExtraSettings.DBGL_MANAGED_SETTINGS.contains(section + '/' + item))
 					continue;
 				sb.append('[').append(section).append("] ").append(item).append(" = ").append(value).append("   (").append(defaultText).append(": ")
 						.append(def == null ? "-": def).append(')').append(Text.DELIMITER);
@@ -833,6 +381,63 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		updateConfigurableByMoreSettings(configurable);
 
 		configurable.setBooter(booterRadio_.getSelection());
+	}
+
+	/** a field for a setting that only some DOSBox versions have (mostly DOSBox-X, ECE and Daum) */
+	protected record AdditionalField(String labelKey, char kind, String section, String sectionNew, String item, String itemNew, String... values) {
+	}
+
+	protected static AdditionalField field(String labelKey, char kind, String section, String sectionNew, String item, String itemNew, String... values) {
+		return new AdditionalField(labelKey, kind, section, sectionNew, item, itemNew, values);
+	}
+
+	/**
+	 * A group 'Additional options' at the end of a page, two settings per row: 'b' a switch, 't' a text field, 'c' a combo
+	 * box (that also takes other values). The tooltips are the help texts of the DOSBox version itself.
+	 */
+	protected void addAdditionalOptions(Composite composite, int span, TemplateProfileBase configurable, AdditionalField... fields) {
+		GridData gd = new GridData(SWT.FILL, SWT.BEGINNING, true, false, span, 1);
+		gd.verticalIndent = 20;
+		Group group = Group_.on(composite).layoutData(gd).layout(new GridLayout(5, false)).key("dialog.template.additionaloptions").build();
+		for (int i = 0; i < fields.length; i++) {
+			AdditionalField f = fields[i];
+			Chain.Builder builder = Chain.on(group).lbl(l -> l.key(f.labelKey()));
+			if (f.kind() == 'b')
+				builder.but(b -> b);
+			else if (f.kind() == 't')
+				builder.txt(t -> t);
+			else
+				builder.cmb(c -> c.editable().items(f.values()));
+			builder.section(f.section(), f.sectionNew()).item(f.item(), f.itemNew()).dosboxHelp().build(metaControls_).init(configurable);
+			if ((i % 2 == 0) && (i < fields.length - 1))
+				Label_.on(group).grabHorSpace().build();
+		}
+	}
+
+	protected Composite createMainboardPage(TemplateProfileBase configurable, Composite parent) {
+		Composite composite = createPage("dialog.template.tab.system", SettingPlacement.MAINBOARD, parent, 1);
+		addAdditionalOptions(composite, 1, configurable,
+			field("dialog.template.x.isabusclock", 'c', "dosbox", null, "isa bus clock", null, "std8.3", "std8", "std6", "std4.77", "oc10", "oc12", "oc15", "oc16"),
+			field("dialog.template.x.pcibusclock", 'c', "dosbox", null, "pci bus clock", null, "std33.3", "std30", "std25"),
+			field("dialog.template.x.enablepcibus", 'b', "dosbox", null, "enable pci bus", null));
+		return composite;
+	}
+
+	protected Composite createVesaPage(TemplateProfileBase configurable, Composite parent) {
+		Composite composite = createPage("dialog.template.tab.video", SettingPlacement.VESA, parent, 1);
+		addAdditionalOptions(composite, 1, configurable,
+			field("dialog.template.x.vesamodelistcap", 't', "video", null, "vesa modelist cap", null),
+			field("dialog.template.x.vesamodelistwidth", 't', "video", null, "vesa modelist width limit", null),
+			field("dialog.template.x.vesamodelistheight", 't', "video", null, "vesa modelist height limit", null),
+			field("dialog.template.x.vesahd", 'b', "video", null, "allow high definition vesa modes", null),
+			field("dialog.template.x.vesalowres", 'b', "dosbox", "video", "allow low resolution vesa modes", "allow low resolution vesa modes"),
+			field("dialog.template.x.vesa32", 'b', "dosbox", "video", "allow 32bpp vesa modes", "allow 32bpp vesa modes"),
+			field("dialog.template.x.vesa24", 'b', "dosbox", "video", "allow 24bpp vesa modes", "allow 24bpp vesa modes"),
+			field("dialog.template.x.vesa16", 'b', "dosbox", "video", "allow 16bpp vesa modes", "allow 16bpp vesa modes"),
+			field("dialog.template.x.vesa15", 'b', "dosbox", "video", "allow 15bpp vesa modes", "allow 15bpp vesa modes"),
+			field("dialog.template.x.vesa8", 'b', "dosbox", "video", "allow 8bpp vesa modes", "allow 8bpp vesa modes"),
+			field("dialog.template.x.vesavbe12", 'c', "dosbox", "video", "vesa vbe 1.2 modes are 32bpp", "vesa vbe 1.2 modes are 32bpp", "auto", "true", "false"));
+		return composite;
 	}
 
 	protected Composite createDosboxPage(TemplateProfileBase configurable, Composite parent, String capturesText, String configFileText) {
@@ -874,7 +479,7 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		toolsRow.setLayout(toolsLayout);
 		toolsRow.setLayoutData(new GridData(SWT.END, SWT.CENTER, true, false, 5, 1));
 		Button presetsButton = Button_.on(toolsRow).text().key("dialog.template.presets").tooltip("dialog.template.presets.tooltip").ctrl();
-		presetsButton.addListener(SWT.Selection, e -> showPresetsMenu(presetsButton));
+		presetsButton.addListener(SWT.Selection, e -> PresetsMenu.show(shell_, presetsButton, this::applyPreset, this::saveAsPreset));
 		Button_.on(toolsRow).text().key("dialog.template.showdifferences").tooltip("dialog.template.showdifferences.tooltip").listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
@@ -1515,6 +1120,11 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		Chain.on(expCpu).lbl(l -> l.key("dialog.template.cpuidle")).but(b -> b.horSpan(3).tooltip("dialog.template.cpuidle.tooltip"))
 			.section("cpu").item("cpu_idle").build(metaControls_).init(configurable);
 	
+		addAdditionalOptions(composite, 6, configurable,
+			field("dialog.template.x.enablemsr", 'b', "cpu", null, "enable msr", null),
+			field("dialog.template.x.ignoreundefinedmsr", 'b', "cpu", null, "ignore undefined msr", null),
+			field("dialog.template.x.stopturbokey", 'b', "cpu", null, "stop turbo on key", null),
+			field("dialog.template.x.stopturbosecond", 't', "cpu", null, "stop turbo after second", null));
 		return composite;
 	}
 	
@@ -1548,6 +1158,11 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		Chain.on(expMemory).lbl(l -> l.key("dialog.template.memoryfile")).txt(t -> t.tooltip("dialog.template.memoryfile.tooltip"))
 			.section("dosbox").item("memory file").build(metaControls_).init(configurable);
 
+		addAdditionalOptions(composite, 4, configurable,
+			field("dialog.template.x.memsizekb", 't', "dosbox", null, "memsizekb", null),
+			field("dialog.template.x.allow640", 'b', "dosbox", null, "allow more than 640kb base memory", null),
+			field("dialog.template.x.dosmemlimit", 't', "dosbox", null, "dos mem limit", null),
+			field("dialog.template.x.vcpi", 'b', "dos", null, "vcpi", null));
 		return composite;
 	}
 	
@@ -1597,6 +1212,9 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		Label_.on(expDisks).grabHorSpace().build();
 		Chain.on(expDisks).lbl(l -> l.key("dialog.template.floppydiskspeed")).cmb(c -> c.tooltip("dialog.template.floppydiskspeed.tooltip").items("profile", "diskspeed_staging0830"))
 			.section("dosbox").item("floppy_disk_speed").build(metaControls_).init(configurable);
+		addAdditionalOptions(composite, 1, configurable,
+			field("dialog.template.x.int13ext", 'b', "dos", null, "int 13 extensions", null),
+			field("dialog.template.x.int13lba48", 'b', "dos", null, "int 13 enable 48-bit lba", null));
 		return composite;
 	}
 	
@@ -1631,6 +1249,10 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		Label_.on(expVideo).grabHorSpace().build();		
 		Chain.on(expVideo).lbl(l -> l.key("dialog.template.reelmagicfcode")).spn(s -> s.min(0).max(7).tooltip("dialog.template.reelmagicfcode.tooltip")).section("reelmagic").item("reelmagic_fcode").build(metaControls_).init(configurable);
 		Chain.on(expVideo).lbl(l -> l.key("dialog.template.reelmagickey")).txt(t -> t.tooltip("dialog.template.reelmagickey.tooltip")).section("reelmagic").item("reelmagic_key").build(metaControls_).init(configurable);
+		addAdditionalOptions(composite, 1, configurable,
+			field("dialog.template.x.sierraramdac", 'b', "dosbox", "video", "sierra ramdac", "sierra ramdac"),
+			field("dialog.template.x.enable8bitdac", 'b', "video", null, "enable 8-bit dac", null),
+			field("dialog.template.x.hretraceeffects", 'b', "dosbox", "video", "allow hretrace effects", "allow hretrace effects"));
 		return composite;
 	}
 		
@@ -1644,6 +1266,8 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		Chain.on(expVideo).lbl(l -> l.key("dialog.template.compositecontrast")).spn(s -> s.min(0).max(100).tooltip("dialog.template.compositecontrast.tooltip")).section("composite").item("contrast").build(metaControls_).init(configurable);
 		Chain.on(expVideo).lbl(l -> l.key("dialog.template.compositebrightness")).spn(s -> s.min(0).tooltip("dialog.template.compositebrightness.tooltip")).section("composite").item("brightness").build(metaControls_).init(configurable);
 		Chain.on(expVideo).lbl(l -> l.key("dialog.template.compositeconvergence")).spn(s -> s.min(0).tooltip("dialog.template.compositeconvergence.tooltip")).section("composite").item("convergence").build(metaControls_).init(configurable);
+		addAdditionalOptions(composite, 1, configurable,
+			field("dialog.template.x.cgasnow", 'b', "dosbox", "video", "cgasnow", "cgasnow"));
 		return composite;
 	}
 	
@@ -1786,6 +1410,8 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 			.section("soundcanvas").item("soundcanvas_rom_dir").build(metaControls_).init(configurable);
 		Chain.on(midiExpGroup).lbl(l -> l.key("dialog.template.soundcanvasfilter")).cmb(c -> c.editable().tooltip("dialog.template.soundcanvasfilter.tooltip").items(new String[] {"on", "off"}))
 			.section("soundcanvas").item("soundcanvas_filter").build(metaControls_).init(configurable);
+		addAdditionalOptions(composite, 2, configurable,
+			field("dialog.template.x.rolandgssysex", 'b', "midi", null, "roland gs sysex", null));
 		return composite;
 	}
 	
@@ -1809,6 +1435,22 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 			.section("fluidsynth").item("soundfont_dir").build(metaControls_).init(configurable);
 		Chain.on(fluidExpGroup).lbl(l -> l.key("dialog.template.fluidsynth.soundfontvolume")).spn(s -> s.min(1).max(800).tooltip("dialog.template.fluidsynth.soundfontvolume.tooltip").horSpan(2))
 			.section("fluidsynth").item("soundfont_volume").build(metaControls_).init(configurable);
+		addAdditionalOptions(composite, 1, configurable,
+			field("dialog.template.x.fluidreverb", 'c', "midi", null, "fluid.reverb", null, "yes", "no"),
+			field("dialog.template.x.fluidreverbroomsize", 't', "midi", null, "fluid.reverb,roomsize", "fluid.reverb.roomsize"),
+			field("dialog.template.x.fluidreverbdamping", 't', "midi", null, "fluid.reverb.damping", null),
+			field("dialog.template.x.fluidreverbwidth", 't', "midi", null, "fluid.reverb.width", null),
+			field("dialog.template.x.fluidreverblevel", 't', "midi", null, "fluid.reverb.level", null),
+			field("dialog.template.x.fluidchorus", 'c', "midi", null, "fluid.chorus", null, "yes", "no"),
+			field("dialog.template.x.fluidchorusnumber", 't', "midi", null, "fluid.chorus.number", null),
+			field("dialog.template.x.fluidchoruslevel", 't', "midi", null, "fluid.chorus.level", null),
+			field("dialog.template.x.fluidchorusspeed", 't', "midi", null, "fluid.chorus.speed", null),
+			field("dialog.template.x.fluidchorusdepth", 't', "midi", null, "fluid.chorus.depth", null),
+			field("dialog.template.x.fluidchorustype", 'c', "midi", null, "fluid.chorus.type", null, "0", "1"),
+			field("dialog.template.x.fluidpolyphony", 't', "midi", null, "fluid.polyphony", null),
+			field("dialog.template.x.fluidcores", 'c', "midi", null, "fluid.cores", null, "default", "1", "2", "4"),
+			field("dialog.template.x.fluidperiods", 'c', "midi", null, "fluid.periods", null, "default", "8", "16"),
+			field("dialog.template.x.fluidperiodsize", 'c', "midi", null, "fluid.periodsize", null, "default", "512", "1024"));
 		return composite;
 	}
 	
@@ -1976,6 +1618,15 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		Label_.on(soundblasterExpGroup).grabHorSpace().build();
 		Chain.on(soundblasterExpGroup).lbl(l -> l.key("dialog.template.sbhardwarebase")).cmb(c -> c.tooltip("dialog.template.sbhardwarebase.tooltip").items("profile", "sbhardwarebase_x20240301")).section("sblaster").item("hardwarebase").build(
 				metaControls_).init(configurable);
+		addAdditionalOptions(composite, 5, configurable,
+			field("dialog.template.x.adlibpcmboost", 'b', "sblaster", null, "adlib pcm boost", null),
+			field("dialog.template.x.enableasp", 'b', "sblaster", null, "enable asp", null),
+			field("dialog.template.x.disablefiltering", 'b', "sblaster", null, "disable filtering", null),
+			field("dialog.template.x.presetsbprostereo", 'b', "sblaster", null, "pre-set sbpro stereo", null),
+			field("dialog.template.x.forcedspautoinit", 'b', "sblaster", null, "force dsp auto-init", null),
+			field("dialog.template.x.instantdirectdac", 'b', "sblaster", null, "instant direct dac", null),
+			field("dialog.template.x.goldplaystereo", 'b', "sblaster", null, "goldplay stereo", null),
+			field("dialog.template.x.sampleratelimits", 'b', "sblaster", null, "sample rate limits", null));
 		return composite;
 	}
 	
@@ -2008,6 +1659,8 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 			.section("gus").item("global register read alias").build(metaControls_).init(configurable);
 		Chain.on(gusExpGroup).lbl(l -> l.key("dialog.template.gusfilter")).txt(t -> t.tooltip("dialog.template.gusfilter.tooltip")).section("gus").item("gus_filter").build(metaControls_).init(configurable).getText();
 	
+		addAdditionalOptions(composite, 4, configurable,
+			field("dialog.template.x.gusautoamp", 'b', "gus", null, "autoamp", null));
 		return composite;
 	}
 	
@@ -2145,6 +1798,8 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		Chain.on(keybExpGroup).lbl(l -> l.key("dialog.template.keyboardcapture")).but(b -> b.tooltip("dialog.template.keyboardcapture.tooltip"))
 			.section("sdl").item("keyboard_capture").build(metaControls_).init(configurable);
 	
+		addAdditionalOptions(composite, 3, configurable,
+			field("dialog.template.x.conint16h", 'b', "dos", null, "con device use int 16h to detect keyboard input", null));
 		return composite;
 	}
 	
@@ -2242,6 +1897,8 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		Chain.on(mouseExpGroup).lbl(l -> l.key("dialog.template.builtindosmousedriveroptions")).cmb(c -> c.editable().tooltip("dialog.template.builtindosmousedriveroptions.tooltip").items("profile", "builtindosmousedriveroptions_staging0830"))
 			.section("mouse").item("builtin_dos_mouse_driver_options").build(metaControls_).init(configurable);
 
+		addAdditionalOptions(composite, 2, configurable,
+			field("dialog.template.x.biosps2", 'b', "dos", null, "biosps2", null));
 		return composite;
 	}
 	

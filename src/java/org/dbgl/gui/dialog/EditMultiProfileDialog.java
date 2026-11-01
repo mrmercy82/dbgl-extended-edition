@@ -23,6 +23,7 @@ import java.util.stream.Stream;
 
 import org.apache.commons.lang3.StringUtils;
 import org.dbgl.gui.abstractdialog.EditProfileDialog;
+import org.dbgl.gui.abstractdialog.ExtraSettings;
 import org.dbgl.gui.controls.Chain;
 import org.dbgl.gui.controls.Mess_;
 import org.dbgl.gui.dialog.wizard.UpdateMultiProfileDialog;
@@ -71,6 +72,7 @@ public class EditMultiProfileDialog extends EditProfileDialog<List<Profile>> {
 			StringBuilder warningsLog = new StringBuilder();
 
 			profile_ = ProfileFactory.combine(dbversionsList_, profiles_, warningsLog);
+			extras_.setConflictingValues(this::hasDifferingValues);
 			dbversionIndex_ = BaseRepository.indexOf(dbversionsList_, profile_.getDosboxVersion());
 			templateIndex_ = -1;
 
@@ -84,10 +86,18 @@ public class EditMultiProfileDialog extends EditProfileDialog<List<Profile>> {
 		}
 	}
 
+	/** @param key "section/item" of a setting: true if the selected profiles don't all have the same value */
+	private boolean hasDifferingValues(String key) {
+		int slash = key.indexOf('/');
+		String section = key.substring(0, slash), item = key.substring(slash + 1);
+		return profiles_.stream().map(p -> StringUtils.strip(StringUtils.defaultString(p.getConfiguration().getValue(section, item)))).distinct().count() > 1;
+	}
+
 	@Override
 	protected void doPerformDosboxConfAction(DosboxConfAction action, DosboxVersion newDosboxVersion) {
 		try {
 			StringBuilder warningsLog = new StringBuilder();
+			List<ExtraSettings.Change> extraChanges = extras_.changes();
 
 			for (Profile prof: profiles_) {
 				computeAllPages(profile_);
@@ -95,6 +105,7 @@ public class EditMultiProfileDialog extends EditProfileDialog<List<Profile>> {
 				Configuration combinedConf = prof.getCombinedConfiguration();
 				metaControls_.stream().filter(Chain::hasChangedValue).forEach(x -> x.updateConfigurableByControl(prof, combinedConf));
 				Stream.of(nativeCommandControl_).filter(Chain::hasChangedValue).forEach(x -> x.updateConfigurableByControl(prof, combinedConf));
+				ExtraSettings.apply(extraChanges, prof);
 
 				warningsLog.append(newDosboxVersion.resetAndLoadConfiguration());
 
@@ -122,6 +133,7 @@ public class EditMultiProfileDialog extends EditProfileDialog<List<Profile>> {
 			}
 
 			profile_ = ProfileFactory.combine(dbversionsList_, profiles_, warningsLog);
+			extras_.setConflictingValues(this::hasDifferingValues);
 
 			updateControlsByConfigurable(profile_);
 
@@ -150,11 +162,6 @@ public class EditMultiProfileDialog extends EditProfileDialog<List<Profile>> {
 	@Override
 	protected TemplateProfileBase currentConfigurable() {
 		return profile_;
-	}
-
-	@Override
-	protected boolean supportsMoreSettingsPage() {
-		return false; // the values of several profiles can differ, the dedicated fields handle that
 	}
 
 	@Override
@@ -204,7 +211,7 @@ public class EditMultiProfileDialog extends EditProfileDialog<List<Profile>> {
 					return;
 				}
 				try {
-					UpdateMultiProfileDialog empDialog = new UpdateMultiProfileDialog(shell_, orgProfiles_, profiles_, dbversionChanged_, templateReloaded_, metaControls_, nativeCommandControl_,
+					UpdateMultiProfileDialog empDialog = new UpdateMultiProfileDialog(shell_, orgProfiles_, profiles_, dbversionChanged_, templateReloaded_, metaControls_, nativeCommandControl_, extras_.changes(),
 							engineSelector_.isSelected() ? WebSearchEngine.getBySimpleName(settings_.getValue("gui", "searchengine")): null);
 
 					if (empDialog.open() != null) {

@@ -118,7 +118,7 @@ public class Chain {
 
 		private String section_, sectionNew_, item_, itemNew_;
 		private String newItemLabelKey_, originalLabelText_;
-		private boolean isOnOff_;
+		private boolean isOnOff_, dosboxHelp_;
 		private DaControlConvertor convertor_ = defaultConvertor;
 		private Function<TemplateProfileBase, DaControlConvertor> customInputConvertorGetter_;
 		private Function<TemplateProfileBase, DaControlConvertor> customOutputConvertorGetter_;
@@ -206,6 +206,12 @@ public class Chain {
 
 		public Builder onOff() {
 			isOnOff_ = true;
+			return this;
+		}
+
+		/** the tooltip is the help text the configuration file of the DOSBox version gives for the setting */
+		public Builder dosboxHelp() {
+			dosboxHelp_ = true;
 			return this;
 		}
 
@@ -472,6 +478,13 @@ public class Chain {
 			builder_.controls_.forEach(x -> x.setEnabled(dosboxHasConfSetting));
 			builder_.labels_.get(0).setEnabled(dosboxHasConfSetting);
 			builder_.labels_.get(0).setToolTipText("[" + confSection(conf) +"]  " + confItem(conf));
+			if (builder_.dosboxHelp_) {
+				String help = configurable.getDosboxVersion().getConfValueOptions().getHelp(confSection(conf), confItem(conf));
+				String tooltip = (StringUtils.isNotBlank(help) ? help.strip() + "\n\n": "") + "[" + confSection(conf) + "]  " + confItem(conf);
+				builder_.labels_.forEach(x -> x.setToolTipText(tooltip));
+				builder_.controls_.forEach(x -> x.setToolTipText(tooltip));
+				builder_.buttons_.forEach(x -> x.setToolTipText(tooltip));
+			}
 
 			// settings the selected DOSBox doesn't have are hidden instead of only disabled, unless the user prefers otherwise
 			boolean visible = dosboxHasConfSetting || !SettingsService.getInstance().getBooleanValue("gui", "hideunsupportedsettings");

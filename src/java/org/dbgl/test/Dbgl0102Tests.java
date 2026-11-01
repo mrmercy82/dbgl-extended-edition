@@ -443,4 +443,59 @@ public class Dbgl0102Tests {
 		Files.write(exe.toPath(), "MZ..DOSBox version 0.74-3 |".getBytes(StandardCharsets.ISO_8859_1));
 		assertNull(DosboxVersionDetector.detect(exe, null, false)); // not run, so unknown
 	}
+
+	@Test
+	public void testClassicExecutableScan() throws IOException {
+		File exe = File.createTempFile("dbgl-classic-", ".exe");
+		exe.deleteOnExit();
+		String[][] cases = {
+			{"MZ..DOSBox ECE r4482 compiled..\0mapper-ECE.map\0", SettingsService.ECE_DOSBOX_FAM.title_, "r4482"},
+			{"MZ..DOSBox version %s\0mapper-SVN-Daum.map\0", SettingsService.DAUM_DOSBOX_FAM.title_, "2015.01.25"},
+			{"MZ..DOSBox version %s\0mapper-SVN.map\0", SettingsService.SVN_DOSBOX_FAM.title_, "r4483"},
+			{"MZ..DOSBox version %s\0mapper-0.74-3.map\0", SettingsService.OFFICIAL_DOSBOX_FAM.title_, "0.74-3"}};
+		for (String[] c: cases) {
+			Files.write(exe.toPath(), c[0].getBytes(StandardCharsets.ISO_8859_1));
+			DosboxVersionDetector.Result r = DosboxVersionDetector.detect(exe, null, false);
+			assertEquals(c[0], c[1], r.family_);
+			assertEquals(c[0], c[2], r.version_);
+		}
+		Files.write(exe.toPath(), "MZ..some other program\0mapper-0.74-3.map\0".getBytes(StandardCharsets.ISO_8859_1));
+		assertNull(DosboxVersionDetector.detect(exe, null, false));
+	}
+
+	@Test
+	public void testPageTreeCacheFormat() {
+		java.util.Map<String, List<String[]>> extras = new java.util.HashMap<>();
+		extras.put("dialog.template.tab.vesa", List.of(new String[] {"dosbox", "allow tty vesa modes"}, new String[] {"dosbox", "vesa lfb base scanline adjust"}));
+		org.dbgl.gui.abstractdialog.PageTreeCache.Info info = new org.dbgl.gui.abstractdialog.PageTreeCache.Info(new java.util.LinkedHashSet<>(List.of("dialog.template.tab.cpu", "dialog.template.tab.vesa")), extras);
+		String text = org.dbgl.gui.abstractdialog.PageTreeCache.serialize("key|1", info);
+		org.dbgl.gui.abstractdialog.PageTreeCache.Info back = org.dbgl.gui.abstractdialog.PageTreeCache.deserialize("key|1", text);
+		assertEquals(info.shownPages(), back.shownPages());
+		assertEquals(2, back.extrasByPage().get("dialog.template.tab.vesa").size());
+		assertEquals("allow tty vesa modes", back.extrasByPage().get("dialog.template.tab.vesa").get(0)[1]);
+		assertNull(org.dbgl.gui.abstractdialog.PageTreeCache.deserialize("key|2", text)); // written for another key
+		assertNull(org.dbgl.gui.abstractdialog.PageTreeCache.deserialize("key|1", text + "garbage\n"));
+	}
+
+	@Test
+	public void testPlacementOfDaumAndEceSettings() throws IOException {
+		String[][] cases = {
+			{"dosbox", "allow 32bpp vesa modes", org.dbgl.gui.abstractdialog.SettingPlacement.VESA},
+			{"dosbox", "vesa lfb base scanline adjust", org.dbgl.gui.abstractdialog.SettingPlacement.VESA},
+			{"dosbox", "cgasnow", org.dbgl.gui.abstractdialog.SettingPlacement.CGACOMPOSITE},
+			{"dosbox", "sierra ramdac lock 565", org.dbgl.gui.abstractdialog.SettingPlacement.VIDEO},
+			{"dosbox", "shell environment size", org.dbgl.gui.abstractdialog.SettingPlacement.DOS},
+			{"glide", "lfb", org.dbgl.gui.abstractdialog.SettingPlacement.VOODOO},
+			{"log", "vgagfx", org.dbgl.gui.abstractdialog.SettingPlacement.LOGGING}};
+		for (String[] c: cases)
+			assertEquals(c[0] + "/" + c[1], c[2], org.dbgl.gui.abstractdialog.SettingPlacement.pageFor(c[0], c[1]));
+		// the real configuration files of both builds load, with the help texts for the tooltips of the additional fields
+		for (String[] f: new String[][] {{"dosbox-daum-2015.01.25.conf", "DOSBox Daum", "2015.01.25", "sierra ramdac"}, {"dosbox-ece-r4482.conf", "DOSBox ECE", "r4482", "fmstrength"}}) {
+			org.dbgl.model.aggregate.DosboxVersion v = DosboxVersionFactory.create(f[1] + " " + f[2], f[1], f[2], false, true, false, null, "x", "", "", "x/dosbox.conf");
+			File conf = new File(DATA_DIR, f[0]);
+			v.loadConfigurationData(GenericTextService.getInstance(), Files.readString(conf.toPath(), StandardCharsets.UTF_8), conf);
+			assertTrue(f[0], v.getConfiguration().getSectionNames().length >= 14);
+			assertTrue(f[0] + " " + f[3], v.getConfValueOptions() != null);
+		}
+	}
 }

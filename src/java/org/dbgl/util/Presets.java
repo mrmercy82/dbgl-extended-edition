@@ -126,6 +126,36 @@ public final class Presets {
 		return file;
 	}
 
+	/**
+	 * set the values of a preset, as far as the DOSBox version has the settings and accepts the values
+	 *
+	 * @return the number of settings that were set
+	 */
+	public static int apply(org.dbgl.model.entity.TemplateProfileBase configurable, Preset preset) {
+		int applied = 0;
+		for (Entry entry: preset.entries())
+			if (setFirstSupported(configurable, entry.section(), entry.item(), entry.candidates()))
+				applied++;
+		return applied;
+	}
+
+	/** @return true if one of the values was set */
+	static boolean setFirstSupported(org.dbgl.model.entity.TemplateProfileBase configurable, String section, String item, String... candidates) {
+		if (configurable.getDosboxVersion() == null)
+			return false;
+		org.dbgl.model.conf.Configuration dosboxConf = configurable.getDosboxVersion().getConfiguration();
+		if (!dosboxConf.hasValue(section, item))
+			return false;
+		org.dbgl.model.conf.ConfValueOptions.Options options = configurable.getDosboxVersion().getConfValueOptions().get(section, item);
+		for (String candidate: candidates) {
+			if ((options == null) || options.isFreeForm() || options.getValues().stream().anyMatch(v -> v.equalsIgnoreCase(candidate))) {
+				configurable.setValue(section, item, candidate);
+				return true;
+			}
+		}
+		return false;
+	}
+
 	public static void delete(String name) throws IOException {
 		Files.deleteIfExists(new File(dir(), safeName(name) + ".conf").toPath());
 	}

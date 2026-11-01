@@ -100,6 +100,17 @@ public class ProfilesList {
 				gItem_.setImage(null);
 		}
 
+		/** a warning sign for profiles with invalid values or missing folders or files */
+		public void setWarning(boolean warning) {
+			if (tItem_ != null) {
+				if ((tItem_.getImage(0) != null) != warning)
+					tItem_.setImage(0, warning ? warning_: null);
+			} else if ((gItem_.getData(AbstractGalleryItemRenderer.OVERLAY_TOP_RIGHT) != null) != warning) {
+				gItem_.setData(AbstractGalleryItemRenderer.OVERLAY_TOP_RIGHT, warning ? warningLarge_: null);
+				gItem_.getParent().redraw();
+			}
+		}
+
 		public void setText(int i, int columnId, String columnName, String value) {
 			if (tItem_ != null)
 				tItem_.setText(i, value);
@@ -126,7 +137,7 @@ public class ProfilesList {
 	private final GalleryItem group_;
 	private final Color bgColor_;
 	private final Table table_;
-	private final Image topdog_;
+	private final Image topdog_, warning_, warningLarge_;
 
 	private int lastSearchEventTime_;
 
@@ -147,6 +158,8 @@ public class ProfilesList {
 	public ProfilesList(Composite composite, ProfilesListType type, ReOrderable reOrderable, int[] columnIds, String[] columnNames) {
 		type_ = type;
 		topdog_ = ImageService.getResourceImage(composite.getShell().getDisplay(), ImageService.IMG_TOPDOG);
+		warning_ = ImageService.getResourceImage(composite.getShell().getDisplay(), ImageService.IMG_WARNING);
+		warningLarge_ = ImageService.getResourceImage(composite.getShell().getDisplay(), ImageService.IMG_WARNING_LARGE);
 
 		if (type == ProfilesListType.TABLE) {
 			table_ = Table_.on(composite).header().multi().build();

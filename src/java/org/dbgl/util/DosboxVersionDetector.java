@@ -86,9 +86,12 @@ public class DosboxVersionDetector {
 			return null;
 		// DOSBox-X and DOSBox Staging carry their version as text in the executable; reading it opens no window
 		// Staging first: its executable also contains the text "DOSBox-X" (a CD-ROM name), DOSBox-X never "DOSBox Staging"
-		Result scanned = scanStagingExecutable(executable);
+		String text = readAsText(executable); // read once, the executable of DOSBox Staging has about 30 MB
+		Result scanned = scanStagingText(text);
 		if (scanned == null)
-			scanned = scanDosboxXExecutable(executable);
+			scanned = scanDosboxXText(text);
+		if (scanned == null)
+			scanned = scanClassicText(text);
 		if ((scanned != null) || !mayRun)
 			return scanned;
 		try {
@@ -125,7 +128,10 @@ public class DosboxVersionDetector {
 
 	/** The version of a DOSBox Staging executable, without running it: e.g. "0.83.0 (7b400)" is stored in the program as text. */
 	public static Result scanStagingExecutable(File executable) {
-		String text = readAsText(executable);
+		return scanStagingText(readAsText(executable));
+	}
+
+	static Result scanStagingText(String text) {
 		if ((text == null) || !(text.contains("DOSBox Staging") || text.contains("dosbox-staging")))
 			return null;
 		Matcher m = STAGING_HASH_PATRN.matcher(text);
@@ -150,7 +156,10 @@ public class DosboxVersionDetector {
 	 * text, and it is the latest date of this form in there.
 	 */
 	public static Result scanDosboxXExecutable(File executable) {
-		String text = readAsText(executable);
+		return scanDosboxXText(readAsText(executable));
+	}
+
+	static Result scanDosboxXText(String text) {
 		if ((text == null) || !text.contains("DOSBox-X"))
 			return null;
 		Matcher m = X_DATE_PATRN.matcher(text);
@@ -159,6 +168,44 @@ public class DosboxVersionDetector {
 			if ((latest == null) || (m.group(1).compareTo(latest) > 0))
 				latest = m.group(1);
 		return latest == null ? null: new Result(SettingsService.DOSBOX_X_DOSBOX_FAM.title_, latest);
+	}
+
+	private static final Pattern MAPPER_PATRN = Pattern.compile("\0mapper-([A-Za-z0-9.\\-]{2,24})\\.map\0");
+	private static final Pattern ECE_REVISION_PATRN = Pattern.compile("ECE[ ,_-]*(r\\d{4,})", Pattern.CASE_INSENSITIVE);
+
+	/**
+	 * The family and version of DOSBox 0.74, SVN, ECE and Daum builds, without running them: the name of the default mapper
+	 * file is "mapper-" followed by the version, and stored in the program as text (e.g. "mapper-0.74-3.map",
+	 * "mapper-SVN.map", "mapper-ECE.map", "mapper-SVN-Daum.map").
+	 */
+	public static Result scanClassicExecutable(File executable) {
+		return scanClassicText(readAsText(executable));
+	}
+
+	static Result scanClassicText(String text) {
+		if ((text == null) || !text.contains("DOSBox"))
+			return null;
+		Matcher m = MAPPER_PATRN.matcher(text);
+		while (m.find()) {
+			String version = m.group(1);
+			if (version.equalsIgnoreCase("ECE")) {
+				Matcher r = ECE_REVISION_PATRN.matcher(text);
+				String rev = r.find() ? r.group(1).toLowerCase(): null;
+				List<String> versions = SettingsService.ECE_DOSBOX_FAM.versions_;
+				return new Result(SettingsService.ECE_DOSBOX_FAM.title_, versions.contains(rev) ? rev: versions.get(versions.size() - 1));
+			}
+			if (version.toLowerCase().contains("daum")) {
+				List<String> versions = SettingsService.DAUM_DOSBOX_FAM.versions_;
+				return new Result(SettingsService.DAUM_DOSBOX_FAM.title_, versions.get(versions.size() - 1));
+			}
+			if (version.equalsIgnoreCase("SVN")) {
+				List<String> versions = SettingsService.SVN_DOSBOX_FAM.versions_;
+				return new Result(SettingsService.SVN_DOSBOX_FAM.title_, versions.get(versions.size() - 1));
+			}
+			if (version.matches("0\\.\\d+(-\\d+)?"))
+				return new Result(SettingsService.OFFICIAL_DOSBOX_FAM.title_, version);
+		}
+		return null;
 	}
 
 	/** special DOSBox-X builds, as far as the executable tells */
@@ -236,6 +283,55 @@ public class DosboxVersionDetector {
 					if (!name.startsWith("_"))
 						result.add(name);
 				});
+			} catch (IOException e) {
+				// skip this folder
+			}
+		}
+		return new java.util.ArrayList<>(result);
+	}
+
+	private static final Map<String, List<String>> X_SHADER_CACHE = new ConcurrentHashMap<>();
+
+	/**
+	 * The GLSL shader files DOSBox-X finds in its 'glshaders' folders: next to the program, in the working directory and in its
+	 * configuration folder. DOSBox-X takes them as file name in that folder, e.g. "crt/crt-easymode.glsl". The folders are
+	 * looked into once per executable and DBGL session.
+	 */
+	public static List<String> listDosboxXShadersCached(File executable, File cwd) {
+		if ((executable == null) || !executable.isFile())
+			return List.of();
+		String key = executable.getAbsolutePath() + '|' + (cwd == null ? "": cwd.getAbsolutePath());
+		return X_SHADER_CACHE.computeIfAbsent(key, k -> listDosboxXShaders(executable, cwd));
+	}
+
+	static List<String> listDosboxXShaders(File executable, File cwd) {
+		java.util.Set<File> dirs = new java.util.LinkedHashSet<>();
+		File exeDir = executable.getAbsoluteFile().getParentFile();
+		if (cwd != null)
+			dirs.add(new File(cwd, "glshaders"));
+		if (exeDir != null) {
+			dirs.add(new File(exeDir, "glshaders"));
+			dirs.add(new File(exeDir.getParentFile(), "share/dosbox-x/glshaders"));
+			dirs.add(new File(exeDir.getParentFile(), "Resources/glshaders")); // macOS app bundle
+		}
+		String home = System.getProperty("user.home");
+		if (SystemUtils.IS_WINDOWS) {
+			String local = System.getenv("LOCALAPPDATA");
+			if (local != null)
+				dirs.add(new File(local, "DOSBox-X/glshaders"));
+		} else if (SystemUtils.IS_OSX) {
+			dirs.add(new File(home, "Library/Preferences/DOSBox-X/glshaders"));
+		} else {
+			String xdgConfig = System.getenv("XDG_CONFIG_HOME");
+			dirs.add(new File(xdgConfig != null ? xdgConfig: home + "/.config", "dosbox-x/glshaders"));
+		}
+		java.util.Set<String> result = new java.util.TreeSet<>();
+		for (File dir: dirs) {
+			if (!dir.isDirectory())
+				continue;
+			try (java.util.stream.Stream<java.nio.file.Path> files = java.nio.file.Files.walk(dir.toPath(), 4)) {
+				files.filter(p -> java.nio.file.Files.isRegularFile(p) && p.getFileName().toString().toLowerCase().endsWith(".glsl"))
+						.forEach(p -> result.add(dir.toPath().relativize(p).toString().replace(File.separatorChar, '/')));
 			} catch (IOException e) {
 				// skip this folder
 			}

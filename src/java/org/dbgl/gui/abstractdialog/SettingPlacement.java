@@ -90,6 +90,7 @@ public final class SettingPlacement {
 		r("script", ANY, STARTUP),
 		r("capture", ANY, DOSBOX),
 		r("dosbox", "debug|bochs", LOGGING),
+		r("dosbox", "shell environment", DOS), // before 'shell' below
 		r("dosbox", "capture|record|skip encoding", DOSBOX),
 		r("dosbox", "call binary|splash|quit after warning|shell|compresssaveparts|mcp_server|title|language|saveslot|savefile", DOSBOX),
 		r("dosbox", "memsize|memalias|memory hole|mem limit|640kb|a20|private area", MEMORY),
@@ -97,6 +98,10 @@ public final class SettingPlacement {
 		r("dosbox", "fat|disk image|write protect|leading colon", MOUNTING),
 		r("dosbox", "weitek|undocumented cf", CPU),
 		r("dosbox", "beep", PCSPEAKER),
+		// DOSBox Daum keeps the VESA and VGA switches of DOSBox-X in [dosbox]
+		r("dosbox", "vesa|vbe|lfb|bpp", VESA),
+		r("dosbox", "cgasnow", CGACOMPOSITE),
+		r("dosbox", "sierra|hpel|hretrace|forcerate|vga resize|vga active", VIDEO),
 		r("dosbox", "machine|vmemsize|vmem|video", VIDEO),
 		r("dosbox", ANY, MAINBOARD), // ACPI, DMA, PIC, PCI/ISA bus, port 92, ROM BIOS, I/O delays
 		r("sdl", "mapper", KEYBOARD),
