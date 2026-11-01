@@ -464,7 +464,8 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				for (Profile prof: new ProfileRepository().list("", null, versions)) {
 					if (display_.isDisposed())
 						return;
-					org.dbgl.util.ProfileWarnings.check(prof);
+					if (!org.dbgl.util.ProfileWarnings.check(prof).isEmpty())
+						showWarningSign(prof);
 				}
 			} catch (SQLException e) {
 				// the list or tab will check them when needed
@@ -2166,23 +2167,28 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				for (Profile prof: profiles) {
 					if ((generation != warningsGeneration_) || display_.isDisposed())
 						return;
-					if (org.dbgl.util.ProfileWarnings.known(prof) != null)
-						continue;
-					boolean warning = !org.dbgl.util.ProfileWarnings.check(prof).isEmpty();
-					if (!warning || display_.isDisposed())
-						continue;
-					display_.asyncExec(() -> {
-						if (shell_.isDisposed() || (generation != warningsGeneration_))
-							return;
-						int index = BaseRepository.indexOf(profilesList_, prof);
-						if ((index >= 0) && (index < profileTable_.getItemCount()))
-							profileTable_.getItem(index).setWarning(true);
-					});
+					// check() answers at once when the profile was checked meanwhile (e.g. by the check of all profiles at startup);
+					// such a profile must get its warning sign too
+					if (!org.dbgl.util.ProfileWarnings.check(prof).isEmpty())
+						showWarningSign(prof);
 				}
 			}, "DBGL profile warnings");
 			checker.setDaemon(true);
 			checker.setPriority(Thread.MIN_PRIORITY);
 			checker.start();
+		});
+	}
+
+	/** Show the warning sign of a profile in the list, if it is there. May be called from any thread. */
+	private void showWarningSign(Profile prof) {
+		if (display_.isDisposed())
+			return;
+		display_.asyncExec(() -> {
+			if (shell_.isDisposed() || (profilesList_ == null) || !settings_.getBooleanValue("gui", "profilewarnings"))
+				return;
+			int index = BaseRepository.indexOf(profilesList_, prof);
+			if ((index >= 0) && (index < profileTable_.getItemCount()))
+				profileTable_.getItem(index).setWarning(true);
 		});
 	}
 

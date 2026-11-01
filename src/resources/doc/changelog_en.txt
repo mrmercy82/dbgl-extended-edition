@@ -4,6 +4,15 @@ DBGL Extended Edition - Changes since 0.100 beta 17
 Based on DBGL 0.100 beta 17 by Ronald Blankendaal (https://dbgl.org), source code. Newest version first.
 
 
+0.101 alpha 25 (2026-11-01)
+---------------------------
+- Fixed: profiles with problems were listed in the "With problems" tab, but
+  some of them had no warning sign in the list. When the check of all
+  profiles at startup had already checked a profile before the list got to
+  it, the list skipped it without setting the sign. Since alpha 22 (checks
+  one after another) this happened more often. Now both checks set the sign
+  as soon as they find a problem.
+
 0.101 alpha 24 (2026-11-01)
 ---------------------------
 - README and "New features": now state how much comes from Ronald
