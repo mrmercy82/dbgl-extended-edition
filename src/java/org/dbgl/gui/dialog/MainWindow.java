@@ -284,6 +284,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			checkDosboxVersionsInBackground();
 		if (settings_.getBooleanValue("dosbox", "checkforupdates"))
 			checkForDosboxUpdatesInBackground();
+		checkAllProfilesInBackground();
 
 		display_.asyncExec(this::autoBackupIfDue);
 
@@ -448,6 +449,30 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 	 * Once a day, look on GitHub for newer releases of DOSBox Staging and DOSBox-X than the installed ones, and tell about each
 	 * new release once. Nothing is downloaded, the download page can be opened.
 	 */
+	/**
+	 * Check all profiles once in the background after the start (not only those in the list), so the tab 'With problems' opens
+	 * without waiting. Profiles are only checked again when their configuration changes.
+	 */
+	private void checkAllProfilesInBackground() {
+		if (!settings_.getBooleanValue("gui", "profilewarnings"))
+			return;
+		List<DosboxVersion> versions = new ArrayList<>(dbversionsList_);
+		Thread checker = new Thread(() -> {
+			try {
+				for (Profile prof: new ProfileRepository().list("", null, versions)) {
+					if (display_.isDisposed())
+						return;
+					org.dbgl.util.ProfileWarnings.check(prof);
+				}
+			} catch (SQLException e) {
+				// the list or tab will check them when needed
+			}
+		}, "DBGL check all profiles");
+		checker.setDaemon(true);
+		checker.setPriority(Thread.MIN_PRIORITY);
+		checker.start();
+	}
+
 	private void checkForDosboxUpdatesInBackground() {
 		String today = java.time.LocalDate.now().toString();
 		if (today.equals(settings_.getValue("gui", "updatechecked")))
@@ -519,6 +544,21 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		box.setMessage(question + "\n\n" + (asset != null ? text_.get("dialog.main.confirm.dosboxrelease.install", new Object[] {asset[0]}): text_.get("dialog.main.confirm.dosboxrelease.page")));
 		int answer = box.open();
 		if ((asset != null) && (answer == SWT.YES)) {
+			// several builds fit (e.g. DOSBox-X: Visual Studio or MinGW, SDL1 or SDL2): let the user pick, the recommended one first
+			boolean arm = System.getProperty("os.arch").toLowerCase().contains("aarch64") || System.getProperty("os.arch").toLowerCase().contains("arm");
+			List<String[]> candidates = org.dbgl.util.DosboxInstaller.candidates(r.assets(), SystemUtils.IS_WINDOWS, SystemUtils.IS_LINUX, arm);
+			if (candidates.size() > 1) {
+				List<String> names = new ArrayList<>();
+				for (int i = 0; i < candidates.size(); i++)
+					names.add(candidates.get(i)[0] + (i == 0 ? "   (" + text_.get("dialog.main.notice.recommended") + ")": ""));
+				Integer pick = new ChoiceDialog(shell_, text_.get("dialog.main.title.dosboxrelease", new Object[] {r.family(), r.version()}),
+					text_.get("dialog.main.notice.choosebuild"), names).open();
+				if (pick == null)
+					return false;
+				asset = candidates.get(pick);
+			}
+			if (((asset.length < 3) || StringUtils.isBlank(asset[2])) && !Mess_.on(shell_).key("dialog.main.confirm.nochecksum", new Object[] {asset[0]}).confirm())
+				return false;
 			installDosboxRelease(r, asset);
 			return true;
 		}
@@ -561,8 +601,17 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		ProgressBar bar = new ProgressBar(progressShell, SWT.HORIZONTAL);
 		bar.setMaximum(100);
 		bar.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
-		progressShell.setSize(480, 120);
-		progressShell.setLocation(shell_.getBounds().x + (shell_.getBounds().width - 480) / 2, shell_.getBounds().y + (shell_.getBounds().height - 120) / 2);
+		java.util.concurrent.atomic.AtomicBoolean cancelled = new java.util.concurrent.atomic.AtomicBoolean();
+		Button cancelButton = new Button(progressShell, SWT.PUSH);
+		cancelButton.setText(text_.get("button.cancel"));
+		cancelButton.setLayoutData(new GridData(SWT.END, SWT.CENTER, false, false));
+		cancelButton.addListener(SWT.Selection, e -> {
+			cancelled.set(true);
+			cancelButton.setEnabled(false);
+		});
+		progressShell.addListener(SWT.Close, e -> cancelled.set(true));
+		progressShell.setSize(480, 150);
+		progressShell.setLocation(shell_.getBounds().x + (shell_.getBounds().width - 480) / 2, shell_.getBounds().y + (shell_.getBounds().height - 150) / 2);
 		progressShell.open();
 		Thread worker = new Thread(() -> {
 			File archive = null;
@@ -573,7 +622,10 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				org.dbgl.util.DosboxInstaller.download(asset[1], archive, percent -> display_.asyncExec(() -> {
 					if (!bar.isDisposed())
 						bar.setSelection(Math.max(0, percent));
-				}));
+				}), cancelled::get);
+				// the checksum GitHub publishes: an incomplete or changed file is not unpacked
+				if ((asset.length > 2) && org.dbgl.util.DosboxInstaller.verify(archive, asset[2]))
+					System.out.println("SHA-256 verified: " + asset[0]);
 				display_.asyncExec(() -> {
 					if (!label.isDisposed())
 						label.setText(text_.get("dialog.main.notice.unpacking", new Object[] {targetDir.getPath()}));
@@ -595,6 +647,10 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 					progressShell.dispose();
 				if (shell_.isDisposed())
 					return;
+				if (error instanceof org.dbgl.util.DosboxInstaller.CancelledException) {
+					Mess_.on(shell_).key("dialog.main.notice.downloadcancelled").display();
+					return;
+				}
 				if (error != null) {
 					Mess_.on(shell_).key("dialog.main.error.dosboxinstall", new Object[] {r.family() + " " + r.version(), error.toString()}).exception(error).warning();
 					return;
@@ -1001,9 +1057,36 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			}
 		}).build();
 
+		// what is new since DBGL 0.100 beta 17 and the full changelog, above 'About' (on macOS 'About' is in the application menu)
+		Menu helpMenu = createMenu(appMenuBar, "dialog.main.menu.help");
+		MenuItem_.on(helpMenu).key("dialog.main.menu.newfeatures").image(ImageService.IMG_NOTES).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				showDocument("whatsnew", "dialog.main.menu.newfeatures");
+			}
+		}).build();
+		MenuItem_.on(helpMenu).key("dialog.main.menu.changelog").image(ImageService.IMG_LOG).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				showDocument("changelog", "dialog.main.menu.changelog");
+			}
+		}).build();
 		if (systemMenu == null) {
-			Menu helpMenu = createMenu(appMenuBar, "dialog.main.menu.help");
+			MenuItem_.on(helpMenu).build();
 			MenuItem_.on(helpMenu).key("dialog.main.menu.about").image(ImageService.IMG_ABOUT).listen(openAboutAdapter).build();
+		}
+	}
+
+	/** a text shipped inside DBGL (doc/&lt;name&gt;_de.txt or _en.txt): German for the German interface, else English */
+	private void showDocument(String name, String titleKey) {
+		String lang = "de".equals(settings_.getValue("locale", "language")) ? "de": "en";
+		try (java.io.InputStream in = MainWindow.class.getClassLoader().getResourceAsStream("doc/" + name + "_" + lang + ".txt")) {
+			if (in == null)
+				throw new IOException("doc/" + name + "_" + lang + ".txt");
+			String content = new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8).replace("\r\n", "\n").replace("\n", org.eclipse.swt.widgets.Text.DELIMITER);
+			new DifferencesDialog(shell_, text_.get(titleKey).replace("...", "").replace("\u2026", "").replace("&", ""), content).open();
+		} catch (IOException e) {
+			Mess_.on(shell_).exception(e).warning();
 		}
 	}
 
@@ -1787,6 +1870,12 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		MenuItem_.on(menu).key("dialog.main.dosboxversion.add").image(ImageService.IMG_NEW).listen(addDosboxAdapter).build();
 		MenuItem_.on(menu).key("dialog.main.dosboxversion.edit").image(ImageService.IMG_EDIT).listen(editDosboxAdapter).build();
 		MenuItem_.on(menu).key("dialog.main.dosboxversion.remove").image(ImageService.IMG_DELETE).listen(removeDosboxAdapter).build();
+		MenuItem_.on(menu).key("dialog.main.dosboxversion.removewithfolder").image(ImageService.IMG_DELETE).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				doRemoveDosboxVersionWithFolder();
+			}
+		}).build();
 		MenuItem_.on(menu).build();
 		MenuItem_.on(menu).key("dialog.main.dosboxversion.toggledefault").image(ImageService.IMG_HOME).listen(new SelectionAdapter() {
 			@Override
@@ -2455,6 +2544,52 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			} catch (SQLException e) {
 				Mess_.on(shell_).exception(e).warning();
 			}
+		}
+	}
+
+	/**
+	 * Remove a DOSBox version that no profile or template uses, and delete its folder. Two safety questions: a confirmation with
+	 * the folder and its number of files, then typing the folder name. DBGL's own folders, roots and folders shared with other
+	 * DOSBox versions are never deleted.
+	 */
+	private void doRemoveDosboxVersionWithFolder() {
+		int index = dbversionTable_.getSelectionIndex();
+		if (index == -1)
+			return;
+		DosboxVersion dbversion = dbversionsList_.get(index);
+		File folder = dbversion.getCanonicalPath();
+		FileLocationService fls = FileLocationService.getInstance();
+		List<File> protectedDirs = List.of(new File("."), fls.getDataDir(), fls.getProfilesDir(), fls.getTemplatesDir(), fls.getDosroot(), fls.getDosboxDir());
+		List<File> others = dbversionsList_.stream().filter(v -> v.getId() != dbversion.getId()).map(DosboxVersion::getCanonicalPath).toList();
+		org.dbgl.util.DosboxFolderRemoval.Verdict verdict = org.dbgl.util.DosboxFolderRemoval.check(folder, protectedDirs, others);
+		if (verdict != org.dbgl.util.DosboxFolderRemoval.Verdict.OK) {
+			Mess_.on(shell_).key("dialog.main.error.removefolder." + verdict.name().toLowerCase(), new Object[] {String.valueOf(folder)}).warning();
+			return;
+		}
+		long files = org.dbgl.util.DosboxFolderRemoval.countFiles(folder);
+		// first safety question
+		if (!Mess_.on(shell_).key("dialog.main.confirm.removewithfolder", new Object[] {dbversion.getTitle(), folder.getPath(), files}).confirm())
+			return;
+		// second safety question: type the name of the folder
+		String typed = new TextInputDialog(shell_, text_.get("dialog.main.dosboxversion.removewithfolder"),
+			text_.get("dialog.main.confirm.removewithfolder.type", new Object[] {folder.getName()}), "").open();
+		if ((typed == null) || !typed.strip().equals(folder.getName())) {
+			Mess_.on(shell_).key("dialog.main.notice.removefoldercancelled").display();
+			return;
+		}
+		try {
+			new DosboxVersionRepository().remove(dbversion); // refused while profiles or templates use it: then nothing is deleted
+		} catch (SQLException e) {
+			Mess_.on(shell_).exception(e).warning();
+			return;
+		}
+		dbversionTable_.remove(index);
+		dbversionsList_.remove(index);
+		try {
+			org.dbgl.util.DosboxFolderRemoval.delete(folder);
+			Mess_.on(shell_).key("dialog.main.notice.removefolderdone", new Object[] {dbversion.getTitle(), folder.getPath()}).display();
+		} catch (IOException e) {
+			Mess_.on(shell_).key("dialog.main.error.removefolder.failed", new Object[] {folder.getPath(), e.toString()}).exception(e).warning();
 		}
 	}
 

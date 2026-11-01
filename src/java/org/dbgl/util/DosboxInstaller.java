@@ -67,6 +67,45 @@ public final class DosboxInstaller {
 		return best;
 	}
 
+	/** @return the downloadable files that fit this computer, the best (recommended) one first */
+	public static List<String[]> candidates(List<String[]> assets, boolean windows, boolean linux, boolean arm) {
+		return assets.stream().filter(a -> score(a[0].toLowerCase(Locale.ROOT), windows, linux, arm) > 0)
+				.sorted((a, b) -> Integer.compare(score(b[0].toLowerCase(Locale.ROOT), windows, linux, arm), score(a[0].toLowerCase(Locale.ROOT), windows, linux, arm))).toList();
+	}
+
+	/** thrown when the user cancelled a download */
+	public static class CancelledException extends IOException {
+		private static final long serialVersionUID = 1L;
+
+		public CancelledException() {
+			super("cancelled");
+		}
+	}
+
+	/**
+	 * Check a downloaded file against the digest GitHub publishes for it ("sha256:&lt;hex&gt;").
+	 *
+	 * @return true if it matches, false if there is no digest to compare with
+	 * @throws IOException if the file does not match: it is incomplete or was changed
+	 */
+	public static boolean verify(File file, String digest) throws IOException {
+		if ((digest == null) || !digest.toLowerCase(Locale.ROOT).startsWith("sha256:"))
+			return false;
+		String expected = digest.substring(7).trim().toLowerCase(Locale.ROOT);
+		try (InputStream in = Files.newInputStream(file.toPath())) {
+			java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-256");
+			byte[] buffer = new byte[64 * 1024];
+			for (int n; (n = in.read(buffer)) > 0;)
+				md.update(buffer, 0, n);
+			String actual = java.util.HexFormat.of().formatHex(md.digest());
+			if (!actual.equals(expected))
+				throw new IOException("SHA-256 mismatch for " + file.getName() + ": expected " + expected + ", got " + actual);
+			return true;
+		} catch (java.security.NoSuchAlgorithmException e) {
+			throw new IOException(e);
+		}
+	}
+
 	static int score(String name, boolean windows, boolean linux, boolean arm) {
 		boolean archive = name.endsWith(".zip") || name.endsWith(".tar.xz") || name.endsWith(".tar.gz") || name.endsWith(".tar.bz2");
 		if (!archive || name.contains("source") || name.contains("src") || name.contains("debug") || name.contains("pdb") || name.contains("symbols") || name.contains("installer"))
@@ -95,6 +134,11 @@ public final class DosboxInstaller {
 
 	/** download a file, reporting the progress in percent (or -1 when the size is unknown) */
 	public static File download(String url, File target, IntConsumer progress) throws IOException, InterruptedException {
+		return download(url, target, progress, () -> false);
+	}
+
+	/** download a file; cancelled is asked regularly and stops the download with a CancelledException */
+	public static File download(String url, File target, IntConsumer progress, java.util.function.BooleanSupplier cancelled) throws IOException, InterruptedException {
 		HttpClient client = HttpClient.newBuilder().proxy(ProxySelector.getDefault()).connectTimeout(Duration.ofSeconds(15)).followRedirects(HttpClient.Redirect.ALWAYS).build();
 		HttpRequest request = HttpRequest.newBuilder(URI.create(url)).timeout(Duration.ofMinutes(10)).header("User-Agent", "DBGL").GET().build();
 		HttpResponse<InputStream> response = client.send(request, HttpResponse.BodyHandlers.ofInputStream());
@@ -106,6 +150,8 @@ public final class DosboxInstaller {
 			long done = 0;
 			int lastPercent = -2;
 			for (int n; (n = in.read(buffer)) > 0;) {
+				if (cancelled.getAsBoolean())
+					throw new CancelledException();
 				out.write(buffer, 0, n);
 				done += n;
 				int percent = total > 0 ? (int)(done * 100 / total): -1;

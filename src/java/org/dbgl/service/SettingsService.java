@@ -192,6 +192,8 @@ public class SettingsService {
 		settings_.setValue("gui", "differencesdialog_height", "460");
 		settings_.setValue("gui", "textinputdialog_width", "480");
 		settings_.setValue("gui", "preseteditdialog_width", "560");
+		settings_.setValue("gui", "choicedialog_width", "620");
+		settings_.setValue("gui", "choicedialog_height", "340");
 		settings_.setValue("gui", "preseteditdialog_height", "460");
 		settings_.setValue("gui", "textinputdialog_height", "200");
 		settings_.setValue("gui", "profilehistorydialog_width", "800");
@@ -393,6 +395,7 @@ public class SettingsService {
 		settings_.setValue("dosbox", "checkforupdates", true);
 		settings_.setValue("dosbox", "checkbeforestart", false);
 		settings_.setValue("gui", "profilewarnings", true);
+		settings_.setValue("gui", "longtooltips", true);
 		settings_.setValue("gui", "extrasexpand", "changed");
 		settings_.setValue("gui", "extrasexpandonextraspages", false);
 		settings_.setValue("gui", "extrascountchanges", true);

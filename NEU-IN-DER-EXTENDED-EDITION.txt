@@ -1,0 +1,99 @@
+DBGL Extended Edition - Neue Features seit DBGL 0.100 beta 17
+============================================================
+
+DBGL wurde bis zur Version 0.100 beta 17 von Ronald Blankendaal entwickelt
+(https://dbgl.org). Die Extended Edition ist eine unabhängige Weiterführung,
+an der er nicht beteiligt ist. Sie ergänzt vor allem die Unterstützung
+aktueller DOSBox-Versionen; das Fundament und fast alles andere sind sein Werk.
+
+Profile, Datenbank und Einstellungen bleiben beim Umstieg erhalten.
+
+
+GROSSE NEUERUNGEN
+-----------------
+
+1. DOSBox Staging 0.83 voll unterstützt
+   Umbenannte Einstellungen (z. B. glshader -> shader) und Schalter im Format
+   on/off werden beim Umstellen automatisch umgerechnet. Jede Einstellung hat
+   ein eigenes Feld: CRT-Farbprofil, Deinterlacing, Dedithering,
+   Bildanpassungen, Sound Canvas, Rauschunterdrückung, Laufwerksgeräusche u. a.
+
+2. DOSBox-X bis 2026.10.01
+   Rund 100 gebräuchliche Einstellungen haben echte Felder ("Zusätzliche
+   Optionen"). Die Konfiguration wird vollständig erzeugt; in 0.100 beta 17
+   fehlte rund die Hälfte der Einstellungen.
+
+3. Jede Einstellung jeder DOSBox-Version erreichbar
+   Was kein eigenes Feld hat, steht auf der passenden Seite in einer
+   einklappbaren Gruppe "Weitere Einstellungen": mit Beschreibung, Werteliste,
+   Fettdruck für geänderte Werte und Knopf zum Zurücksetzen.
+
+4. Der Profildialog passt sich der DOSBox-Version an
+   Auswahllisten kommen aus der Konfiguration der installierten DOSBox. Leere
+   Seiten verschwinden. Die Suche findet auch Beschreibungen und Werte.
+
+5. Schneller
+   Der Profildialog öffnet bei DOSBox-X in unter 0,2 statt rund 1 Sekunde.
+   Versionen werden aus der Programmdatei gelesen, ohne DOSBox-Fenster.
+
+6. DOSBox direkt herunterladen
+   DOSBox -> "DOSBox herunterladen...": Staging oder DOSBox-X von GitHub laden
+   (mit Prüfsumme, abbrechbar, Variante wählbar), in einen Ordner deiner Wahl
+   entpacken, als DOSBox-Version eintragen und Profile umstellen.
+
+
+WEITERE NEUERUNGEN
+------------------
+
+Profile im Griff behalten
+  - Profile prüfen: ungültige Werte, fehlende Ordner und Dateien finden und
+    reparieren, verschobene Pfade für alle Profile auf einmal anpassen.
+  - Warnsymbol in der Profilliste mit Tooltip; Klick springt zur Einstellung.
+    Reiter "Mit Problemen", Kontextmenü "Problem beheben...".
+  - Frühere Fassungen: die letzten fünf Konfigurationen jedes Profils.
+  - Profile vergleichen, Statistik (Spielzeit, meistgespielte Spiele).
+
+Viele Profile auf einmal
+  - Voreinstellungen (Windows 95/98, Windows 3.1, langsame und schnelle Spiele,
+    Tandy, PC-98, eigene), auch für alle markierten Profile.
+  - Auf andere DOSBox-Version umstellen, mit Vorschau, Bericht und Vergleich
+    der beiden Versionen.
+  - Mehrere Profile bearbeiten, auch die weiteren Einstellungen.
+  - Letzte Änderung mehrerer Profile rückgängig machen.
+
+Sicherheit und Komfort
+  - Sicherung erstellen und wiederherstellen, auf Wunsch automatisch.
+  - Statusfenster mit der Ausgabe von DOSBox, Fehler hervorgehoben,
+    Meldungen anklickbar.
+  - dosbox.conf auf ein Profil ziehen übernimmt die Einstellungen.
+  - PC-98: Festplatten- und Diskettenimages durchsuchen, starten, booten.
+  - Nicht mehr benutzte DOSBox-Versionen samt Ordner entfernen (mit doppelter
+    Sicherheitsabfrage).
+
+
+KLEINERE VERBESSERUNGEN
+-----------------------
+  - Spielzeit pro Spiel, als sortierbare Spalte.
+  - Deutsch vollständig, rund 7.000 weitere Texte in 17 Sprachen übersetzt.
+  - Tooltips bleiben stehen, solange die Maus darauf ist (abschaltbar).
+  - "Abweichungen vom Standard..." für jedes Profil.
+  - Prüfung von Ordnern, Images und Werten vor dem Start.
+  - Versionsprüfung beim Start, Konfiguration bei Bedarf neu schreiben.
+  - Neuere, noch unbekannte DOSBox-Versionen werden richtig zugeordnet.
+  - Shader-Listen mit selbst installierten Shadern, Seite "Sound Blaster 2".
+  - Hilfe -> "Neue Features..." und "Changelog...".
+
+
+FEHLERBEHEBUNGEN GEGENÜBER 0.100 BETA 17
+----------------------------------------
+  - DOSBox-X ab 2024.10.01: Konfiguration enthielt nur etwa die Hälfte der
+    Einstellungen.
+  - Pfade mit Leerzeichen funktionieren (8.3-Kurznamen wie in DOSBox).
+  - Leere Einträge überschrieben DOSBox-Standardwerte.
+  - Boot-Zeilen mit Windows-Pfad erzeugten einen kaputten Mount.
+  - Zuordnen einer anderen DOSBox-Version übernahm alte Standardwerte.
+  - Leser für ältere DOSBox-Konfigurationen korrigiert.
+  - Kein DOSBox-Fenster mehr beim Öffnen von Profilen oder Erkennen der Version.
+  - Fehlgeschlagenes Booten: Meldung von DOSBox bleibt stehen.
+
+Alle Änderungen im Detail: Hilfe -> Changelog...

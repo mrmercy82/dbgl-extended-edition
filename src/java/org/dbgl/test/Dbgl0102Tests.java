@@ -574,4 +574,40 @@ public class Dbgl0102Tests {
 		assertEquals("32", v.get("dosbox").get("memsize"));
 		assertEquals(2, v.size());
 	}
+
+	@Test
+	public void testDownloadChecksumAndFolderRemoval() throws Exception {
+		File dir = Files.createTempDirectory("dbgl-a21").toFile();
+		File f = new File(dir, "x.zip");
+		Files.writeString(f.toPath(), "abc");
+		// sha256("abc")
+		assertTrue(org.dbgl.util.DosboxInstaller.verify(f, "sha256:ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"));
+		assertFalse(org.dbgl.util.DosboxInstaller.verify(f, ""));
+		try {
+			org.dbgl.util.DosboxInstaller.verify(f, "sha256:0000");
+			assertTrue("a wrong checksum must be refused", false);
+		} catch (IOException expected) {
+			// ok
+		}
+		List<String[]> x = List.of(new String[] {"dosbox-x-mingw-win64-20261001.zip", "m", ""}, new String[] {"dosbox-x-vsbuild-win64-20261001.zip", "v", ""},
+			new String[] {"dosbox-x-macosx-x86_64-20261001.zip", "o", ""});
+		List<String[]> c = org.dbgl.util.DosboxInstaller.candidates(x, true, false, false);
+		assertEquals(2, c.size());
+		assertEquals("v", c.get(0)[1]);
+
+		File dbgl = new File(dir, "dbgl"), dosbox = new File(dbgl, "dosbox"), staging = new File(dosbox, "staging-0.83"), other = new File(dosbox, "x-2026");
+		staging.mkdirs();
+		other.mkdirs();
+		Files.writeString(new File(staging, "dosbox.exe").toPath(), "MZ");
+		List<File> protectedDirs = List.of(dbgl, new File(dbgl, "profiles"), dosbox);
+		assertEquals(org.dbgl.util.DosboxFolderRemoval.Verdict.OK, org.dbgl.util.DosboxFolderRemoval.check(staging, protectedDirs, List.of(other)));
+		assertEquals(org.dbgl.util.DosboxFolderRemoval.Verdict.DBGL, org.dbgl.util.DosboxFolderRemoval.check(dosbox, protectedDirs, List.of(other)));
+		assertEquals(org.dbgl.util.DosboxFolderRemoval.Verdict.SHARED, org.dbgl.util.DosboxFolderRemoval.check(staging, protectedDirs, List.of(staging)));
+		assertEquals(org.dbgl.util.DosboxFolderRemoval.Verdict.MISSING, org.dbgl.util.DosboxFolderRemoval.check(new File(dosbox, "gone"), protectedDirs, List.of()));
+		assertEquals(org.dbgl.util.DosboxFolderRemoval.Verdict.ROOT, org.dbgl.util.DosboxFolderRemoval.check(File.listRoots()[0], protectedDirs, List.of()));
+		assertEquals(1, org.dbgl.util.DosboxFolderRemoval.countFiles(staging));
+		org.dbgl.util.DosboxFolderRemoval.delete(staging);
+		assertFalse(staging.exists());
+		assertTrue(other.exists());
+	}
 }

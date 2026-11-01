@@ -4,6 +4,37 @@ DBGL Extended Edition - Changes since 0.100 beta 17
 Based on DBGL 0.100 beta 17 by Ronald Blankendaal (https://dbgl.org), source code. Newest version first.
 
 
+0.101 alpha 21
+--------------
+- Help menu: "New features..." (summary of everything new since
+  0.100 beta 17) and "Changelog..." right above "About DOSBox Game
+  Launcher...". German for the German interface, English otherwise.
+- Download DOSBox:
+  - Checksum: the SHA-256 checksum GitHub publishes for each file is
+    compared. If it does not match, nothing is unpacked. If there is none,
+    DBGL asks first.
+  - Cancel: the progress window has a "Cancel" button.
+  - Choose the build: if several files fit (e.g. DOSBox-X Visual Studio or
+    MinGW, SDL1 or SDL2), you pick from a list; the recommended one is
+    preselected.
+- Warning sign in tile and box views too: the tooltip shows title and
+  problems, a click on the sign (top right) jumps to the setting.
+- New setting "Keep tooltips visible while the mouse is over them" (default:
+  on). Off = the tooltips of the operating system again.
+- The "With problems" tab opens without waiting: DBGL checks all profiles in
+  the background after starting.
+- Switch profiles to another DOSBox version: "Compare versions" shows which
+  settings the new version adds, drops or has with another default value.
+- DOSBox versions -> context menu "Remove with folder...": removes an unused
+  DOSBox version and deletes its folder. Double safety question (confirmation
+  with folder and number of files, then typing the folder name). Never
+  deleted: drives and roots, the home folder, DBGL's own folders and folders
+  another DOSBox version uses. If profiles or templates still use the
+  version, nothing is deleted.
+- README.md for a repository, NEU-IN-DER-EXTENDED-EDITION.txt and
+  NEW-IN-EXTENDED-EDITION.txt in the update package.
+
+
 0.101 alpha 20
 --------------
 - About dialog: the first line now reads "DOSBox Game Launcher v0.100 beta 17

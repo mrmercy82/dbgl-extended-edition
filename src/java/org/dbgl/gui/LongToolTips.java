@@ -46,6 +46,7 @@ public final class LongToolTips {
 	private static Control owner_;
 	private static String shownText_;
 	private static boolean installed_;
+	private static volatile boolean enabled_ = true;
 
 	private LongToolTips() {
 	}
@@ -61,11 +62,31 @@ public final class LongToolTips {
 		control.setData(PROVIDER_KEY, provider);
 	}
 
+	/**
+	 * false: the normal tooltips of the operating system again; tooltips that depend on the mouse position (profile list) are
+	 * still shown by this class
+	 */
+	public static void setEnabled(boolean enabled) {
+		enabled_ = enabled;
+	}
+
 	public static synchronized void install(Display display) {
 		if (installed_)
 			return;
 		installed_ = true;
+		try {
+			enabled_ = org.dbgl.service.SettingsService.getInstance().getBooleanValue("gui", "longtooltips");
+		} catch (RuntimeException e) {
+			enabled_ = true;
+		}
 		display.addFilter(SWT.MouseEnter, e -> {
+			if (!enabled_) {
+				if ((e.widget instanceof Control c) && (c.getData(TEXT_KEY) instanceof String text)) {
+					c.setData(TEXT_KEY, null);
+					c.setToolTipText(text); // give the text back to the operating system
+				}
+				return;
+			}
 			if ((e.widget instanceof Control c) && !(c instanceof Shell)) {
 				String text = c.getToolTipText();
 				if (text != null) {
@@ -96,6 +117,8 @@ public final class LongToolTips {
 
 	private static void onHover(Event e) {
 		if (!(e.widget instanceof Control control) || control.isDisposed() || (control instanceof Shell))
+			return;
+		if (!enabled_ && (control.getData(PROVIDER_KEY) == null))
 			return;
 		String text = textAt(control, e);
 		if ((text == null) || text.isBlank())

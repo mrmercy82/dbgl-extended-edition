@@ -1,0 +1,512 @@
+DBGL Extended Edition - Änderungen seit 0.100 beta 17
+=====================================================
+
+Grundlage: DBGL 0.100 beta 17 von Ronald Blankendaal (https://dbgl.org), Quellcode. Neueste Version zuerst.
+
+
+0.101 alpha 21
+--------------
+- Hilfe-Menü: "Neue Features..." (Zusammenfassung aller Neuerungen seit
+  0.100 beta 17) und "Changelog..." direkt über "Über DOSBox Game Launcher...".
+  Angezeigt wird Deutsch bei deutscher Oberfläche, sonst Englisch.
+- DOSBox herunterladen:
+  - Prüfsumme: Die SHA-256-Prüfsumme, die GitHub zu jeder Datei
+    veröffentlicht, wird verglichen. Stimmt sie nicht, wird nichts entpackt.
+    Gibt es keine, fragt DBGL vorher nach.
+  - Abbrechen: Das Fortschrittsfenster hat einen Knopf "Abbrechen".
+  - Variante wählen: Passen mehrere Dateien (z. B. bei DOSBox-X Visual
+    Studio oder MinGW, SDL1 oder SDL2), wählt man aus einer Liste; die
+    empfohlene ist vorausgewählt.
+- Warnsymbol auch in Kachel- und Boxenansicht: Der Tooltip zeigt Titel und
+  Probleme, ein Klick auf das Symbol (oben rechts) springt zur Einstellung.
+- Neue Einstellung "Tooltips stehen lassen, solange die Maus darauf ist"
+  (Standard: an). Aus = wieder die Tooltips des Betriebssystems.
+- Reiter "Mit Problemen" öffnet ohne Wartezeit: DBGL prüft nach dem Start alle
+  Profile im Hintergrund.
+- Profile auf andere DOSBox-Version umstellen: Knopf "Versionen vergleichen"
+  zeigt, welche Einstellungen die neue Version hinzufügt, nicht mehr hat oder
+  mit anderem Standardwert hat.
+- DOSBox-Versionen -> Kontextmenü "Samt Ordner entfernen...": entfernt eine
+  nicht mehr benutzte DOSBox-Version und löscht ihren Ordner. Doppelte
+  Sicherheitsabfrage (Bestätigung mit Ordner und Anzahl der Dateien, danach
+  den Ordnernamen eintippen). Nie gelöscht werden Laufwerke und
+  Wurzelverzeichnisse, der Benutzerordner, Ordner von DBGL selbst und Ordner,
+  die eine andere DOSBox-Version benutzt. Wird die Version noch von Profilen
+  oder Vorlagen benutzt, wird nichts gelöscht.
+- README.md für ein Repository, NEU-IN-DER-EXTENDED-EDITION.txt und
+  NEW-IN-EXTENDED-EDITION.txt im Update-Paket.
+
+
+0.101 alpha 20
+--------------
+- Über-Dialog: Die erste Zeile lautet jetzt "DOSBox Game Launcher v0.100 beta 17,
+  entwickelt von Ronald Blankendaal". Darunter, durch eine Linie getrennt: Die
+  Extended Edition ist eine unabhängige Weiterführung; Ronald Blankendaal hat
+  DBGL bis 0.100 beta 17 entwickelt und ist an ihr nicht beteiligt.
+- DOSBox herunterladen: DBGL fragt, in welchen Ordner installiert wird (dort
+  entsteht ein Unterordner, z. B. dosbox-x-2026.10.01). Existiert er schon und
+  ist nicht leer, gibt es eine Sicherheitsabfrage: Programmdateien ersetzen,
+  vorhandene Dateien behalten und nur Fehlendes ergänzen, oder abbrechen.
+  Konfigurationsdateien (*.conf) werden nie überschrieben.
+- DOSBox-X herunterladen: Der Eintrag verwendet jetzt dosbox-x.exe mit vollem
+  Pfad und dosbox-x.conf. Bisher wurde nur der Dateiname eingetragen, der
+  gegen den DOSBox-Hauptordner aufgelöst wurde, und die Konfiguration hieß
+  dosbox.conf.
+- Tooltips bleiben stehen, solange die Maus über dem Element ist (die
+  Tooltips des Betriebssystems verschwinden nach wenigen Sekunden). Lange
+  Texte werden umbrochen.
+- Warnsymbol in der Profilliste: Der Tooltip wurde nicht angezeigt; jetzt
+  erscheint er zuverlässig, und der Bereich zum Zeigen und Klicken ist etwas
+  größer.
+
+
+0.101 alpha 19
+--------------
+- Extended Edition: Fenstertitel und Über-Dialog nennen diese Ausgabe jetzt
+  "Extended Edition". Der Über-Dialog stellt heraus, dass sie auf DBGL 0.100
+  beta 17 und fast zwanzig Jahren Arbeit von Ronald Blankendaal aufbaut, und
+  erwähnt klein, dass die Extended Edition von mrmercy82 mit Hilfe von KI
+  begonnen wurde.
+- Einstellungen -> Allgemein: Ist das Fenster zu klein, lässt sich der Inhalt
+  jetzt scrollen. Bisher waren die unteren Gruppen nicht erreichbar.
+- Warnsymbol in der Profilliste: Der Tooltip zeigt, was falsch ist. Ein Klick
+  auf das Symbol öffnet den Profildialog direkt an der betroffenen Einstellung,
+  bei fehlenden Ordnern die Reparatur von "Profile prüfen".
+- Kontextmenü "Problem beheben..." für Profile mit Warnsymbol.
+- Neuer Filter-Reiter "Mit Problemen" (rechts neben den eigenen Filtern), wenn
+  die Warnsymbole eingeschaltet sind.
+- Ungültige Werte werden bei DOSBox-X jetzt zuverlässig erkannt, z. B.
+  sbtype=sb99 (Test ergänzt; die Ursache war der in alpha 18 behobene
+  Kopierfehler der Prüfung).
+- Eigene Voreinstellungen lassen sich bearbeiten: Voreinstellungen ->
+  Bearbeiten öffnet Name und Einstellungen als kleinen Text.
+- DOSBox herunterladen: Menü DOSBox -> "DOSBox herunterladen..." und der
+  Hinweis auf neue Versionen bieten an, DOSBox Staging bzw. DOSBox-X direkt
+  von GitHub zu laden, in den DOSBox-Ordner von DBGL zu entpacken und als
+  neue DOSBox-Version einzutragen, auf Wunsch gleich mit dem Umstellen der
+  Profile. Windows und Linux; für macOS öffnet sich die Download-Seite.
+- Neuere DOSBox-Versionen, die DBGL noch nicht kennt, zeigt der Dialog der
+  DOSBox-Version jetzt richtig an (bisher blieb das Versionsfeld leer). Sie
+  verhalten sich wie die neueste bekannte Version.
+- DOSBox-X: 48 weitere Einstellungen als echte Felder (DOS, CPU, Speicher,
+  Video, VESA / SVGA, Maus, Gravis Ultrasound, Sound Blaster, Darstellung,
+  PC Speaker), z. B. EMS-Seitenrahmen, UMB-Bereich, Weitek, PSE,
+  VESA-Videospeicher, Maus-Grenzen, EMU8000. Auswahllisten nehmen die Werte,
+  die die DOSBox-Version selbst dokumentiert. Bei DOSBox-X 2026.10.01 bleiben
+  413 statt 461 weitere Einstellungen.
+- Letzte Massenänderung rückgängig: Vor dem Anwenden einer Voreinstellung auf
+  mehrere Profile, dem Umstellen mehrerer Profile auf eine andere
+  DOSBox-Version, dem Reparieren von Werten und Pfaden und dem Bearbeiten
+  mehrerer Profile merkt sich DBGL deren Zustand. Profile -> "Letzte Änderung
+  mehrerer Profile rückgängig..." stellt Konfiguration und DOSBox-Version
+  aller betroffenen Profile wieder her.
+- Die Spalte "Spielzeit" gibt es schon seit alpha 15, sie lässt sich unter
+  Einstellungen -> Profil-Übersicht einblenden und sortieren.
+- TESTEN-WINDOWS.txt: Testliste für Windows.
+
+
+0.101 alpha 18
+--------------
+- Übersetzungen: In den 17 Sprachen außer Deutsch und Englisch sind rund 7.000
+  kurze Texte übersetzt, die bisher englisch waren (Seiten- und Feldnamen,
+  Menüs, Spaltenköpfe, Assistenten). Feste Begriffe wie IRQ, HDMA oder APM BIOS
+  bleiben unverändert.
+- Der Profildialog öffnet sich auch beim ersten Mal nach dem Programmstart
+  schnell: Welche Seiten eine DOSBox-Version braucht, speichert DBGL jetzt im
+  Datenordner (cache/pages). Ändert sich die Konfigurationsdatei der
+  DOSBox-Version oder die DBGL-Version, wird neu ermittelt.
+- Knopf "Erkennen" ohne DOSBox zu starten, jetzt auch für DOSBox 0.74, SVN, ECE
+  und Daum: DBGL liest den Namen der Mapper-Datei aus der Programmdatei
+  (z. B. mapper-ECE.map, mapper-SVN-Daum.map). Unter Windows blitzt kein Fenster
+  mehr auf.
+- DOSBox ECE r4482 und DOSBox Daum 2015.01.25 mit echten Konfigurationsdateien
+  geprüft: Alle Einstellungen stehen auf passenden Seiten. Bei Daum kommen die
+  VESA- und VGA-Schalter aus [dosbox] unter Video bzw. VESA / SVGA, CGA-Schnee
+  unter CGA composite und die Größe der Shell-Umgebung unter DOS.
+- DOSBox-X: 55 gebräuchliche Einstellungen haben jetzt echte Felder mit
+  deutscher Beschriftung, jeweils in einer Gruppe "Zusätzliche Optionen" auf
+  Sound Blaster, Midi, Fluidsynth, Gravis Ultrasound, VESA / SVGA, Video,
+  CGA composite, CPU, Hauptplatine und BIOS, Speicher, Maus, Tastatur und
+  Datenträger (z. B. Adlib-PCM verstärken, Hall und Chorus von Fluidsynth,
+  VESA-Modusliste, ISA-/PCI-Bustakt, VCPI, INT-13h-Erweiterungen). Der Tooltip
+  ist der Hilfetext der DOSBox-Version. Daum und ECE nutzen die Felder, soweit
+  sie die Einstellungen kennen. Bei DOSBox-X 2026.10.01 bleiben 461 statt 516
+  weitere Einstellungen.
+- Shader-Liste auch für DOSBox-X: DBGL sucht die .glsl-Dateien in den
+  glshaders-Ordnern von DOSBox-X (neben dem Programm, im Arbeitsordner und im
+  Konfigurationsordner).
+- Voreinstellungen für mehrere Profile: Im Kontextmenü der Profilliste gibt es
+  "Voreinstellung anwenden" mit allen eingebauten und eigenen Voreinstellungen.
+  Sie gilt für alle markierten Profile, gesetzt wird nur, was die DOSBox-Version
+  des jeweiligen Profils kennt.
+- Die weiteren Einstellungen gibt es jetzt auch im Dialog für mehrere Profile.
+  Einstellungen mit unterschiedlichen Werten sind rot markiert. Nur geänderte
+  Einstellungen werden in die Profile übernommen.
+- Warnsymbol in der Profilliste: Profile mit ungültigen Werten oder fehlenden
+  Ordnern und Dateien bekommen ein kleines Warnsymbol vor dem Titel. DBGL prüft
+  im Hintergrund und nur dann neu, wenn sich die Konfiguration geändert hat.
+  Abschaltbar unter Einstellungen -> "Profile mit Problemen in der Liste
+  markieren" (Standard: an).
+- Neues Paket zum Entpacken: dbgl-0.101alpha18-update.zip enthält dbgl.jar,
+  die Sprachdateien und die Changelogs und wird einfach über eine bestehende
+  DBGL-Installation entpackt.
+- Intern: Der Profildialog ist aufgeteilt, weitere Einstellungen,
+  Voreinstellungsmenü und Seitenspeicher sind eigene Klassen.
+
+
+0.101 alpha 17
+--------------
+- DOSBox Staging 0.83: "Sound-Canvas-Filter" steht jetzt unter Audio -> Midi
+  in den experimentellen Einstellungen, "Webserver (REST-API)", "Adresse des
+  Webservers" und "Port des Webservers" unter Netzwerk. Damit hat Staging 0.83
+  keine weiteren Einstellungen ohne eigenes Feld mehr.
+- Beim ersten Bearbeiten eines Profils öffnete sich ein DOSBox-Fenster: DBGL
+  startete DOSBox Staging mit --list-shaders, um die Shader-Liste zu holen.
+  DBGL sucht die Shader jetzt selbst in denselben Ordnern wie Staging
+  (resources/shaders, Benutzerordner).
+- Versionsprüfung beim Start und beim Starten eines Spiels: Die Version von
+  DOSBox Staging und DOSBox-X wird aus der Programmdatei gelesen, DOSBox wird
+  dafür nicht mehr gestartet. Andere DOSBox-Versionen werden nur noch beim
+  Knopf "Erkennen" gestartet.
+- Der Profildialog öffnet sich deutlich schneller: Welche Seiten eine
+  DOSBox-Version braucht, merkt sich DBGL nach dem ersten Mal (bei DOSBox-X von
+  etwa 1 Sekunde auf unter 0,1 Sekunden). Beim ersten Mal erscheint der Dialog
+  sofort mit allen Seiten, leere Seiten verschwinden gleich danach.
+
+
+0.101 alpha 16
+--------------
+- Deutsche Übersetzung vervollständigt: rund 740 Texte, die bisher englisch
+  waren (Seitennamen wie "Speicher", "Datenträger", "Peripherie", Feldnamen
+  und Tooltips), sind jetzt deutsch. Feste Begriffe wie Genre, Setup oder
+  Namen von Geräten und Befehlen (IRQ, DMA, FILES) bleiben unverändert.
+- Neue Einstellungen für die weiteren Einstellungen im Profildialog:
+  - Gruppen anfangs: zugeklappt, immer aufgeklappt oder nur aufgeklappt, wenn
+    ein Wert geändert wurde (Standard).
+  - Auch auf Seiten anwenden, die nur solche Einstellungen enthalten (Standard:
+    aus, dort sind die Gruppen immer offen).
+  - Anzahl der geänderten Einstellungen in der Überschrift anzeigen, z. B.
+    "Weitere Einstellungen [sblaster] (24) - 1 geändert" (Standard: an).
+- Der Profildialog öffnet sich schneller (bei DOSBox-X etwa ein Viertel), weil
+  die Konfiguration der DOSBox-Version nicht mehr für jedes Feld neu gelesen
+  wird.
+- Knopf "Voreinstellungen" neben "Abweichungen vom Standard...": Windows 95/98,
+  Windows 3.1, langsame Spiele aus der XT/286-Zeit, schnelle DOS-Spiele und
+  Demos, Tandy, PC-98. Gesetzt wird nur, was die DOSBox-Version kennt. Eigene
+  Voreinstellungen lassen sich aus den aktuellen Werten speichern und wieder
+  löschen (Ordner "presets").
+- Kontextmenü "Profile vergleichen...": zwei markierte Profile, alle
+  unterschiedlichen Werte (wie sie wirksam sind) und abweichende
+  [autoexec]-Zeilen.
+- Frühere Fassungen: Bei jedem Speichern eines Profils, das sich geändert hat,
+  bleibt die vorige Konfigurationsdatei erhalten (die letzten fünf, Ordner
+  profiles/history). Kontextmenü "Frühere Fassung wiederherstellen..." zeigt
+  sie mit den Unterschieden zur aktuellen Fassung.
+- Suche im Profildialog: findet auch Beschreibungen, Tooltips und Werte. Enter
+  springt zur nächsten Seite mit Treffer und öffnet zugeklappte Gruppen.
+- Menü Profile -> "Statistik...": Gesamtspielzeit, Starts, die meistgespielten,
+  am häufigsten gestarteten, zuletzt gespielten und nie gestarteten Spiele.
+- Automatische Sicherung beim Start: nie (Standard), täglich oder wöchentlich,
+  mit einstellbarer Anzahl aufbewahrter Sicherungen (Ordner "backups").
+- Statusfenster: Meldungen von DOSBox zu einer Einstellung (z. B. "Invalid
+  'cpu_cycles' setting") sind unterstrichen; ein Klick öffnet das Profil mit
+  dieser Einstellung.
+- Eine dosbox.conf auf ein Profil ziehen oder Kontextmenü "Einstellungen aus
+  einer DOSBox-Konfiguration übernehmen...": zeigt, was sich ändert, und
+  übernimmt die Einstellungen, die die DOSBox-Version kennt. [autoexec] wird
+  nicht übernommen.
+
+
+0.101 alpha 15
+--------------
+- Seiten im Navigationsbaum, für die die gewählte DOSBox-Version keine einzige
+  Einstellung hat, werden immer ausgeblendet, unabhängig von der Einstellung
+  "Vom gewählten DOSBox nicht unterstützte Einstellungen ausblenden". Diese ist jetzt
+  standardmäßig aus (bestehende Einstellungsdateien behalten ihren Wert).
+- Knopf "Abweichungen vom Standard..." (vorher "Unterschiede zum Standard...")
+  steht rechtsbündig.
+- Sound-Blaster-Seite (DOSBox-X): die Zeile mit leeren Auswahlfeldern unter
+  "Experimentelle Einstellungen" ist weg. Nicht unterstützte Auswahlfelder
+  wurden beim Zusammenrücken der Seite wieder eingeblendet.
+- Gruppen "Weitere Einstellungen":
+  - Neben jeder Einstellung steht der erste Satz ihrer DOSBox-Beschreibung.
+  - Die Gruppen sind einklappbar und auf normalen Seiten anfangs zu; auf
+    Seiten, die nur solche Einstellungen haben, sind sie offen. Die Überschrift
+    zeigt die Anzahl.
+  - "Nur geänderte Werte zeigen" pro Seite.
+  - Werte, die vom DOSBox-Standard abweichen, sind fett; ein Knopf daneben
+    setzt sie auf den Standard zurück.
+- Spielzeit: DBGL zählt, wie lange DOSBox pro Profil läuft (Starts unter
+  5 Sekunden zählen nicht). Neue Spalte "Spielzeit" (Stunden:Minuten), in der
+  Spaltenauswahl einschaltbar und sortierbar. Die Datenbank bekommt dafür eine
+  neue Spalte.
+- "Profil auf andere DOSBox-Version umstellen..." funktioniert auch mit
+  mehreren markierten Profilen.
+- Kontextmenü: "Profil prüfen..." prüft nur die markierten Profile.
+- Neue Einstellung "Profil vor dem Start auf ungültige Werte prüfen"
+  (standardmäßig aus): Enthält ein Profil Werte, die die DOSBox-Version nicht
+  kennt, fragt DBGL vor dem Start nach.
+- Profile prüfen: Knopf "Fehlende Ordner suchen...". Man zeigt, wo der erste
+  fehlende Ordner bzw. die erste fehlende Datei jetzt liegt; dieselbe Änderung
+  (z. B. anderer Laufwerksbuchstabe) wird für alle fehlenden Pfade aller
+  Profile übernommen, sofern das Ziel existiert.
+- Neue Einstellung "Einmal täglich nach neuen DOSBox-Versionen suchen"
+  (standardmäßig an): fragt bei GitHub die neuesten Versionen von DOSBox
+  Staging und DOSBox-X ab und bietet bei einer neueren Version die
+  Download-Seite an. Es wird nichts heruntergeladen.
+- Wird bei einem DOSBox-Versionseintrag die Version geändert (z. B. nach einem
+  Update der dosbox.exe), bietet DBGL an, die Konfigurationsdatei von DOSBox
+  neu schreiben zu lassen, damit neue Einstellungen bekannt sind. Dasselbe bei
+  der Versionsprüfung beim Start. Die alte Datei bleibt als .bak erhalten.
+- Datei-Menü: "Sicherung erstellen..." (Datenbank, Profile, Vorlagen,
+  Einstellungen als Zip) und "Sicherung wiederherstellen..." (die bisherigen
+  Dateien bleiben als .before-restore erhalten, DBGL wird danach beendet).
+- Zuordnung der Einstellungen um Abschnitte von DOSBox ECE, Daum und SVN
+  ergänzt ([glide], [pci], [ne2000], [printer], [serial]); nur mit Tests der
+  Regeln geprüft, nicht mit echten Konfigurationsdateien.
+
+
+0.101 alpha 14
+--------------
+- Die Seite "DOSBox -> Weitere Einstellungen" gibt es nicht mehr. Alle
+  Einstellungen ohne eigenes Feld stehen jetzt auf der Seite, zu der sie
+  inhaltlich gehören, jeweils in einer Gruppe "Weitere Einstellungen [Abschnitt]"
+  am Ende der Seite. Das gilt für jede DOSBox-Version: angezeigt wird, was die
+  Konfigurationsdatei der gewählten Version enthält.
+  - Beispiele: "adlib pcm boost" unter Audio -> Sound Blaster, EMS/XMS/UMB
+    unter System -> Memory, int33-Mausoptionen unter Peripherals -> Mouse,
+    "drive z ..." und "automount" unter Mounting, fluid.* unter FluidSynth.
+  - Neue Seiten, nur wenn die DOSBox-Version passende Einstellungen hat:
+    DOSBox -> Protokoll und Fehlersuche, System -> Hauptplatine und BIOS
+    (ACPI, APM, DMA, IRQ, PCI/ISA), System -> PC-98,
+    System -> Disks -> IDE- und Diskettencontroller, Video -> VESA / SVGA,
+    Audio -> Windows Sound System.
+  - Einstellungen, die keine Regel kennt (z. B. von DOSBox ECE oder Daum),
+    kommen auf die Seite, auf der die meisten Felder ihres Abschnitts stehen.
+  - Die Suche oben links findet auch diese Einstellungen.
+- Kontextmenü eines Profils: "Profil auf andere DOSBox-Version umstellen..."
+  steht jetzt zwischen "Profil manuell starten" und "Spiel-Ordner öffnen...",
+  mit Trennlinien darüber und darunter.
+
+
+0.101 alpha 13
+--------------
+- Neue Versionsnummerierung: Die bisherigen Versionen 0.101 und
+  0.102 beta 1 bis 12 heißen jetzt 0.101 alpha 0 bis 0.101 alpha 12.
+- "Profile prüfen..." steht jetzt als unterster Eintrag im Menü "Profile"
+  (mit Trennlinie darüber) statt im Menü "DOSBox".
+- Kontextmenü eines Profils (Rechtsklick), unter "Spiel-Ordner öffnen..." und
+  "Screenshots-Ordner öffnen...":
+  - "Profile-Ordner öffnen..." öffnet den Ordner mit der Konfigurationsdatei
+    des Profils.
+  - "Profil auf neue DOSBox-Version umstellen..." macht dasselbe wie das Menü
+    für alle Profile, aber nur für das ausgewählte Profil, mit Vorschau und
+    Bericht.
+
+
+0.101 alpha 12
+--------------
+- Statusfenster: Endet DOSBox innerhalb von 5 Sekunden, nennt DBGL das als
+  vermutlich fehlgeschlagenen Start und lässt das Fenster offen. Auch wenn das
+  Statusfenster sonst nicht angezeigt wird, erscheint es dann mit den Meldungen
+  von DOSBox (abschaltbar in den Einstellungen).
+- Statusfenster: Viele gleichartige Zeilen hintereinander werden zu einer Zeile
+  "... weitere ähnliche Zeile(n)" zusammengefasst. Kopieren und Speichern
+  enthalten weiterhin alles.
+- Vor dem Start prüft DBGL, ob die eingebundenen Ordner und Images existieren,
+  und fragt nach, wenn etwas fehlt.
+- Schlägt ein Booten fehl, bleibt die Meldung von DOSBox mit "@pause" stehen,
+  statt dass DOSBox sofort schließt.
+- Profildialog: Knopf "Einstellungen für Windows 9x" setzt die Werte, die die
+  DOSBox-X-Anleitung für Windows 95/98 empfiehlt (64 MB Speicher, Pentium MMX,
+  CPU-Kern normal, kein EMS), soweit die DOSBox-Version sie kennt.
+- Profil- und Vorlagendialog: Knopf "Unterschiede zum Standard..." listet alle
+  Einstellungen, die vom Standard der DOSBox-Version abweichen.
+- Neues Menü "Profile prüfen...": findet in allen Profilen Werte, die die
+  DOSBox-Version nicht kennt, und nicht vorhandene Ordner oder Dateien.
+  Ungültige Werte lassen sich entfernen, der Bericht lässt sich speichern.
+- Beim Start von DBGL werden die DOSBox-Versionen im Hintergrund geprüft.
+  Passt ein Eintrag nicht zum Programm, bietet DBGL die Korrektur an
+  (abschaltbar in den Einstellungen).
+- DOSBox-X: Die Version wird aus der dosbox-x.exe gelesen, ohne sie zu starten
+  (DOSBox-X öffnet bei -version ein eigenes Konsolenfenster). Für die
+  OS-freie Version und die Low-End-Version für Windows 9x gibt es einen
+  einmaligen Hinweis.
+- DOSBox Staging: Die Shader-Auswahl enthält zusätzlich die Shader, die das
+  Programm in seinen Ordnern findet (--list-shaders).
+- Weitere PC-98-Formate: .NHD-Festplattenimages sowie .FDI- und
+  .D88-Disketten lassen sich im Archivbrowser durchsuchen; DBGL setzt auch für
+  sie machine=pc98.
+
+
+0.101 alpha 11
+--------------
+- Boot-Zeilen mit einem Windows-Pfad zum Image (z. B. boot "C:\...\win95.hdi")
+  werden nicht mehr als DOS-Pfad gelesen. Vorher schnitt DBGL "C:" ab und legte
+  einen zusätzlichen, nicht funktionierenden Mount "imgmount A" an.
+- Wird ein .HDI über eine Boot-Zeile gebootet, hängt DBGL es als Festplatte an
+  (imgmount 2 ... -t hdd) statt als Diskette.
+
+
+0.101 alpha 10
+--------------
+- Keine 8.3-Warnung mit "null" mehr bei selbstbootenden HDI-Images. Images, die
+  direkt als Festplatte angehängt werden (imgmount 2), haben keinen DOS-Namen.
+
+
+0.101 alpha 9
+-------------
+- DOSBox-X: Wird ein PC-98-Festplattenimage (.HDI) eingebunden, gebootet oder
+  als Spiel benutzt, setzt DBGL machine=pc98. Das geschieht jetzt immer: beim OK
+  im Profildialog, im Assistenten für neue Spiele und beim Starten eines Spiels.
+  Im IBM-PC-Modus stürzte DOSBox-X beim Booten solcher Images ab.
+
+
+0.101 alpha 8
+-------------
+- PC-98-Festplattenimages (.HDI) werden unterstützt:
+  - Durchsuchen im Archivbrowser, um das Spielprogramm im Image auszuwählen.
+  - Spiel aus einem HDI starten: Einbinden als Festplatte (imgmount ... -t hdd).
+  - Selbstbootende HDIs (z. B. Windows 95 für PC-98): imgmount 2 ... -t hdd und
+    boot -l C.
+  - Gelesen werden der HDI-Header (Sektorgröße, Geometrie), die
+    PC-98-Partitionstabelle (IPL1) und FAT-Partitionen mit 1024 Byte großen
+    logischen Sektoren auf Festplatten mit 256 oder 512 Byte pro Sektor, nach
+    denselben Regeln wie DOSBox-X.
+- Der FAT-Leser in DBGL versteht jetzt einzelne Partitionen und Sektorgrößen
+  über 512 Byte.
+
+
+0.101 alpha 7
+-------------
+- "Zuordnen" einer DOSBox-Version behält nur die eigenen Änderungen eines
+  Profils. Alle anderen Werte kommen aus der Konfiguration der neuen
+  DOSBox-Version, die unter "DOSBox-Versionen" hinterlegt ist.
+- Der bisherige zweite Knopf heißt jetzt "Alles behalten". Er übernimmt wie
+  früher alle aktuellen Werte, auch die Standardwerte der alten Version.
+- Wird eine andere DOSBox-Version gewählt und direkt OK geklickt, macht DBGL
+  dasselbe wie "Zuordnen", statt eine Fehlermeldung zu zeigen.
+- Beim Laden einer Vorlage gilt dasselbe: eigene Änderungen und die Werte der
+  Vorlage bleiben, der Rest kommt aus der DOSBox-Konfiguration.
+- Die Tooltips der Knöpfe sind korrigiert, der deutsche Text beschrieb
+  "Übernehmen" falsch.
+
+
+0.101 alpha 6
+-------------
+- Neue Seite "DOSBox -> Weitere Einstellungen": alle Einstellungen der
+  gewählten DOSBox-Version, die kein eigenes Feld haben (z. B. "adlib pcm boost"
+  bei DOSBox-X ab 2026.05.02), mit Filterfeld, Auswahllisten aus den in der
+  DOSBox-Konfiguration dokumentierten Werten, Schaltern als true/false- bzw.
+  on/off-Liste, Standardwert und Beschreibung als Tooltip. Leer bedeutet
+  DOSBox-Standard. Gespeichert werden nur geänderte Werte.
+- DBGL liest die Beschreibungen der Einstellungen aus der Konfigurationsdatei,
+  die die jeweilige DOSBox selbst schreibt.
+- Fehler behoben (schon in 0.100 beta 17): Für DOSBox-X ab 2024.10.01 wurde die
+  Konfiguration ohne "-all" erzeugt und enthielt nur etwa die Hälfte der
+  Einstellungen.
+- Erkennt DBGL eine unvollständige DOSBox-X-Konfiguration, bietet es beim
+  Speichern des DOSBox-Versionseintrags an, sie neu zu erstellen. Die alte Datei
+  bleibt als .bak erhalten.
+
+
+0.101 alpha 5
+-------------
+- Spielpfade mit Leerzeichen funktionieren (z. B. "M & M\M&M 3\MM 3.EXE"). DBGL
+  schreibt in die Autoexec die 8.3-Kurznamen, die DOSBox selbst vergibt
+  (z. B. "cd \M&M~1\M&M3~1" und "MM3~1.EXE"), nach denselben Regeln wie DOSBox.
+- Kurznamen werden beim Einlesen wieder in die echten Pfade übersetzt.
+- Profile älterer Versionen mit Leerzeichen im Pfad werden beim ersten Start
+  automatisch repariert. Vorher schnitt DBGL den Dateinamen am Leerzeichen ab.
+- Keine 8.3-Warnung mehr für solche Dateien auf eingebundenen Ordnern.
+
+
+0.101 alpha 4
+-------------
+- Das Statusfenster merkt sich Position, Größe und Maximierung, auch über einen
+  Neustart von DBGL hinweg. Liegt die Position auf keinem Bildschirm mehr,
+  erscheint es mittig.
+
+
+0.101 alpha 3
+-------------
+- Statusfenster: Steht im DOSBox-Staging-Eintrag noch eine ältere Version,
+  obwohl die dosbox.exe schon 0.83 oder neuer ist, fragt DBGL das Programm nach
+  seiner Version und zeigt das Fenster trotzdem.
+- Das Statusfenster öffnet sich im Vordergrund und zeigt Startzeit und
+  DOSBox-Aufruf.
+- Fehler werden rot, Warnungen gelb hervorgehoben, mit Anzahl im Fenstertitel.
+- Neu: "Nach dem Beenden von DOSBox offen lassen" (wird gemerkt) und ein Knopf
+  "Schließen".
+- Beim Speichern wird ein Dateiname mit Datum und Uhrzeit vorgeschlagen.
+- Bei einem Absturz von DOSBox bleibt das Fenster offen und kommt nach vorne.
+
+
+0.101 alpha 2
+-------------
+- Seiten ohne unterstützte Einstellungen werden aus dem Navigationsbaum
+  ausgeblendet. Eine übergeordnete Seite bleibt, solange eine Unterseite Inhalt
+  hat. Der Baum wird bei einem Wechsel der DOSBox-Version neu aufgebaut.
+- Neue Seite "Sound Blaster 2" für DOSBox-X ([sblaster2]).
+- Statusfenster auch für DOSBox-X, das unter Windows keine eigene Konsole
+  öffnet.
+- Versionserkennung auch für DOSBox SVN, ECE und Daum.
+- Leere Einträge werden jetzt bei allen DOSBox-Familien beim Speichern
+  weggelassen, wenn DOSBox für die Einstellung eine feste Werteliste
+  dokumentiert.
+- Leser für das ältere Kommentarformat der DOSBox-Konfiguration korrigiert. Bei
+  Staging 0.82.2 werden jetzt 58 statt 23 Wertelisten erkannt.
+
+
+0.101 alpha 1
+-------------
+- Auswahllisten kommen aus der Konfiguration, die die jeweilige DOSBox selbst
+  schreibt. So passen sie zur installierten Version, auch bei Versionen, die
+  DBGL nicht im Detail kennt.
+- Einstellungen, die die gewählte DOSBox-Version nicht kennt, werden
+  ausgeblendet (abschaltbar in den Einstellungen) und die Seiten zusammengerückt.
+- Versionserkennung: Knopf "Erkennen" im DOSBox-Versionsdialog. Beim Speichern
+  wird die eingetragene Version mit der tatsächlichen verglichen und bei
+  Abweichung nachgefragt.
+- Nicht aufgeführte Versionen werden der nächstpassenden Generation zugeordnet,
+  z. B. Staging 0.83.x/0.84 oder neuere DOSBox-X-Versionen.
+- DOSBox-X-Versionsliste bis 2026.10.01 ergänzt.
+- Weitere Felder für DOSBox Staging 0.83: Festplatten- und
+  Diskettengeschwindigkeit, cpu_idle, keyboard_capture, SoundFont-Ordner und
+  -Lautstärke, Sound Canvas, neue Seite "Bildanpassungen", Rauschunterdrückung,
+  Laufwerksgeräusche, Optionen des eingebauten DOS-Maustreibers.
+- Neues Menü "Profile auf andere DOSBox-Version umstellen": stellt alle Profile
+  einer DOSBox-Version um, mit Vorschau und speicherbarem Bericht.
+- Statusfenster: Ausgabe kopieren und als Textdatei speichern.
+- Alle neuen Texte in 20 Sprachen.
+
+
+0.101 alpha 0
+-------------
+- Unterstützung für DOSBox Staging 0.83.0:
+  - Umbenannte Einstellungen, z. B. windowresolution -> window_size,
+    fullresolution -> fullscreen_mode, glshader -> shader,
+    share -> file_locking.
+  - Entfallene Einstellungen und Schalter im Format on/off.
+  - Automatische Umrechnung beim Umstellen von und auf 0.83.
+  - Neue Felder: CRT-Farbprofil, Deinterlacing, Dedithering,
+    Bildanpassungen, Sound-Canvas-Modell und ROM-Ordner, Rauschunterdrückung,
+    Festplatten- und Diskettengeräusche, SID-Filter, eingebauter
+    DOS-Maustreiber.
+  - Erzeugen der DOSBox-Konfiguration für 0.83 angepasst.
+- Fehler behoben: Profile enthielten leere Einträge wie "locale_period=" oder
+  "file_locking=". Leere Werte, die einen DOSBox-Standardwert überschreiben
+  würden, werden jetzt weggelassen.
+- Statusfenster: DOSBox Staging 0.83 öffnet unter Windows keine Konsole mehr.
+  DBGL zeigt die Ausgabe von DOSBox jetzt selbst an, sofern
+  "DOSBox-Statusfenster verstecken" ausgeschaltet ist.
+- Versionsnummer 0.101 (jetzt 0.101 alpha 0).
+
+
+Hinweise
+--------
+- DOSBox SVN, ECE und Daum sind nur mit Beispieltexten getestet, nicht mit
+  echten Programmen und Konfigurationen.
+- PC-98-HDI ist mit einem echten Image (Windows 95 für PC-98) getestet:
+  Durchsuchen und Booten funktionieren. Die Stabilität von Windows 95 hängt von
+  der PC-98-Emulation in DOSBox-X ab.

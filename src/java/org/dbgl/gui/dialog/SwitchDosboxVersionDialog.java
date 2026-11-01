@@ -148,12 +148,35 @@ public class SwitchDosboxVersionDialog extends SizeControlledButtonDialog<Boolea
 				run(true);
 			}
 		}).ctrl();
+		Button_.on(otherButtons_).text().key("dialog.switchdosbox.compare").tooltip("dialog.switchdosbox.compare.tooltip").listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				compareVersions();
+			}
+		}).ctrl();
 		Button_.on(otherButtons_).text().key("dialog.switchdosbox.savereport").listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
 				saveReport();
 			}
 		}).ctrl();
+	}
+
+	/** show in the report what changes from the old to the new DOSBox version */
+	private void compareVersions() {
+		if ((from_.getSelectionIndex() < 0) || (to_.getSelectionIndex() < 0))
+			return;
+		DosboxVersion src = dbversions_.get(from_.getSelectionIndex());
+		DosboxVersion dst = dbversions_.get(to_.getSelectionIndex());
+		try {
+			for (DosboxVersion v: new DosboxVersion[] {src, dst})
+				if (v.getConfiguration().getSectionNames().length == 0)
+					v.resetAndLoadConfiguration();
+			report_.setText(org.dbgl.util.ProfileReports.compareVersions(src.getConfiguration(), src.getTitle(), dst.getConfiguration(), dst.getTitle(), text_)
+					.replace(System.lineSeparator(), Text.DELIMITER));
+		} catch (java.io.IOException e) {
+			Mess_.on(shell_).exception(e).warning();
+		}
 	}
 
 	private List<Profile> profilesOf(DosboxVersion dbversion) {

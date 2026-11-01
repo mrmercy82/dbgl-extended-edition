@@ -38,7 +38,7 @@ import org.json.JSONObject;
  */
 public final class DosboxUpdateChecker {
 
-	/** a release on GitHub, with its downloadable files (name, download URL) */
+	/** a release on GitHub, with its downloadable files (name, download URL, digest such as "sha256:..." or "") */
 	public record Release(String family, String version, String url, List<String[]> assets) {
 	}
 
@@ -90,7 +90,7 @@ public final class DosboxUpdateChecker {
 					org.json.JSONArray list = json.optJSONArray("assets");
 					for (int i = 0; (list != null) && (i < list.length()); i++) {
 						JSONObject asset = list.getJSONObject(i);
-						assets.add(new String[] {asset.optString("name", ""), asset.optString("browser_download_url", "")});
+						assets.add(new String[] {asset.optString("name", ""), asset.optString("browser_download_url", ""), asset.optString("digest", "")});
 					}
 					result.add(new Release(source[0], version, json.optString("html_url", source[2]), assets));
 				}

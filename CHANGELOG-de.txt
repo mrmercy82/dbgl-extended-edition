@@ -4,6 +4,39 @@ DBGL Extended Edition - Änderungen seit 0.100 beta 17
 Grundlage: DBGL 0.100 beta 17 von Ronald Blankendaal (https://dbgl.org), Quellcode. Neueste Version zuerst.
 
 
+0.101 alpha 21
+--------------
+- Hilfe-Menü: "Neue Features..." (Zusammenfassung aller Neuerungen seit
+  0.100 beta 17) und "Changelog..." direkt über "Über DOSBox Game Launcher...".
+  Angezeigt wird Deutsch bei deutscher Oberfläche, sonst Englisch.
+- DOSBox herunterladen:
+  - Prüfsumme: Die SHA-256-Prüfsumme, die GitHub zu jeder Datei
+    veröffentlicht, wird verglichen. Stimmt sie nicht, wird nichts entpackt.
+    Gibt es keine, fragt DBGL vorher nach.
+  - Abbrechen: Das Fortschrittsfenster hat einen Knopf "Abbrechen".
+  - Variante wählen: Passen mehrere Dateien (z. B. bei DOSBox-X Visual
+    Studio oder MinGW, SDL1 oder SDL2), wählt man aus einer Liste; die
+    empfohlene ist vorausgewählt.
+- Warnsymbol auch in Kachel- und Boxenansicht: Der Tooltip zeigt Titel und
+  Probleme, ein Klick auf das Symbol (oben rechts) springt zur Einstellung.
+- Neue Einstellung "Tooltips stehen lassen, solange die Maus darauf ist"
+  (Standard: an). Aus = wieder die Tooltips des Betriebssystems.
+- Reiter "Mit Problemen" öffnet ohne Wartezeit: DBGL prüft nach dem Start alle
+  Profile im Hintergrund.
+- Profile auf andere DOSBox-Version umstellen: Knopf "Versionen vergleichen"
+  zeigt, welche Einstellungen die neue Version hinzufügt, nicht mehr hat oder
+  mit anderem Standardwert hat.
+- DOSBox-Versionen -> Kontextmenü "Samt Ordner entfernen...": entfernt eine
+  nicht mehr benutzte DOSBox-Version und löscht ihren Ordner. Doppelte
+  Sicherheitsabfrage (Bestätigung mit Ordner und Anzahl der Dateien, danach
+  den Ordnernamen eintippen). Nie gelöscht werden Laufwerke und
+  Wurzelverzeichnisse, der Benutzerordner, Ordner von DBGL selbst und Ordner,
+  die eine andere DOSBox-Version benutzt. Wird die Version noch von Profilen
+  oder Vorlagen benutzt, wird nichts gelöscht.
+- README.md für ein Repository, NEU-IN-DER-EXTENDED-EDITION.txt und
+  NEW-IN-EXTENDED-EDITION.txt im Update-Paket.
+
+
 0.101 alpha 20
 --------------
 - Über-Dialog: Die erste Zeile lautet jetzt "DOSBox Game Launcher v0.100 beta 17,

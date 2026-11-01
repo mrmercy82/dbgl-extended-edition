@@ -105,6 +105,44 @@ public final class ProfileReports {
 	}
 
 	/** play time, starts and the games played most, last and never */
+	/**
+	 * What changes between two DOSBox versions: settings the newer one no longer has, settings that are new, and settings with
+	 * another default value. Both configurations must be loaded.
+	 */
+	public static String compareVersions(Configuration from, String fromTitle, Configuration to, String toTitle, ITextService text) {
+		List<String> gone = new ArrayList<>(), added = new ArrayList<>(), changed = new ArrayList<>();
+		for (String s: from.getSectionNames()) {
+			if (s.equalsIgnoreCase("autoexec"))
+				continue;
+			for (String i: from.getItemNames(s)) {
+				if (!to.hasValue(s, i))
+					gone.add("[" + s + "] " + i + " = " + from.getValue(s, i));
+				else if (!Objects.equals(StringUtils.strip(from.getValue(s, i)), StringUtils.strip(to.getValue(s, i))))
+					changed.add("[" + s + "] " + i + ": " + from.getValue(s, i) + "  ->  " + to.getValue(s, i));
+			}
+		}
+		for (String s: to.getSectionNames()) {
+			if (s.equalsIgnoreCase("autoexec"))
+				continue;
+			for (String i: to.getItemNames(s))
+				if (!from.hasValue(s, i))
+					added.add("[" + s + "] " + i + " = " + to.getValue(s, i));
+		}
+		String nl = System.lineSeparator();
+		StringBuilder sb = new StringBuilder(text.get("dialog.switchdosbox.compare.title", new Object[] {fromTitle, toTitle})).append(nl).append(nl);
+		Object[][] parts = {{"dialog.switchdosbox.compare.gone", gone}, {"dialog.switchdosbox.compare.added", added}, {"dialog.switchdosbox.compare.changed", changed}};
+		for (Object[] part: parts) {
+			@SuppressWarnings("unchecked")
+			List<String> lines = (List<String>)part[1];
+			Object[] args = part[0].equals("dialog.switchdosbox.compare.added") ? new Object[] {toTitle, lines.size()}: new Object[] {lines.size()};
+			sb.append(text.get((String)part[0], args)).append(nl);
+			lines.forEach(l -> sb.append("   ").append(l).append(nl));
+			sb.append(nl);
+		}
+		sb.append(text.get("dialog.switchdosbox.compare.note"));
+		return sb.toString();
+	}
+
 	public static String statistics(List<Profile> profiles, ITextService text) {
 		StringBuilder sb = new StringBuilder();
 		long total = profiles.stream().mapToLong(ProfileReports::playTime).sum();

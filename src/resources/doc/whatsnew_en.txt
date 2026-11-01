@@ -1,0 +1,98 @@
+DBGL Extended Edition - New features since DBGL 0.100 beta 17
+=============================================================
+
+DBGL was developed up to version 0.100 beta 17 by Ronald Blankendaal
+(https://dbgl.org). The Extended Edition is an independent continuation he is
+not involved in. It mainly adds support for current DOSBox versions; the
+foundation and almost everything else are his work.
+
+Profiles, database and settings are kept when switching.
+
+
+MAJOR NEW FEATURES
+------------------
+
+1. Full support for DOSBox Staging 0.83
+   Renamed settings (e.g. glshader -> shader) and on/off switches are
+   converted automatically. Every setting has its own field: CRT colour
+   profile, deinterlacing, dedithering, image adjustments, Sound Canvas,
+   denoiser, drive noises and more.
+
+2. DOSBox-X up to 2026.10.01
+   About 100 common settings have real fields ("Additional options"). The
+   configuration is generated completely; in 0.100 beta 17 about half of the
+   settings were missing.
+
+3. Every setting of every DOSBox version is reachable
+   Settings without a field of their own sit on the matching page in a
+   collapsible "Further settings" group: with description, list of values,
+   bold for changed values and a reset button.
+
+4. The profile dialog adapts to the DOSBox version
+   Option lists come from the configuration of the installed DOSBox. Empty
+   pages disappear. The search finds descriptions and values too.
+
+5. Faster
+   The profile dialog opens in under 0.2 instead of about 1 second for
+   DOSBox-X. Versions are read from the executable, without a DOSBox window.
+
+6. Download DOSBox directly
+   DOSBox -> "Download DOSBox...": get Staging or DOSBox-X from GitHub (with
+   checksum, cancellable, choice of build), unpack it into a folder of your
+   choice, add it as a DOSBox version and switch profiles.
+
+
+MORE NEW FEATURES
+-----------------
+
+Keeping profiles in shape
+  - Check profiles: find and repair invalid values, missing folders and files,
+    fix moved paths for all profiles at once.
+  - Warning sign in the profile list with tooltip; a click jumps to the
+    setting. "With problems" tab, context menu "Fix problems...".
+  - Earlier versions: the last five configurations of every profile.
+  - Compare profiles, statistics (play time, most played games).
+
+Many profiles at once
+  - Presets (Windows 95/98, Windows 3.1, slow and fast games, Tandy, PC-98,
+    your own), also for all selected profiles.
+  - Switch to another DOSBox version, with preview, report and a comparison
+    of both versions.
+  - Edit several profiles, including the further settings.
+  - Undo the last change of several profiles.
+
+Safety and comfort
+  - Create and restore backups, optionally automatic.
+  - Status window with DOSBox output, errors highlighted, messages clickable.
+  - Drop a dosbox.conf on a profile to take over its settings.
+  - PC-98: browse, start and boot hard disk and floppy images.
+  - Remove unused DOSBox versions together with their folder (with a double
+    safety question).
+
+
+SMALLER IMPROVEMENTS
+--------------------
+  - Play time per game, as a sortable column.
+  - German complete, about 7,000 more texts translated in 17 languages.
+  - Tooltips stay while the mouse is over them (can be turned off).
+  - "Differences from defaults..." for every profile.
+  - Check of folders, images and values before starting.
+  - Version check at startup, configuration rewritten when needed.
+  - Newer DOSBox versions DBGL does not know yet are mapped correctly.
+  - Shader lists with your own shaders, "Sound Blaster 2" page.
+  - Help -> "New features..." and "Changelog...".
+
+
+BUG FIXES COMPARED TO 0.100 BETA 17
+-----------------------------------
+  - DOSBox-X 2024.10.01 and later: the configuration held only about half of
+    the settings.
+  - Paths with spaces work (8.3 short names as in DOSBox).
+  - Empty entries overrode DOSBox defaults.
+  - Boot lines with a Windows path created a broken mount.
+  - Assigning another DOSBox version took over old defaults.
+  - Reader for older DOSBox configurations fixed.
+  - No DOSBox window when opening profiles or detecting the version.
+  - Failed boot: the DOSBox message stays visible.
+
+All changes in detail: Help -> Changelog...

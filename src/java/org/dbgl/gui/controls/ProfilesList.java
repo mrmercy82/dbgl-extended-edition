@@ -310,8 +310,10 @@ public class ProfilesList {
 	 * onClick, both with the index of the profile.
 	 */
 	public void setWarningHandlers(java.util.function.IntFunction<String> problems, java.util.function.IntConsumer onClick) {
-		if (type_ != ProfilesListType.TABLE)
+		if (type_ != ProfilesListType.TABLE) {
+			setGalleryWarningHandlers(problems, onClick);
 			return;
+		}
 		// the sign takes the whole image area in front of the title, a little wider for an easier hit
 		java.util.function.Function<org.eclipse.swt.graphics.Point, Integer> signAt = p -> {
 			TableItem item = table_.getItem(p);
@@ -328,6 +330,32 @@ public class ProfilesList {
 			int index = event.button == 1 ? signAt.apply(new org.eclipse.swt.graphics.Point(event.x, event.y)): -1;
 			if (index >= 0)
 				table_.getDisplay().asyncExec(() -> onClick.accept(index));
+		});
+	}
+
+	/** tiles and boxes: the title as tooltip, plus the problems for a profile with a warning sign (top right corner) */
+	private void setGalleryWarningHandlers(java.util.function.IntFunction<String> problems, java.util.function.IntConsumer onClick) {
+		gallery_.removeListener(SWT.MouseHover, toolTipOpenListener); // replaced by the tooltip below
+		java.util.function.Function<org.eclipse.swt.graphics.Point, Integer> signAt = p -> {
+			GalleryItem item = gallery_.getItem(p);
+			if ((item == null) || (item.getData(AbstractGalleryItemRenderer.OVERLAY_TOP_RIGHT) == null))
+				return -1;
+			org.eclipse.swt.graphics.Rectangle b = item.getBounds();
+			int size = warningLarge_.getBounds().width + 8;
+			return (p.x >= b.x + b.width - size) && (p.y <= b.y + size) ? group_.indexOf(item): -1;
+		};
+		org.dbgl.gui.LongToolTips.setProvider(gallery_, p -> {
+			GalleryItem item = gallery_.getItem(p);
+			if (item == null)
+				return null;
+			String title = item.getText(1);
+			String problemsText = item.getData(AbstractGalleryItemRenderer.OVERLAY_TOP_RIGHT) != null ? problems.apply(group_.indexOf(item)): null;
+			return problemsText == null ? title: title + "\n\n" + problemsText;
+		});
+		gallery_.addListener(SWT.MouseUp, event -> {
+			int index = event.button == 1 ? signAt.apply(new org.eclipse.swt.graphics.Point(event.x, event.y)): -1;
+			if (index >= 0)
+				gallery_.getDisplay().asyncExec(() -> onClick.accept(index));
 		});
 	}
 
