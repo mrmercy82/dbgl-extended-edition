@@ -571,6 +571,17 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 
 	@Override
 	protected void updatePageTree(TemplateProfileBase configurable, boolean hideEmptyPages) {
+		String cacheKey = hideEmptyPages ? pageTreeCacheKey(configurable): null;
+		PageTreeInfo known = cacheKey != null ? PAGE_TREE_CACHE.get(cacheKey): null;
+		if (known != null) {
+			// the same DOSBox version was shown before: no need to create all pages to find out which ones have content
+			if (supportsMoreSettingsPage() && (extrasComputedFor_ != configurable.getDosboxVersion())) {
+				extrasByPage_ = known.extrasByPage();
+				extrasComputedFor_ = configurable.getDosboxVersion();
+			}
+			showPages(configurable, known.shownPages());
+			return;
+		}
 		if (hideEmptyPages && supportsMoreSettingsPage()) {
 			// the settings themselves are only created when their page is shown; until then, mark the pages that will have some
 			computeExtras(configurable);
@@ -579,6 +590,23 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 					e.getValue().setData(HAS_CONTENT, extrasByPage_.containsKey(e.getKey()) ? Boolean.TRUE: null);
 		}
 		super.updatePageTree(configurable, hideEmptyPages);
+		if (cacheKey != null)
+			PAGE_TREE_CACHE.put(cacheKey, new PageTreeInfo(shownPageKeys(), supportsMoreSettingsPage() ? extrasByPage_: Map.of()));
+	}
+
+	/** which pages have content and where the settings without a field of their own go, per dialog and DOSBox version */
+	private record PageTreeInfo(Set<String> shownPages, Map<String, List<String[]>> extrasByPage) {
+	}
+
+	private static final Map<String, PageTreeInfo> PAGE_TREE_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
+
+	private String pageTreeCacheKey(TemplateProfileBase configurable) {
+		DosboxVersion dbversion = configurable.getDosboxVersion();
+		if (dbversion == null)
+			return null;
+		String conf = dbversion.getConfigurationStringCached();
+		return getClass().getName() + '|' + dbversion.getId() + '|' + dbversion.getConfigurationCanonicalFile() + '|' + conf.length() + '|' + conf.hashCode() + '|'
+				+ SettingsService.getInstance().getBooleanValue("gui", "hideunsupportedsettings") + '|' + supportsMoreSettingsPage();
 	}
 
 	protected void updateControlsByConfigurable(TemplateProfileBase configurable) {
@@ -588,7 +616,6 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		// enable or disable controls, and leave pages without supported settings out of the tree
 		// pages without any setting of the selected DOSBox version are always left out, hiding single settings is up to the user
 		boolean hideEmptyPages = true;
-		computeAllPages(configurable);
 		discardOutdatedExtras(configurable);
 		metaControls_.forEach(x -> x.enableOrDisableControl(configurable));
 		updatePageTree(configurable, hideEmptyPages);
@@ -621,7 +648,20 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 			doPerformDosboxConfAction(DosboxConfAction.SWITCH, dbversionsList_.get(dbversionCombo_.getSelectionIndex()));
 	}
 
+	/**
+	 * When the dialog opens: if this DOSBox version was shown before, the tree is right at once. Otherwise all pages must be
+	 * created to find out which ones have content, which takes a moment; the dialog shows up first with all pages, and leaves
+	 * out the empty ones right after.
+	 */
 	protected void updatePageTree(TemplateProfileBase configurable) {
+		String cacheKey = pageTreeCacheKey(configurable);
+		if ((cacheKey != null) && !PAGE_TREE_CACHE.containsKey(cacheKey)) {
+			display_.asyncExec(() -> {
+				if (!shell_.isDisposed())
+					updatePageTree(currentConfigurable(), true);
+			});
+			return;
+		}
 		updatePageTree(configurable, true);
 	}
 
@@ -1744,6 +1784,8 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 			.section("soundcanvas").item("soundcanvas_model").build(metaControls_).init(configurable);
 		Chain.on(midiExpGroup).lbl(l -> l.key("dialog.template.soundcanvasromdir")).txt(t -> t.tooltip("dialog.template.soundcanvasromdir.tooltip"))
 			.section("soundcanvas").item("soundcanvas_rom_dir").build(metaControls_).init(configurable);
+		Chain.on(midiExpGroup).lbl(l -> l.key("dialog.template.soundcanvasfilter")).cmb(c -> c.editable().tooltip("dialog.template.soundcanvasfilter.tooltip").items(new String[] {"on", "off"}))
+			.section("soundcanvas").item("soundcanvas_filter").build(metaControls_).init(configurable);
 		return composite;
 	}
 	
@@ -2310,6 +2352,9 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		Chain.on(expNetwork).lbl(l -> l.key("dialog.template.slirphost")).txt(t -> t.tooltip("dialog.template.slirphost.tooltip")).section("ethernet, slirp").item("ipv4_host").build(metaControls_).init(configurable);
 		Chain.on(expNetwork).lbl(l -> l.key("dialog.template.slirpnameserver")).txt(t -> t.tooltip("dialog.template.slirpnameserver.tooltip")).section("ethernet, slirp").item("ipv4_nameserver").build(metaControls_).init(configurable);
 		Chain.on(expNetwork).lbl(l -> l.key("dialog.template.slirpdhcpstart")).txt(t -> t.tooltip("dialog.template.slirpdhcpstart.tooltip")).section("ethernet, slirp").item("ipv4_dhcp_start").build(metaControls_).init(configurable);
+		Chain.on(expNetwork).lbl(l -> l.key("dialog.template.webserverenabled")).but(b -> b.tooltip("dialog.template.webserverenabled.tooltip")).section("webserver").item("webserver_enabled").build(metaControls_).init(configurable);
+		Chain.on(expNetwork).lbl(l -> l.key("dialog.template.webserverbindaddress")).txt(t -> t.tooltip("dialog.template.webserverbindaddress.tooltip")).section("webserver").item("webserver_bind_address").build(metaControls_).init(configurable);
+		Chain.on(expNetwork).lbl(l -> l.key("dialog.template.webserverport")).txt(t -> t.tooltip("dialog.template.webserverport.tooltip")).section("webserver").item("webserver_port").build(metaControls_).init(configurable);
 		return composite;
 	}
 	

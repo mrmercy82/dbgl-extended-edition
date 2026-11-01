@@ -74,14 +74,23 @@ public class DosboxVersionDetector {
 	 * @return the detected family and version, or null if the executable didn't report a version DBGL recognizes
 	 */
 	public static Result detect(File executable, File cwd) {
+		return detect(executable, cwd, true);
+	}
+
+	/**
+	 * @param mayRun if false, the version is only read from the executable file. Starting DOSBox opens a window on Windows
+	 *            (a console, or DOSBox-X its own), which must not happen in the background or when a dialog opens.
+	 */
+	public static Result detect(File executable, File cwd, boolean mayRun) {
 		if ((executable == null) || !executable.isFile())
 			return null;
-		if (executable.getName().toLowerCase().contains("dosbox-x")) {
-			// DOSBox-X on Windows prints its version into a console of its own, not to us; read it from the executable instead
-			Result scanned = scanDosboxXExecutable(executable);
-			if (scanned != null)
-				return scanned;
-		}
+		// DOSBox-X and DOSBox Staging carry their version as text in the executable; reading it opens no window
+		// Staging first: its executable also contains the text "DOSBox-X" (a CD-ROM name), DOSBox-X never "DOSBox Staging"
+		Result scanned = scanStagingExecutable(executable);
+		if (scanned == null)
+			scanned = scanDosboxXExecutable(executable);
+		if ((scanned != null) || !mayRun)
+			return scanned;
 		try {
 			ProcessBuilder pb = new ProcessBuilder(executable.getPath(), "-version");
 			if ((cwd != null) && cwd.isDirectory())
@@ -109,6 +118,21 @@ public class DosboxVersionDetector {
 			Thread.currentThread().interrupt();
 			return null;
 		}
+	}
+
+	private static final Pattern STAGING_MODEM_PATRN = Pattern.compile("Modem compiled for DOSBox version (\\d+\\.\\d+\\.\\d+)");
+	private static final Pattern STAGING_HASH_PATRN = Pattern.compile("\\b(0\\.\\d{2}\\.\\d+) \\([0-9a-f]{5,12}\\)");
+
+	/** The version of a DOSBox Staging executable, without running it: e.g. "0.83.0 (7b400)" is stored in the program as text. */
+	public static Result scanStagingExecutable(File executable) {
+		String text = readAsText(executable);
+		if ((text == null) || !(text.contains("DOSBox Staging") || text.contains("dosbox-staging")))
+			return null;
+		Matcher m = STAGING_HASH_PATRN.matcher(text);
+		if (m.find())
+			return new Result(SettingsService.STAGING_DOSBOX_FAM.title_, m.group(1));
+		m = STAGING_MODEM_PATRN.matcher(text);
+		return m.find() ? new Result(SettingsService.STAGING_DOSBOX_FAM.title_, m.group(1)): null;
 	}
 
 	private static final Pattern X_DATE_PATRN = Pattern.compile("\\b(20\\d{2}\\.[01]\\d\\.[0-3]\\d)\\b");
@@ -155,7 +179,6 @@ public class DosboxVersionDetector {
 	}
 
 	private static final Map<String, List<String>> SHADER_CACHE = new ConcurrentHashMap<>();
-	private static final Pattern SHADER_LINE_PATRN = Pattern.compile("^\\s*[|`]-\\s+(\\S+)\\s*$");
 
 	/**
 	 * The shaders a DOSBox Staging executable finds in its resource folders, by running it with --list-shaders (0.83+) or
@@ -165,47 +188,59 @@ public class DosboxVersionDetector {
 		if ((executable == null) || !executable.isFile())
 			return List.of();
 		String key = executable.getAbsolutePath() + '|' + executable.length() + '|' + executable.lastModified() + '|' + staging083;
-		return SHADER_CACHE.computeIfAbsent(key, k -> {
-			String output = run(executable, cwd, staging083 ? "--list-shaders": "--list-glshaders");
-			List<String> result = new java.util.ArrayList<>();
-			if (output != null)
-				for (String line: output.split("\\R")) {
-					Matcher m = SHADER_LINE_PATRN.matcher(line);
-					if (m.matches())
-						result.add(m.group(1));
-				}
-			return result;
-		});
+		return SHADER_CACHE.computeIfAbsent(key, k -> listShaders(executable, cwd, staging083));
 	}
 
-	private static String run(File executable, File cwd, String argument) {
-		try {
-			ProcessBuilder pb = new ProcessBuilder(executable.getPath(), argument);
-			if ((cwd != null) && cwd.isDirectory())
-				pb.directory(cwd);
-			pb.redirectErrorStream(true);
-			Process proc = pb.start();
-			proc.getOutputStream().close();
-			StringBuilder output = new StringBuilder();
-			Thread reader = new Thread(() -> {
-				try (InputStream is = proc.getInputStream()) {
-					output.append(IOUtils.toString(is, Charset.defaultCharset()));
-				} catch (IOException e) {
-					// use what we have
-				}
-			});
-			reader.setDaemon(true);
-			reader.start();
-			if (!proc.waitFor(TIMEOUT_SECONDS, TimeUnit.SECONDS))
-				proc.destroyForcibly();
-			reader.join(2000);
-			return output.toString();
-		} catch (IOException e) {
-			return null;
-		} catch (InterruptedException e) {
-			Thread.currentThread().interrupt();
-			return null;
+	/**
+	 * The shaders DOSBox Staging finds, by looking into the same folders it does (see get_resource_parent_paths in Staging),
+	 * instead of running it with --list-shaders: that opened a window on Windows and took a moment.
+	 */
+	static List<String> listShaders(File executable, File cwd, boolean staging083) {
+		String sub = staging083 ? "shaders": "glshaders";
+		java.util.Set<File> parents = new java.util.LinkedHashSet<>();
+		File exeDir = executable.getAbsoluteFile().getParentFile();
+		if (cwd != null) {
+			parents.add(cwd);
+			parents.add(new File(cwd, "resources"));
 		}
+		if (exeDir != null) {
+			parents.add(new File(exeDir, "resources"));
+			parents.add(new File(exeDir.getParentFile(), "resources"));
+			parents.add(new File(exeDir.getParentFile(), "Resources")); // macOS app bundle
+			parents.add(new File(exeDir.getParentFile(), "share/dosbox-staging"));
+		}
+		String home = System.getProperty("user.home");
+		if (SystemUtils.IS_WINDOWS) {
+			String local = System.getenv("LOCALAPPDATA");
+			if (local != null)
+				parents.add(new File(local, "DOSBox"));
+		} else if (SystemUtils.IS_OSX) {
+			parents.add(new File(home, "Library/Preferences/DOSBox"));
+		} else {
+			String xdgData = System.getenv("XDG_DATA_HOME");
+			parents.add(new File(xdgData != null ? xdgData: home + "/.local/share", "dosbox-staging"));
+			parents.add(new File("/usr/share/dosbox-staging"));
+			parents.add(new File("/usr/local/share/dosbox-staging"));
+			String xdgConfig = System.getenv("XDG_CONFIG_HOME");
+			parents.add(new File(xdgConfig != null ? xdgConfig: home + "/.config", "dosbox"));
+		}
+		java.util.Set<String> result = new java.util.TreeSet<>();
+		for (File parent: parents) {
+			File dir = new File(parent, sub);
+			if (!dir.isDirectory())
+				continue;
+			try (java.util.stream.Stream<java.nio.file.Path> files = java.nio.file.Files.walk(dir.toPath(), 4)) {
+				files.filter(p -> java.nio.file.Files.isRegularFile(p) && p.getFileName().toString().toLowerCase().endsWith(".glsl")).forEach(p -> {
+					String name = dir.toPath().relativize(p).toString().replace(File.separatorChar, '/');
+					name = name.substring(0, name.length() - 5);
+					if (!name.startsWith("_"))
+						result.add(name);
+				});
+			} catch (IOException e) {
+				// skip this folder
+			}
+		}
+		return new java.util.ArrayList<>(result);
 	}
 
 	/** like detect, but runs every executable file (path, size and date) only once */
@@ -213,7 +248,7 @@ public class DosboxVersionDetector {
 		if ((executable == null) || !executable.isFile())
 			return null;
 		String key = executable.getAbsolutePath() + '|' + executable.length() + '|' + executable.lastModified();
-		return CACHE.computeIfAbsent(key, k -> Optional.ofNullable(detect(executable, cwd))).orElse(null);
+		return CACHE.computeIfAbsent(key, k -> Optional.ofNullable(detect(executable, cwd, false))).orElse(null);
 	}
 
 	/** @return true for DOSBox Staging version strings 0.83.0 and newer */

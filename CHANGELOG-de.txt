@@ -4,6 +4,26 @@ DBGL - Änderungen seit 0.100 beta 17
 Grundlage: DBGL 0.100 beta 17 (Quellcode). Neueste Version zuerst.
 
 
+0.101 alpha 17
+--------------
+- DOSBox Staging 0.83: "Sound-Canvas-Filter" steht jetzt unter Audio -> Midi
+  in den experimentellen Einstellungen, "Webserver (REST-API)", "Adresse des
+  Webservers" und "Port des Webservers" unter Netzwerk. Damit hat Staging 0.83
+  keine weiteren Einstellungen ohne eigenes Feld mehr.
+- Beim ersten Bearbeiten eines Profils öffnete sich ein DOSBox-Fenster: DBGL
+  startete DOSBox Staging mit --list-shaders, um die Shader-Liste zu holen.
+  DBGL sucht die Shader jetzt selbst in denselben Ordnern wie Staging
+  (resources/shaders, Benutzerordner).
+- Versionsprüfung beim Start und beim Starten eines Spiels: Die Version von
+  DOSBox Staging und DOSBox-X wird aus der Programmdatei gelesen, DOSBox wird
+  dafür nicht mehr gestartet. Andere DOSBox-Versionen werden nur noch beim
+  Knopf "Erkennen" gestartet.
+- Der Profildialog öffnet sich deutlich schneller: Welche Seiten eine
+  DOSBox-Version braucht, merkt sich DBGL nach dem ersten Mal (bei DOSBox-X von
+  etwa 1 Sekunde auf unter 0,1 Sekunden). Beim ersten Mal erscheint der Dialog
+  sofort mit allen Seiten, leere Seiten verschwinden gleich danach.
+
+
 0.101 alpha 16
 --------------
 - Deutsche Übersetzung vervollständigt: rund 740 Texte, die bisher englisch

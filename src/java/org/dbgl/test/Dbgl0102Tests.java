@@ -431,4 +431,16 @@ public class Dbgl0102Tests {
 		String report = org.dbgl.util.ProfileReports.compare(profile, other, GenericTextService.getInstance());
 		assertTrue(report, report.contains("[dosbox] memsize") && report.contains("[cpu] cpu_cycles") && !report.contains("[sdl] output"));
 	}
+	@Test
+	public void testStagingExecutableScan() throws IOException {
+		File exe = File.createTempFile("dbgl-staging-", ".exe");
+		exe.deleteOnExit();
+		// Staging also contains "DOSBox-X" (a CD-ROM name) and dates; it must not be taken for DOSBox-X
+		Files.write(exe.toPath(), "MZ..DOSBox Staging version %s | DOSBox-X Virtual CD-ROM | 2024.03.01 | 0.83.0 (7b400) |".getBytes(StandardCharsets.ISO_8859_1));
+		DosboxVersionDetector.Result r = DosboxVersionDetector.detect(exe, null, false);
+		assertEquals(SettingsService.STAGING_DOSBOX_FAM.title_, r.family_);
+		assertEquals("0.83.0", r.version_);
+		Files.write(exe.toPath(), "MZ..DOSBox version 0.74-3 |".getBytes(StandardCharsets.ISO_8859_1));
+		assertNull(DosboxVersionDetector.detect(exe, null, false)); // not run, so unknown
+	}
 }

@@ -249,6 +249,20 @@ public abstract class SizeControlledPagedDialog<T> extends SizeControlledButtonD
 		} else {
 			pageNodes_.forEach(n -> shown.add(n.key()));
 		}
+		showPages(configurable, shown);
+	}
+
+	/** the keys of the pages in the tree right now, in order */
+	protected Set<String> shownPageKeys() {
+		Set<String> result = new LinkedHashSet<>();
+		allTreeItems(tree_.getItems()).forEach(x -> result.add((String)x.getData()));
+		return result;
+	}
+
+	/** put exactly these pages into the tree, e.g. as found out before for the same DOSBox version, without creating all pages */
+	protected void showPages(TemplateProfileBase configurable, Set<String> shownKeys) {
+		Set<String> shown = new LinkedHashSet<>();
+		pageNodes_.stream().map(PageNode::key).filter(shownKeys::contains).forEach(shown::add);
 
 		List<TreeItem> current = allTreeItems(tree_.getItems());
 		if (current.stream().map(x -> (String)x.getData()).toList().equals(new ArrayList<>(shown)))
