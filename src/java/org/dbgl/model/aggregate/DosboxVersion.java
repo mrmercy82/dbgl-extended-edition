@@ -174,13 +174,37 @@ public class DosboxVersion extends Configurable implements ICanBeDefault, Compar
 		return configuration_.toString(null);
 	}
 
+	private String cachedConfigurationString_;
+	private long cachedConfigurationStringTime_;
+
+	/**
+	 * The configuration as text, kept for a few seconds: building a profile dialog needs it for every field. A reload of the
+	 * configuration starts over.
+	 */
+	public String getConfigurationStringCached() {
+		long now = System.currentTimeMillis();
+		if ((cachedConfigurationString_ == null) || (now - cachedConfigurationStringTime_ > 5000)) {
+			cachedConfigurationString_ = getConfigurationString();
+			cachedConfigurationStringTime_ = now;
+		}
+		return cachedConfigurationString_;
+	}
+
+	@Override
+	public void setConfiguration(org.dbgl.model.conf.Configuration configuration) {
+		cachedConfigurationString_ = null;
+		super.setConfiguration(configuration);
+	}
+
 	public String resetAndLoadConfiguration() throws IOException {
+		cachedConfigurationString_ = null;
 		String warnings = configuration_.reloadWithAutoexec(TextService.getInstance(), null);
 		confValueOptions_ = null;
 		return warnings;
 	}
 
 	public String loadConfigurationData(ITextService text, String data, File file) throws IOException {
+		cachedConfigurationString_ = null;
 		String warnings = configuration_.loadDataWithAutoexec(text, data, file, null);
 		confValueOptions_ = ConfValueOptions.parse(data);
 		return warnings;

@@ -100,13 +100,37 @@ public abstract class TemplateProfileBase extends GenerationAwareConfigurable {
 		return configuration_.toString(getNettoMountingPoints());
 	}
 
+	private String combinedCacheKey_;
+	private Configuration combinedCache_;
+
+	/**
+	 * Like {@link #getCombinedConfiguration()}, but parsed again only when the DOSBox configuration or the own configuration
+	 * changed. Building a profile dialog asks for it for every field, and parsing a configuration of DOSBox-X (some 3000 lines)
+	 * each time made opening the dialog slow. The result must only be read.
+	 */
+	public Configuration getCombinedConfigurationForReading() {
+		String dosboxString = dosboxVersion_.getConfigurationStringCached();
+		String ownString = getConfigurationString();
+		String key = dosboxString.length() + ":" + dosboxString.hashCode() + ":" + System.identityHashCode(dosboxVersion_) + ":" + ownString + ":"
+				+ configuration_.getAutoexec().getBooterByDefault() + ":" + configuration_.getAutoexec().getGameMain();
+		if ((combinedCache_ == null) || !key.equals(combinedCacheKey_)) {
+			combinedCache_ = combine(dosboxString, ownString);
+			combinedCacheKey_ = key;
+		}
+		return combinedCache_;
+	}
+
 	public Configuration getCombinedConfiguration() {
+		return combine(dosboxVersion_.getConfigurationString(), getConfigurationString());
+	}
+
+	private Configuration combine(String dosboxString, String ownString) {
 		ITextService text = TextService.getInstance();
 		Configuration conf = new Configuration();
 		try {
 			StringBuilder warnings = new StringBuilder();
-			warnings.append(conf.loadDataWithAutoexec(text, dosboxVersion_.getConfigurationString(), dosboxVersion_.getConfigurationFile(), null));
-			warnings.append(conf.loadDataWithAutoexec(text, getConfigurationString(), configuration_.getFileLocation() != null ? getConfigurationFile(): null, null));
+			warnings.append(conf.loadDataWithAutoexec(text, dosboxString, dosboxVersion_.getConfigurationFile(), null));
+			warnings.append(conf.loadDataWithAutoexec(text, ownString, configuration_.getFileLocation() != null ? getConfigurationFile(): null, null));
 			conf.getAutoexec().setBooterByDefault(configuration_.getAutoexec().getBooterByDefault());
 			conf.getAutoexec().setGameMain(configuration_.getAutoexec().getGameMain());
 			if (StringUtils.isNotEmpty(warnings)) {

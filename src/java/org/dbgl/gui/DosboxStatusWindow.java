@@ -23,6 +23,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.regex.Pattern;
@@ -96,6 +97,43 @@ public class DosboxStatusWindow {
 	private Color harmlessColor_;
 	private final long startMillis_ = System.currentTimeMillis();
 
+	/** messages of DOSBox about a setting of the configuration; group 1 is the name of the setting */
+	private static final java.util.List<java.util.regex.Pattern> SETTING_PATRNS = java.util.List.of(
+		java.util.regex.Pattern.compile("(?:Invalid|Deprecated) '([^']+)' setting"), // Staging
+		java.util.regex.Pattern.compile("Deprecated setting '([^']+)'"),
+		java.util.regex.Pattern.compile("No config section or setting exists with the name '([^']+)'"),
+		java.util.regex.Pattern.compile("is not a valid value for variable: ([^.\\s][^.]*)\\."), // DOSBox, DOSBox-X
+		java.util.regex.Pattern.compile("(?i)unknown (?:option|setting|property|config option)[: ]+'?([A-Za-z0-9_][A-Za-z0-9_ .-]*?)'?\\.?\\s*$"));
+	private static final java.util.regex.Pattern MARKUP_PATRN = java.util.regex.Pattern.compile("\\[(?:color=[a-z-]+|reset)\\]");
+
+	/** asked to show a setting of a profile (profile id, name of the setting), e.g. by the main window */
+	private static volatile java.util.function.BiConsumer<Integer, String> settingLinkHandler_;
+	private volatile int profileId_ = -1;
+	private final java.util.List<int[]> linkRanges_ = new ArrayList<>();
+	private final java.util.List<String> linkSettings_ = new ArrayList<>();
+
+	public static void setSettingLinkHandler(java.util.function.BiConsumer<Integer, String> handler) {
+		settingLinkHandler_ = handler;
+	}
+
+	/** @return the name of the setting a message of DOSBox is about, or null */
+	public static String settingIn(String line) {
+		if (line == null)
+			return null;
+		String plain = MARKUP_PATRN.matcher(line).replaceAll("");
+		for (java.util.regex.Pattern p: SETTING_PATRNS) {
+			java.util.regex.Matcher m = p.matcher(plain);
+			if (m.find())
+				return m.group(1).strip();
+		}
+		return null;
+	}
+
+	/** the profile DOSBox was started for; messages about its settings become links to the profile dialog */
+	public void setProfileId(int profileId) {
+		profileId_ = profileId;
+	}
+
 	private DosboxStatusWindow(Display display, String commandLine) {
 		display_ = display;
 		commandLine_ = commandLine;
@@ -132,6 +170,14 @@ public class DosboxStatusWindow {
 
 		text_ = new StyledText(shell_, SWT.MULTI | SWT.READ_ONLY | SWT.V_SCROLL | SWT.H_SCROLL | SWT.BORDER);
 		text_.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 5, 1));
+		// messages about a setting of the profile open the profile dialog there
+		text_.addListener(SWT.MouseUp, e -> {
+			String setting = (e.button == 1) && (text_.getSelectionCount() == 0) ? linkAt(e.x, e.y): null;
+			java.util.function.BiConsumer<Integer, String> handler = settingLinkHandler_;
+			if ((setting != null) && (handler != null))
+				handler.accept(profileId_, setting);
+		});
+		text_.addListener(SWT.MouseMove, e -> text_.setCursor(linkAt(e.x, e.y) != null ? display_.getSystemCursor(SWT.CURSOR_HAND): null));
 		font_ = new Font(display_, SystemUtils.IS_WINDOWS ? "Consolas": (SystemUtils.IS_OSX ? "Menlo": "Monospace"), 9, SWT.NORMAL);
 		text_.setFont(font_);
 		if (DarkTheme.forced()) {
@@ -311,9 +357,33 @@ public class DosboxStatusWindow {
 			color = warningColor_;
 			warnings_++;
 		}
+		int start = text_.getCharCount();
 		appendLine(line, color);
+		String setting = (profileId_ >= 0) && (settingLinkHandler_ != null) ? settingIn(line): null;
+		if (setting != null) {
+			StyleRange range = new StyleRange();
+			range.start = start;
+			range.length = line.length();
+			range.foreground = color;
+			range.underline = true;
+			range.underlineStyle = SWT.UNDERLINE_LINK;
+			text_.setStyleRange(range);
+			linkRanges_.add(new int[] {start, start + line.length()});
+			linkSettings_.add(setting);
+		}
 		if ((color == errorColor_) || (color == warningColor_))
 			updateTitle(null);
+	}
+
+	/** the setting of the link at a position in the text, or null */
+	private String linkAt(int x, int y) {
+		int offset = text_.getOffsetAtPoint(new org.eclipse.swt.graphics.Point(x, y));
+		if (offset < 0)
+			return null;
+		for (int i = 0; i < linkRanges_.size(); i++)
+			if ((offset >= linkRanges_.get(i)[0]) && (offset < linkRanges_.get(i)[1]))
+				return linkSettings_.get(i);
+		return null;
 	}
 
 	/**
@@ -322,9 +392,14 @@ public class DosboxStatusWindow {
 	 * thread.
 	 */
 	public static void showAfterQuickExit(String commandLine, List<String> output, int exitCode, long elapsedMillis) {
+		showAfterQuickExit(commandLine, output, exitCode, elapsedMillis, -1);
+	}
+
+	public static void showAfterQuickExit(String commandLine, List<String> output, int exitCode, long elapsedMillis, int profileId) {
 		DosboxStatusWindow window = open(commandLine);
 		if (window == null)
 			return;
+		window.setProfileId(profileId);
 		window.display_.asyncExec(() -> {
 			if (window.isGone())
 				return;

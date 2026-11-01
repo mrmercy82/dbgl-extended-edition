@@ -386,4 +386,49 @@ public class Dbgl0102Tests {
 		assertEquals("1:01", org.dbgl.model.ProfileStats.formatPlayTime(3660));
 		assertEquals("0:05", org.dbgl.model.ProfileStats.formatPlayTime(300));
 	}
+	@Test
+	public void testStatusWindowSettingLinks() {
+		assertEquals("cpu_cycles", org.dbgl.gui.DosboxStatusWindow.settingIn("2026-11-01 12:00:00.000 | CONFIG: Invalid [color=light-green]'cpu_cycles'[reset] setting: [color=white]'fast'[reset];"));
+		assertEquals("glshader", org.dbgl.gui.DosboxStatusWindow.settingIn("Deprecated 'glshader' setting: 'sharp'; using 'interpolation/sharp'"));
+		assertEquals("aspect", org.dbgl.gui.DosboxStatusWindow.settingIn("Deprecated setting 'aspect'"));
+		assertEquals("output", org.dbgl.gui.DosboxStatusWindow.settingIn("\"overlay\" is not a valid value for variable: output."));
+		assertEquals("foo bar", org.dbgl.gui.DosboxStatusWindow.settingIn("CONFIG: Unknown option foo bar."));
+		assertNull(org.dbgl.gui.DosboxStatusWindow.settingIn("DOSBox Staging 0.83.0 started"));
+	}
+
+	@Test
+	public void testAutoBackupDue() {
+		java.time.LocalDate today = java.time.LocalDate.of(2026, 11, 1);
+		assertFalse(org.dbgl.service.BackupService.isAutoBackupDue("never", "", today));
+		assertTrue(org.dbgl.service.BackupService.isAutoBackupDue("daily", "", today));
+		assertFalse(org.dbgl.service.BackupService.isAutoBackupDue("daily", "2026-11-01", today));
+		assertTrue(org.dbgl.service.BackupService.isAutoBackupDue("daily", "2026-10-31", today));
+		assertFalse(org.dbgl.service.BackupService.isAutoBackupDue("weekly", "2026-10-28", today));
+		assertTrue(org.dbgl.service.BackupService.isAutoBackupDue("weekly", "2026-10-25", today));
+		assertTrue(org.dbgl.service.BackupService.isAutoBackupDue("weekly", "garbage", today));
+	}
+
+	@Test
+	public void testPresetsAndConfImport() throws IOException {
+		assertEquals("a_b_c", org.dbgl.util.Presets.safeName(" a/b:c "));
+		org.dbgl.model.aggregate.DosboxVersion v083 = DosboxVersionFactory.create("DOSBox Staging 0.83.0", SettingsService.STAGING_DOSBOX_FAM.title_, "0.83.0", false, true, false, null,
+			"staging083", "", "", "staging083/dosbox.conf");
+		File dosboxConfFile = new File(DATA_DIR, "dosbox-staging-0.83.0.conf");
+		v083.loadConfigurationData(GenericTextService.getInstance(), Files.readString(dosboxConfFile.toPath(), StandardCharsets.UTF_8), dosboxConfFile);
+		org.dbgl.model.aggregate.Profile profile = org.dbgl.model.factory.ProfileFactory.create(v083, null);
+		profile.setTitle("Import");
+		String conf = "[sdl]\nfullscreen = on\noutput = opengl\n\n[cpu]\ncpu_cycles = 12000\n[dosbox]\nmemsize = 32\nnotasetting = 1\n[autoexec]\nmount c .\n";
+		org.dbgl.util.ProfileReports.ImportPlan plan = org.dbgl.util.ProfileReports.planImport(profile, conf);
+		// output=opengl is the default already, so it does not change anything
+		assertEquals(3, plan.count());
+		assertEquals("12000", plan.values().get("cpu").get("cpu_cycles"));
+		assertEquals(List.of("[dosbox] notasetting=1"), plan.unknown());
+		org.dbgl.util.ProfileReports.applyImport(profile, plan);
+		assertEquals("32", profile.getConfiguration().getValue("dosbox", "memsize"));
+
+		org.dbgl.model.aggregate.Profile other = org.dbgl.model.factory.ProfileFactory.create(v083, null);
+		other.setTitle("Other");
+		String report = org.dbgl.util.ProfileReports.compare(profile, other, GenericTextService.getInstance());
+		assertTrue(report, report.contains("[dosbox] memsize") && report.contains("[cpu] cpu_cycles") && !report.contains("[sdl] output"));
+	}
 }

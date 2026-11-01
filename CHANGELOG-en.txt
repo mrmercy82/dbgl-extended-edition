@@ -4,6 +4,44 @@ DBGL - Changes since 0.100 beta 17
 Based on DBGL 0.100 beta 17 (source code). Newest version first.
 
 
+0.101 alpha 16
+--------------
+- German translation completed: about 740 texts that were still English (page
+  names, field names and tooltips) are now German.
+- New settings for the more settings in the profile dialog:
+  - Groups start collapsed, always open, or open only if a value was changed
+    (default).
+  - Also on pages that only hold such settings (default: off, the groups there
+    are always open).
+  - Show the number of changed settings in the heading, e.g. "More settings
+    [sblaster] (24) - 1 changed" (default: on).
+- The profile dialog opens faster (about a quarter for DOSBox-X), because the
+  configuration of the DOSBox version is no longer parsed again for every
+  field.
+- Button "Presets" next to "Differences from the defaults...": Windows 95/98,
+  Windows 3.1, slow games from the XT/286 era, fast DOS games and demos, Tandy,
+  PC-98. Only settings the DOSBox version knows are set. Own presets can be
+  saved from the current values and deleted again (folder "presets").
+- Context menu "Compare profiles...": two selected profiles, all values that
+  differ (as they take effect) and differing [autoexec] lines.
+- Earlier versions: whenever a changed profile is saved, the previous
+  configuration file is kept (the last five, folder profiles/history). Context
+  menu "Restore an earlier version..." shows them with the differences to the
+  current version.
+- Search in the profile dialog also finds descriptions, tooltips and values.
+  Enter jumps to the next page with a match and opens collapsed groups.
+- Menu Profiles -> "Statistics...": total play time, starts, the games played
+  most, started most often, played last and never started.
+- Automatic backup at startup: never (default), daily or weekly, with the number
+  of backups to keep (folder "backups").
+- Status window: messages of DOSBox about a setting (e.g. "Invalid
+  'cpu_cycles' setting") are underlined; clicking one opens the profile at that
+  setting.
+- Drop a dosbox.conf onto a profile, or context menu "Take over settings from a
+  DOSBox configuration...": shows what changes and takes over the settings the
+  DOSBox version knows. [autoexec] is not taken over.
+
+
 0.101 alpha 15
 --------------
 - Pages of the navigation tree for which the selected DOSBox version has no

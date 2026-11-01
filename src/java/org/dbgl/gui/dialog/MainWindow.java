@@ -282,6 +282,11 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		if (settings_.getBooleanValue("dosbox", "checkforupdates"))
 			checkForDosboxUpdatesInBackground();
 
+		display_.asyncExec(this::autoBackupIfDue);
+
+		// messages of DOSBox about a setting open the profile dialog at that setting
+		org.dbgl.gui.DosboxStatusWindow.setSettingLinkHandler((profileId, setting) -> display_.asyncExec(() -> doEditProfileSetting(profileId, setting)));
+
 		// the play time is added when DOSBox ends; show it
 		ExecuteUtils.setPlayTimeListener(id -> {
 			if (!shell_.isDisposed() && profilesList_.stream().anyMatch(p -> p.getId() == id)) {
@@ -289,6 +294,120 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				displayProfileInformation(false);
 			}
 		});
+	}
+
+	/** the automatic backup, if one is due (see the settings) */
+	private void autoBackupIfDue() {
+		String today = java.time.LocalDate.now().toString();
+		if (!BackupService.isAutoBackupDue(settings_.getValue("backup", "auto"), settings_.getValue("backup", "last"), java.time.LocalDate.now()))
+			return;
+		String dirSetting = settings_.getValue("backup", "dir");
+		File dir = StringUtils.isBlank(dirSetting) ? BackupService.defaultAutoBackupDir(): new File(dirSetting);
+		try {
+			settings_.setValue("backup", "last", today);
+			File zip = BackupService.autoBackup(dir, settings_.getIntValue("backup", "keep"));
+			System.out.println("Automatic backup: " + zip);
+		} catch (IOException | SQLException e) {
+			Mess_.on(shell_).exception(e).warning();
+		}
+	}
+
+	/** open the profile dialog showing a setting, e.g. one DOSBox complained about in the status window */
+	private void doEditProfileSetting(int profileId, String setting) {
+		if (shell_.isDisposed())
+			return;
+		int index = -1;
+		for (int i = 0; i < profilesList_.size(); i++)
+			if (profilesList_.get(i).getId() == profileId)
+				index = i;
+		if (index == -1)
+			return;
+		shell_.forceActive();
+		profileTable_.setSelection(index);
+		Profile profile = new EditSingleProfileDialog(shell_, profilesList_.get(index), null, false).showSetting(setting).open();
+		if (profile != null) {
+			updateProfileListAfterEdit(index, profile);
+			displayProfileInformation(false);
+		}
+	}
+
+	private void doCompareProfiles() {
+		List<Profile> selected = getSelectedProfiles();
+		if (selected.size() != 2) {
+			Mess_.on(shell_).key("dialog.compareprofiles.selecttwo").warning();
+			return;
+		}
+		try {
+			StringBuilder warnings = new StringBuilder();
+			for (Profile p: selected)
+				warnings.append(p.resetAndLoadConfiguration());
+			if (StringUtils.isNotBlank(warnings))
+				System.err.println(warnings);
+			new DifferencesDialog(shell_, text_.get("dialog.compareprofiles.title"), org.dbgl.util.ProfileReports.compare(selected.get(0), selected.get(1), text_)).open();
+		} catch (IOException e) {
+			Mess_.on(shell_).exception(e).warning();
+		}
+	}
+
+	private void doRestoreProfileVersion() {
+		int index = profileTable_.getSelectionIndex();
+		if (index == -1)
+			return;
+		Profile prof = profilesList_.get(index);
+		try {
+			String warnings = prof.resetAndLoadConfiguration();
+			if (StringUtils.isNotBlank(warnings))
+				System.err.println(warnings);
+		} catch (IOException e) {
+			Mess_.on(shell_).exception(e).warning();
+			return;
+		}
+		if (Boolean.TRUE.equals(new ProfileHistoryDialog(shell_, prof).open())) {
+			updateProfilesList(getSelectedProfileIds());
+			displayProfileInformation(false);
+		}
+	}
+
+	private void doImportConf(int index, String file) {
+		if (index == -1)
+			return;
+		if (file == null) {
+			FileDialog dialog = new FileDialog(shell_, SWT.OPEN);
+			dialog.setFilterExtensions(new String[] {"*.conf;*.cfg;*.ini", "*.*"});
+			file = dialog.open();
+			if (file == null)
+				return;
+		}
+		Profile prof = profilesList_.get(index);
+		try {
+			String warnings = prof.resetAndLoadConfiguration();
+			if (StringUtils.isNotBlank(warnings))
+				System.err.println(warnings);
+			String confText = java.nio.file.Files.readString(new File(file).toPath(), java.nio.charset.StandardCharsets.ISO_8859_1);
+			org.dbgl.util.ProfileReports.ImportPlan plan = org.dbgl.util.ProfileReports.planImport(prof, confText);
+			if ((plan.count() == 0) && plan.unknown().isEmpty()) {
+				Mess_.on(shell_).key("dialog.importconf.nothing", new Object[] {new File(file).getName()}).display();
+				return;
+			}
+			String title = text_.get("dialog.importconf.title", new Object[] {new File(file).getName()});
+			if (!Boolean.TRUE.equals(new ConfirmTextDialog(shell_, title, org.dbgl.util.ProfileReports.describe(prof, plan, text_), "dialog.importconf.apply").open()) || (plan.count() == 0))
+				return;
+			org.dbgl.util.ProfileReports.applyImport(prof, plan);
+			new ProfileRepository().update(prof);
+			updateProfilesList(getSelectedProfileIds());
+			displayProfileInformation(false);
+		} catch (IOException | SQLException e) {
+			Mess_.on(shell_).exception(e).warning();
+		}
+	}
+
+	private void doShowStatistics() {
+		try {
+			List<Profile> all = new ProfileRepository().list(StringUtils.EMPTY, StringUtils.EMPTY, dbversionsList_);
+			new DifferencesDialog(shell_, text_.get("dialog.statistics.title"), org.dbgl.util.ProfileReports.statistics(all, text_)).open();
+		} catch (SQLException e) {
+			Mess_.on(shell_).exception(e).warning();
+		}
 	}
 
 	/**
@@ -616,6 +735,12 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			@Override
 			public void widgetSelected(SelectionEvent event) {
 				doMigrate();
+			}
+		}).build();
+		MenuItem_.on(profilesMenu).key("dialog.main.menu.statistics").image(ImageService.IMG_ZOOM).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				doShowStatistics();
 			}
 		}).build();
 		MenuItem_.on(profilesMenu).build();
@@ -947,6 +1072,24 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				}
 			}
 		}).build();
+		MenuItem_.on(menu).key("dialog.main.profile.compare").image(ImageService.IMG_ZOOM).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				doCompareProfiles();
+			}
+		}).build();
+		MenuItem_.on(menu).key("dialog.main.profile.restoreversion").image(ImageService.IMG_REFRESH).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				doRestoreProfileVersion();
+			}
+		}).build();
+		MenuItem_.on(menu).key("dialog.main.profile.importconf").image(ImageService.IMG_IMPORT).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				doImportConf(profileTable_.getSelectionIndex(), null);
+			}
+		}).build();
 		MenuItem_.on(menu).build();
 		MenuItem_.on(menu).key("dialog.main.profile.openfolder").image(ImageService.IMG_FOLDER).listen(new SelectionAdapter() {
 			@Override
@@ -1153,6 +1296,15 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			@Override
 			public void drop(DropTargetEvent event) {
 				String[] filenames = (String[])event.data;
+				if ((filenames != null) && (filenames.length == 1) && filenames[0].toLowerCase().endsWith(".conf") && (event.item instanceof org.eclipse.swt.widgets.TableItem item)) {
+					// a DOSBox configuration dropped onto a profile: take over its settings
+					int index = item.getParent().indexOf(item);
+					if (index != -1) {
+						profileTable_.setSelection(index);
+						doImportConf(index, filenames[0]);
+						return;
+					}
+				}
 				if (filenames != null && filenames.length >= 1)
 					doAddProfile(filenames[0], filenames);
 			}

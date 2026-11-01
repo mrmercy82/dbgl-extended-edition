@@ -242,7 +242,9 @@ public class ProfileRepository extends LoggingRepository<Profile> {
 			actionOnEntity(transaction, DEL_NTVCMD_QRY, "remove profile native commands", profile);
 			addNativeCommands(transaction, profile);
 			log(transaction, LogEntry.Event.EDIT, LogEntry.EntityType.PROFILE, profile);
+			byte[] before = org.dbgl.util.ProfileHistory.read(profile);
 			profile.saveConfiguration();
+			org.dbgl.util.ProfileHistory.recordIfChanged(profile, before); // earlier states can be brought back
 			transaction.commit();
 		} catch (SQLException | IOException e) {
 			e.printStackTrace();
@@ -303,6 +305,7 @@ public class ProfileRepository extends LoggingRepository<Profile> {
 			log(transaction, LogEntry.Event.REMOVE, LogEntry.EntityType.PROFILE, profile);
 			if (removeConfig) {
 				FilesUtils.removeFile(profile.getConfigurationCanonicalFile());
+				org.dbgl.util.ProfileHistory.deleteAll(profile.getId());
 			}
 			if (removeCustomMapper) {
 				File mapperFile = profile.getCustomMapperFile();

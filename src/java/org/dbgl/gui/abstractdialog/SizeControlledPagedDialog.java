@@ -52,6 +52,7 @@ import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Group;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Shell;
+import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Text;
 import org.eclipse.swt.widgets.Tree;
 import org.eclipse.swt.widgets.TreeItem;
@@ -343,7 +344,23 @@ public abstract class SizeControlledPagedDialog<T> extends SizeControlledButtonD
 		return getreeItemByComposite(parent);
 	}
 
+	private static final String SEARCH_HIT = "dbgl.searchhit";
+
+	private TemplateProfileBase searchBase_;
+
+	/** search for the text and show the first page with a match, e.g. for a setting DOSBox complained about */
+	public void searchAndJump(String s) {
+		if ((searchBase_ == null) || search_.isDisposed())
+			return;
+		search_.setText(s);
+		TreeItem[] sel = tree_.getSelection();
+		if (sel.length > 0)
+			tree_.deselectAll(); // start at the first page
+		jumpToNextMatch(searchBase_);
+	}
+
 	protected void addSearchListener(TemplateProfileBase base) {
+		searchBase_ = base;
 		search_.addModifyListener(new ModifyListener() {
 			@Override
 			public void modifyText(ModifyEvent arg0) {
@@ -353,6 +370,48 @@ public abstract class SizeControlledPagedDialog<T> extends SizeControlledButtonD
 				Stream.of(tree_.getItems()).forEach(x -> highlight(s, x));
 			}
 		});
+		// Enter: show the next page with a match
+		search_.addListener(SWT.DefaultSelection, e -> jumpToNextMatch(base));
+	}
+
+	private void jumpToNextMatch(TemplateProfileBase base) {
+		String s = search_.getText().strip().toLowerCase();
+		if (StringUtils.isBlank(s) || (bold_ == null))
+			return;
+		List<TreeItem> items = allTreeItems(tree_.getItems());
+		TreeItem[] sel = tree_.getSelection();
+		int start = sel.length > 0 ? items.indexOf(sel[0]): -1;
+		for (int i = 1; i <= items.size(); i++) {
+			TreeItem item = items.get((start + i) % items.size());
+			if (item.getFont() == bold_) {
+				tree_.setSelection(item);
+				renderPage(base, item);
+				Composite page = pages_.get(item.getData());
+				onSearchJump(page, s);
+				Control hit = firstHit(page);
+				if (hit != null)
+					rightComposite_.showControl(hit);
+				return;
+			}
+		}
+	}
+
+	/** called when the search jumped to a page, e.g. to open collapsed groups with matches */
+	protected void onSearchJump(Composite page, String s) {
+	}
+
+	private static Control firstHit(Control c) {
+		if (!c.isVisible())
+			return null;
+		if (c.getData(SEARCH_HIT) != null)
+			return c;
+		if ((c instanceof Composite comp) && !(c instanceof org.eclipse.swt.widgets.Combo))
+			for (Control child: comp.getChildren()) {
+				Control hit = firstHit(child);
+				if (hit != null)
+					return hit;
+			}
+		return null;
 	}
 
 	private void highlight(String s, TreeItem item) {
@@ -372,17 +431,31 @@ public abstract class SizeControlledPagedDialog<T> extends SizeControlledButtonD
 		Stream.of(item.getItems()).forEach(x -> highlight(s, x));
 	}
 
+	private static boolean matches(String s, String text) {
+		return StringUtils.isNotBlank(s) && StringUtils.isNotBlank(text) && text.toLowerCase().contains(s);
+	}
+
+	/** searches labels (text and tooltip, which holds the description), button texts and the values of text fields and drop-downs */
 	private boolean containedInControl(String s, Control c) {
-		if (c instanceof Label) {
-			String txt = ((Label) c).getText().toLowerCase();
-			if (StringUtils.isNotBlank(txt)) {
-				boolean hl = StringUtils.isNotBlank(s) && txt.contains(s);
-				c.setBackground(hl ? display_.getSystemColor(DarkTheme.forced() ? SWT.COLOR_DARK_RED: SWT.COLOR_YELLOW): c.getParent().getBackground());
-				return hl;
+		boolean hit = false;
+		if (c instanceof Label label) {
+			if (StringUtils.isNotBlank(label.getText())) {
+				hit = matches(s, label.getText()) || matches(s, label.getToolTipText());
+				c.setBackground(hit ? display_.getSystemColor(DarkTheme.forced() ? SWT.COLOR_DARK_RED: SWT.COLOR_YELLOW): c.getParent().getBackground());
 			}
+		} else if (c instanceof Button button) {
+			hit = matches(s, button.getText()) || matches(s, button.getToolTipText());
+		} else if (c instanceof Text text) {
+			hit = ((text.getStyle() & SWT.SEARCH) == 0) && matches(s, text.getText());
+			if (hit || (c.getData(SEARCH_HIT) != null))
+				c.setBackground(hit ? display_.getSystemColor(DarkTheme.forced() ? SWT.COLOR_DARK_RED: SWT.COLOR_YELLOW): null);
+		} else if (c instanceof org.eclipse.swt.widgets.Combo combo) {
+			hit = matches(s, combo.getText());
 		} else if (c instanceof Composite) {
+			c.setData(SEARCH_HIT, null);
 			return Stream.of(((Composite)c).getChildren()).map(x -> containedInControl(s, x)).reduce(Boolean.FALSE, Boolean::logicalOr);
 		}
-		return false;
+		c.setData(SEARCH_HIT, hit ? Boolean.TRUE: null);
+		return hit;
 	}
 }

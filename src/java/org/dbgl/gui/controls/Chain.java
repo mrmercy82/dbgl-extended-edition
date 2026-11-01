@@ -449,7 +449,7 @@ public class Chain {
 		if (builder_.customInputConvertorGetter_ != null) {
 			DaControlConvertor customConv = builder_.customInputConvertorGetter_.apply(configurable);
 			if ((customConv != builder_.convertor_) && (customConv != null)) {
-				Configuration conf = isMultiEdit_ ? configurable.getConfiguration(): configurable.getCombinedConfiguration();
+				Configuration conf = isMultiEdit_ ? configurable.getConfiguration(): configurable.getCombinedConfigurationForReading();
 				String[] values = customConv.toControlValues(conf.getValue(builder_.section_, builder_.item_));
 				String value = builder_.convertor_.toConfValue(null, values);
 				configurable.setValue(builder_.section_, builder_.item_, value);
@@ -459,7 +459,7 @@ public class Chain {
 		}
 		
 		setComboValues(configurable);
-		setControlByConfigurable(configurable, configurable.getCombinedConfiguration());
+		setControlByConfigurable(configurable, configurable.getCombinedConfigurationForReading());
 		if (isMultiEdit_)
 			bindListenersAndSetLabelColor();
 		return this;

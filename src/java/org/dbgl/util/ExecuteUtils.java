@@ -84,6 +84,7 @@ public class ExecuteUtils {
 
 		@Override
 		public void run() {
+			LINK_PROFILE.set(templateOrProfile_ instanceof Profile p ? p.getId(): -1);
 			try {
 				for (NativeCommand cmd: templateOrProfile_.getNativeCommands()) {
 					if (cmd.isDosboxCommand()) {
@@ -101,6 +102,9 @@ public class ExecuteUtils {
 			}
 		}
 	}
+
+	/** the profile DOSBox is started for in this thread, so the status window can link its messages to the profile's settings */
+	private static final ThreadLocal<Integer> LINK_PROFILE = ThreadLocal.withInitial(() -> -1);
 
 	/** told about the play time added to a profile (profile id, total seconds), on the UI thread */
 	private static volatile java.util.function.IntConsumer playTimeListener_;
@@ -469,6 +473,9 @@ public class ExecuteUtils {
 		long startMillis = System.currentTimeMillis();
 		Process proc = pb.start();
 		DosboxStatusWindow statusWindow = showStatusWindow ? DosboxStatusWindow.open(StringUtils.join(execCommands, ' ')): null;
+		int linkProfile = LINK_PROFILE.get();
+		if (statusWindow != null)
+			statusWindow.setProfileId(linkProfile);
 		List<String> collected = (statusWindow == null) && detectFailedStart && SettingsService.getInstance().getBooleanValue("dosbox", "detectfailedstart") ? new ArrayList<>(): null;
 		if (statusWindow != null)
 			proc.onExit().thenAccept(p -> statusWindow.processEnded(p.exitValue()));
@@ -492,7 +499,7 @@ public class ExecuteUtils {
 					synchronized (collected) {
 						lines = new ArrayList<>(collected);
 					}
-					DosboxStatusWindow.showAfterQuickExit(StringUtils.join(execCommands, ' '), lines, p.exitValue(), elapsed);
+					DosboxStatusWindow.showAfterQuickExit(StringUtils.join(execCommands, ' '), lines, p.exitValue(), elapsed, linkProfile);
 				});
 			}
 			if (waitFor)

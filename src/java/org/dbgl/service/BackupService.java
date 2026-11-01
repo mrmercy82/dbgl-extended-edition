@@ -69,6 +69,42 @@ public final class BackupService {
 		}
 	}
 
+	/** the folder automatic backups go to, unless another one is set */
+	public static File defaultAutoBackupDir() {
+		return new File(FileLocationService.getInstance().getProfilesDir().getParentFile(), "backups");
+	}
+
+	/**
+	 * @param mode never, daily or weekly
+	 * @param last the date of the last automatic backup (yyyy-MM-dd), or empty
+	 */
+	public static boolean isAutoBackupDue(String mode, String last, java.time.LocalDate today) {
+		if (!"daily".equals(mode) && !"weekly".equals(mode))
+			return false;
+		if ((last == null) || last.isBlank())
+			return true;
+		try {
+			java.time.LocalDate lastDate = java.time.LocalDate.parse(last.strip());
+			return !today.isBefore(lastDate.plusDays("daily".equals(mode) ? 1: 7));
+		} catch (java.time.format.DateTimeParseException e) {
+			return true;
+		}
+	}
+
+	/** make a backup in the folder and keep only the newest ones */
+	public static File autoBackup(File dir, int keep) throws IOException, SQLException {
+		dir.mkdirs();
+		File zip = new File(dir, "dbgl-backup-" + java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")) + ".zip");
+		backup(zip);
+		File[] all = dir.listFiles((d, n) -> n.startsWith("dbgl-backup-") && n.endsWith(".zip"));
+		if (all != null) {
+			java.util.Arrays.sort(all, java.util.Comparator.comparing(File::getName).reversed());
+			for (int i = Math.max(1, keep); i < all.length; i++)
+				Files.deleteIfExists(all[i].toPath());
+		}
+		return zip;
+	}
+
 	private static int addDir(ZipOutputStream zip, File dir, String prefix) throws IOException {
 		if (!dir.isDirectory())
 			return 0;

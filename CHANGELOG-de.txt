@@ -4,6 +4,49 @@ DBGL - Änderungen seit 0.100 beta 17
 Grundlage: DBGL 0.100 beta 17 (Quellcode). Neueste Version zuerst.
 
 
+0.101 alpha 16
+--------------
+- Deutsche Übersetzung vervollständigt: rund 740 Texte, die bisher englisch
+  waren (Seitennamen wie "Speicher", "Datenträger", "Peripherie", Feldnamen
+  und Tooltips), sind jetzt deutsch. Feste Begriffe wie Genre, Setup oder
+  Namen von Geräten und Befehlen (IRQ, DMA, FILES) bleiben unverändert.
+- Neue Einstellungen für die weiteren Einstellungen im Profildialog:
+  - Gruppen anfangs: zugeklappt, immer aufgeklappt oder nur aufgeklappt, wenn
+    ein Wert geändert wurde (Standard).
+  - Auch auf Seiten anwenden, die nur solche Einstellungen enthalten (Standard:
+    aus, dort sind die Gruppen immer offen).
+  - Anzahl der geänderten Einstellungen in der Überschrift anzeigen, z. B.
+    "Weitere Einstellungen [sblaster] (24) - 1 geändert" (Standard: an).
+- Der Profildialog öffnet sich schneller (bei DOSBox-X etwa ein Viertel), weil
+  die Konfiguration der DOSBox-Version nicht mehr für jedes Feld neu gelesen
+  wird.
+- Knopf "Voreinstellungen" neben "Abweichungen vom Standard...": Windows 95/98,
+  Windows 3.1, langsame Spiele aus der XT/286-Zeit, schnelle DOS-Spiele und
+  Demos, Tandy, PC-98. Gesetzt wird nur, was die DOSBox-Version kennt. Eigene
+  Voreinstellungen lassen sich aus den aktuellen Werten speichern und wieder
+  löschen (Ordner "presets").
+- Kontextmenü "Profile vergleichen...": zwei markierte Profile, alle
+  unterschiedlichen Werte (wie sie wirksam sind) und abweichende
+  [autoexec]-Zeilen.
+- Frühere Fassungen: Bei jedem Speichern eines Profils, das sich geändert hat,
+  bleibt die vorige Konfigurationsdatei erhalten (die letzten fünf, Ordner
+  profiles/history). Kontextmenü "Frühere Fassung wiederherstellen..." zeigt
+  sie mit den Unterschieden zur aktuellen Fassung.
+- Suche im Profildialog: findet auch Beschreibungen, Tooltips und Werte. Enter
+  springt zur nächsten Seite mit Treffer und öffnet zugeklappte Gruppen.
+- Menü Profile -> "Statistik...": Gesamtspielzeit, Starts, die meistgespielten,
+  am häufigsten gestarteten, zuletzt gespielten und nie gestarteten Spiele.
+- Automatische Sicherung beim Start: nie (Standard), täglich oder wöchentlich,
+  mit einstellbarer Anzahl aufbewahrter Sicherungen (Ordner "backups").
+- Statusfenster: Meldungen von DOSBox zu einer Einstellung (z. B. "Invalid
+  'cpu_cycles' setting") sind unterstrichen; ein Klick öffnet das Profil mit
+  dieser Einstellung.
+- Eine dosbox.conf auf ein Profil ziehen oder Kontextmenü "Einstellungen aus
+  einer DOSBox-Konfiguration übernehmen...": zeigt, was sich ändert, und
+  übernimmt die Einstellungen, die die DOSBox-Version kennt. [autoexec] wird
+  nicht übernommen.
+
+
 0.101 alpha 15
 --------------
 - Seiten im Navigationsbaum, für die die gewählte DOSBox-Version keine einzige

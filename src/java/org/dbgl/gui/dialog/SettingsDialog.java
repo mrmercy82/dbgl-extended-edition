@@ -117,6 +117,19 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 		Button checkForUpdates = Chain.on(dosboxGroup).lbl(l -> l.key("dialog.settings.checkforupdates")).but(b -> b.tooltip("dialog.settings.checkforupdates.tooltip").select(settings_.getBooleanValue("dosbox", "checkforupdates"))).button();
 		Button checkBeforeStart = Chain.on(dosboxGroup).lbl(l -> l.key("dialog.settings.checkbeforestart")).but(b -> b.select(settings_.getBooleanValue("dosbox", "checkbeforestart"))).button();
 
+		Group extrasGroup = Group_.on(generalComposite).layout(new GridLayout(2, false)).key("dialog.settings.extras").build();
+		String[] expandModes = {"collapsed", "always", "changed"};
+		Combo extrasExpand = Chain.on(extrasGroup).lbl(l -> l.key("dialog.settings.extrasexpand")).cmb(c -> c.items(new String[] {text_.get("dialog.settings.extrasexpand.collapsed"),
+			text_.get("dialog.settings.extrasexpand.always"), text_.get("dialog.settings.extrasexpand.changed")}).select(Math.max(0, Arrays.asList(expandModes).indexOf(settings_.getValue("gui", "extrasexpand"))))).combo();
+		Button extrasOnExtrasPages = Chain.on(extrasGroup).lbl(l -> l.key("dialog.settings.extrasexpandonextraspages")).but(b -> b.tooltip("dialog.settings.extrasexpandonextraspages.tooltip").select(settings_.getBooleanValue("gui", "extrasexpandonextraspages"))).button();
+		Button extrasCount = Chain.on(extrasGroup).lbl(l -> l.key("dialog.settings.extrascountchanges")).but(b -> b.select(settings_.getBooleanValue("gui", "extrascountchanges"))).button();
+
+		Group backupGroup = Group_.on(generalComposite).layout(new GridLayout(2, false)).key("dialog.settings.autobackup").build();
+		String[] backupModes = {"never", "daily", "weekly"};
+		Combo autoBackup = Chain.on(backupGroup).lbl(l -> l.key("dialog.settings.autobackup.when")).cmb(c -> c.items(new String[] {text_.get("dialog.settings.autobackup.never"),
+			text_.get("dialog.settings.autobackup.daily"), text_.get("dialog.settings.autobackup.weekly")}).select(Math.max(0, Arrays.asList(backupModes).indexOf(settings_.getValue("backup", "auto"))))).combo();
+		Spinner backupKeep = Chain.on(backupGroup).lbl(l -> l.key("dialog.settings.autobackup.keep")).spn(s -> s.min(1).max(50).select(settings_.getIntValue("backup", "keep"))).spinner();
+
 		Group sendToGroup = Group_.on(generalComposite).layout(new GridLayout(2, false)).key("dialog.settings.sendto").build();
 		Button portEnabled = Chain.on(sendToGroup).lbl(l -> l.key("dialog.settings.enableport")).but(b -> b.select(settings_.getBooleanValue("communication", "port_enabled"))).button();
 		Text port = Chain.on(sendToGroup).lbl(l -> l.key("dialog.settings.port")).txt(t -> t.val(settings_.getValue("communication", "port"))).text();
@@ -434,6 +447,11 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 				settings_.setBooleanValue("dosbox", "checkversionsatstartup", checkVersions.getSelection());
 				settings_.setBooleanValue("dosbox", "checkforupdates", checkForUpdates.getSelection());
 				settings_.setBooleanValue("dosbox", "checkbeforestart", checkBeforeStart.getSelection());
+				settings_.setValue("gui", "extrasexpand", expandModes[Math.max(0, extrasExpand.getSelectionIndex())]);
+				settings_.setBooleanValue("gui", "extrasexpandonextraspages", extrasOnExtrasPages.getSelection());
+				settings_.setBooleanValue("gui", "extrascountchanges", extrasCount.getSelection());
+				settings_.setValue("backup", "auto", backupModes[Math.max(0, autoBackup.getSelectionIndex())]);
+				settings_.setIntValue("backup", "keep", backupKeep.getSelection());
 				settings_.setBooleanValue("communication", "port_enabled", portEnabled.getSelection());
 				settings_.setValue("communication", "port", port.getText());
 				settings_.setIntValue("profiledefaults", "confpath", confLocation.getSelectionIndex());

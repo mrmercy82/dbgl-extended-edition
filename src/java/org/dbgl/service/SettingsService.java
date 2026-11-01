@@ -190,6 +190,10 @@ public class SettingsService {
 		settings_.setValue("gui", "checkprofilesdialog_height", "560");
 		settings_.setValue("gui", "differencesdialog_width", "600");
 		settings_.setValue("gui", "differencesdialog_height", "460");
+		settings_.setValue("gui", "textinputdialog_width", "480");
+		settings_.setValue("gui", "textinputdialog_height", "200");
+		settings_.setValue("gui", "profilehistorydialog_width", "800");
+		settings_.setValue("gui", "profilehistorydialog_height", "500");
 		settings_.setValue("gui", "dosboxdialog_height", "400");
 		settings_.setValue("gui", "templatedialog_width", "768");
 		settings_.setValue("gui", "templatedialog_height", "588");
@@ -386,6 +390,13 @@ public class SettingsService {
 		settings_.setValue("dosbox", "checkversionsatstartup", true);
 		settings_.setValue("dosbox", "checkforupdates", true);
 		settings_.setValue("dosbox", "checkbeforestart", false);
+		settings_.setValue("gui", "extrasexpand", "changed");
+		settings_.setValue("gui", "extrasexpandonextraspages", false);
+		settings_.setValue("gui", "extrascountchanges", true);
+		settings_.setValue("backup", "auto", "never");
+		settings_.setValue("backup", "keep", 3);
+		settings_.setValue("backup", "last", "");
+		settings_.setValue("backup", "dir", "");
 		settings_.setValue("gui", "updatenoticeshown", "");
 		settings_.setValue("gui", "updatechecked", "");
 		settings_.setValue("gui", "statuswindow_width", "800");

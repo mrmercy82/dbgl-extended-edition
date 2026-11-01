@@ -99,6 +99,21 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 		editing_ = profile_ != null;
 	}
 
+	private String initialSearch_;
+
+	/** open the dialog showing a setting, e.g. one DOSBox complained about in the status window */
+	public EditSingleProfileDialog showSetting(String setting) {
+		initialSearch_ = setting;
+		return this;
+	}
+
+	@Override
+	protected void onShellOpened() {
+		super.onShellOpened();
+		if (initialSearch_ != null)
+			display_.asyncExec(() -> searchAndJump(initialSearch_));
+	}
+
 	@Override
 	protected String getDialogTitle() {
 		if (editing_)
