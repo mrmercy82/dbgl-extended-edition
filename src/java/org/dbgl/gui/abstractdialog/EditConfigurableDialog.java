@@ -60,6 +60,8 @@ import org.eclipse.swt.events.MouseAdapter;
 import org.eclipse.swt.events.MouseEvent;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
+import org.eclipse.swt.graphics.Font;
+import org.eclipse.swt.graphics.FontData;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Button;
@@ -99,11 +101,26 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 	 * a setting of the DOSBox version without a field of its own; it is shown on the page that fits its topic (see
 	 * {@link SettingPlacement}), in a group at the end of that page
 	 */
-	private record GenericSetting(String section, String item, Control control, Label label, String initialValue) {
+	private record GenericSetting(String section, String item, Control control, Label label, String initialValue, String defaultValue) {
 		String value() {
 			return control instanceof Combo c ? c.getText().strip(): ((Text)control).getText().strip();
 		}
+
+		/** set by the profile/template, and not just the DOSBox default */
+		boolean isChanged() {
+			String v = value();
+			return !v.isEmpty() && !v.equalsIgnoreCase(StringUtils.defaultString(defaultValue).strip());
+		}
 	}
+
+	private static final String EXTRAS_ONLY_CHANGED = "dbgl.extras.onlychanged";
+	private static final String EXTRAS_HEADER = "dbgl.extras.header";
+	private static final String EXTRAS_GROUP_KEY = "dbgl.extras.groupkey";
+	private static final String EXTRAS_GROUP_TITLE = "dbgl.extras.grouptitle";
+	private static final String EXTRAS_BOLD = "dbgl.extras.bold";
+	/** per page and section: group open or collapsed, for as long as the dialog is open */
+	private final Map<String, Boolean> extrasExpanded_ = new HashMap<>();
+	private Font extrasBold_;
 
 	// managed by DBGL itself (the captures folder of each profile)
 	private static final Set<String> DBGL_MANAGED_SETTINGS = Set.of("dosbox/captures", "capture/capture_dir");
@@ -252,7 +269,10 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		genericSettings_.removeIf(g -> g.control().isDisposed());
 	}
 
-	/** create the settings without a field of their own for one page */
+	/**
+	 * create the settings without a field of their own for one page: one collapsible group per section, each setting with its
+	 * name (bold when the profile changes it), the field, a button to go back to the DOSBox default and a short description
+	 */
 	private void buildExtras(TemplateProfileBase configurable, String key) {
 		DosboxVersion dbversion = configurable.getDosboxVersion();
 		Composite area = extrasAreas_.get(key);
@@ -264,25 +284,55 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 
 		Configuration dosboxConf = dbversion.getConfiguration();
 		ConfValueOptions documented = dbversion.getConfValueOptions();
-		String defaultText = TextService.getInstance().get("dialog.template.moresettings.default");
-		String groupText = TextService.getInstance().get("dialog.template.tab.moresettings");
-		String info = TextService.getInstance().get("dialog.template.moresettings.tooltip");
+		var text = TextService.getInstance();
+		String defaultText = text.get("dialog.template.moresettings.default");
+		String groupText = text.get("dialog.template.tab.moresettings");
+		String info = text.get("dialog.template.moresettings.tooltip");
+		List<String[]> settings = extrasByPage_.getOrDefault(key, List.of());
+		// on the pages that only hold such settings, the groups are open from the start
+		boolean onlyExtras = Stream.of(area.getParent().getChildren()).allMatch(c -> (c == area) || (c.getData("dbgl.pageheader") != null));
+
+		if (!settings.isEmpty()) {
+			Button onlyChanged = new Button(area, SWT.CHECK);
+			onlyChanged.setText(text.get("dialog.template.moresettings.onlychanged"));
+			onlyChanged.setToolTipText(info);
+			onlyChanged.setLayoutData(new GridData(SWT.BEGINNING, SWT.CENTER, false, false));
+			onlyChanged.setData(EXTRAS_ONLY_CHANGED, Boolean.TRUE);
+			onlyChanged.addListener(SWT.Selection, e -> {
+				applyExtrasFilter(key);
+				relayoutVisiblePage();
+			});
+		}
+
 		Map<String, Group> groups = new LinkedHashMap<>();
-		for (String[] setting: extrasByPage_.getOrDefault(key, List.of())) {
+		for (String[] setting: settings) {
 			String section = setting[0], item = setting[1];
 			Group group = groups.computeIfAbsent(section, s -> {
+				long count = settings.stream().filter(x -> x[0].equals(s)).count();
+				String groupKey = key + '|' + s;
+				Button header = new Button(area, SWT.FLAT);
+				header.setAlignment(SWT.LEFT);
+				header.setToolTipText(info);
+				header.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
 				Group g = new Group(area, SWT.NONE);
-				g.setText(groupText + " [" + s + "]");
-				g.setToolTipText(info);
-				g.setLayout(new GridLayout(2, false));
+				g.setLayout(new GridLayout(4, false));
 				g.setLayoutData(new GridData(SWT.FILL, SWT.BEGINNING, true, false));
+				g.setData(EXTRAS_HEADER, header);
+				header.setData(EXTRAS_GROUP_TITLE, groupText + " [" + s + "] (" + count + ")");
+				extrasExpanded_.putIfAbsent(groupKey, onlyExtras);
+				header.addListener(SWT.Selection, e -> {
+					extrasExpanded_.put(groupKey, !extrasExpanded_.get(groupKey));
+					applyExtrasFilter(key);
+					relayoutVisiblePage();
+				});
+				g.setData(EXTRAS_GROUP_KEY, groupKey);
 				return g;
 			});
 			String defaultValue = dosboxConf.getValue(section, item);
 			String help = documented.getHelp(section, item);
 			String tooltip = (help != null ? help + "\n\n": "") + "[" + section + "] " + item + "\n" + defaultText + ": " + (StringUtils.isEmpty(defaultValue) ? "-": defaultValue);
 			Label label = new Label(group, SWT.NONE);
-			label.setText(item);
+			label.setText(item.replace("&", "&&"));
 			label.setToolTipText(tooltip);
 			label.setLayoutData(new GridData(SWT.BEGINNING, SWT.CENTER, false, false));
 			ConfValueOptions.Options options = documented.get(section, item);
@@ -297,20 +347,103 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 				combo.setVisibleItemCount(Math.min(20, values.size() + 1));
 				control = combo;
 			} else {
-				Text text = new Text(group, SWT.BORDER);
-				text.setMessage(defaultText + ": " + StringUtils.defaultString(defaultValue));
-				control = text;
+				Text txt = new Text(group, SWT.BORDER);
+				txt.setMessage(defaultText + ": " + StringUtils.defaultString(defaultValue));
+				control = txt;
 			}
 			control.setToolTipText(tooltip);
-			GridData gd = new GridData(SWT.FILL, SWT.CENTER, true, false);
-			gd.widthHint = 220;
+			GridData gd = new GridData(SWT.FILL, SWT.CENTER, false, false);
+			gd.widthHint = 200;
 			control.setLayoutData(gd);
-			genericSettings_.add(new GenericSetting(section, item, control, label, null));
+			Button reset = new Button(group, SWT.PUSH);
+			reset.setText("↺");
+			reset.setToolTipText(text.get("dialog.template.moresettings.reset") + " (" + (StringUtils.isEmpty(defaultValue) ? "-": defaultValue) + ")");
+			reset.setLayoutData(new GridData(SWT.BEGINNING, SWT.CENTER, false, false));
+			Label description = new Label(group, SWT.WRAP);
+			description.setText(SettingPlacement.summary(help, 120).replace("&", "&&"));
+			description.setToolTipText(tooltip);
+			description.setForeground(display_.getSystemColor(SWT.COLOR_WIDGET_DARK_SHADOW));
+			GridData dd = new GridData(SWT.FILL, SWT.CENTER, true, false);
+			dd.widthHint = 200; // wraps within the width of the page instead of widening it
+			description.setLayoutData(dd);
+
+			GenericSetting g = new GenericSetting(section, item, control, label, null, defaultValue);
+			genericSettings_.add(g);
+			control.addListener(control instanceof Combo ? SWT.Selection: SWT.Modify, e -> markChanged(g));
+			if (control instanceof Combo)
+				control.addListener(SWT.Modify, e -> markChanged(g));
+			reset.addListener(SWT.Selection, e -> {
+				if (g.control() instanceof Combo combo) {
+					if ((combo.getStyle() & SWT.READ_ONLY) != 0)
+						combo.select(0);
+					else
+						combo.setText("");
+				} else {
+					((Text)g.control()).setText("");
+				}
+				markChanged(g);
+			});
 		}
 		extrasBuiltFor_.put(key, dbversion);
 		area.setData(HAS_CONTENT, groups.isEmpty() ? null: Boolean.TRUE);
 		setGenericValues(configurable);
+		applyExtrasFilter(key);
 		area.layout(true, true);
+	}
+
+	/** a setting the profile/template changes (not empty and not the DOSBox default) is shown in bold */
+	private void markChanged(GenericSetting g) {
+		if (g.label().isDisposed())
+			return;
+		boolean changed = g.isChanged();
+		if (Boolean.valueOf(changed).equals(g.label().getData(EXTRAS_BOLD)))
+			return;
+		if (changed && (extrasBold_ == null)) {
+			FontData[] fd = g.label().getFont().getFontData();
+			Stream.of(fd).forEach(x -> x.setStyle(SWT.BOLD));
+			extrasBold_ = new Font(display_, fd);
+			shell_.addDisposeListener(e -> extrasBold_.dispose());
+		}
+		g.label().setFont(changed ? extrasBold_: null);
+		g.label().setData(EXTRAS_BOLD, changed);
+		g.label().getParent().layout(true);
+	}
+
+	/** collapsed or open groups, and 'only changed values' */
+	private void applyExtrasFilter(String key) {
+		Composite area = extrasAreas_.get(key);
+		if ((area == null) || area.isDisposed())
+			return;
+		boolean onlyChanged = Stream.of(area.getChildren()).anyMatch(c -> (c.getData(EXTRAS_ONLY_CHANGED) != null) && ((Button)c).getSelection());
+		for (Control c: area.getChildren()) {
+			if (!(c instanceof Group group) || (group.getData(EXTRAS_HEADER) == null))
+				continue;
+			Button header = (Button)group.getData(EXTRAS_HEADER);
+			boolean expanded = Boolean.TRUE.equals(extrasExpanded_.get(group.getData(EXTRAS_GROUP_KEY)));
+			int shown = 0;
+			Map<Control, GenericSetting> byLabel = new HashMap<>();
+			genericSettings_.stream().filter(g -> !g.label().isDisposed() && (g.label().getParent() == group)).forEach(g -> byLabel.put(g.label(), g));
+			Control[] row = group.getChildren(); // per setting: label, field, reset button, description
+			for (int i = 0; i + 3 < row.length; i += 4) {
+				GenericSetting g = byLabel.get(row[i]);
+				if (g == null)
+					continue;
+				boolean show = !onlyChanged || g.isChanged();
+				for (int j = 0; j < 4; j++)
+					setShown(row[i + j], show);
+				if (show)
+					shown++;
+			}
+			setShown(header, !onlyChanged || (shown > 0));
+			setShown(group, (onlyChanged && (shown > 0)) || (!onlyChanged && expanded));
+			header.setText(((onlyChanged && (shown > 0)) || (!onlyChanged && expanded) ? "▾ ": "▸ ") + ((String)header.getData(EXTRAS_GROUP_TITLE)).replace("&", "&&"));
+		}
+		area.layout(true, true);
+	}
+
+	private static void setShown(Control c, boolean show) {
+		c.setVisible(show);
+		((GridData)c.getLayoutData()).exclude = !show;
 	}
 
 	/** the search looks through all pages, so all settings must exist */
@@ -342,7 +475,8 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 			} else {
 				((Text)g.control()).setText(value);
 			}
-			genericSettings_.set(i, new GenericSetting(g.section(), g.item(), g.control(), g.label(), value));
+			genericSettings_.set(i, new GenericSetting(g.section(), g.item(), g.control(), g.label(), value, g.defaultValue()));
+			markChanged(genericSettings_.get(i));
 		}
 	}
 
@@ -390,9 +524,9 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		Autoexec combinedAuto = combinedConf.getAutoexec();
 
 		// enable or disable controls, and leave pages without supported settings out of the tree
-		boolean hideEmptyPages = SettingsService.getInstance().getBooleanValue("gui", "hideunsupportedsettings");
-		if (hideEmptyPages)
-			computeAllPages(configurable);
+		// pages without any setting of the selected DOSBox version are always left out, hiding single settings is up to the user
+		boolean hideEmptyPages = true;
+		computeAllPages(configurable);
 		discardOutdatedExtras(configurable);
 		metaControls_.forEach(x -> x.enableOrDisableControl(configurable));
 		updatePageTree(configurable, hideEmptyPages);
@@ -426,7 +560,7 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 	}
 
 	protected void updatePageTree(TemplateProfileBase configurable) {
-		updatePageTree(configurable, SettingsService.getInstance().getBooleanValue("gui", "hideunsupportedsettings"));
+		updatePageTree(configurable, true);
 	}
 
 	@Override
@@ -548,7 +682,7 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 			public void widgetSelected(SelectionEvent event) {
 				showDifferences();
 			}
-		}).ctrl().setLayoutData(new GridData(SWT.BEGINNING, SWT.CENTER, false, false, 5, 1));
+		}).ctrl().setLayoutData(new GridData(SWT.END, SWT.CENTER, true, false, 5, 1));
 
 		Group miscGroup = Group_.on(composite).layoutData(new GridData(SWT.FILL, SWT.FILL, true, true)).layout(new GridLayout(3, false)).key("dialog.template.miscellaneous").build();
 		Chain.on(miscGroup).lbl(l -> l).lbl(l -> l.key("dialog.template.active")).lbl(l -> l.key("dialog.template.inactive")).build();

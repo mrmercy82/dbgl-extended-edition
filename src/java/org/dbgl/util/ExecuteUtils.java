@@ -67,12 +67,19 @@ public class ExecuteUtils {
 		private final DosboxVersion dosboxVersion_;
 		private final File conf_;
 		private final Display display_;
+		private final int playTimeProfileId_;
 
 		public ConfigurableExecutor(TemplateProfileBase templateOrProfile, DosboxVersion dosboxVersion, File conf, Display display) {
+			this(templateOrProfile, dosboxVersion, conf, display, -1);
+		}
+
+		/** @param playTimeProfileId the profile to add the time DOSBox ran to, or -1 */
+		public ConfigurableExecutor(TemplateProfileBase templateOrProfile, DosboxVersion dosboxVersion, File conf, Display display, int playTimeProfileId) {
 			templateOrProfile_ = templateOrProfile;
 			dosboxVersion_ = dosboxVersion;
 			conf_ = conf;
 			display_ = display;
+			playTimeProfileId_ = playTimeProfileId;
 		}
 
 		@Override
@@ -80,7 +87,9 @@ public class ExecuteUtils {
 			try {
 				for (NativeCommand cmd: templateOrProfile_.getNativeCommands()) {
 					if (cmd.isDosboxCommand()) {
+						long start = System.currentTimeMillis();
 						doRunDosbox(dosboxVersion_, new String[] {"-conf", conf_.getPath()}, false, dosboxVersion_.getCwd(), true);
+						registerPlayTime(playTimeProfileId_, System.currentTimeMillis() - start);
 					} else {
 						execute(cmd.getCanonicalCommandAndParameters(), cmd.getCanonicalCwd(), cmd.isWaitFor());
 					}
@@ -90,6 +99,28 @@ public class ExecuteUtils {
 					display_.syncExec(() -> Mess_.on(display_.getActiveShell()).exception(e).warning());
 				}
 			}
+		}
+	}
+
+	/** told about the play time added to a profile (profile id, total seconds), on the UI thread */
+	private static volatile java.util.function.IntConsumer playTimeListener_;
+
+	public static void setPlayTimeListener(java.util.function.IntConsumer listener) {
+		playTimeListener_ = listener;
+	}
+
+	/** add the time DOSBox ran to the profile; very short runs are failed starts and don't count */
+	private static void registerPlayTime(int profileId, long millis) {
+		if ((profileId < 0) || (millis < DosboxStatusWindow.QUICK_EXIT_MILLIS))
+			return;
+		try {
+			new org.dbgl.model.repository.ProfileRepository().addPlayTime(profileId, millis / 1000);
+			java.util.function.IntConsumer listener = playTimeListener_;
+			Display display = Display.getDefault();
+			if ((listener != null) && !display.isDisposed())
+				display.asyncExec(() -> listener.accept(profileId));
+		} catch (java.sql.SQLException e) {
+			e.printStackTrace();
 		}
 	}
 
@@ -145,6 +176,23 @@ public class ExecuteUtils {
 		doRunDosbox(dbversion, new String[] {}, true, dbversion.getCwd(), false);
 	}
 
+	/**
+	 * Let DOSBox write its configuration file again, e.g. after the executable was replaced by a newer version, so that new
+	 * settings are known. The current file is kept as .bak, and put back if DOSBox writes none.
+	 */
+	public static void recreateDosboxConf(DosboxVersion dbversion) throws IOException {
+		File configFile = dbversion.getConfigurationCanonicalFile();
+		File backup = new File(configFile.getPath() + ".bak");
+		boolean existed = FilesUtils.isReadableFile(configFile);
+		if (existed) {
+			java.nio.file.Files.copy(configFile.toPath(), backup.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+			java.nio.file.Files.delete(configFile.toPath());
+		}
+		doCreateDosboxConf(dbversion);
+		if (existed && !FilesUtils.isReadableFile(configFile))
+			java.nio.file.Files.copy(backup.toPath(), configFile.toPath()); // DOSBox did not write it, keep the old one
+	}
+
 	public static void doCreateDosboxConf(DosboxVersion dbversion) throws IOException {
 		String quote = SystemUtils.IS_WINDOWS ? "'": "\"";
 		if ((dbversion.getVersionAsInt() <= 650))
@@ -188,6 +236,16 @@ public class ExecuteUtils {
 			List<String> missing = prof.listMissingPaths();
 			if (!missing.isEmpty() && !Mess_.on(display.getActiveShell()).key("general.confirm.missingpaths", new Object[] {String.join("\n", missing)}).confirm())
 				return;
+			if (SettingsService.getInstance().getBooleanValue("dosbox", "checkbeforestart")) {
+				// values the DOSBox version does not know are ignored by DOSBox, often with a message that is easy to miss
+				List<String[]> invalid = prof.listInvalidValues();
+				if (!invalid.isEmpty()) {
+					StringBuilder list = new StringBuilder();
+					invalid.forEach(v -> list.append('[').append(v[0]).append("] ").append(v[1]).append('=').append(v[2]).append('\n'));
+					if (!Mess_.on(display.getActiveShell()).key("general.confirm.invalidvalues", new Object[] {list.toString().trim()}).confirm())
+						return;
+				}
+			}
 		}
 		boolean pc98Changed = prof.ensurePc98MachineForHdi(); // DOSBox-X crashes when booting an .HDI in IBM PC mode
 		if ((mode == ProfileRunMode.NORMAL) && !prepareOnly && (pc98Changed || prof.getConfiguration().getAutoexec().hasLongNamesWithSpaces())) {
@@ -222,7 +280,8 @@ public class ExecuteUtils {
 		if (mode == ProfileRunMode.INSTALLER)
 			doRunDosbox(dosboxVersion, new String[] {"-conf", preparedProfile.getConfigurationCanonicalFile().getPath()}, false, dosboxVersion.getCwd(), true);
 		else
-			new ConfigurableExecutor(preparedProfile, dosboxVersion, preparedProfile.getConfigurationCanonicalFile(), display).start();
+			new ConfigurableExecutor(preparedProfile, dosboxVersion, preparedProfile.getConfigurationCanonicalFile(), display,
+					(!prepareOnly && (mode != ProfileRunMode.SETUP)) ? prof.getId(): -1).start();
 	}
 
 	public static void createShortcut(Profile profile) throws IOException {

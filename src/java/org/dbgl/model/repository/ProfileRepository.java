@@ -58,7 +58,7 @@ public class ProfileRepository extends LoggingRepository<Profile> {
 			+ "GAM.CUSTOM9, GAM.CUSTOM10, GAM.LINK1_TITLE, GAM.LINK1, GAM.LINK2_TITLE, GAM.LINK2, GAM.LINK3_TITLE, GAM.LINK3, GAM.LINK4_TITLE, GAM.LINK4, "
 			+ "GAM.LINK5_TITLE, GAM.LINK5, GAM.LINK6_TITLE, GAM.LINK6, GAM.LINK7_TITLE, GAM.LINK7, GAM.LINK8_TITLE, GAM.LINK8, "
 			+ "GAM.CAPTURES, GAM.SETUP, GAM.SETUP_PARAMS, GAM.ALT1, GAM.ALT1_PARAMS, GAM.ALT2, GAM.ALT2_PARAMS, GAM.DBVERSION_ID, GAM.CONFFILE, "
-			+ "GAM.STATS_CREATED, GAM.STATS_LASTMODIFY, GAM.STATS_LASTRUN, GAM.STATS_LASTSETUP, GAM.STATS_RUNS, GAM.STATS_SETUPS "
+			+ "GAM.STATS_CREATED, GAM.STATS_LASTMODIFY, GAM.STATS_LASTRUN, GAM.STATS_LASTSETUP, GAM.STATS_RUNS, GAM.STATS_SETUPS, GAM.STATS_PLAYTIME "
 			+ "FROM GAMES GAM, DEVELOPERS DEV, PUBLISHERS PUBL, GENRES GEN, PUBLYEARS YR, STATUS STAT, CUSTOM1 CUST1, CUSTOM2 CUST2, CUSTOM3 CUST3, CUSTOM4 CUST4 "
 			+ "WHERE GAM.DEV_ID=DEV.ID AND GAM.PUBL_ID=PUBL.ID AND GAM.GENRE_ID=GEN.ID AND GAM.YEAR_ID=YR.ID AND GAM.STAT_ID=STAT.ID "
 			+ "AND GAM.CUST1_ID=CUST1.ID AND GAM.CUST2_ID=CUST2.ID AND GAM.CUST3_ID=CUST3.ID AND GAM.CUST4_ID=CUST4.ID";
@@ -75,6 +75,7 @@ public class ProfileRepository extends LoggingRepository<Profile> {
 	private static final String DEL_NTVCMD_QRY = "DELETE FROM NATIVECOMMANDS WHERE GAME_ID = ? AND TEMPLATE_ID IS NULL";
 
 	private static final String REGISTER_RUN_QRY = "UPDATE GAMES SET STATS_LASTRUN = CURRENT_TIMESTAMP, STATS_RUNS = (STATS_RUNS + 1) WHERE ID = ?";
+	private static final String ADD_PLAYTIME_QRY = "UPDATE GAMES SET STATS_PLAYTIME = (STATS_PLAYTIME + ?) WHERE ID = ?";
 	private static final String REGISTER_SETUP_QRY = "UPDATE GAMES SET STATS_LASTSETUP = CURRENT_TIMESTAMP, STATS_SETUPS = (STATS_SETUPS + 1) WHERE ID = ?";
 
 	public ProfileRepository() {
@@ -204,7 +205,7 @@ public class ProfileRepository extends LoggingRepository<Profile> {
 			new String[] {rs.getString(24), rs.getString(25), rs.getString(26), rs.getString(27), rs.getString(28), rs.getString(29), rs.getString(30), rs.getString(31), rs.getString(32),
 					rs.getString(33), rs.getString(34), rs.getString(35), rs.getString(36), rs.getString(37), rs.getString(38), rs.getString(39)},
 			rs.getString(40), rs.getString(41), rs.getString(42), rs.getString(43), rs.getString(44), rs.getString(45), rs.getString(46), listNativeCommands(con, rs.getInt(1)), rs.getInt(47),
-			rs.getString(48), rs.getTimestamp(49), rs.getTimestamp(50), rs.getTimestamp(51), rs.getTimestamp(52), rs.getInt(53), rs.getInt(54), dosboxVersions);
+			rs.getString(48), rs.getTimestamp(49), rs.getTimestamp(50), rs.getTimestamp(51), rs.getTimestamp(52), rs.getInt(53), rs.getInt(54), rs.getInt(55), dosboxVersions);
 	}
 
 	private static List<NativeCommand> listNativeCommands(Connection con, int profileId) throws SQLException {
@@ -338,6 +339,15 @@ public class ProfileRepository extends LoggingRepository<Profile> {
 
 	public Profile registerRun(Profile profile) throws SQLException {
 		return register(profile, REGISTER_RUN_QRY, "register run profile", LogEntry.Event.RUN);
+	}
+
+	/** add to the time the profile was played, in seconds */
+	public void addPlayTime(int profileId, long seconds) throws SQLException {
+		try (Connection con = dbService_.getConnection(); PreparedStatement stmt = con.prepareStatement(ADD_PLAYTIME_QRY)) {
+			stmt.setLong(1, seconds);
+			stmt.setInt(2, profileId);
+			stmt.executeUpdate();
+		}
 	}
 
 	public Profile registerSetup(Profile profile) throws SQLException {

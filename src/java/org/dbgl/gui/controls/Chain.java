@@ -79,6 +79,9 @@ public class Chain {
 		}
 	}
 
+	/** set on the controls of a setting the selected DOSBox version does not have */
+	public static final String UNSUPPORTED = "dbgl.unsupported";
+
 	private final Builder builder_;
 	private boolean isMultiEdit_, initialValueSet_, conflictingValues_;
 	private Object initialValue_, currentValue_;
@@ -475,6 +478,10 @@ public class Chain {
 			builder_.controls_.forEach(x -> x.setVisible(visible));
 			builder_.buttons_.forEach(x -> x.setVisible(visible));
 			builder_.labels_.forEach(x -> x.setVisible(visible));
+			Boolean unsupported = dosboxHasConfSetting ? null: Boolean.TRUE;
+			builder_.controls_.forEach(x -> x.setData(UNSUPPORTED, unsupported));
+			builder_.buttons_.forEach(x -> x.setData(UNSUPPORTED, unsupported));
+			builder_.labels_.forEach(x -> x.setData(UNSUPPORTED, unsupported));
 
 			if (builder_.newItemLabelKey_ != null) {
 				Label label = builder_.labels_.get(0);

@@ -73,10 +73,12 @@ import org.dbgl.service.DatabaseService;
 import org.dbgl.service.FileLocationService;
 import org.dbgl.service.ImageService;
 import org.dbgl.service.ImportExportTemplatesService;
+import org.dbgl.service.BackupService;
 import org.dbgl.service.SettingsService;
 import org.dbgl.util.DosboxVersionDetector;
 import org.dbgl.util.ExecuteUtils;
 import org.dbgl.util.ExecuteUtils.ProfileRunMode;
+import org.dbgl.util.DosboxUpdateChecker;
 import org.dbgl.util.FilesUtils;
 import org.dbgl.util.SystemUtils;
 import org.eclipse.swt.SWT;
@@ -277,7 +279,105 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 
 		if (settings_.getBooleanValue("dosbox", "checkversionsatstartup"))
 			checkDosboxVersionsInBackground();
+		if (settings_.getBooleanValue("dosbox", "checkforupdates"))
+			checkForDosboxUpdatesInBackground();
+
+		// the play time is added when DOSBox ends; show it
+		ExecuteUtils.setPlayTimeListener(id -> {
+			if (!shell_.isDisposed() && profilesList_.stream().anyMatch(p -> p.getId() == id)) {
+				updateProfilesList(getSelectedProfileIds());
+				displayProfileInformation(false);
+			}
+		});
 	}
+
+	/**
+	 * Once a day, look on GitHub for newer releases of DOSBox Staging and DOSBox-X than the installed ones, and tell about each
+	 * new release once. Nothing is downloaded, the download page can be opened.
+	 */
+	private void checkForDosboxUpdatesInBackground() {
+		String today = java.time.LocalDate.now().toString();
+		if (today.equals(settings_.getValue("gui", "updatechecked")))
+			return;
+		settings_.setValue("gui", "updatechecked", today);
+		java.util.Map<String, String> installed = new java.util.HashMap<>();
+		for (DosboxVersion v: dbversionsList_)
+			installed.merge(v.getFamily(), v.getVersion(), (a, b) -> DosboxUpdateChecker.compareVersions(a, b) >= 0 ? a: b);
+		if (!installed.containsKey(SettingsService.STAGING_DOSBOX_FAM.title_) && !installed.containsKey(SettingsService.DOSBOX_X_DOSBOX_FAM.title_))
+			return; // only for the DOSBox families in use
+		Thread checker = new Thread(() -> {
+			List<DosboxUpdateChecker.Release> newer = DosboxUpdateChecker.latestReleases().stream()
+					.filter(r -> installed.containsKey(r.family()) && (DosboxUpdateChecker.compareVersions(r.version(), installed.get(r.family())) > 0)).toList();
+			if (newer.isEmpty() || display_.isDisposed())
+				return;
+			display_.asyncExec(() -> {
+				if (shell_.isDisposed())
+					return;
+				String shown = StringUtils.defaultString(settings_.getValue("gui", "updatenoticeshown"));
+				for (DosboxUpdateChecker.Release r: newer) {
+					String id = r.family() + ' ' + r.version();
+					if (shown.contains(id))
+						continue;
+					shown = (shown + ';' + id).replaceFirst("^;", "");
+					settings_.setValue("gui", "updatenoticeshown", shown);
+					if (Mess_.on(shell_).key("dialog.main.confirm.dosboxupdate", new Object[] {r.family(), r.version(), installed.get(r.family())}).confirm())
+						SystemUtils.openForBrowsing(r.url(), getParent());
+				}
+			});
+		}, "DOSBox update check");
+		checker.setDaemon(true);
+		checker.start();
+	}
+
+	private final SelectionAdapter backupAdapter = new SelectionAdapter() {
+		@Override
+		public void widgetSelected(SelectionEvent event) {
+			FileDialog dialog = new FileDialog(shell_, SWT.SAVE);
+			dialog.setFilterExtensions(new String[] {"*.zip", "*.*"});
+			dialog.setFileName("dbgl-backup-" + java.time.LocalDate.now() + ".zip");
+			dialog.setOverwrite(true);
+			String file = dialog.open();
+			if (file == null)
+				return;
+			shell_.setCursor(display_.getSystemCursor(SWT.CURSOR_WAIT));
+			try {
+				int count = BackupService.backup(new File(file));
+				shell_.setCursor(null);
+				Mess_.on(shell_).key("dialog.main.notice.backupdone", new Object[] {file, count}).display();
+			} catch (IOException | SQLException e) {
+				shell_.setCursor(null);
+				Mess_.on(shell_).exception(e).warning();
+			}
+		}
+	};
+
+	private final SelectionAdapter restoreAdapter = new SelectionAdapter() {
+		@Override
+		public void widgetSelected(SelectionEvent event) {
+			FileDialog dialog = new FileDialog(shell_, SWT.OPEN);
+			dialog.setFilterExtensions(new String[] {"*.zip", "*.*"});
+			String file = dialog.open();
+			if (file == null)
+				return;
+			if (!BackupService.isBackup(new File(file))) {
+				Mess_.on(shell_).key("dialog.main.error.nobackup", new Object[] {file}).warning();
+				return;
+			}
+			if (!Mess_.on(shell_).key("dialog.main.confirm.restore", new Object[] {file}).confirm())
+				return;
+			try {
+				BackupService.restore(new File(file));
+				restored_ = true;
+				Mess_.on(shell_).key("dialog.main.notice.restoredone").display();
+				shell_.close();
+			} catch (IOException | SQLException e) {
+				Mess_.on(shell_).exception(e).warning();
+			}
+		}
+	};
+
+	/** after restoring a backup, the database is shut down and the settings were replaced: end without saving anything */
+	private boolean restored_;
 
 	/**
 	 * Compare the family and version of every DOSBox entry with what the executable reports. A wrong version makes DBGL use the
@@ -316,6 +416,22 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				} catch (SQLException e) {
 					Mess_.on(shell_).exception(e).warning();
 				}
+				// the configuration files were written by the previous version, and may lack settings of the new one
+				List<DosboxVersion> withConf = mismatching.stream().filter(v -> FilesUtils.isReadableFile(v.getConfigurationCanonicalFile()) && FilesUtils.isReadableFile(v.getCanonicalExecutable())).toList();
+				if (!withConf.isEmpty() && Mess_.on(shell_).key("dialog.main.confirm.recreateconfs",
+					new Object[] {withConf.stream().map(v -> v.getTitle() + ": " + v.getConfigurationCanonicalFile()).collect(Collectors.joining("\n"))}).confirm()) {
+					shell_.setCursor(display_.getSystemCursor(SWT.CURSOR_WAIT));
+					try {
+						for (DosboxVersion v: withConf) {
+							ExecuteUtils.recreateDosboxConf(v);
+							v.resetAndLoadConfiguration();
+						}
+					} catch (IOException e) {
+						Mess_.on(shell_).exception(e).warning();
+					} finally {
+						shell_.setCursor(null);
+					}
+				}
 				updateDosboxVersionList(mismatching.get(0));
 			});
 		}, "DOSBox version check");
@@ -333,10 +449,12 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		if (mess_ != null)
 			mess_.close();
 
-		try {
-			settings_.save();
-		} catch (IOException e) {
-			Mess_.on(shell_).exception(e).warning();
+		if (!restored_) {
+			try {
+				settings_.save();
+			} catch (IOException e) {
+				Mess_.on(shell_).exception(e).warning();
+			}
 		}
 
 		if (Boolean.TRUE.equals(result_))
@@ -344,7 +462,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 	}
 
 	private void initColumnIds() {
-		columnNames_ = new String[Constants.RO_COLUMN_NAMES + Constants.EDIT_COLUMN_NAMES + 8];
+		columnNames_ = new String[Constants.RO_COLUMN_NAMES + Constants.EDIT_COLUMN_NAMES + 8 + 1];
 
 		int c = 0;
 		columnNames_[c++] = text_.get("dialog.main.profiles.column.title");
@@ -369,6 +487,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		columnNames_[c++] = text_.get("dialog.main.generic.column.setups");
 		for (int i = 0; i < Constants.EDIT_COLUMN_NAMES_2; i++)
 			columnNames_[c++] = settings_.getValue("gui", "custom" + (i + 1 + Constants.EDIT_COLUMN_NAMES_1));
+		columnNames_[c++] = text_.get("dialog.main.generic.column.playtime");
 
 		columnIds_ = IntStream.range(0, c).filter(x -> settings_.getBooleanValue("gui", "column" + (x + 1) + "visible")).toArray();
 	}
@@ -426,11 +545,17 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			int prefsIndex = systemMenu.indexOf(getMenuItemById(systemMenu, SWT.ID_PREFERENCES));
 			MenuItem_.on(systemMenu).pos(prefsIndex + 1).key("dialog.main.menu.log").listen(logAdapter).build();
 			MenuItem_.on(systemMenu).pos(prefsIndex + 2).key("dialog.main.menu.databasecleanup").listen(cleanupAdapter).build();
+			MenuItem_.on(systemMenu).pos(prefsIndex + 3).key("dialog.main.menu.backup").listen(backupAdapter).build();
+			MenuItem_.on(systemMenu).pos(prefsIndex + 4).key("dialog.main.menu.restore").listen(restoreAdapter).build();
 		} else {
 			Menu fileMenu = createMenu(appMenuBar, "dialog.main.menu.file");
 			MenuItem_.on(fileMenu).key("dialog.main.menu.adjustsettings").image(ImageService.IMG_SETTINGS).listen(settingsAdapter).build();
 			MenuItem_.on(fileMenu).key("dialog.main.menu.log").image(ImageService.IMG_LOG).listen(logAdapter).build();
 			MenuItem_.on(fileMenu).key("dialog.main.menu.databasecleanup").image(ImageService.IMG_CLEAN).listen(cleanupAdapter).build();
+			MenuItem_.on(fileMenu).build();
+			MenuItem_.on(fileMenu).key("dialog.main.menu.backup").image(ImageService.IMG_TABLEEXPORT).listen(backupAdapter).build();
+			MenuItem_.on(fileMenu).key("dialog.main.menu.restore").image(ImageService.IMG_IMPORT).listen(restoreAdapter).build();
+			MenuItem_.on(fileMenu).build();
 			MenuItem_.on(fileMenu).key("dialog.main.menu.exit").image(ImageService.IMG_EXIT).listen(quitAdapter).build();
 		}
 
@@ -807,8 +932,16 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		MenuItem_.on(menu).key("dialog.main.profile.switchdosboxversion").image(ImageService.IMG_MIGRATE).listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
-				int index = profileTable_.getSelectionIndex();
-				if ((index != -1) && Boolean.TRUE.equals(new SwitchDosboxVersionDialog(shell_, profilesList_.get(index)).open())) {
+				if ((profileTable_.getSelectionIndex() != -1) && Boolean.TRUE.equals(new SwitchDosboxVersionDialog(shell_, getSelectedProfiles()).open())) {
+					updateProfilesList(getSelectedProfileIds());
+					displayProfileInformation(false);
+				}
+			}
+		}).build();
+		MenuItem_.on(menu).key("dialog.main.profile.checkprofile").image(ImageService.IMG_ZOOM).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				if ((profileTable_.getSelectionIndex() != -1) && Boolean.TRUE.equals(new CheckProfilesDialog(shell_, getSelectedProfiles()).open())) {
 					updateProfilesList(getSelectedProfileIds());
 					displayProfileInformation(false);
 				}
@@ -1529,6 +1662,9 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				case 30:
 				case 31:
 					value = prof.getCustomStrings()[colId - Constants.RO_COLUMN_NAMES - Constants.EDIT_COLUMN_NAMES_1];
+					break;
+				case 32:
+					value = org.dbgl.model.ProfileStats.formatPlayTime(prof.getProfileStats().getPlayTime());
 					break;
 				default:
 					value = StringUtils.EMPTY;

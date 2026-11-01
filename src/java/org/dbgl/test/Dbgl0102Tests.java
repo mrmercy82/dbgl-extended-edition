@@ -337,4 +337,53 @@ public class Dbgl0102Tests {
 			assertEquals(c[0] + "/" + c[1], c[2], org.dbgl.gui.abstractdialog.SettingPlacement.pageFor(c[0], c[1]));
 		assertNull(org.dbgl.gui.abstractdialog.SettingPlacement.pageFor("sdl", "forcesquarecorner")); // decided by where the [sdl] fields are
 	}
+	@Test
+	public void testSettingSummaryAndPlacementOfOtherFamilies() {
+		assertEquals("Amount of memory DOSBox has in megabytes.", org.dbgl.gui.abstractdialog.SettingPlacement.summary("Amount of memory DOSBox has in megabytes.\n  This value is best left at its default.", 90));
+		assertEquals("", org.dbgl.gui.abstractdialog.SettingPlacement.summary(null, 90));
+		String longText = "This is a very long description without any full stop that goes on and on about the setting and what it does";
+		String sum = org.dbgl.gui.abstractdialog.SettingPlacement.summary(longText, 40);
+		assertTrue(sum, sum.endsWith("\u2026") && (sum.length() <= 41));
+		// sections of DOSBox ECE, Daum and SVN builds
+		assertEquals(org.dbgl.gui.abstractdialog.SettingPlacement.VOODOO, org.dbgl.gui.abstractdialog.SettingPlacement.pageFor("glide", "glide"));
+		assertEquals(org.dbgl.gui.abstractdialog.SettingPlacement.VOODOO, org.dbgl.gui.abstractdialog.SettingPlacement.pageFor("pci", "voodoo"));
+		assertEquals(org.dbgl.gui.abstractdialog.SettingPlacement.NE2000, org.dbgl.gui.abstractdialog.SettingPlacement.pageFor("ne2000", "nicirq"));
+		assertEquals(org.dbgl.gui.abstractdialog.SettingPlacement.PRINTER, org.dbgl.gui.abstractdialog.SettingPlacement.pageFor("printer", "dpi"));
+		assertEquals(org.dbgl.gui.abstractdialog.SettingPlacement.MODEM, org.dbgl.gui.abstractdialog.SettingPlacement.pageFor("serial", "serial1"));
+	}
+
+	@Test
+	public void testPathRelocation() {
+		String sep = File.separator;
+		String oldPath = sep + "old" + sep + "Games" + sep + "Doom";
+		String newPath = sep + "new" + sep + "stuff" + sep + "Games" + sep + "Doom";
+		String[] prefixes = org.dbgl.util.PathRelocation.changedPrefixes(oldPath, newPath);
+		assertEquals(sep + "old", prefixes[0]);
+		assertEquals(sep + "new" + sep + "stuff", prefixes[1]);
+		assertEquals(sep + "new" + sep + "stuff" + sep + "Games" + sep + "Keen", org.dbgl.util.PathRelocation.relocate(sep + "old" + sep + "Games" + sep + "Keen", prefixes[0], prefixes[1]));
+		assertNull(org.dbgl.util.PathRelocation.relocate(sep + "older" + sep + "Games", prefixes[0], prefixes[1]));
+
+		File dosroot = new File(sep + "dbgl" + sep + "dosroot");
+		String conf = "[autoexec]\nmount C \"" + sep + "old" + sep + "Games" + sep + "Doom\"\nmount D \"games" + sep + "Keen\"\nimgmount E \"" + sep + "old" + sep + "Games" + sep + "Doomed.iso\" -t iso\n";
+		java.util.Map<String, String> moves = new java.util.LinkedHashMap<>();
+		moves.put(sep + "old" + sep + "Games" + sep + "Doom", sep + "new" + sep + "Games" + sep + "Doom");
+		moves.put(dosroot + sep + "games" + sep + "Keen", dosroot + sep + "dos" + sep + "Keen");
+		String result = org.dbgl.util.PathRelocation.replaceInConfiguration(conf, moves, dosroot);
+		assertTrue(result, result.contains("mount C \"" + sep + "new" + sep + "Games" + sep + "Doom\""));
+		assertTrue(result, result.contains("mount D \"dos" + sep + "Keen\""));
+		assertTrue(result, result.contains(sep + "old" + sep + "Games" + sep + "Doomed.iso")); // a different file, untouched
+	}
+
+	@Test
+	public void testDosboxUpdateCheckerParsing() {
+		assertEquals("0.83.0", org.dbgl.util.DosboxUpdateChecker.versionOfTag(SettingsService.STAGING_DOSBOX_FAM.title_, "v0.83.0"));
+		assertEquals("2026.10.01", org.dbgl.util.DosboxUpdateChecker.versionOfTag(SettingsService.DOSBOX_X_DOSBOX_FAM.title_, "dosbox-x-v2026.10.01"));
+		assertTrue(org.dbgl.util.DosboxUpdateChecker.compareVersions("0.83.1", "0.83.0") > 0);
+		assertTrue(org.dbgl.util.DosboxUpdateChecker.compareVersions("0.84", "0.83.9") > 0);
+		assertEquals(0, org.dbgl.util.DosboxUpdateChecker.compareVersions("0.83.0", "0.83"));
+		assertTrue(org.dbgl.util.DosboxUpdateChecker.compareVersions("2026.05.02", "2026.10.01") < 0);
+		assertEquals("", org.dbgl.model.ProfileStats.formatPlayTime(0));
+		assertEquals("1:01", org.dbgl.model.ProfileStats.formatPlayTime(3660));
+		assertEquals("0:05", org.dbgl.model.ProfileStats.formatPlayTime(300));
+	}
 }

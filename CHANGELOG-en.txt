@@ -4,6 +4,50 @@ DBGL - Changes since 0.100 beta 17
 Based on DBGL 0.100 beta 17 (source code). Newest version first.
 
 
+0.101 alpha 15
+--------------
+- Pages of the navigation tree for which the selected DOSBox version has no
+  setting at all are always hidden, regardless of the setting "Hide settings the
+  selected DOSBox does not support". That setting is now off by default (existing settings files keep
+  their value).
+- The button "Differences from the defaults..." is right-aligned.
+- Sound Blaster page (DOSBox-X): the row of empty drop-downs under
+  "Experimental settings" is gone. Unsupported drop-downs were shown again when
+  the page was compacted.
+- "More settings" groups:
+  - Each setting shows the first sentence of its DOSBox description.
+  - The groups can be collapsed and start closed on regular pages; on pages
+    that only hold such settings they are open. The heading shows the count.
+  - "Show only changed values" per page.
+  - Values that differ from the DOSBox default are bold; a button next to them
+    resets them to the default.
+- Play time: DBGL counts how long DOSBox runs per profile (starts under
+  5 seconds don't count). New column "Play time" (hours:minutes), available in
+  the column selection and sortable. The database gets a new column for it.
+- "Switch profile to another DOSBox version..." also works with several
+  selected profiles.
+- Context menu: "Check profile..." checks only the selected profiles.
+- New setting "Check the profile for invalid values before starting" (off by
+  default): if a profile contains values the DOSBox version does not know,
+  DBGL asks before starting.
+- Check profiles: button "Find missing folders...". Point to where the first
+  missing folder or file is now; the same change (e.g. another drive letter)
+  is applied to all missing paths of all profiles, if the target exists.
+- New setting "Look for new DOSBox versions once a day" (on by default): asks
+  GitHub for the latest versions of DOSBox Staging and DOSBox-X and offers the
+  download page when a newer version exists. Nothing is downloaded.
+- When the version of a DOSBox version entry is changed (e.g. after updating
+  dosbox.exe), DBGL offers to let DOSBox write its configuration file again,
+  so new settings are known. The same at the version check at startup. The old
+  file is kept as .bak.
+- File menu: "Create backup..." (database, profiles, templates, settings as
+  zip) and "Restore backup..." (the current files are kept as
+  .before-restore, DBGL quits afterwards).
+- Placement rules extended with sections of DOSBox ECE, Daum and SVN ([glide],
+  [pci], [ne2000], [printer], [serial]); only checked with tests of the rules,
+  not with real configuration files.
+
+
 0.101 alpha 14
 --------------
 - The page "DOSBox -> More settings" is gone. All settings without a field of

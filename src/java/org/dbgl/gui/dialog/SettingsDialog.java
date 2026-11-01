@@ -114,6 +114,8 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 		Button hideUnsupported = Chain.on(dosboxGroup).lbl(l -> l.key("dialog.settings.hideunsupportedsettings")).but(b -> b.select(settings_.getBooleanValue("gui", "hideunsupportedsettings"))).button();
 		Button detectFailedStart = Chain.on(dosboxGroup).lbl(l -> l.key("dialog.settings.detectfailedstart")).but(b -> b.select(settings_.getBooleanValue("dosbox", "detectfailedstart"))).button();
 		Button checkVersions = Chain.on(dosboxGroup).lbl(l -> l.key("dialog.settings.checkversionsatstartup")).but(b -> b.select(settings_.getBooleanValue("dosbox", "checkversionsatstartup"))).button();
+		Button checkForUpdates = Chain.on(dosboxGroup).lbl(l -> l.key("dialog.settings.checkforupdates")).but(b -> b.tooltip("dialog.settings.checkforupdates.tooltip").select(settings_.getBooleanValue("dosbox", "checkforupdates"))).button();
+		Button checkBeforeStart = Chain.on(dosboxGroup).lbl(l -> l.key("dialog.settings.checkbeforestart")).but(b -> b.select(settings_.getBooleanValue("dosbox", "checkbeforestart"))).button();
 
 		Group sendToGroup = Group_.on(generalComposite).layout(new GridLayout(2, false)).key("dialog.settings.sendto").build();
 		Button portEnabled = Chain.on(sendToGroup).lbl(l -> l.key("dialog.settings.enableport")).but(b -> b.select(settings_.getBooleanValue("communication", "port_enabled"))).button();
@@ -430,6 +432,8 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 				settings_.setBooleanValue("gui", "hideunsupportedsettings", hideUnsupported.getSelection());
 				settings_.setBooleanValue("dosbox", "detectfailedstart", detectFailedStart.getSelection());
 				settings_.setBooleanValue("dosbox", "checkversionsatstartup", checkVersions.getSelection());
+				settings_.setBooleanValue("dosbox", "checkforupdates", checkForUpdates.getSelection());
+				settings_.setBooleanValue("dosbox", "checkbeforestart", checkBeforeStart.getSelection());
 				settings_.setBooleanValue("communication", "port_enabled", portEnabled.getSelection());
 				settings_.setValue("communication", "port", port.getText());
 				settings_.setIntValue("profiledefaults", "confpath", confLocation.getSelectionIndex());

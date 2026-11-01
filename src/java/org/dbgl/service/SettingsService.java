@@ -94,6 +94,11 @@ public class SettingsService {
 		settings_.save();
 	}
 
+	/** @return the file the settings are kept in */
+	public File getSettingsFile() {
+		return settings_.getFile();
+	}
+
 	public static List<WebSearchEngine> availableWebSearchEngines() {
 		return ALL_WEBSEARCH_ENGINES.stream().filter(WebSearchEngine::available).toList();
 	}
@@ -265,6 +270,7 @@ public class SettingsService {
 		settings_.setValue("gui", "column30width", "70");
 		settings_.setValue("gui", "column31width", "70");
 		settings_.setValue("gui", "column32width", "70");
+		settings_.setValue("gui", "column33width", "70");
 		settings_.setValue("gui", "column1visible", true);
 		settings_.setValue("gui", "column2visible", true);
 		settings_.setValue("gui", "column3visible", true);
@@ -297,6 +303,7 @@ public class SettingsService {
 		settings_.setValue("gui", "column30visible", false);
 		settings_.setValue("gui", "column31visible", false);
 		settings_.setValue("gui", "column32visible", false);
+		settings_.setValue("gui", "column33visible", false);
 		settings_.setValue("gui", "column2_1width", "300");
 		settings_.setValue("gui", "column2_2width", "250");
 		settings_.setValue("gui", "column2_3width", "250");
@@ -372,11 +379,15 @@ public class SettingsService {
 		settings_.setValue("profiledefaults", "capturespath", 1);
 
 		settings_.setValue("dosbox", "hideconsole", false);
-		settings_.setValue("gui", "hideunsupportedsettings", true);
+		settings_.setValue("gui", "hideunsupportedsettings", false);
 		settings_.setValue("gui", "statuswindowkeepopen", false);
 		settings_.setValue("gui", "xbuildnoticeshown", "");
 		settings_.setValue("dosbox", "detectfailedstart", true);
 		settings_.setValue("dosbox", "checkversionsatstartup", true);
+		settings_.setValue("dosbox", "checkforupdates", true);
+		settings_.setValue("dosbox", "checkbeforestart", false);
+		settings_.setValue("gui", "updatenoticeshown", "");
+		settings_.setValue("gui", "updatechecked", "");
 		settings_.setValue("gui", "statuswindow_width", "800");
 		settings_.setValue("gui", "statuswindow_height", "440");
 		settings_.setValue("gui", "statuswindow_maximized", false);

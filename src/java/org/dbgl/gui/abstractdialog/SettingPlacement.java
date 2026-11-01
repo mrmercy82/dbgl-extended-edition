@@ -162,6 +162,30 @@ public final class SettingPlacement {
 	private SettingPlacement() {
 	}
 
+	/**
+	 * @return the first sentence of the description DOSBox gives for a setting, at most about max characters, or "" if there
+	 *         is none
+	 */
+	public static String summary(String help, int max) {
+		if (help == null)
+			return "";
+		String text = help.replaceAll("\\s+", " ").strip();
+		int end = -1;
+		for (int i = 0; i < text.length() - 1; i++) {
+			if (((text.charAt(i) == '.') || (text.charAt(i) == ':')) && (text.charAt(i + 1) == ' ')) {
+				end = text.charAt(i) == '.' ? i + 1: i;
+				break;
+			}
+		}
+		if (end > 0)
+			text = text.substring(0, end);
+		if (text.length() > max) {
+			int cut = text.lastIndexOf(' ', max);
+			text = text.substring(0, cut > max / 2 ? cut: max).strip() + "\u2026";
+		}
+		return text;
+	}
+
 	/** @return the page for the setting, or null if no rule knows it */
 	public static String pageFor(String section, String item) {
 		String s = section.strip().toLowerCase();

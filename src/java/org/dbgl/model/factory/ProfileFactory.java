@@ -86,7 +86,7 @@ public class ProfileFactory {
 	public static Profile create(int id, String title, boolean favorite, String developer, String publisher, String genre, String year, String status, String notes, String[] customStrings,
 			int[] customInts, String[] links, String captures, String setup, String setupParams, String altExe1, String altExe1Params, String altExe2, String altExe2Params,
 			List<NativeCommand> nativeCommands, int dosboxVersionId, String configuration, Timestamp created, Timestamp modified, Timestamp lastRun, Timestamp lastSetup, int runs, int setups,
-			List<DosboxVersion> dosboxVersions) {
+			int playTime, List<DosboxVersion> dosboxVersions) {
 		Link[] link = new Link[Profile.NR_OF_LINK_TITLES];
 		for (int i = 0; i < Profile.NR_OF_LINK_TITLES; i++) {
 			link[i] = new Link(links[i * 2], links[i * 2 + 1]);
@@ -97,7 +97,7 @@ public class ProfileFactory {
 		profile.setId(id);
 		profile.setConfigurationFileLocation(configuration);
 		profile.setStats(new GenericStats(created, modified, lastRun, runs));
-		profile.setProfileStats(new ProfileStats(lastSetup, setups));
+		profile.setProfileStats(new ProfileStats(lastSetup, setups, playTime));
 		return profile;
 	}
 
@@ -122,7 +122,7 @@ public class ProfileFactory {
 				prof.getStats().getCreated(), prof.getStats().getModified(),
 				prof.getStats().getLastRun(), prof.getStats().getRuns()));
 		profile.setProfileStats(new ProfileStats(
-				prof.getProfileStats().getLastSetup(), prof.getProfileStats().getSetups()));
+				prof.getProfileStats().getLastSetup(), prof.getProfileStats().getSetups(), prof.getProfileStats().getPlayTime()));
 		return profile;
 	}
 

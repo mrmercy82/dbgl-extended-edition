@@ -287,6 +287,7 @@ public class EditDosboxVersionDialog extends SizeControlledTabbedDialog<DosboxVe
 			}
 			if (exeAvailable) {
 				maybeRecreateReducedDosboxXConf(family, version, path, exe, conf);
+				maybeRecreateConfAfterVersionChange(family, version, path, exe, conf);
 				noticeSpecialDosboxXBuild(family, executable);
 			}
 		}
@@ -330,13 +331,33 @@ public class EditDosboxVersionDialog extends SizeControlledTabbedDialog<DosboxVe
 		}
 		if ((settings >= MIN_DOSBOX_X_SETTINGS) || !Mess_.on(shell_).key("dialog.dosboxversion.confirm.recreatedosboxxconf", new Object[] {configFile, settings}).confirm())
 			return;
-		File backup = new File(configFile.getPath() + ".bak");
 		try {
-			java.nio.file.Files.copy(configFile.toPath(), backup.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-			java.nio.file.Files.delete(configFile.toPath());
-			ExecuteUtils.doCreateDosboxConf(dbversion);
-			if (!FilesUtils.isReadableFile(configFile))
-				java.nio.file.Files.copy(backup.toPath(), configFile.toPath()); // DOSBox-X did not write it, keep the old one
+			ExecuteUtils.recreateDosboxConf(dbversion);
+			recreated_ = true;
+		} catch (IOException e) {
+			Mess_.on(shell_).exception(e).warning();
+		}
+	}
+
+	private boolean recreated_;
+
+	/**
+	 * The configuration file was written by the DOSBox version entered before; after a change of the family or version (e.g. the
+	 * executable was replaced by a newer one), it may lack the new settings. Offer to let DOSBox write it again.
+	 */
+	private void maybeRecreateConfAfterVersionChange(Combo family, Combo version, Text path, Text exe, Text conf) {
+		if (recreated_ || (dbversion_ == null) || (dbversion_.getId() == -1))
+			return;
+		if (Strings.CI.equals(dbversion_.getFamily(), family.getText()) && Strings.CS.equals(dbversion_.getVersion(), version.getText()))
+			return;
+		DosboxVersion dbversion = DosboxVersionFactory.create(StringUtils.EMPTY, family.getText(), version.getText(), false, false, false, null, path.getText(), exe.getText(), StringUtils.EMPTY, conf.getText());
+		File configFile = dbversion.getConfigurationCanonicalFile();
+		if (!FilesUtils.isReadableFile(configFile) || !Mess_.on(shell_).key("dialog.dosboxversion.confirm.recreateconf",
+			new Object[] {configFile, dbversion_.getFamily() + " " + dbversion_.getVersion(), family.getText() + " " + version.getText()}).confirm())
+			return;
+		try {
+			ExecuteUtils.recreateDosboxConf(dbversion);
+			recreated_ = true;
 		} catch (IOException e) {
 			Mess_.on(shell_).exception(e).warning();
 		}

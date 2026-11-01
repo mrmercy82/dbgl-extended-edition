@@ -307,8 +307,8 @@ public abstract class SizeControlledPagedDialog<T> extends SizeControlledButtonD
 
 	/** true if the control shows something besides the page header, separators and filler labels */
 	private static boolean hasVisibleContent(Control c) {
-		if ((c == null) || !c.getVisible() || (c.getData(PAGE_HEADER) != null))
-			return false;
+		if ((c == null) || !c.getVisible() || (c.getData(PAGE_HEADER) != null) || (c.getData(Chain.UNSUPPORTED) != null))
+			return false; // a setting the DOSBox version does not have is no content, even when shown (disabled)
 		if (Boolean.TRUE.equals(c.getData(HAS_CONTENT)))
 			return true;
 		if (c instanceof Label label)

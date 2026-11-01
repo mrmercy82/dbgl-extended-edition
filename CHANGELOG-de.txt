@@ -4,6 +4,55 @@ DBGL - Änderungen seit 0.100 beta 17
 Grundlage: DBGL 0.100 beta 17 (Quellcode). Neueste Version zuerst.
 
 
+0.101 alpha 15
+--------------
+- Seiten im Navigationsbaum, für die die gewählte DOSBox-Version keine einzige
+  Einstellung hat, werden immer ausgeblendet, unabhängig von der Einstellung
+  "Vom gewählten DOSBox nicht unterstützte Einstellungen ausblenden". Diese ist jetzt
+  standardmäßig aus (bestehende Einstellungsdateien behalten ihren Wert).
+- Knopf "Abweichungen vom Standard..." (vorher "Unterschiede zum Standard...")
+  steht rechtsbündig.
+- Sound-Blaster-Seite (DOSBox-X): die Zeile mit leeren Auswahlfeldern unter
+  "Experimentelle Einstellungen" ist weg. Nicht unterstützte Auswahlfelder
+  wurden beim Zusammenrücken der Seite wieder eingeblendet.
+- Gruppen "Weitere Einstellungen":
+  - Neben jeder Einstellung steht der erste Satz ihrer DOSBox-Beschreibung.
+  - Die Gruppen sind einklappbar und auf normalen Seiten anfangs zu; auf
+    Seiten, die nur solche Einstellungen haben, sind sie offen. Die Überschrift
+    zeigt die Anzahl.
+  - "Nur geänderte Werte zeigen" pro Seite.
+  - Werte, die vom DOSBox-Standard abweichen, sind fett; ein Knopf daneben
+    setzt sie auf den Standard zurück.
+- Spielzeit: DBGL zählt, wie lange DOSBox pro Profil läuft (Starts unter
+  5 Sekunden zählen nicht). Neue Spalte "Spielzeit" (Stunden:Minuten), in der
+  Spaltenauswahl einschaltbar und sortierbar. Die Datenbank bekommt dafür eine
+  neue Spalte.
+- "Profil auf andere DOSBox-Version umstellen..." funktioniert auch mit
+  mehreren markierten Profilen.
+- Kontextmenü: "Profil prüfen..." prüft nur die markierten Profile.
+- Neue Einstellung "Profil vor dem Start auf ungültige Werte prüfen"
+  (standardmäßig aus): Enthält ein Profil Werte, die die DOSBox-Version nicht
+  kennt, fragt DBGL vor dem Start nach.
+- Profile prüfen: Knopf "Fehlende Ordner suchen...". Man zeigt, wo der erste
+  fehlende Ordner bzw. die erste fehlende Datei jetzt liegt; dieselbe Änderung
+  (z. B. anderer Laufwerksbuchstabe) wird für alle fehlenden Pfade aller
+  Profile übernommen, sofern das Ziel existiert.
+- Neue Einstellung "Einmal täglich nach neuen DOSBox-Versionen suchen"
+  (standardmäßig an): fragt bei GitHub die neuesten Versionen von DOSBox
+  Staging und DOSBox-X ab und bietet bei einer neueren Version die
+  Download-Seite an. Es wird nichts heruntergeladen.
+- Wird bei einem DOSBox-Versionseintrag die Version geändert (z. B. nach einem
+  Update der dosbox.exe), bietet DBGL an, die Konfigurationsdatei von DOSBox
+  neu schreiben zu lassen, damit neue Einstellungen bekannt sind. Dasselbe bei
+  der Versionsprüfung beim Start. Die alte Datei bleibt als .bak erhalten.
+- Datei-Menü: "Sicherung erstellen..." (Datenbank, Profile, Vorlagen,
+  Einstellungen als Zip) und "Sicherung wiederherstellen..." (die bisherigen
+  Dateien bleiben als .before-restore erhalten, DBGL wird danach beendet).
+- Zuordnung der Einstellungen um Abschnitte von DOSBox ECE, Daum und SVN
+  ergänzt ([glide], [pci], [ne2000], [printer], [serial]); nur mit Tests der
+  Regeln geprüft, nicht mit echten Konfigurationsdateien.
+
+
 0.101 alpha 14
 --------------
 - Die Seite "DOSBox -> Weitere Einstellungen" gibt es nicht mehr. Alle

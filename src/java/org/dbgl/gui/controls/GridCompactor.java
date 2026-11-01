@@ -56,7 +56,9 @@ public class GridCompactor {
 			if (Boolean.TRUE.equals(c.getData(COMPACTED))) {
 				c.setData(COMPACTED, null);
 				((GridData)c.getLayoutData()).exclude = false;
-				if ((c instanceof Composite) || isFiller(c))
+				// only what this class hid itself: groups/composites and fillers. Combos and spinners are composites too in SWT,
+				// but their visibility belongs to the setting (hidden when the DOSBox version does not have it)
+				if (((c instanceof Composite) && !(c instanceof org.eclipse.swt.widgets.Combo) && !(c instanceof org.eclipse.swt.widgets.Spinner)) || isFiller(c))
 					c.setVisible(true);
 			}
 		}

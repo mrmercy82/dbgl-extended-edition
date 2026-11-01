@@ -203,6 +203,10 @@ public class FileLocationService {
 		return dosrootDir_;
 	}
 
+	public File getTemplatesDir() {
+		return templatesDir_;
+	}
+
 	public File getProfilesDir() {
 		return profilesDir_;
 	}

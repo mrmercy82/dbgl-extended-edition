@@ -24,14 +24,33 @@ public class ProfileStats {
 
 	protected final Date lastSetup_;
 	protected final int setups_;
+	protected final int playTime_;
 
 	public ProfileStats() {
 		this(null, 0);
 	}
 
 	public ProfileStats(Date lastSetup, int setups) {
+		this(lastSetup, setups, 0);
+	}
+
+	public ProfileStats(Date lastSetup, int setups, int playTime) {
 		lastSetup_ = lastSetup;
 		setups_ = setups;
+		playTime_ = playTime;
+	}
+
+	/** @return how long the profile was played, in seconds */
+	public int getPlayTime() {
+		return playTime_;
+	}
+
+	/** @return the play time as hours and minutes, e.g. "12:05", or "" if it was not played yet */
+	public static String formatPlayTime(int seconds) {
+		if (seconds <= 0)
+			return "";
+		int minutes = seconds / 60;
+		return String.format("%d:%02d", minutes / 60, minutes % 60);
 	}
 
 	public Date getLastSetup() {
