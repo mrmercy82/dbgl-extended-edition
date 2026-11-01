@@ -12,7 +12,7 @@
 	<property name="dist" location="dist"/>
 	<property name="libtest.dir" location="libtest"/>
 	<property name="libjersey.dir" location="libjersey"/>
-	<property name="vendorname" value="Ronald Blankendaal"/>
+	<property name="vendorname" value="DBGL Extended Edition (mrmercy82), based on DBGL by Ronald Blankendaal"/>
 	<property name="dosboxversionname" value="DOSBox-0.74-3"/>
 
 	<loadproperties srcFile="${resources}/version.properties"/>

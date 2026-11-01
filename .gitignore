@@ -1,0 +1,11 @@
+# Ant output
+build_ant/
+dist/
+# IDE
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
+bin/

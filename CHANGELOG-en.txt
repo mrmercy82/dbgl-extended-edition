@@ -4,6 +4,17 @@ DBGL Extended Edition - Changes since 0.100 beta 17
 Based on DBGL 0.100 beta 17 by Ronald Blankendaal (https://dbgl.org), source code. Newest version first.
 
 
+0.101 alpha 23 (2026-11-01)
+---------------------------
+- License (GPL): every file changed since 0.100 beta 17 now says so in its
+  header ("Modified for the DBGL Extended Edition ... since <date>"),
+  including the language files and the files taken from fat32-lib (LGPL).
+  Files added by the Extended Edition carry their own copyright line instead
+  of Ronald Blankendaal's, referring to DBGL as their basis.
+- build.xml: the vendor in the manifest of dbgl.jar is now "DBGL Extended
+  Edition (mrmercy82), based on DBGL by Ronald Blankendaal".
+- Prepared for GitHub: build on every push (GitHub Actions), .gitignore.
+
 0.101 alpha 22 (2026-11-01)
 ---------------------------
 - Fixed: some games showed a warning sign with the tooltip "null" in the

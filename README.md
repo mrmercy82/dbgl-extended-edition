@@ -19,7 +19,11 @@ Please compare the SHA-256 checksums of the downloads with those published next 
 
 ## License
 
-GNU General Public License version 2 or (at your option) any later version, like the original – see `src/dist/shared/COPYING`. The copyright notices of the original author are kept in every source file; changes since 0.100 beta 17 are listed in the changelogs with their versions and dates.
+GNU General Public License version 2 or (at your option) any later version, like the original – see `src/dist/shared/COPYING`.
+
+- The copyright notices of the original author are kept in every source file.
+- Every file changed since 0.100 beta 17 says so in its header ("Modified for the DBGL Extended Edition ... since <date>"); files added by the Extended Edition carry their own copyright line. What changed and when is listed in the changelogs, with a date for every version, and in the Git history.
+- The FAT image reader in `src/java/org/dbgl/util/fat` comes from fat32-lib (JNode.org, Matthias Treydte) and is under the GNU LGPL 2.1 or later.
 
 Bundled libraries keep their own licenses (Eclipse SWT and Nebula Gallery: EPL; HSQLDB: BSD-style; Apache Commons: Apache 2.0; jsoup: MIT; JSON-java: JSON license; Jersey: EPL 2.0 / GPL 2 with Classpath Exception). DOSBox 0.74-3 in `src/dist/winshared` is GPL 2.
 

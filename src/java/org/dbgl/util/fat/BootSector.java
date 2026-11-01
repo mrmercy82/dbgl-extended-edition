@@ -1,6 +1,8 @@
 /*
  * Copyright (C) 2003-2009 JNode.org
  *               2009,2010 Matthias Treydte <mt@waldheinz.de>
+ * Modified for the DBGL Extended Edition by mrmercy82 (with the help of AI)
+ * since 2026-10-31. Changes and their dates: CHANGELOG-en.txt, CHANGELOG-de.txt.
  *
  * This library is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
