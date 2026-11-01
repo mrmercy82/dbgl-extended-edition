@@ -454,11 +454,11 @@ public abstract class SizeControlledPagedDialog<T> extends SizeControlledButtonD
 		boolean hit = false;
 		if (c instanceof Label label) {
 			if (StringUtils.isNotBlank(label.getText())) {
-				hit = matches(s, label.getText()) || matches(s, label.getToolTipText());
+				hit = matches(s, label.getText()) || matches(s, org.dbgl.gui.LongToolTips.textOf(label));
 				c.setBackground(hit ? display_.getSystemColor(DarkTheme.forced() ? SWT.COLOR_DARK_RED: SWT.COLOR_YELLOW): c.getParent().getBackground());
 			}
 		} else if (c instanceof Button button) {
-			hit = matches(s, button.getText()) || matches(s, button.getToolTipText());
+			hit = matches(s, button.getText()) || matches(s, org.dbgl.gui.LongToolTips.textOf(button));
 		} else if (c instanceof Text text) {
 			hit = ((text.getStyle() & SWT.SEARCH) == 0) && matches(s, text.getText());
 			if (hit || (c.getData(SEARCH_HIT) != null))

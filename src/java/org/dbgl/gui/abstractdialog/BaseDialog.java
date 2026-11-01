@@ -106,6 +106,7 @@ public abstract class BaseDialog<T> extends Dialog {
 			shell_.setBackground(DarkTheme.dialogBackground);
 		}
 		shell_.setText(getDialogTitle());
+		org.dbgl.gui.LongToolTips.install(shell_.getDisplay()); // tooltips stay while the mouse is over the control
 
 		onShellInit();
 

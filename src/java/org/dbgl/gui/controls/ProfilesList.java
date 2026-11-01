@@ -312,20 +312,23 @@ public class ProfilesList {
 	public void setWarningHandlers(java.util.function.IntFunction<String> problems, java.util.function.IntConsumer onClick) {
 		if (type_ != ProfilesListType.TABLE)
 			return;
-		Listener listener = event -> {
-			TableItem item = table_.getItem(new org.eclipse.swt.graphics.Point(event.x, event.y));
-			boolean onSign = (item != null) && (item.getImage(0) != null) && item.getImageBounds(0).contains(event.x, event.y);
-			if (event.type == SWT.MouseMove) {
-				String tip = onSign ? problems.apply(table_.indexOf(item)): null;
-				if (!Objects.equals(tip, table_.getToolTipText()))
-					table_.setToolTipText(tip);
-			} else if ((event.type == SWT.MouseUp) && (event.button == 1) && onSign) {
-				int index = table_.indexOf(item);
-				table_.getDisplay().asyncExec(() -> onClick.accept(index));
-			}
+		// the sign takes the whole image area in front of the title, a little wider for an easier hit
+		java.util.function.Function<org.eclipse.swt.graphics.Point, Integer> signAt = p -> {
+			TableItem item = table_.getItem(p);
+			if ((item == null) || (item.getImage(0) == null))
+				return -1;
+			org.eclipse.swt.graphics.Rectangle r = item.getImageBounds(0);
+			return (p.x >= r.x - 2) && (p.x <= r.x + r.width + 2) ? table_.indexOf(item): -1;
 		};
-		table_.addListener(SWT.MouseMove, listener);
-		table_.addListener(SWT.MouseUp, listener);
+		org.dbgl.gui.LongToolTips.setProvider(table_, p -> {
+			int index = signAt.apply(p);
+			return index >= 0 ? problems.apply(index): null;
+		});
+		table_.addListener(SWT.MouseUp, event -> {
+			int index = event.button == 1 ? signAt.apply(new org.eclipse.swt.graphics.Point(event.x, event.y)): -1;
+			if (index >= 0)
+				table_.getDisplay().asyncExec(() -> onClick.accept(index));
+		});
 	}
 
 	public void addMouseListener(MouseAdapter mouseAdapter) {

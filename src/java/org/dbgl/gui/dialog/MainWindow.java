@@ -531,7 +531,27 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 
 	/** download and unpack a release into the DOSBox folder, then add it with the DOSBox version dialog */
 	private void installDosboxRelease(DosboxUpdateChecker.Release r, String[] asset) {
-		File targetDir = new File(FileLocationService.getInstance().getDosboxDir(), org.dbgl.util.DosboxInstaller.folderName(r.family(), r.version()));
+		// where to: a sub folder named after the release in the folder the user picks (DBGL's DOSBox folder by default)
+		String folderName = org.dbgl.util.DosboxInstaller.folderName(r.family(), r.version());
+		DirectoryDialog dirDialog = new DirectoryDialog(shell_);
+		dirDialog.setText(text_.get("dialog.main.title.dosboxrelease", new Object[] {r.family(), r.version()}));
+		dirDialog.setMessage(text_.get("dialog.main.notice.choosedosboxdir", new Object[] {r.family() + " " + r.version(), folderName}));
+		dirDialog.setFilterPath(FileLocationService.getInstance().getDosboxDir().getAbsolutePath());
+		String chosen = dirDialog.open();
+		if (chosen == null)
+			return;
+		File targetDir = new File(chosen).getName().equalsIgnoreCase(folderName) ? new File(chosen): new File(chosen, folderName);
+		boolean overwrite = false;
+		if (org.dbgl.util.DosboxInstaller.hasContent(targetDir)) {
+			MessageBox ask = new MessageBox(shell_, SWT.ICON_WARNING | SWT.YES | SWT.NO | SWT.CANCEL);
+			ask.setText(text_.get("dialog.main.title.dosboxrelease", new Object[] {r.family(), r.version()}));
+			ask.setMessage(text_.get("dialog.main.confirm.dosboxdirexists", new Object[] {targetDir.getPath()}));
+			int answer = ask.open();
+			if (answer == SWT.CANCEL)
+				return;
+			overwrite = answer == SWT.YES;
+		}
+		final boolean replaceFiles = overwrite;
 		Shell progressShell = new Shell(shell_, SWT.APPLICATION_MODAL | SWT.TITLE | SWT.BORDER);
 		progressShell.setText(text_.get("dialog.main.title.dosboxrelease", new Object[] {r.family(), r.version()}));
 		progressShell.setLayout(new GridLayout());
@@ -558,8 +578,10 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 					if (!label.isDisposed())
 						label.setText(text_.get("dialog.main.notice.unpacking", new Object[] {targetDir.getPath()}));
 				});
-				org.dbgl.util.DosboxInstaller.unpack(archive, targetDir);
-				exe = org.dbgl.util.DosboxInstaller.findExecutable(targetDir);
+				org.dbgl.util.DosboxInstaller.unpack(archive, targetDir, replaceFiles);
+				exe = org.dbgl.util.DosboxInstaller.findExecutable(targetDir, org.dbgl.util.DosboxInstaller.executableNames(r.family()));
+				if (exe == null)
+					exe = org.dbgl.util.DosboxInstaller.findExecutable(targetDir);
 			} catch (Exception e) {
 				failure = e;
 			} finally {
@@ -582,9 +604,12 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 					SystemUtils.openForBrowsing(targetDir.getPath(), getParent());
 					return;
 				}
-				String exeName = executable.getName().equalsIgnoreCase(SystemUtils.IS_WINDOWS ? "dosbox.exe": "dosbox") ? StringUtils.EMPTY: executable.getName();
+				// the executable with its full path unless it has the default name (e.g. dosbox-x.exe), and the configuration file
+				// name DOSBox itself uses (dosbox-x.conf for DOSBox-X)
+				String exePath = executable.getName().equalsIgnoreCase(FileLocationService.DOSBOX_EXE_STRING) ? StringUtils.EMPTY: executable.getAbsolutePath();
+				File confFile = new File(executable.getParentFile(), org.dbgl.util.DosboxInstaller.configurationName(r.family()));
 				DosboxVersion fresh = DosboxVersionFactory.create(r.family() + " " + r.version(), r.family(), r.version(), BaseRepository.findDefault(dbversionsList_) == null, true, false, null,
-					executable.getParentFile().getPath(), exeName, StringUtils.EMPTY, new File(executable.getParentFile(), "dosbox.conf").getPath());
+					executable.getParentFile().getAbsolutePath(), exePath, StringUtils.EMPTY, confFile.getAbsolutePath());
 				DosboxVersion added = new EditDosboxVersionDialog(shell_, BaseRepository.findDefault(dbversionsList_) == null, fresh).open();
 				if (added != null) {
 					updateDosboxVersionList(added);

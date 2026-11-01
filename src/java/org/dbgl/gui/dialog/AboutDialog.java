@@ -50,7 +50,7 @@ public class AboutDialog extends BaseDialog<Object> {
 
 	@Override
 	protected void onShellCreated() {
-		shell_.setSize(700, 500);
+		shell_.setSize(720, 560);
 
 		GridLayout layout = new GridLayout(2, false);
 		layout.marginTop = 2;
@@ -63,16 +63,17 @@ public class AboutDialog extends BaseDialog<Object> {
 		canvas.addPaintListener(e -> e.gc.drawImage(ImageService.getResourceImage(getParent().getDisplay(), "ico/256.png"), 0, 0));
 
 		Group group = Group_.on(shell_).layoutData(new GridData(SWT.FILL, SWT.CENTER, true, true)).layout(new GridLayout()).build();
-		Chain.on(group).lbl(l -> l.style(SWT.WRAP).layoutData(new GridData_(360).build()).key("dialog.about.createdby", new Object[] {Constants.PROGRAM_NAME_FULL, Constants.PROGRAM_VERSION})).lbl(
-			l -> l.style(SWT.WRAP).layoutData(new GridData_(360).build()).key("dialog.about.info",
-				new Object[] {SystemUtils.JVM_ARCH, SystemUtils.JVM_VERSION, SystemUtils.OS_NAME, SystemUtils.OS_VERSION, SystemUtils.OS_ARCH, HsqlDatabaseProperties.PRODUCT_NAME,
-						HsqlDatabaseProperties.THIS_FULL_VERSION, String.valueOf(SWT.getVersion()), SWT.getPlatform()})).lbl(
-							l -> l.style(SWT.WRAP).layoutData(new GridData_(360).build()).key("dialog.about.thanks")).build();
+		// the original program and its author: DBGL up to 0.100 beta 17
+		Chain.on(group).lbl(l -> l.style(SWT.WRAP).layoutData(new GridData_(380).build()).key("dialog.about.createdby", new Object[] {Constants.PROGRAM_NAME_FULL, Constants.BASE_VERSION}))
+				.lbl(l -> l.style(SWT.WRAP).layoutData(new GridData_(380).build()).key("dialog.about.thanks")).build();
 
-		// this edition: the credit goes to the original author, the edition itself is mentioned in small print
-		Chain.on(group).lbl(l -> l.style(SWT.WRAP).layoutData(new GridData_(360).build()).key("dialog.about.edition", new Object[] {Constants.EDITION_NAME})).build();
+		// this edition, clearly apart: an independent continuation the original author is not involved in
+		Label separator = new Label(group, SWT.SEPARATOR | SWT.HORIZONTAL);
+		separator.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+		Chain.on(group).lbl(l -> l.style(SWT.WRAP).layoutData(new GridData_(380).build()).key("dialog.about.editioninfo",
+			new Object[] {Constants.EDITION_NAME, Constants.PROGRAM_VERSION, Constants.BASE_VERSION})).build();
 		Label editionBy = new Label(group, SWT.WRAP);
-		editionBy.setLayoutData(new GridData_(360).build());
+		editionBy.setLayoutData(new GridData_(380).build());
 		editionBy.setText(text_.get("dialog.about.editionby", new Object[] {Constants.EDITION_NAME}));
 		FontData[] fontData = editionBy.getFont().getFontData();
 		for (FontData fd: fontData)
@@ -81,6 +82,10 @@ public class AboutDialog extends BaseDialog<Object> {
 		editionBy.setFont(small);
 		editionBy.setForeground(editionBy.getDisplay().getSystemColor(SWT.COLOR_WIDGET_DARK_SHADOW));
 		editionBy.addListener(SWT.Dispose, e -> small.dispose());
+
+		Chain.on(group).lbl(l -> l.style(SWT.WRAP).layoutData(new GridData_(380).build()).key("dialog.about.info",
+			new Object[] {SystemUtils.JVM_ARCH, SystemUtils.JVM_VERSION, SystemUtils.OS_NAME, SystemUtils.OS_VERSION, SystemUtils.OS_ARCH, HsqlDatabaseProperties.PRODUCT_NAME,
+					HsqlDatabaseProperties.THIS_FULL_VERSION, String.valueOf(SWT.getVersion()), SWT.getPlatform()})).build();
 
 		createLink(group, "<a href=\"https://dbgl.org\">" + text_.get("dialog.about.website") + "</a>", browseAdapter);
 

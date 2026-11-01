@@ -118,8 +118,48 @@ public final class DosboxInstaller {
 		return target;
 	}
 
-	/** unpack a .zip (in Java) or a .tar.xz/.tar.gz (with the tar of the system) into dir */
-	public static void unpack(File archive, File dir) throws IOException, InterruptedException {
+	/**
+	 * Unpack a .zip (in Java) or a .tar.xz/.tar.gz (with the tar of the system) into dir. Existing files are only replaced when
+	 * overwrite is true, and configuration files (*.conf) never: they may hold the user's settings.
+	 *
+	 * @return the number of existing files that were kept
+	 */
+	public static int unpack(File archive, File dir, boolean overwrite) throws IOException, InterruptedException {
+		File tmp = Files.createTempDirectory("dbgl-unpack").toFile();
+		try {
+			extract(archive, tmp);
+			return copyTree(tmp.toPath(), dir.toPath(), overwrite);
+		} finally {
+			try (Stream<Path> files = Files.walk(tmp.toPath())) {
+				files.sorted(java.util.Comparator.reverseOrder()).map(Path::toFile).forEach(File::delete);
+			}
+		}
+	}
+
+	/** @return true if dir exists and contains anything */
+	public static boolean hasContent(File dir) {
+		String[] names = dir.list();
+		return (names != null) && (names.length > 0);
+	}
+
+	private static int copyTree(Path from, Path to, boolean overwrite) throws IOException {
+		int kept = 0;
+		try (Stream<Path> files = Files.walk(from)) {
+			for (Path src: (Iterable<Path>)files::iterator) {
+				Path dst = to.resolve(from.relativize(src).toString());
+				if (Files.isDirectory(src)) {
+					Files.createDirectories(dst);
+				} else if (Files.exists(dst) && (!overwrite || dst.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".conf"))) {
+					kept++;
+				} else {
+					Files.copy(src, dst, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.COPY_ATTRIBUTES);
+				}
+			}
+		}
+		return kept;
+	}
+
+	static void extract(File archive, File dir) throws IOException, InterruptedException {
 		Files.createDirectories(dir.toPath());
 		String name = archive.getName().toLowerCase(Locale.ROOT);
 		if (name.endsWith(".zip")) {
@@ -145,10 +185,25 @@ public final class DosboxInstaller {
 		}
 	}
 
+	/** @return the executable names of a DOSBox family, e.g. dosbox-x.exe for DOSBox-X */
+	public static List<String> executableNames(String family) {
+		return family.toLowerCase(Locale.ROOT).contains("dosbox-x") ? List.of("dosbox-x.exe", "dosbox-x"): List.of("dosbox.exe", "dosbox");
+	}
+
+	/** @return the configuration file name DOSBox itself uses: dosbox-x.conf for DOSBox-X, dosbox.conf for the others */
+	public static String configurationName(String family) {
+		return family.toLowerCase(Locale.ROOT).contains("dosbox-x") ? "dosbox-x.conf": "dosbox.conf";
+	}
+
 	/** @return the DOSBox executable in the unpacked folder (searched a few levels deep), or null */
 	public static File findExecutable(File dir) throws IOException {
-		try (Stream<Path> files = Files.walk(dir.toPath(), 4)) {
-			return files.filter(Files::isRegularFile).filter(p -> EXECUTABLES.contains(p.getFileName().toString().toLowerCase(Locale.ROOT)))
+		return findExecutable(dir, EXECUTABLES);
+	}
+
+	/** @return the executable with one of the names in the unpacked folder, the least deep one; null if there is none */
+	public static File findExecutable(File dir, List<String> names) throws IOException {
+		try (Stream<Path> files = Files.walk(dir.toPath(), 5)) {
+			return files.filter(Files::isRegularFile).filter(p -> names.contains(p.getFileName().toString().toLowerCase(Locale.ROOT)))
 					.sorted((a, b) -> Integer.compare(a.getNameCount(), b.getNameCount())).map(Path::toFile).findFirst().map(f -> {
 						if (!f.getName().endsWith(".exe"))
 							f.setExecutable(true);

@@ -524,15 +524,28 @@ public class Dbgl0102Tests {
 			out.write(new byte[] {'M', 'Z'});
 		}
 		File target = new File(dir, "out");
-		org.dbgl.util.DosboxInstaller.unpack(zip, target);
+		org.dbgl.util.DosboxInstaller.unpack(zip, target, false);
 		assertEquals("dosbox.exe", org.dbgl.util.DosboxInstaller.findExecutable(target).getName());
+		// existing files stay unless overwriting was confirmed, configuration files always stay
+		File exe = new File(target, "dosbox-staging-v0.83.0/dosbox.exe");
+		File conf = new File(target, "dosbox-staging-v0.83.0/dosbox.conf");
+		Files.writeString(exe.toPath(), "old");
+		Files.writeString(conf.toPath(), "[cpu]\ncycles=max\n");
+		assertEquals(2, org.dbgl.util.DosboxInstaller.unpack(zip, target, false)); // dosbox.exe and the shader stay
+		assertEquals("old", Files.readString(exe.toPath()));
+		org.dbgl.util.DosboxInstaller.unpack(zip, target, true);
+		assertEquals("MZ", Files.readString(exe.toPath()));
+		assertTrue(org.dbgl.util.DosboxInstaller.hasContent(target));
+		assertEquals("dosbox-x.conf", org.dbgl.util.DosboxInstaller.configurationName("DOSBox-X"));
+		assertEquals("dosbox.conf", org.dbgl.util.DosboxInstaller.configurationName("DOSBox Staging"));
+		assertEquals("dosbox-x.exe", org.dbgl.util.DosboxInstaller.executableNames("DOSBox-X").get(0));
 		File evil = new File(dir, "evil.zip");
 		try (java.util.zip.ZipOutputStream out = new java.util.zip.ZipOutputStream(Files.newOutputStream(evil.toPath()))) {
 			out.putNextEntry(new java.util.zip.ZipEntry("../escaped.txt"));
 			out.write(1);
 		}
 		try {
-			org.dbgl.util.DosboxInstaller.unpack(evil, new File(dir, "out2"));
+			org.dbgl.util.DosboxInstaller.unpack(evil, new File(dir, "out2"), false);
 			assertTrue("an entry outside the folder must be refused", false);
 		} catch (IOException expected) {
 			assertFalse(new File(dir, "escaped.txt").exists());

@@ -11,7 +11,8 @@ Vorher: Menü -> Sicherung erstellen...
 
 1. Start und Hauptfenster
    [ ] DBGL startet, Fenstertitel endet mit "- Extended Edition".
-   [ ] Hilfe -> Über: Ronald Blankendaal als Autor, darunter der Hinweis zur
+   [ ] Hilfe -> Über: "v0.100 beta 17, entwickelt von Ronald
+       Blankendaal", darunter getrennt der Hinweis zur
        Extended Edition, ganz klein "begonnen von mrmercy82 mit Hilfe von KI".
    [ ] Profile mit Fehlern haben ein Warnsymbol vor dem Titel. Maus darauf:
        Tooltip mit den Problemen. Klick darauf: Profildialog an der Stelle.
@@ -31,6 +32,11 @@ Vorher: Menü -> Sicherung erstellen...
        DBGL und öffnet den Dialog der DOSBox-Version. OK legt die
        Konfigurationsdatei an (DOSBox-Fenster blitzt kurz auf, das ist normal).
    [ ] Danach die Frage, ob Profile umgestellt werden sollen.
+   [ ] Beim Herunterladen wird nach dem Zielordner gefragt; bei vorhandenem,
+       nicht leerem Ordner kommt eine Sicherheitsabfrage.
+   [ ] DOSBox-X: Eintrag zeigt dosbox-x.exe (voller Pfad) und dosbox-x.conf.
+   [ ] Tooltips (z. B. im Profildialog) bleiben stehen, solange die Maus
+       darauf ist.
    [ ] Knopf "Erkennen" bei DOSBox 0.74, ECE, Daum, SVN: Version wird
        erkannt, ohne dass ein DOSBox-Fenster aufgeht.
 

@@ -4,6 +4,29 @@ DBGL Extended Edition - Änderungen seit 0.100 beta 17
 Grundlage: DBGL 0.100 beta 17 von Ronald Blankendaal (https://dbgl.org), Quellcode. Neueste Version zuerst.
 
 
+0.101 alpha 20
+--------------
+- Über-Dialog: Die erste Zeile lautet jetzt "DOSBox Game Launcher v0.100 beta 17,
+  entwickelt von Ronald Blankendaal". Darunter, durch eine Linie getrennt: Die
+  Extended Edition ist eine unabhängige Weiterführung; Ronald Blankendaal hat
+  DBGL bis 0.100 beta 17 entwickelt und ist an ihr nicht beteiligt.
+- DOSBox herunterladen: DBGL fragt, in welchen Ordner installiert wird (dort
+  entsteht ein Unterordner, z. B. dosbox-x-2026.10.01). Existiert er schon und
+  ist nicht leer, gibt es eine Sicherheitsabfrage: Programmdateien ersetzen,
+  vorhandene Dateien behalten und nur Fehlendes ergänzen, oder abbrechen.
+  Konfigurationsdateien (*.conf) werden nie überschrieben.
+- DOSBox-X herunterladen: Der Eintrag verwendet jetzt dosbox-x.exe mit vollem
+  Pfad und dosbox-x.conf. Bisher wurde nur der Dateiname eingetragen, der
+  gegen den DOSBox-Hauptordner aufgelöst wurde, und die Konfiguration hieß
+  dosbox.conf.
+- Tooltips bleiben stehen, solange die Maus über dem Element ist (die
+  Tooltips des Betriebssystems verschwinden nach wenigen Sekunden). Lange
+  Texte werden umbrochen.
+- Warnsymbol in der Profilliste: Der Tooltip wurde nicht angezeigt; jetzt
+  erscheint er zuverlässig, und der Bereich zum Zeigen und Klicken ist etwas
+  größer.
+
+
 0.101 alpha 19
 --------------
 - Extended Edition: Fenstertitel und Über-Dialog nennen diese Ausgabe jetzt
