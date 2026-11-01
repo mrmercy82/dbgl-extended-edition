@@ -25,6 +25,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.dbgl.model.aggregate.DosboxVersion;
 import org.dbgl.model.aggregate.Profile;
+import org.dbgl.model.factory.DosboxVersionFactory;
 import org.dbgl.model.factory.ProfileFactory;
 
 
@@ -60,26 +61,60 @@ public final class ProfileWarnings {
 		return (cached != null) && cached.stamp().equals(stampOf(profile)) ? cached.problems(): null;
 	}
 
-	/** @return a short description of every problem, empty if there are none */
+	private static final Object LOCK = new Object();
+
+	/**
+	 * The DOSBox versions are shared with the rest of DBGL, and reading a configuration again resets that of its DOSBox
+	 * version. A check doing that while the window draws the list or opens a profile made both fail now and then (the warning
+	 * sign with the tooltip "null"). So checks use their own copies of the DOSBox versions.
+	 */
+	private static DosboxVersion privateCopy(DosboxVersion dbv) {
+		if (dbv == null)
+			return null;
+		DosboxVersion copy = DosboxVersionFactory.create(dbv.getId(), dbv.getTitle(), dbv.getFamily(), dbv.getVersion(), dbv.isDefault(), dbv.isMultiConfig(), dbv.isUsingCurses(),
+			dbv.getDynamicOptions(), dbv.getPath().getPath(), dbv.getExe().getPath(), dbv.getExecutableParameters(), dbv.getConfiguration().getFile().getPath(), null, null, null, 0);
+		return copy;
+	}
+
+	/**
+	 * @return a short description of every problem, empty if there are none. Checks run one after another (the background
+	 *         checks and the list share the DOSBox versions). A technical failure while checking (e.g. a DOSBox configuration
+	 *         being reloaded at that moment) is never shown as a problem of the profile: it is tried again, and if it still
+	 *         fails, the profile counts as unchecked and is checked again later.
+	 */
 	public static List<String> check(Profile profile) {
 		List<String> known = known(profile);
 		if (known != null)
 			return known;
-		String stamp = stampOf(profile);
-		List<String> problems = new ArrayList<>();
-		try {
-			Profile copy = ProfileFactory.create(profile); // with the location of its configuration file, read again below
-			copy.resetAndLoadConfiguration();
-			for (String[] v: copy.listInvalidValues())
-				problems.add('[' + v[0] + "] " + v[1] + '=' + v[2]);
-			for (String path: copy.listMissingPaths())
-				problems.add(path);
-		} catch (Exception e) {
-			problems.add(String.valueOf(e.getMessage()));
+		boolean uiThread = org.eclipse.swt.widgets.Display.getCurrent() != null;
+		for (int attempt = 1;; attempt++) {
+			String stamp = stampOf(profile);
+			try {
+				List<String> problems = new ArrayList<>();
+				synchronized (LOCK) {
+					Profile copy = ProfileFactory.create(profile); // with the location of its configuration file, read again below
+					copy.setDosboxVersion(privateCopy(profile.getDosboxVersion()));
+					copy.resetAndLoadConfiguration();
+					for (String[] v: copy.listInvalidValues())
+						problems.add('[' + v[0] + "] " + v[1] + '=' + v[2]);
+					for (String path: copy.listMissingPaths())
+						problems.add(path);
+				}
+				List<String> result = List.copyOf(problems);
+				CACHE.put(profile.getId(), new Cached(stamp, result));
+				return result;
+			} catch (Exception e) {
+				System.err.println("Checking profile " + profile.getId() + " failed (attempt " + attempt + "): " + e);
+				if (uiThread || (attempt >= 3))
+					return List.of(); // not cached: checked again later
+				try {
+					Thread.sleep(500L * attempt);
+				} catch (InterruptedException ie) {
+					Thread.currentThread().interrupt();
+					return List.of();
+				}
+			}
 		}
-		List<String> result = List.copyOf(problems);
-		CACHE.put(profile.getId(), new Cached(stamp, result));
-		return result;
 	}
 
 	public static void forget(int profileId) {

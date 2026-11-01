@@ -4,8 +4,20 @@ DBGL Extended Edition - Änderungen seit 0.100 beta 17
 Grundlage: DBGL 0.100 beta 17 von Ronald Blankendaal (https://dbgl.org), Quellcode. Neueste Version zuerst.
 
 
-0.101 alpha 21
---------------
+0.101 alpha 22 (2026-11-01)
+---------------------------
+- Fehler behoben: Bei einigen Spielen erschien in der Profilliste ein
+  Warnsymbol mit dem Tooltip "null", obwohl nichts falsch war. Nach
+  "Profile prüfen" (auch mit Abbrechen) verschwand es wieder. Ursache: Die
+  Prüfung im Hintergrund las Konfigurationen neu, während das Fenster
+  dieselben DOSBox-Versionen benutzte. Die Prüfung arbeitet jetzt mit
+  eigenen Kopien, läuft nacheinander statt gleichzeitig, und ein technischer
+  Fehler beim Prüfen wird nie mehr als Problem des Profils angezeigt
+  (stattdessen neuer Versuch, notfalls später).
+- Changelog: Datum neben jeder Versionsnummer.
+
+0.101 alpha 21 (2026-11-01)
+---------------------------
 - Hilfe-Menü: "Neue Features..." (Zusammenfassung aller Neuerungen seit
   0.100 beta 17) und "Changelog..." direkt über "Über DOSBox Game Launcher...".
   Angezeigt wird Deutsch bei deutscher Oberfläche, sonst Englisch.
@@ -37,8 +49,8 @@ Grundlage: DBGL 0.100 beta 17 von Ronald Blankendaal (https://dbgl.org), Quellco
   NEW-IN-EXTENDED-EDITION.txt im Update-Paket.
 
 
-0.101 alpha 20
---------------
+0.101 alpha 20 (2026-11-01)
+---------------------------
 - Über-Dialog: Die erste Zeile lautet jetzt "DOSBox Game Launcher v0.100 beta 17,
   entwickelt von Ronald Blankendaal". Darunter, durch eine Linie getrennt: Die
   Extended Edition ist eine unabhängige Weiterführung; Ronald Blankendaal hat
@@ -60,8 +72,8 @@ Grundlage: DBGL 0.100 beta 17 von Ronald Blankendaal (https://dbgl.org), Quellco
   größer.
 
 
-0.101 alpha 19
---------------
+0.101 alpha 19 (2026-11-01)
+---------------------------
 - Extended Edition: Fenstertitel und Über-Dialog nennen diese Ausgabe jetzt
   "Extended Edition". Der Über-Dialog stellt heraus, dass sie auf DBGL 0.100
   beta 17 und fast zwanzig Jahren Arbeit von Ronald Blankendaal aufbaut, und
@@ -105,8 +117,8 @@ Grundlage: DBGL 0.100 beta 17 von Ronald Blankendaal (https://dbgl.org), Quellco
 - TESTEN-WINDOWS.txt: Testliste für Windows.
 
 
-0.101 alpha 18
---------------
+0.101 alpha 18 (2026-11-01)
+---------------------------
 - Übersetzungen: In den 17 Sprachen außer Deutsch und Englisch sind rund 7.000
   kurze Texte übersetzt, die bisher englisch waren (Seiten- und Feldnamen,
   Menüs, Spaltenköpfe, Assistenten). Feste Begriffe wie IRQ, HDMA oder APM BIOS
@@ -154,8 +166,8 @@ Grundlage: DBGL 0.100 beta 17 von Ronald Blankendaal (https://dbgl.org), Quellco
   Voreinstellungsmenü und Seitenspeicher sind eigene Klassen.
 
 
-0.101 alpha 17
---------------
+0.101 alpha 17 (2026-11-01)
+---------------------------
 - DOSBox Staging 0.83: "Sound-Canvas-Filter" steht jetzt unter Audio -> Midi
   in den experimentellen Einstellungen, "Webserver (REST-API)", "Adresse des
   Webservers" und "Port des Webservers" unter Netzwerk. Damit hat Staging 0.83
@@ -174,8 +186,8 @@ Grundlage: DBGL 0.100 beta 17 von Ronald Blankendaal (https://dbgl.org), Quellco
   sofort mit allen Seiten, leere Seiten verschwinden gleich danach.
 
 
-0.101 alpha 16
---------------
+0.101 alpha 16 (2026-11-01)
+---------------------------
 - Deutsche Übersetzung vervollständigt: rund 740 Texte, die bisher englisch
   waren (Seitennamen wie "Speicher", "Datenträger", "Peripherie", Feldnamen
   und Tooltips), sind jetzt deutsch. Feste Begriffe wie Genre, Setup oder
@@ -217,8 +229,8 @@ Grundlage: DBGL 0.100 beta 17 von Ronald Blankendaal (https://dbgl.org), Quellco
   nicht übernommen.
 
 
-0.101 alpha 15
---------------
+0.101 alpha 15 (2026-11-01)
+---------------------------
 - Seiten im Navigationsbaum, für die die gewählte DOSBox-Version keine einzige
   Einstellung hat, werden immer ausgeblendet, unabhängig von der Einstellung
   "Vom gewählten DOSBox nicht unterstützte Einstellungen ausblenden". Diese ist jetzt
@@ -266,8 +278,8 @@ Grundlage: DBGL 0.100 beta 17 von Ronald Blankendaal (https://dbgl.org), Quellco
   Regeln geprüft, nicht mit echten Konfigurationsdateien.
 
 
-0.101 alpha 14
---------------
+0.101 alpha 14 (2026-10-31)
+---------------------------
 - Die Seite "DOSBox -> Weitere Einstellungen" gibt es nicht mehr. Alle
   Einstellungen ohne eigenes Feld stehen jetzt auf der Seite, zu der sie
   inhaltlich gehören, jeweils in einer Gruppe "Weitere Einstellungen [Abschnitt]"
@@ -289,8 +301,8 @@ Grundlage: DBGL 0.100 beta 17 von Ronald Blankendaal (https://dbgl.org), Quellco
   mit Trennlinien darüber und darunter.
 
 
-0.101 alpha 13
---------------
+0.101 alpha 13 (2026-10-31)
+---------------------------
 - Neue Versionsnummerierung: Die bisherigen Versionen 0.101 und
   0.102 beta 1 bis 12 heißen jetzt 0.101 alpha 0 bis 0.101 alpha 12.
 - "Profile prüfen..." steht jetzt als unterster Eintrag im Menü "Profile"
@@ -304,8 +316,8 @@ Grundlage: DBGL 0.100 beta 17 von Ronald Blankendaal (https://dbgl.org), Quellco
     Bericht.
 
 
-0.101 alpha 12
---------------
+0.101 alpha 12 (2026-10-31)
+---------------------------
 - Statusfenster: Endet DOSBox innerhalb von 5 Sekunden, nennt DBGL das als
   vermutlich fehlgeschlagenen Start und lässt das Fenster offen. Auch wenn das
   Statusfenster sonst nicht angezeigt wird, erscheint es dann mit den Meldungen
@@ -339,8 +351,8 @@ Grundlage: DBGL 0.100 beta 17 von Ronald Blankendaal (https://dbgl.org), Quellco
   sie machine=pc98.
 
 
-0.101 alpha 11
---------------
+0.101 alpha 11 (2026-10-31)
+---------------------------
 - Boot-Zeilen mit einem Windows-Pfad zum Image (z. B. boot "C:\...\win95.hdi")
   werden nicht mehr als DOS-Pfad gelesen. Vorher schnitt DBGL "C:" ab und legte
   einen zusätzlichen, nicht funktionierenden Mount "imgmount A" an.
@@ -348,22 +360,22 @@ Grundlage: DBGL 0.100 beta 17 von Ronald Blankendaal (https://dbgl.org), Quellco
   (imgmount 2 ... -t hdd) statt als Diskette.
 
 
-0.101 alpha 10
---------------
+0.101 alpha 10 (2026-10-31)
+---------------------------
 - Keine 8.3-Warnung mit "null" mehr bei selbstbootenden HDI-Images. Images, die
   direkt als Festplatte angehängt werden (imgmount 2), haben keinen DOS-Namen.
 
 
-0.101 alpha 9
--------------
+0.101 alpha 9 (2026-10-31)
+--------------------------
 - DOSBox-X: Wird ein PC-98-Festplattenimage (.HDI) eingebunden, gebootet oder
   als Spiel benutzt, setzt DBGL machine=pc98. Das geschieht jetzt immer: beim OK
   im Profildialog, im Assistenten für neue Spiele und beim Starten eines Spiels.
   Im IBM-PC-Modus stürzte DOSBox-X beim Booten solcher Images ab.
 
 
-0.101 alpha 8
--------------
+0.101 alpha 8 (2026-10-31)
+--------------------------
 - PC-98-Festplattenimages (.HDI) werden unterstützt:
   - Durchsuchen im Archivbrowser, um das Spielprogramm im Image auszuwählen.
   - Spiel aus einem HDI starten: Einbinden als Festplatte (imgmount ... -t hdd).
@@ -377,8 +389,8 @@ Grundlage: DBGL 0.100 beta 17 von Ronald Blankendaal (https://dbgl.org), Quellco
   über 512 Byte.
 
 
-0.101 alpha 7
--------------
+0.101 alpha 7 (2026-10-31)
+--------------------------
 - "Zuordnen" einer DOSBox-Version behält nur die eigenen Änderungen eines
   Profils. Alle anderen Werte kommen aus der Konfiguration der neuen
   DOSBox-Version, die unter "DOSBox-Versionen" hinterlegt ist.
@@ -392,8 +404,8 @@ Grundlage: DBGL 0.100 beta 17 von Ronald Blankendaal (https://dbgl.org), Quellco
   "Übernehmen" falsch.
 
 
-0.101 alpha 6
--------------
+0.101 alpha 6 (2026-10-31)
+--------------------------
 - Neue Seite "DOSBox -> Weitere Einstellungen": alle Einstellungen der
   gewählten DOSBox-Version, die kein eigenes Feld haben (z. B. "adlib pcm boost"
   bei DOSBox-X ab 2026.05.02), mit Filterfeld, Auswahllisten aus den in der
@@ -410,8 +422,8 @@ Grundlage: DBGL 0.100 beta 17 von Ronald Blankendaal (https://dbgl.org), Quellco
   bleibt als .bak erhalten.
 
 
-0.101 alpha 5
--------------
+0.101 alpha 5 (2026-10-31)
+--------------------------
 - Spielpfade mit Leerzeichen funktionieren (z. B. "M & M\M&M 3\MM 3.EXE"). DBGL
   schreibt in die Autoexec die 8.3-Kurznamen, die DOSBox selbst vergibt
   (z. B. "cd \M&M~1\M&M3~1" und "MM3~1.EXE"), nach denselben Regeln wie DOSBox.
@@ -421,15 +433,15 @@ Grundlage: DBGL 0.100 beta 17 von Ronald Blankendaal (https://dbgl.org), Quellco
 - Keine 8.3-Warnung mehr für solche Dateien auf eingebundenen Ordnern.
 
 
-0.101 alpha 4
--------------
+0.101 alpha 4 (2026-10-31)
+--------------------------
 - Das Statusfenster merkt sich Position, Größe und Maximierung, auch über einen
   Neustart von DBGL hinweg. Liegt die Position auf keinem Bildschirm mehr,
   erscheint es mittig.
 
 
-0.101 alpha 3
--------------
+0.101 alpha 3 (2026-10-31)
+--------------------------
 - Statusfenster: Steht im DOSBox-Staging-Eintrag noch eine ältere Version,
   obwohl die dosbox.exe schon 0.83 oder neuer ist, fragt DBGL das Programm nach
   seiner Version und zeigt das Fenster trotzdem.
@@ -442,8 +454,8 @@ Grundlage: DBGL 0.100 beta 17 von Ronald Blankendaal (https://dbgl.org), Quellco
 - Bei einem Absturz von DOSBox bleibt das Fenster offen und kommt nach vorne.
 
 
-0.101 alpha 2
--------------
+0.101 alpha 2 (2026-10-31)
+--------------------------
 - Seiten ohne unterstützte Einstellungen werden aus dem Navigationsbaum
   ausgeblendet. Eine übergeordnete Seite bleibt, solange eine Unterseite Inhalt
   hat. Der Baum wird bei einem Wechsel der DOSBox-Version neu aufgebaut.
@@ -458,8 +470,8 @@ Grundlage: DBGL 0.100 beta 17 von Ronald Blankendaal (https://dbgl.org), Quellco
   Staging 0.82.2 werden jetzt 58 statt 23 Wertelisten erkannt.
 
 
-0.101 alpha 1
--------------
+0.101 alpha 1 (2026-10-31)
+--------------------------
 - Auswahllisten kommen aus der Konfiguration, die die jeweilige DOSBox selbst
   schreibt. So passen sie zur installierten Version, auch bei Versionen, die
   DBGL nicht im Detail kennt.
@@ -481,8 +493,8 @@ Grundlage: DBGL 0.100 beta 17 von Ronald Blankendaal (https://dbgl.org), Quellco
 - Alle neuen Texte in 20 Sprachen.
 
 
-0.101 alpha 0
--------------
+0.101 alpha 0 (2026-10-31)
+--------------------------
 - Unterstützung für DOSBox Staging 0.83.0:
   - Umbenannte Einstellungen, z. B. windowresolution -> window_size,
     fullresolution -> fullscreen_mode, glshader -> shader,
