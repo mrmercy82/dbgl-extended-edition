@@ -103,7 +103,7 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 
 	@Override
 	protected void onShellCreated() {
-		Composite generalComposite = createTabWithComposite("dialog.settings.tab.general", new GridLayout());
+		Composite generalComposite = createScrolledTabWithComposite("dialog.settings.tab.general", new GridLayout());
 
 		Map<String, Locale> locales = getLocales();
 		Locale locale = new Locale(settings_.getValue("locale", "language"), settings_.getValue("locale", "country"), settings_.getValue("locale", "variant"));

@@ -406,12 +406,25 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 				builder.but(b -> b);
 			else if (f.kind() == 't')
 				builder.txt(t -> t);
+			else if (f.kind() == 'o')
+				builder.cmb(c -> c.editable().items(documentedValues(configurable, f)));
 			else
 				builder.cmb(c -> c.editable().items(f.values()));
 			builder.section(f.section(), f.sectionNew()).item(f.item(), f.itemNew()).dosboxHelp().build(metaControls_).init(configurable);
 			if ((i % 2 == 0) && (i < fields.length - 1))
 				Label_.on(group).grabHorSpace().build();
 		}
+	}
+
+	/** the values the DOSBox version documents for a setting, for 'o' fields (empty: free text) */
+	private static String[] documentedValues(TemplateProfileBase configurable, AdditionalField f) {
+		if ((configurable == null) || (configurable.getDosboxVersion() == null))
+			return new String[0];
+		org.dbgl.model.conf.ConfValueOptions docs = configurable.getDosboxVersion().getConfValueOptions();
+		org.dbgl.model.conf.ConfValueOptions.Options o = f.sectionNew() != null ? docs.get(f.sectionNew(), f.itemNew() != null ? f.itemNew(): f.item()): null;
+		if (o == null)
+			o = docs.get(f.section(), f.item());
+		return o == null ? new String[0]: o.getValues().toArray(new String[0]);
 	}
 
 	protected Composite createMainboardPage(TemplateProfileBase configurable, Composite parent) {
@@ -436,7 +449,12 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 			field("dialog.template.x.vesa16", 'b', "dosbox", "video", "allow 16bpp vesa modes", "allow 16bpp vesa modes"),
 			field("dialog.template.x.vesa15", 'b', "dosbox", "video", "allow 15bpp vesa modes", "allow 15bpp vesa modes"),
 			field("dialog.template.x.vesa8", 'b', "dosbox", "video", "allow 8bpp vesa modes", "allow 8bpp vesa modes"),
-			field("dialog.template.x.vesavbe12", 'c', "dosbox", "video", "vesa vbe 1.2 modes are 32bpp", "vesa vbe 1.2 modes are 32bpp", "auto", "true", "false"));
+			field("dialog.template.x.vesavbe12", 'c', "dosbox", "video", "vesa vbe 1.2 modes are 32bpp", "vesa vbe 1.2 modes are 32bpp", "auto", "true", "false"),
+			field("dialog.template.x.videovbememsize", 'o', "video", null, "vbememsize", null),
+			field("dialog.template.x.videoallowunusualvesamodes", 'b', "video", null, "allow unusual vesa modes", null),
+			field("dialog.template.x.videoallowttyvesamodes", 'b', "dosbox", "video", "allow tty vesa modes", "allow tty vesa modes"),
+			field("dialog.template.x.videoallow4bppvesamodes", 'b', "dosbox", "video", "allow 4bpp vesa modes", "allow 4bpp vesa modes"),
+			field("dialog.template.x.videovesasetdisplayvsync", 'o', "video", null, "vesa set display vsync", null));
 		return composite;
 	}
 
@@ -780,6 +798,9 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		Chain.on(expRendering).lbl(l -> l.key("dialog.template.imageadjustments")).but(b -> b.tooltip("dialog.template.imageadjustments.tooltip")).section("render").item("image_adjustments")
 			.build(metaControls_).init(configurable);
 		
+		addAdditionalOptions(composite, 6, configurable,
+			field("dialog.template.x.renderxbrzslice", 'o', "render", null, "xbrz slice", null),
+			field("dialog.template.x.renderxbrzmaxscalefactor", 'o', "render", null, "xbrz max scale factor", null));
 		return composite;
 	}
 	
@@ -938,6 +959,12 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		Chain.on(expDos).lbl(l -> l.key("dialog.template.autofixwarning")).cmb(c -> c.tooltip("dialog.template.autofixwarning.tooltip").items("profile", "autofixwarning_x20240301"))
 			.section("dos").item("autofixwarning").build(metaControls_).init(configurable);
 		
+		addAdditionalOptions(composite, 1, configurable,
+			field("dialog.template.x.dosexepack", 'o', "dos", null, "exepack", null),
+			field("dialog.template.x.dosstartincon", 'o', "dos", null, "startincon", null),
+			field("dialog.template.x.doshidenonrepresentable", 'b', "dos", null, "hidenonrepresentable", null),
+			field("dialog.template.x.dosbadcommandhandler", 'o', "dos", null, "badcommandhandler", null),
+			field("dialog.template.x.dosautomountdrivedirectories", 'b', "dos", null, "automount drive directories", null));
 		return composite;
 	}
 
@@ -1124,7 +1151,15 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 			field("dialog.template.x.enablemsr", 'b', "cpu", null, "enable msr", null),
 			field("dialog.template.x.ignoreundefinedmsr", 'b', "cpu", null, "ignore undefined msr", null),
 			field("dialog.template.x.stopturbokey", 'b', "cpu", null, "stop turbo on key", null),
-			field("dialog.template.x.stopturbosecond", 't', "cpu", null, "stop turbo after second", null));
+			field("dialog.template.x.stopturbosecond", 't', "cpu", null, "stop turbo after second", null),
+			field("dialog.template.x.dosboxweitek", 'b', "dosbox", null, "weitek", null),
+			field("dialog.template.x.cpuenablecmpxchg8b", 'b', "cpu", null, "enable cmpxchg8b", null),
+			field("dialog.template.x.cpuenablepse", 'o', "cpu", null, "enable pse", null),
+			field("dialog.template.x.cpuenablesyscall", 'b', "cpu", null, "enable syscall", null),
+			field("dialog.template.x.cpureportfdivbug", 'b', "cpu", null, "report fdiv bug", null),
+			field("dialog.template.x.cpuprocessorserialnumber", 'o', "cpu", null, "processor serial number", null),
+			field("dialog.template.x.cpuusedynamiccorewithpagingon", 'o', "cpu", null, "use dynamic core with paging on", null),
+			field("dialog.template.x.cpucycleemulationpercentageadjust", 'o', "cpu", null, "cycle emulation percentage adjust", null));
 		return composite;
 	}
 	
@@ -1162,7 +1197,16 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 			field("dialog.template.x.memsizekb", 't', "dosbox", null, "memsizekb", null),
 			field("dialog.template.x.allow640", 'b', "dosbox", null, "allow more than 640kb base memory", null),
 			field("dialog.template.x.dosmemlimit", 't', "dosbox", null, "dos mem limit", null),
-			field("dialog.template.x.vcpi", 'b', "dos", null, "vcpi", null));
+			field("dialog.template.x.vcpi", 'b', "dos", null, "vcpi", null),
+			field("dialog.template.x.dosemsframe", 'o', "dos", null, "ems frame", null),
+			field("dialog.template.x.dosumbstart", 'o', "dos", null, "umb start", null),
+			field("dialog.template.x.dosumbend", 'o', "dos", null, "umb end", null),
+			field("dialog.template.x.doshmafreespace", 'o', "dos", null, "hma free space", null),
+			field("dialog.template.x.dosboxisamemoryholeat15mb", 'o', "dosbox", null, "isa memory hole at 15mb", null),
+			field("dialog.template.x.dosautoa20fix", 'b', "dos", null, "autoa20fix", null),
+			field("dialog.template.x.dosautoloadfix", 'b', "dos", null, "autoloadfix", null),
+			field("dialog.template.x.dosemm386startupactive", 'b', "dos", null, "emm386 startup active", null),
+			field("dialog.template.x.doskernelallocationinumb", 'b', "dos", null, "kernel allocation in umb", null));
 		return composite;
 	}
 	
@@ -1252,7 +1296,14 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		addAdditionalOptions(composite, 1, configurable,
 			field("dialog.template.x.sierraramdac", 'b', "dosbox", "video", "sierra ramdac", "sierra ramdac"),
 			field("dialog.template.x.enable8bitdac", 'b', "video", null, "enable 8-bit dac", null),
-			field("dialog.template.x.hretraceeffects", 'b', "dosbox", "video", "allow hretrace effects", "allow hretrace effects"));
+			field("dialog.template.x.hretraceeffects", 'b', "dosbox", "video", "allow hretrace effects", "allow hretrace effects"),
+			field("dialog.template.x.videovmemdelay", 'o', "dosbox", "video", "vmemdelay", "vmemdelay"),
+			field("dialog.template.x.videoforcerate", 'o', "dosbox", "video", "forcerate", "forcerate"),
+			field("dialog.template.x.videovgafillactivememory", 'b', "video", null, "vga fill active memory", null),
+			field("dialog.template.x.videopcivga", 'b', "video", null, "pci vga", null),
+			field("dialog.template.x.videoskiprenderifnothingchanged", 'o', "video", null, "skip render if nothing changed", null),
+			field("dialog.template.x.videovgabiosuseromimage", 'b', "video", null, "vga bios use rom image", null),
+			field("dialog.template.x.videovgabiosromimage", 'o', "video", null, "vga bios rom image", null));
 		return composite;
 	}
 		
@@ -1626,7 +1677,11 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 			field("dialog.template.x.forcedspautoinit", 'b', "sblaster", null, "force dsp auto-init", null),
 			field("dialog.template.x.instantdirectdac", 'b', "sblaster", null, "instant direct dac", null),
 			field("dialog.template.x.goldplaystereo", 'b', "sblaster", null, "goldplay stereo", null),
-			field("dialog.template.x.sampleratelimits", 'b', "sblaster", null, "sample rate limits", null));
+			field("dialog.template.x.sampleratelimits", 'b', "sblaster", null, "sample rate limits", null),
+			field("dialog.template.x.sblastermindma", 'o', "sblaster", null, "mindma", null),
+			field("dialog.template.x.sblasterirqhack", 'o', "sblaster", null, "irq hack", null),
+			field("dialog.template.x.emu8kmemsize", 'o', "emu8k", null, "memsize", null),
+			field("dialog.template.x.emu8krompath", 'o', "emu8k", null, "rompath", null));
 		return composite;
 	}
 	
@@ -1660,7 +1715,9 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		Chain.on(gusExpGroup).lbl(l -> l.key("dialog.template.gusfilter")).txt(t -> t.tooltip("dialog.template.gusfilter.tooltip")).section("gus").item("gus_filter").build(metaControls_).init(configurable).getText();
 	
 		addAdditionalOptions(composite, 4, configurable,
-			field("dialog.template.x.gusautoamp", 'b', "gus", null, "autoamp", null));
+			field("dialog.template.x.gusautoamp", 'b', "gus", null, "autoamp", null),
+			field("dialog.template.x.gusgusfixedrenderrate", 'b', "gus", null, "gus fixed render rate", null),
+			field("dialog.template.x.gusirqhack", 'o', "gus", null, "irq hack", null));
 		return composite;
 	}
 	
@@ -1677,6 +1734,8 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 				"dialog.template.tab.experimentaloptions").build();
 		Chain.on(pcspeakerExpGroup).lbl(l -> l.key("dialog.template.pcspeakerfilter")).cmb(c -> c.tooltip("dialog.template.pcspeakerfilter.tooltip").editable().items("profile", "pcspeakerfilter_staging0810"))
 			.section("speaker").item("pcspeaker_filter").build(metaControls_).init(configurable);
+		addAdditionalOptions(composite, 2, configurable,
+			field("dialog.template.x.speakerinitialfrequency", 'o', "speaker", null, "initial frequency", null));
 		return composite;
 	}
 	
@@ -1898,7 +1957,12 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 			.section("mouse").item("builtin_dos_mouse_driver_options").build(metaControls_).init(configurable);
 
 		addAdditionalOptions(composite, 2, configurable,
-			field("dialog.template.x.biosps2", 'b', "dos", null, "biosps2", null));
+			field("dialog.template.x.biosps2", 'b', "dos", null, "biosps2", null),
+			field("dialog.template.x.dosint33maxx", 'o', "dos", null, "int33 max x", null),
+			field("dialog.template.x.dosint33maxy", 'o', "dos", null, "int33 max y", null),
+			field("dialog.template.x.dosint33xyadjust", 'o', "dos", null, "int33 xy adjust", null),
+			field("dialog.template.x.dosint33hidehostcursorwhenpolling", 'b', "dos", null, "int33 hide host cursor when polling", null),
+			field("dialog.template.x.dosint33hidehostcursorifinterruptsubroutine", 'b', "dos", null, "int33 hide host cursor if interrupt subroutine", null));
 		return composite;
 	}
 	

@@ -305,6 +305,29 @@ public class ProfilesList {
 		});
 	}
 
+	/**
+	 * In the table view, the warning sign in front of a title shows what is wrong as tooltip (problems), and clicking it calls
+	 * onClick, both with the index of the profile.
+	 */
+	public void setWarningHandlers(java.util.function.IntFunction<String> problems, java.util.function.IntConsumer onClick) {
+		if (type_ != ProfilesListType.TABLE)
+			return;
+		Listener listener = event -> {
+			TableItem item = table_.getItem(new org.eclipse.swt.graphics.Point(event.x, event.y));
+			boolean onSign = (item != null) && (item.getImage(0) != null) && item.getImageBounds(0).contains(event.x, event.y);
+			if (event.type == SWT.MouseMove) {
+				String tip = onSign ? problems.apply(table_.indexOf(item)): null;
+				if (!Objects.equals(tip, table_.getToolTipText()))
+					table_.setToolTipText(tip);
+			} else if ((event.type == SWT.MouseUp) && (event.button == 1) && onSign) {
+				int index = table_.indexOf(item);
+				table_.getDisplay().asyncExec(() -> onClick.accept(index));
+			}
+		};
+		table_.addListener(SWT.MouseMove, listener);
+		table_.addListener(SWT.MouseUp, listener);
+	}
+
 	public void addMouseListener(MouseAdapter mouseAdapter) {
 		if (type_ == ProfilesListType.TABLE)
 			table_.addMouseListener(mouseAdapter);

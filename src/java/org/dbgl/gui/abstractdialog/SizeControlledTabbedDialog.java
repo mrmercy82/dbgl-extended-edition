@@ -23,6 +23,7 @@ import org.dbgl.gui.controls.Composite_;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.CTabFolder;
 import org.eclipse.swt.custom.CTabItem;
+import org.eclipse.swt.custom.ScrolledComposite;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Composite;
@@ -54,12 +55,38 @@ public abstract class SizeControlledTabbedDialog<T> extends SizeControlledButton
 		return Composite_.on(tabFolder_).layout(layout).tab(title).build();
 	}
 
+	/**
+	 * A tab whose contents scroll vertically when the dialog is too small to show them all (e.g. the general settings with many
+	 * groups). The returned composite is the one to put the controls in.
+	 */
+	protected Composite createScrolledTabWithComposite(String title, Layout layout) {
+		ScrolledComposite scrolled = new ScrolledComposite(tabFolder_, SWT.V_SCROLL | SWT.H_SCROLL);
+		scrolled.setExpandHorizontal(true);
+		scrolled.setExpandVertical(true);
+		scrolled.getVerticalBar().setIncrement(16);
+		Composite content = Composite_.on(scrolled).layout(layout).build();
+		scrolled.setContent(content);
+		Runnable updateMinSize = () -> {
+			if (!scrolled.isDisposed()) {
+				int width = Math.max(scrolled.getClientArea().width, content.computeSize(SWT.DEFAULT, SWT.DEFAULT).x); // never squeeze the controls
+				scrolled.setMinSize(content.computeSize(width, SWT.DEFAULT));
+			}
+		};
+		scrolled.addListener(SWT.Resize, e -> updateMinSize.run());
+		content.addListener(SWT.Resize, e -> scrolled.getDisplay().asyncExec(updateMinSize));
+		CTabItem tabItem = new CTabItem(tabFolder_, SWT.NONE);
+		tabItem.setText("   " + org.dbgl.service.TextService.getInstance().get(title) + "   ");
+		tabItem.setControl(scrolled);
+		tabFolder_.setSelection(0);
+		return content;
+	}
+
 	protected Composite createTabWithComposite(String title, int numColumns) {
 		return Composite_.on(tabFolder_).layout(new GridLayout(numColumns, false)).tab(title).build();
 	}
 
 	protected CTabItem getTabItemByComposite(Composite composite) {
-		return Stream.of(tabFolder_.getItems()).filter(x -> x.getControl() == composite).findFirst().orElse(null);
+		return Stream.of(tabFolder_.getItems()).filter(x -> (x.getControl() == composite) || ((x.getControl() instanceof ScrolledComposite sc) && (sc.getContent() == composite))).findFirst().orElse(null);
 	}
 
 	protected CTabItem getTabItemByControl(Control control) {

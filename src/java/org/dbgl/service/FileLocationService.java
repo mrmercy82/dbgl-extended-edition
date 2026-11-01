@@ -195,6 +195,11 @@ public class FileLocationService {
 		};
 	}
 
+	/** the folder for DOSBox installations, relative paths of DOSBox versions are resolved against it */
+	public File getDosboxDir() {
+		return dosboxDir_;
+	}
+
 	public File getDataDir() {
 		return dataDir_;
 	}

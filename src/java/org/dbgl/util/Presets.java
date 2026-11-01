@@ -90,7 +90,7 @@ public final class Presets {
 	}
 
 	/** a plain configuration: [section] and item = value lines */
-	static Map<String, Map<String, String>> parse(String text) {
+	public static Map<String, Map<String, String>> parse(String text) {
 		Map<String, Map<String, String>> result = new LinkedHashMap<>();
 		String section = null;
 		for (String raw: text.split("\\R")) {
@@ -154,6 +154,22 @@ public final class Presets {
 			}
 		}
 		return false;
+	}
+
+	/** @return the file of an own preset as text, for editing */
+	public static String read(String name) throws IOException {
+		return Files.readString(new File(dir(), safeName(name) + ".conf").toPath(), StandardCharsets.UTF_8);
+	}
+
+	/** replace an own preset by the edited text, possibly under a new name; lines that are no settings are kept as they are */
+	public static void update(String oldName, String newName, String text) throws IOException {
+		if (parse(text).isEmpty())
+			throw new IOException("no [section] with item=value lines");
+		File dir = dir();
+		dir.mkdirs();
+		Files.writeString(new File(dir, safeName(newName) + ".conf").toPath(), text.endsWith("\n") ? text: text + '\n', StandardCharsets.UTF_8);
+		if (!safeName(oldName).equalsIgnoreCase(safeName(newName)))
+			delete(oldName);
 	}
 
 	public static void delete(String name) throws IOException {

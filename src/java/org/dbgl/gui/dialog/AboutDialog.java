@@ -29,7 +29,10 @@ import org.eclipse.swt.SWT;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Canvas;
+import org.eclipse.swt.graphics.Font;
+import org.eclipse.swt.graphics.FontData;
 import org.eclipse.swt.widgets.Group;
+import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Shell;
 import org.hsqldb.persist.HsqlDatabaseProperties;
 
@@ -47,7 +50,7 @@ public class AboutDialog extends BaseDialog<Object> {
 
 	@Override
 	protected void onShellCreated() {
-		shell_.setSize(670, 410);
+		shell_.setSize(700, 500);
 
 		GridLayout layout = new GridLayout(2, false);
 		layout.marginTop = 2;
@@ -65,6 +68,19 @@ public class AboutDialog extends BaseDialog<Object> {
 				new Object[] {SystemUtils.JVM_ARCH, SystemUtils.JVM_VERSION, SystemUtils.OS_NAME, SystemUtils.OS_VERSION, SystemUtils.OS_ARCH, HsqlDatabaseProperties.PRODUCT_NAME,
 						HsqlDatabaseProperties.THIS_FULL_VERSION, String.valueOf(SWT.getVersion()), SWT.getPlatform()})).lbl(
 							l -> l.style(SWT.WRAP).layoutData(new GridData_(360).build()).key("dialog.about.thanks")).build();
+
+		// this edition: the credit goes to the original author, the edition itself is mentioned in small print
+		Chain.on(group).lbl(l -> l.style(SWT.WRAP).layoutData(new GridData_(360).build()).key("dialog.about.edition", new Object[] {Constants.EDITION_NAME})).build();
+		Label editionBy = new Label(group, SWT.WRAP);
+		editionBy.setLayoutData(new GridData_(360).build());
+		editionBy.setText(text_.get("dialog.about.editionby", new Object[] {Constants.EDITION_NAME}));
+		FontData[] fontData = editionBy.getFont().getFontData();
+		for (FontData fd: fontData)
+			fd.setHeight(Math.max(6, fd.getHeight() - 2));
+		Font small = new Font(editionBy.getDisplay(), fontData);
+		editionBy.setFont(small);
+		editionBy.setForeground(editionBy.getDisplay().getSystemColor(SWT.COLOR_WIDGET_DARK_SHADOW));
+		editionBy.addListener(SWT.Dispose, e -> small.dispose());
 
 		createLink(group, "<a href=\"https://dbgl.org\">" + text_.get("dialog.about.website") + "</a>", browseAdapter);
 

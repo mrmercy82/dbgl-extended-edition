@@ -206,6 +206,8 @@ public class SwitchDosboxVersionDialog extends SizeControlledButtonDialog<Boolea
 		if (!preview && !Mess_.on(shell_).key("dialog.switchdosbox.confirm", new Object[] {profiles.size(), srcTitle, dst.getTitle()}).confirm())
 			return;
 
+		if (!preview)
+			org.dbgl.util.BulkUndo.remember(text_.get("dialog.bulkundo.switch", new Object[] {dst.getTitle()}), profiles);
 		shell_.setCursor(shell_.getDisplay().getSystemCursor(SWT.CURSOR_WAIT));
 		StringBuilder report = new StringBuilder();
 		report.append(text_.get(preview ? "dialog.switchdosbox.report.preview": "dialog.switchdosbox.report.done", new Object[] {srcTitle, dst.getTitle()})).append(Text.DELIMITER).append(Text.DELIMITER);

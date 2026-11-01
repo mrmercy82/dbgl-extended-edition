@@ -209,6 +209,8 @@ public class EditDosboxVersionDialog extends SizeControlledTabbedDialog<DosboxVe
 			parameters.setText(dbversion_.getExecutableParameters());
 			family.setText(dbversion_.getFamily());
 			version.setItems(SettingsService.SUPPORTED_DOSBOX_FAMILIES.get(family.getSelectionIndex()).versions_.toArray(String[]::new));
+			if (StringUtils.isNotBlank(dbversion_.getVersion()) && (version.indexOf(dbversion_.getVersion()) < 0))
+				version.add(dbversion_.getVersion()); // a newer version than DBGL lists, e.g. just downloaded: its nearest known generation is used
 			version.setText(dbversion_.getVersion());
 			defaultButton.setSelection(dbversion_.isDefault());
 			multiconf.setSelection(dbversion_.isMultiConfig());

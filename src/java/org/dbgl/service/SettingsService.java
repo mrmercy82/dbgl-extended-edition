@@ -191,6 +191,8 @@ public class SettingsService {
 		settings_.setValue("gui", "differencesdialog_width", "600");
 		settings_.setValue("gui", "differencesdialog_height", "460");
 		settings_.setValue("gui", "textinputdialog_width", "480");
+		settings_.setValue("gui", "preseteditdialog_width", "560");
+		settings_.setValue("gui", "preseteditdialog_height", "460");
 		settings_.setValue("gui", "textinputdialog_height", "200");
 		settings_.setValue("gui", "profilehistorydialog_width", "800");
 		settings_.setValue("gui", "profilehistorydialog_height", "500");

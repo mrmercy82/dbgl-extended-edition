@@ -171,6 +171,7 @@ public class CheckProfilesDialog extends SizeControlledButtonDialog<Boolean> {
 		}
 		if (!Mess_.on(shell_).key("dialog.checkprofiles.confirmfix", new Object[] {invalidValues_, invalidProfiles_}).confirm())
 			return;
+		org.dbgl.util.BulkUndo.remember(text_.get("dialog.bulkundo.fix"), profiles_);
 		int removed = 0;
 		for (Profile prof: profiles_) {
 			try {
@@ -238,6 +239,7 @@ public class CheckProfilesDialog extends SizeControlledButtonDialog<Boolean> {
 		}
 		if (!Mess_.on(shell_).key("dialog.checkprofiles.relocate.confirm", new Object[] {count, changes.size(), prefixes[0], prefixes[1]}).confirm())
 			return;
+		org.dbgl.util.BulkUndo.remember(text_.get("dialog.bulkundo.relocate"), changes.keySet());
 		int changed = 0;
 		for (java.util.Map.Entry<Profile, java.util.Map<String, String>> e: changes.entrySet()) {
 			Profile prof = e.getKey();

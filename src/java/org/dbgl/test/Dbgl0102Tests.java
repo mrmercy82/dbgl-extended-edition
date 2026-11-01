@@ -498,4 +498,67 @@ public class Dbgl0102Tests {
 			assertTrue(f[0] + " " + f[3], v.getConfValueOptions() != null);
 		}
 	}
+
+	@Test
+	public void testDosboxInstallerAssetChoice() throws Exception {
+		List<String[]> staging = List.of(new String[] {"dosbox-staging-windows-x64-v0.83.0.zip", "a"}, new String[] {"dosbox-staging-windows-x64-v0.83.0-setup.exe", "b"},
+			new String[] {"dosbox-staging-linux-x86_64-v0.83.0.tar.xz", "c"}, new String[] {"dosbox-staging-macOS-universal-v0.83.0.dmg", "d"},
+			new String[] {"dosbox-staging-v0.83.0-source.tar.xz", "e"}, new String[] {"dosbox-staging-windows-arm64-v0.83.0.zip", "f"});
+		assertEquals("a", org.dbgl.util.DosboxInstaller.chooseAsset(staging, true, false, false)[1]);
+		assertEquals("f", org.dbgl.util.DosboxInstaller.chooseAsset(staging, true, false, true)[1]);
+		assertEquals("c", org.dbgl.util.DosboxInstaller.chooseAsset(staging, false, true, false)[1]);
+		assertNull(org.dbgl.util.DosboxInstaller.chooseAsset(staging, false, false, false)); // macOS: only a disk image
+		List<String[]> x = List.of(new String[] {"dosbox-x-mingw-win64-20261001153012.zip", "m"}, new String[] {"dosbox-x-vsbuild-win64-20261001153012.zip", "v"},
+			new String[] {"dosbox-x-vsbuild-win32-20261001153012.zip", "w"}, new String[] {"dosbox-x-macosx-x86_64-20261001153012.zip", "o"});
+		assertEquals("v", org.dbgl.util.DosboxInstaller.chooseAsset(x, true, false, false)[1]);
+		assertNull(org.dbgl.util.DosboxInstaller.chooseAsset(x, false, true, false));
+		assertEquals("dosbox-staging-0.83.0", org.dbgl.util.DosboxInstaller.folderName("DOSBox Staging", "0.83.0"));
+
+		// unpacking a zip and finding the executable in a sub folder
+		File dir = Files.createTempDirectory("dbgl-install").toFile();
+		File zip = new File(dir, "build.zip");
+		try (java.util.zip.ZipOutputStream out = new java.util.zip.ZipOutputStream(Files.newOutputStream(zip.toPath()))) {
+			out.putNextEntry(new java.util.zip.ZipEntry("dosbox-staging-v0.83.0/resources/shaders/x.glsl"));
+			out.write(1);
+			out.putNextEntry(new java.util.zip.ZipEntry("dosbox-staging-v0.83.0/dosbox.exe"));
+			out.write(new byte[] {'M', 'Z'});
+		}
+		File target = new File(dir, "out");
+		org.dbgl.util.DosboxInstaller.unpack(zip, target);
+		assertEquals("dosbox.exe", org.dbgl.util.DosboxInstaller.findExecutable(target).getName());
+		File evil = new File(dir, "evil.zip");
+		try (java.util.zip.ZipOutputStream out = new java.util.zip.ZipOutputStream(Files.newOutputStream(evil.toPath()))) {
+			out.putNextEntry(new java.util.zip.ZipEntry("../escaped.txt"));
+			out.write(1);
+		}
+		try {
+			org.dbgl.util.DosboxInstaller.unpack(evil, new File(dir, "out2"));
+			assertTrue("an entry outside the folder must be refused", false);
+		} catch (IOException expected) {
+			assertFalse(new File(dir, "escaped.txt").exists());
+		}
+	}
+
+	@Test
+	public void testNewerVersionsAndDocumentedValues() throws IOException {
+		org.dbgl.model.aggregate.DosboxVersion x = DosboxVersionFactory.create("DOSBox-X 2027.02.01", SettingsService.DOSBOX_X_DOSBOX_FAM.title_, "2027.02.01", false, true, false, null, "x", "", "", "x/dosbox.conf");
+		assertEquals(Generation.x_20241001, GenerationAwareConfigurable.determineGen(x));
+		org.dbgl.model.aggregate.DosboxVersion s = DosboxVersionFactory.create("DOSBox Staging 0.84.1", SettingsService.STAGING_DOSBOX_FAM.title_, "0.84.1", false, true, false, null, "x", "", "", "x/dosbox.conf");
+		assertEquals(Generation.staging_0830, GenerationAwareConfigurable.determineGen(s));
+		// the long, right aligned help texts of DOSBox-X document all values of sbtype on one line
+		File conf = new File(DATA_DIR, "dosbox-x-2026.10.01.conf");
+		if (conf.isFile()) {
+			ConfValueOptions o = ConfValueOptions.parse(Files.readString(conf.toPath(), StandardCharsets.UTF_8));
+			assertTrue(o.get("sblaster", "sbtype").getValues().containsAll(List.of("sb16", "awe32", "pas16", "none")));
+			assertFalse(o.get("sblaster", "sbtype").getValues().contains("sb99"));
+		}
+	}
+
+	@Test
+	public void testOwnPresetText() {
+		java.util.Map<String, java.util.Map<String, String>> v = org.dbgl.util.Presets.parse("# my preset\n[cpu]\ncycles = max\n\n[DOSBOX]\nmemsize=32\nnot a setting\n");
+		assertEquals("max", v.get("cpu").get("cycles"));
+		assertEquals("32", v.get("dosbox").get("memsize"));
+		assertEquals(2, v.size());
+	}
 }

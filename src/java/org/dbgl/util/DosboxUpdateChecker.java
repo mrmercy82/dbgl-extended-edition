@@ -34,12 +34,12 @@ import org.json.JSONObject;
 
 /**
  * Asks GitHub for the latest releases of DOSBox Staging and DOSBox-X, to tell when a newer version than the installed ones is
- * out. Nothing is downloaded; DBGL only shows a link to the download page.
+ * out. DosboxInstaller can download and unpack a release.
  */
 public final class DosboxUpdateChecker {
 
-	/** a release on GitHub */
-	public record Release(String family, String version, String url) {
+	/** a release on GitHub, with its downloadable files (name, download URL) */
+	public record Release(String family, String version, String url, List<String[]> assets) {
 	}
 
 	private static final String[][] SOURCES = {
@@ -85,8 +85,15 @@ public final class DosboxUpdateChecker {
 					continue;
 				JSONObject json = new JSONObject(response.body());
 				String version = versionOfTag(source[0], json.optString("tag_name", null));
-				if (version != null)
-					result.add(new Release(source[0], version, json.optString("html_url", source[2])));
+				if (version != null) {
+					List<String[]> assets = new ArrayList<>();
+					org.json.JSONArray list = json.optJSONArray("assets");
+					for (int i = 0; (list != null) && (i < list.length()); i++) {
+						JSONObject asset = list.getJSONObject(i);
+						assets.add(new String[] {asset.optString("name", ""), asset.optString("browser_download_url", "")});
+					}
+					result.add(new Release(source[0], version, json.optString("html_url", source[2]), assets));
+				}
 			} catch (Exception e) {
 				// no connection, rate limit, ...: try again another day
 				System.out.println("DOSBox update check for " + source[0] + " failed: " + e);

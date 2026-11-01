@@ -1,7 +1,50 @@
-DBGL - Changes since 0.100 beta 17
-==================================
+DBGL Extended Edition - Changes since 0.100 beta 17
+===================================================
 
-Based on DBGL 0.100 beta 17 (source code). Newest version first.
+Based on DBGL 0.100 beta 17 by Ronald Blankendaal (https://dbgl.org), source code. Newest version first.
+
+
+0.101 alpha 19
+--------------
+- Extended Edition: window title and about dialog now call this edition
+  "Extended Edition". The about dialog points out that it builds on DBGL 0.100
+  beta 17 and almost twenty years of work by Ronald Blankendaal, and mentions
+  in small print that the Extended Edition was started by mrmercy82 with the
+  help of AI.
+- Settings -> General: the contents scroll when the window is too small. The
+  lower groups could not be reached before.
+- Warning sign in the profile list: the tooltip shows what is wrong. Clicking
+  the sign opens the profile dialog at the setting concerned, for missing
+  folders the repair of "Check profiles".
+- Context menu "Fix problems..." for profiles with a warning sign.
+- New filter tab "With problems" (right of the own filters) when the warning
+  signs are turned on.
+- Invalid values are now reliably detected for DOSBox-X, e.g. sbtype=sb99
+  (test added; the cause was the copy bug of the check fixed in alpha 18).
+- Own presets can be edited: Presets -> Edit opens name and settings as a
+  small text.
+- Download DOSBox: menu DOSBox -> "Download DOSBox..." and the notice about
+  new versions offer to download DOSBox Staging or DOSBox-X from GitHub,
+  unpack it into the DOSBox folder of DBGL and add it as a new DOSBox version,
+  optionally switching profiles to it. Windows and Linux; for macOS the
+  download page opens.
+- Newer DOSBox versions DBGL does not know yet are now shown correctly in the
+  DOSBox version dialog (the version field stayed empty before). They behave
+  like the newest known version.
+- DOSBox-X: 48 more settings as real fields (DOS, CPU, Memory, Video,
+  VESA / SVGA, Mouse, Gravis Ultrasound, Sound Blaster, Rendering,
+  PC Speaker), e.g. EMS page frame, UMB range, Weitek, PSE, VESA video
+  memory, mouse limits, EMU8000. Combo boxes take the values the DOSBox
+  version documents itself. DOSBox-X 2026.10.01 keeps 413 instead of 461
+  further settings.
+- Undo last bulk change: before applying a preset to several profiles,
+  switching several profiles to another DOSBox version, repairing values and
+  paths, and editing several profiles, DBGL remembers their state. Profiles ->
+  "Undo last change of several profiles..." restores configuration and DOSBox
+  version of all profiles concerned.
+- The "Play time" column exists since alpha 15; it can be shown and sorted via
+  Settings -> Profile table.
+- TESTEN-WINDOWS.txt: test checklist for Windows (German).
 
 
 0.101 alpha 18

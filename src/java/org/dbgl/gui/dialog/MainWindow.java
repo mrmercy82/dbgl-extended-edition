@@ -63,6 +63,7 @@ import org.dbgl.model.aggregate.DosboxVersion;
 import org.dbgl.model.aggregate.Profile;
 import org.dbgl.model.aggregate.Template;
 import org.dbgl.model.entity.Filter;
+import org.dbgl.model.factory.DosboxVersionFactory;
 import org.dbgl.model.repository.BaseRepository;
 import org.dbgl.model.repository.DosboxVersionRepository;
 import org.dbgl.model.repository.FilterRepository;
@@ -121,7 +122,10 @@ import org.eclipse.swt.widgets.DirectoryDialog;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.FileDialog;
 import org.eclipse.swt.widgets.Link;
+import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Menu;
+import org.eclipse.swt.widgets.MessageBox;
+import org.eclipse.swt.widgets.ProgressBar;
 import org.eclipse.swt.widgets.MenuItem;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Table;
@@ -191,7 +195,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 
 	@Override
 	protected String getDialogTitle() {
-		return text_.get("main.title", new Object[] {Constants.PROGRAM_VERSION});
+		return text_.get("main.title", new Object[] {Constants.PROGRAM_VERSION}) + " - " + Constants.EDITION_NAME;
 	}
 
 	@Override
@@ -217,12 +221,11 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 
 			orderingVector_ = new OrderingVector(settings_.getIntValues("gui", "sortcolumn"), settings_.getBooleanValues("gui", "sortascending"));
 
-			filtersList_ = new FilterRepository().listAll();
-			filtersList_.add(0, new Filter(text_.get("dialog.main.allprofiles"), null));
+			filtersList_ = allFilters(new FilterRepository().listAll());
 			int filterIdx = Math.min(settings_.getIntValue("gui", "filtertab"), filtersList_.size() - 1);
 			filterClause_ = filtersList_.get(filterIdx).getFilter();
 
-			profilesList_ = profileRepo.list(orderingVector_.toClause(), filterClause_, dbversionsList_);
+			profilesList_ = listProfiles();
 		} catch (Exception e) {
 			Mess_.on(new Shell()).exception(e).warning();
 			return false;
@@ -357,6 +360,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		String name = org.dbgl.gui.abstractdialog.PresetsMenu.nameOf(preset);
 		if (!Mess_.on(shell_).key("dialog.main.profile.applypreset.confirm", new Object[] {name, selected.size()}).confirm())
 			return;
+		org.dbgl.util.BulkUndo.remember(text_.get("dialog.bulkundo.preset", new Object[] {name}), selected);
 		int changed = 0;
 		StringBuilder problems = new StringBuilder();
 		for (Profile prof: selected) {
@@ -469,13 +473,131 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 						continue;
 					shown = (shown + ';' + id).replaceFirst("^;", "");
 					settings_.setValue("gui", "updatenoticeshown", shown);
-					if (Mess_.on(shell_).key("dialog.main.confirm.dosboxupdate", new Object[] {r.family(), r.version(), installed.get(r.family())}).confirm())
-						SystemUtils.openForBrowsing(r.url(), getParent());
+					offerDosboxRelease(r, text_.get("dialog.main.confirm.dosboxupdate", new Object[] {r.family(), r.version(), installed.get(r.family())}));
 				}
 			});
 		}, "DOSBox update check");
 		checker.setDaemon(true);
 		checker.start();
+	}
+
+	/** menu DOSBox -> download: the latest releases of DOSBox Staging and DOSBox-X */
+	private void doDownloadDosbox() {
+		shell_.setCursor(display_.getSystemCursor(SWT.CURSOR_WAIT));
+		Thread fetcher = new Thread(() -> {
+			List<DosboxUpdateChecker.Release> releases = DosboxUpdateChecker.latestReleases();
+			display_.asyncExec(() -> {
+				if (shell_.isDisposed())
+					return;
+				shell_.setCursor(null);
+				if (releases.isEmpty()) {
+					Mess_.on(shell_).key("dialog.main.notice.noreleases").warning();
+					return;
+				}
+				for (DosboxUpdateChecker.Release r: releases) {
+					boolean present = dbversionsList_.stream().anyMatch(v -> v.getFamily().equals(r.family()) && (DosboxUpdateChecker.compareVersions(v.getVersion(), r.version()) >= 0));
+					String question = text_.get("dialog.main.confirm.downloaddosbox", new Object[] {r.family(), r.version()}) + (present ? "\n" + text_.get("dialog.main.notice.alreadyinstalled"): "");
+					if (offerDosboxRelease(r, question))
+						break;
+				}
+			});
+		}, "DOSBox releases");
+		fetcher.setDaemon(true);
+		fetcher.start();
+	}
+
+	/**
+	 * Ask what to do with a release: download and set up (when there is a build for this computer), open the download page, or
+	 * nothing.
+	 *
+	 * @return true if the user chose to download or to open the page
+	 */
+	private boolean offerDosboxRelease(DosboxUpdateChecker.Release r, String question) {
+		String[] asset = org.dbgl.util.DosboxInstaller.chooseAsset(r.assets(), SystemUtils.IS_WINDOWS, SystemUtils.IS_LINUX, System.getProperty("os.arch").toLowerCase().contains("aarch64") || System.getProperty("os.arch").toLowerCase().contains("arm"));
+		MessageBox box = new MessageBox(shell_, SWT.ICON_QUESTION | (asset != null ? SWT.YES | SWT.NO | SWT.CANCEL: SWT.YES | SWT.NO));
+		box.setText(text_.get("dialog.main.title.dosboxrelease", new Object[] {r.family(), r.version()}));
+		box.setMessage(question + "\n\n" + (asset != null ? text_.get("dialog.main.confirm.dosboxrelease.install", new Object[] {asset[0]}): text_.get("dialog.main.confirm.dosboxrelease.page")));
+		int answer = box.open();
+		if ((asset != null) && (answer == SWT.YES)) {
+			installDosboxRelease(r, asset);
+			return true;
+		}
+		if (((asset != null) && (answer == SWT.NO)) || ((asset == null) && (answer == SWT.YES))) {
+			SystemUtils.openForBrowsing(r.url(), getParent());
+			return true;
+		}
+		return false;
+	}
+
+	/** download and unpack a release into the DOSBox folder, then add it with the DOSBox version dialog */
+	private void installDosboxRelease(DosboxUpdateChecker.Release r, String[] asset) {
+		File targetDir = new File(FileLocationService.getInstance().getDosboxDir(), org.dbgl.util.DosboxInstaller.folderName(r.family(), r.version()));
+		Shell progressShell = new Shell(shell_, SWT.APPLICATION_MODAL | SWT.TITLE | SWT.BORDER);
+		progressShell.setText(text_.get("dialog.main.title.dosboxrelease", new Object[] {r.family(), r.version()}));
+		progressShell.setLayout(new GridLayout());
+		Label label = new Label(progressShell, SWT.NONE);
+		label.setText(text_.get("dialog.main.notice.downloading", new Object[] {asset[0]}));
+		label.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+		ProgressBar bar = new ProgressBar(progressShell, SWT.HORIZONTAL);
+		bar.setMaximum(100);
+		bar.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+		progressShell.setSize(480, 120);
+		progressShell.setLocation(shell_.getBounds().x + (shell_.getBounds().width - 480) / 2, shell_.getBounds().y + (shell_.getBounds().height - 120) / 2);
+		progressShell.open();
+		Thread worker = new Thread(() -> {
+			File archive = null;
+			Exception failure = null;
+			File exe = null;
+			try {
+				archive = File.createTempFile("dbgl-dosbox-", "-" + asset[0]);
+				org.dbgl.util.DosboxInstaller.download(asset[1], archive, percent -> display_.asyncExec(() -> {
+					if (!bar.isDisposed())
+						bar.setSelection(Math.max(0, percent));
+				}));
+				display_.asyncExec(() -> {
+					if (!label.isDisposed())
+						label.setText(text_.get("dialog.main.notice.unpacking", new Object[] {targetDir.getPath()}));
+				});
+				org.dbgl.util.DosboxInstaller.unpack(archive, targetDir);
+				exe = org.dbgl.util.DosboxInstaller.findExecutable(targetDir);
+			} catch (Exception e) {
+				failure = e;
+			} finally {
+				if (archive != null)
+					archive.delete();
+			}
+			Exception error = failure;
+			File executable = exe;
+			display_.asyncExec(() -> {
+				if (!progressShell.isDisposed())
+					progressShell.dispose();
+				if (shell_.isDisposed())
+					return;
+				if (error != null) {
+					Mess_.on(shell_).key("dialog.main.error.dosboxinstall", new Object[] {r.family() + " " + r.version(), error.toString()}).exception(error).warning();
+					return;
+				}
+				if (executable == null) {
+					Mess_.on(shell_).key("dialog.main.error.dosboxinstall", new Object[] {r.family() + " " + r.version(), targetDir.getPath()}).warning();
+					SystemUtils.openForBrowsing(targetDir.getPath(), getParent());
+					return;
+				}
+				String exeName = executable.getName().equalsIgnoreCase(SystemUtils.IS_WINDOWS ? "dosbox.exe": "dosbox") ? StringUtils.EMPTY: executable.getName();
+				DosboxVersion fresh = DosboxVersionFactory.create(r.family() + " " + r.version(), r.family(), r.version(), BaseRepository.findDefault(dbversionsList_) == null, true, false, null,
+					executable.getParentFile().getPath(), exeName, StringUtils.EMPTY, new File(executable.getParentFile(), "dosbox.conf").getPath());
+				DosboxVersion added = new EditDosboxVersionDialog(shell_, BaseRepository.findDefault(dbversionsList_) == null, fresh).open();
+				if (added != null) {
+					updateDosboxVersionList(added);
+					if (!profilesList_.isEmpty() && Mess_.on(shell_).key("dialog.main.confirm.switchtonewdosbox", new Object[] {added.getTitle()}).confirm()
+							&& Boolean.TRUE.equals(new SwitchDosboxVersionDialog(shell_).open())) {
+						updateProfilesList(getSelectedProfileIds());
+						displayProfileInformation(false);
+					}
+				}
+			});
+		}, "DOSBox download");
+		worker.setDaemon(true);
+		worker.start();
 	}
 
 	private final SelectionAdapter backupAdapter = new SelectionAdapter() {
@@ -774,6 +896,18 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			}
 		}).build();
 		MenuItem_.on(profilesMenu).build();
+		MenuItem undoBulkItem = MenuItem_.on(profilesMenu).key("dialog.main.menu.undobulk").image(ImageService.IMG_UNDO).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				doUndoBulkChange();
+			}
+		}).build();
+		profilesMenu.addMenuListener(new MenuAdapter() {
+			@Override
+			public void menuShown(MenuEvent event) {
+				undoBulkItem.setEnabled(org.dbgl.util.BulkUndo.last() != null);
+			}
+		});
 		MenuItem_.on(profilesMenu).key("dialog.main.menu.checkprofiles").image(ImageService.IMG_MIGRATE).listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
@@ -789,6 +923,12 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			@Override
 			public void widgetSelected(SelectionEvent event) {
 				doLocateDosbox(true);
+			}
+		}).build();
+		MenuItem_.on(dbversionsMenu).key("dialog.main.menu.downloaddosbox").image(ImageService.IMG_IMPORT).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				doDownloadDosbox();
 			}
 		}).build();
 		MenuItem_.on(dbversionsMenu).key("dialog.main.menu.switchdosboxversion").image(ImageService.IMG_MIGRATE).listen(new SelectionAdapter() {
@@ -965,8 +1105,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 					try {
 						FilterRepository filterRepo = new FilterRepository();
 						filterRepo.remove(BaseRepository.findById(filtersList_, (Integer)event.item.getData()));
-						filtersList_ = filterRepo.listAll();
-						filtersList_.add(0, new Filter(text_.get("dialog.main.allprofiles"), null));
+						filtersList_ = allFilters(filterRepo.listAll());
 					} catch (SQLException e) {
 						Mess_.on(shell_).exception(e).warning();
 					}
@@ -1081,6 +1220,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 
 		for (CTabItem tab: filterFolder_.getItems())
 			tab.setControl(profileTable_.getControl());
+		profileTable_.setWarningHandlers(this::profileProblemsText, this::doShowProfileProblem);
 
 		Menu menu = new Menu(profileTable_.getControl());
 		MenuItem_.on(menu).build();
@@ -1112,6 +1252,19 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				}
 			}
 		}).build();
+		MenuItem fixProblemsItem = MenuItem_.on(menu).key("dialog.main.profile.fixproblems").image(ImageService.IMG_WARNING).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				doFixProfileProblems();
+			}
+		}).build();
+		menu.addMenuListener(new MenuAdapter() {
+			@Override
+			public void menuShown(MenuEvent event) {
+				// only for profiles with a warning sign
+				fixProblemsItem.setEnabled(getSelectedProfiles().stream().map(org.dbgl.util.ProfileWarnings::known).anyMatch(p -> (p != null) && !p.isEmpty()));
+			}
+		});
 		MenuItem_.on(menu).key("dialog.main.profile.compare").image(ImageService.IMG_ZOOM).listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
@@ -1383,7 +1536,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		boolean quickUpdate = true;
 		if (settings_.getBooleanValue("gui", "autosortonupdate") || (filterFolder_.getSelectionIndex() > 0)) {
 			try {
-				profilesList_ = new ProfileRepository().list(orderingVector_.toClause(), filterClause_, dbversionsList_);
+				profilesList_ = listProfiles();
 				if (index != BaseRepository.indexOf(profilesList_, profile))
 					quickUpdate = false;
 			} catch (SQLException e) {
@@ -1421,7 +1574,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		Set<Integer> selectedProfiles = getSelectedProfileIds();
 		try {
 			orderingVector_.addOrdering(columnIds_[columnId], dir == SWT.UP);
-			profilesList_ = new ProfileRepository().list(orderingVector_.toClause(), filterClause_, dbversionsList_);
+			profilesList_ = listProfiles();
 		} catch (SQLException e) {
 			Mess_.on(shell_).exception(e).warning();
 		}
@@ -1942,7 +2095,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 
 	private void updateProfilesList(Set<Integer> profileIds) {
 		try {
-			profilesList_ = new ProfileRepository().list(orderingVector_.toClause(), filterClause_, dbversionsList_);
+			profilesList_ = listProfiles();
 		} catch (SQLException e) {
 			Mess_.on(shell_).exception(e).warning();
 		}
@@ -2042,8 +2195,97 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		}
 	}
 
+	/** the filter clause of the built-in tab with the profiles that have a warning sign; not SQL, handled by listProfiles */
+	private static final String PROBLEMS_FILTER = "/* dbgl: profiles with problems */";
+
+	/** 'All profiles' first, the user's filters, and 'With problems' last (when the warning signs are turned on) */
+	private List<Filter> allFilters(List<Filter> userFilters) {
+		List<Filter> result = new ArrayList<>(userFilters);
+		result.add(0, new Filter(text_.get("dialog.main.allprofiles"), null));
+		if (settings_.getBooleanValue("gui", "profilewarnings"))
+			result.add(new Filter(text_.get("dialog.main.problemprofiles"), PROBLEMS_FILTER));
+		return result;
+	}
+
+	private static boolean isBuiltInFilter(Filter filter) {
+		return (filter.getFilter() == null) || PROBLEMS_FILTER.equals(filter.getFilter());
+	}
+
+	/** the profiles of the current filter tab; for 'With problems' every profile is checked (once, the result is kept) */
+	private List<Profile> listProfiles() throws SQLException {
+		boolean problems = PROBLEMS_FILTER.equals(filterClause_);
+		List<Profile> list = new ProfileRepository().list(orderingVector_.toClause(), problems ? null: filterClause_, dbversionsList_);
+		if (!problems)
+			return list;
+		boolean busy = (shell_ != null) && !shell_.isDisposed();
+		if (busy)
+			shell_.setCursor(display_.getSystemCursor(SWT.CURSOR_WAIT));
+		try {
+			return list.stream().filter(p -> !org.dbgl.util.ProfileWarnings.check(p).isEmpty()).collect(Collectors.toCollection(ArrayList::new));
+		} finally {
+			if (busy)
+				shell_.setCursor(null);
+		}
+	}
+
+	/** jump from the warning sign of a profile to its first problem */
+	private void doShowProfileProblem(int index) {
+		if ((index < 0) || (index >= profilesList_.size()))
+			return;
+		List<String> problems = org.dbgl.util.ProfileWarnings.known(profilesList_.get(index));
+		String first = (problems == null) || problems.isEmpty() ? null: problems.get(0);
+		java.util.regex.Matcher m = first == null ? null: java.util.regex.Pattern.compile("^\\[[^\\]]+\\] ([^=]+)=").matcher(first);
+		if ((m != null) && m.find())
+			doEditProfileSetting(profilesList_.get(index).getId(), m.group(1).trim());
+		else
+			doFixProfileProblems();
+	}
+
+	/** the tooltip of the warning sign: what is wrong with the profile */
+	private String profileProblemsText(int index) {
+		if ((index < 0) || (index >= profilesList_.size()))
+			return null;
+		List<String> problems = org.dbgl.util.ProfileWarnings.known(profilesList_.get(index));
+		if ((problems == null) || problems.isEmpty())
+			return null;
+		StringBuilder sb = new StringBuilder(text_.get("dialog.main.profileproblems"));
+		problems.stream().limit(10).forEach(p -> sb.append("\n  ").append(p));
+		if (problems.size() > 10)
+			sb.append("\n  ...");
+		return sb.append("\n").append(text_.get("dialog.main.profileproblems.click")).toString();
+	}
+
+	/** bring back the profiles of the last change of many profiles at once */
+	private void doUndoBulkChange() {
+		org.dbgl.util.BulkUndo.Info info = org.dbgl.util.BulkUndo.last();
+		if (info == null)
+			return;
+		String when = java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT).format(info.when());
+		if (!Mess_.on(shell_).key("dialog.main.confirm.undobulk", new Object[] {info.label(), when, info.profiles()}).confirm())
+			return;
+		try {
+			List<Integer> restored = org.dbgl.util.BulkUndo.undo(dbversionsList_);
+			updateProfilesList(new HashSet<>(restored));
+			displayProfileInformation(false);
+			Mess_.on(shell_).key("dialog.main.notice.undobulkdone", new Object[] {restored.size()}).display();
+		} catch (IOException | SQLException e) {
+			Mess_.on(shell_).exception(e).warning();
+		}
+	}
+
+	/** the repair of 'Check profiles', for the selected profiles only */
+	private void doFixProfileProblems() {
+		List<Profile> selected = getSelectedProfiles();
+		if (selected.isEmpty())
+			return;
+		new CheckProfilesDialog(shell_, selected).open();
+		selected.forEach(p -> org.dbgl.util.ProfileWarnings.forget(p.getId()));
+		updateProfilesList(getSelectedProfileIds());
+		displayProfileInformation(false);
+	}
+
 	private CTabItem addFilterTab(Filter filter) {
-		CTabItem item = new CTabItem(filterFolder_, filter.getFilter() == null ? SWT.NONE: SWT.CLOSE);
+		CTabItem item = new CTabItem(filterFolder_, isBuiltInFilter(filter) ? SWT.NONE: SWT.CLOSE);
 		item.setText("   " + filter.getTitle() + "   ");
 		item.setData(filter.getId());
 		return item;
@@ -2102,7 +2344,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 
 	private void doEditFilter() {
 		int index = filterFolder_.getSelectionIndex();
-		if (index > 0) {
+		if ((index > 0) && !isBuiltInFilter(filtersList_.get(index))) {
 			Filter filter = new EditFilterDialog(shell_, filtersList_.get(index), null, columnNames_).open();
 			if (filter != null) {
 				filtersList_.set(index, filter);

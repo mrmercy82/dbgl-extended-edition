@@ -61,6 +61,17 @@ public final class PresetsMenu {
 		}
 	}
 
+	/** edit an own preset in a small text dialog */
+	public static void edit(Shell shell, String name) {
+		try {
+			String[] result = new org.dbgl.gui.dialog.PresetEditDialog(shell, name, Presets.read(name)).open();
+			if (result != null)
+				Presets.update(name, result[0], result[1]);
+		} catch (IOException ex) {
+			Mess_.on(shell).exception(ex).warning();
+		}
+	}
+
 	/** the name of a preset as shown to the user */
 	public static String nameOf(Preset preset) {
 		return preset.builtIn() ? TextService.getInstance().get(preset.key()): preset.key();
@@ -77,6 +88,15 @@ public final class PresetsMenu {
 		save.setText(text.get("dialog.template.presets.save"));
 		save.addListener(SWT.Selection, e -> onSave.run());
 		if (!own.isEmpty()) {
+			MenuItem edit = new MenuItem(menu, SWT.CASCADE);
+			edit.setText(text.get("dialog.template.presets.edit"));
+			Menu editMenu = new Menu(edit);
+			edit.setMenu(editMenu);
+			for (Preset preset: own) {
+				MenuItem item = new MenuItem(editMenu, SWT.PUSH);
+				item.setText(preset.key().replace("&", "&&"));
+				item.addListener(SWT.Selection, e -> edit(shell, preset.key()));
+			}
 			MenuItem delete = new MenuItem(menu, SWT.CASCADE);
 			delete.setText(text.get("dialog.template.presets.delete"));
 			Menu deleteMenu = new Menu(delete);

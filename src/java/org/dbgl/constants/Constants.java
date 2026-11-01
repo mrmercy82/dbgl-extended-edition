@@ -30,6 +30,9 @@ public class Constants {
 
 	public static final String PROGRAM_NAME_FULL = "DOSBox Game Launcher";
 
+	/** this edition of DBGL; based on DBGL 0.100 beta 17 by Ronald Blankendaal, see the about dialog */
+	public static final String EDITION_NAME = "Extended Edition";
+
 	public static final String PROGRAM_VERSION;
 
 	static {

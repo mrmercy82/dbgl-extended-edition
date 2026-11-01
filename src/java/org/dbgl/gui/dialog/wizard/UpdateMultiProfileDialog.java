@@ -103,6 +103,7 @@ public class UpdateMultiProfileDialog extends JobWizardDialog<Boolean> {
 	@Override
 	protected boolean onNext(int step) {
 		if (step == 1) {
+			org.dbgl.util.BulkUndo.remember(text_.get("dialog.bulkundo.multiedit"), orgProfs_);
 			for (Profile prof: profs_) {
 				Configuration combinedConf = prof.getCombinedConfiguration();
 				metaControls_.forEach(x -> x.updateConfigurableByControl(prof, combinedConf));
