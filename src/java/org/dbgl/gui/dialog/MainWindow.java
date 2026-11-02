@@ -331,7 +331,6 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			return;
 		shell_.forceActive();
 		profileTable_.setSelection(index);
-		askUnknownAutoexecLines(profilesList_.get(index), false);
 		Profile profile = new EditSingleProfileDialog(shell_, profilesList_.get(index), null, false).showSetting(setting).open();
 		if (profile != null) {
 			updateProfileListAfterEdit(index, profile);
@@ -2509,8 +2508,9 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				
 				List<Profile> loadedProfiles = new ProfileLoader(shell_, getSelectedProfiles()).open();
 				if (loadedProfiles != null) {
-					for (Profile p: loadedProfiles)
-						askUnknownAutoexecLines(p, true);
+					if (loadedProfiles.size() > 1) // a single profile: its dialog asks itself
+						for (Profile p: loadedProfiles)
+							askUnknownAutoexecLines(p, true);
 					Object results = (loadedProfiles.size() > 1) ? new EditMultiProfileDialog(shell_, loadedProfiles).open()
 							: new EditSingleProfileDialog(shell_, loadedProfiles.get(0), null, focusTitle).open();
 					if (results != null) {
@@ -2519,7 +2519,6 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 					}
 				}
 			} else {
-				askUnknownAutoexecLines(profilesList_.get(index), false);
 				Profile profile = new EditSingleProfileDialog(shell_, profilesList_.get(index), null, focusTitle).open();
 				if (profile != null) {
 					updateProfileListAfterEdit(index, profile);

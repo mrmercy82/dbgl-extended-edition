@@ -4,6 +4,21 @@ DBGL Extended Edition - Changes since 0.100 beta 17
 Based on DBGL 0.100 beta 17 by Ronald Blankendaal (https://dbgl.org), source code. Newest version first.
 
 
+0.101 alpha 33 (2026-11-02)
+---------------------------
+- "Let me choose line by line" (lines in the [autoexec] DBGL does not know):
+  the choice now comes up in the profile dialog itself, once per opening of
+  the dialog:
+  - when assigning or switching a DOSBox version or template (the buttons
+    next to the DOSBox version),
+  - at the latest when pressing OK, before saving.
+  Before, it only came up before the profile dialog was opened from the main
+  window. Lines kept with @REM lines show up in the fields of the own
+  sections right away. Also for a new profile from a .conf file. When
+  editing several profiles, the choice still comes before opening.
+- Notice of a new version of the Extended Edition: the new version is on a
+  line of its own.
+
 0.101 alpha 32 (2026-11-02)
 ---------------------------
 - Fixed: when only dbgl.jar was replaced, new messages showed "Can't find

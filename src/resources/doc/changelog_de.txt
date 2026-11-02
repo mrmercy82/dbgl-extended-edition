@@ -4,6 +4,21 @@ DBGL Extended Edition - Änderungen seit 0.100 beta 17
 Grundlage: DBGL 0.100 beta 17 von Ronald Blankendaal (https://dbgl.org), Quellcode. Neueste Version zuerst.
 
 
+0.101 alpha 33 (2026-11-02)
+---------------------------
+- "Selbst Zeile für Zeile auswählen" (Zeilen im [autoexec], die DBGL nicht
+  kennt): Die Rückfrage kommt jetzt im Profildialog selbst, einmal pro
+  Öffnen des Dialogs:
+  - beim Zuordnen oder Umstellen einer DOSBox-Version oder Vorlage (die
+    Knöpfe neben der DOSBox-Version),
+  - spätestens beim Drücken von OK, vor dem Speichern.
+  Bisher kam sie nur vor dem Öffnen des Profildialogs aus dem Hauptfenster.
+  Behaltene Zeilen mit @REM-Zeilen erscheinen sofort in den Feldern der
+  eigenen Abschnitte. Gilt auch für ein neues Profil aus einer .conf-Datei.
+  Beim Bearbeiten mehrerer Profile wird wie bisher vor dem Öffnen gefragt.
+- Hinweis auf eine neue Version der Extended Edition: die neue Version steht
+  in einer eigenen Zeile.
+
 0.101 alpha 32 (2026-11-02)
 ---------------------------
 - Fehler behoben: Wurde nur dbgl.jar ersetzt, zeigten neue Meldungen statt

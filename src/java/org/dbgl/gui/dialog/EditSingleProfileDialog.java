@@ -216,6 +216,31 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 		loadfixValue_.setEnabled(loadfix_.getSelection());
 	}
 
+	/** the user was asked about the lines of the [autoexec] DBGL does not know, in this dialog */
+	private boolean unknownLinesAsked_;
+
+	/**
+	 * With "ask" (see {@link org.dbgl.util.UnknownAutoexecLines}): let the user choose what happens to the lines of the
+	 * [autoexec] DBGL does not know, once per dialog, when a DOSBox version or template is assigned and when saving. The
+	 * controls must have been written to the profile before. Cancelled, the lines stay where they are.
+	 *
+	 * @return true if lines were put into the own sections, so the controls must show them
+	 */
+	private boolean askUnknownAutoexecLines() {
+		if (unknownLinesAsked_ || !org.dbgl.util.UnknownAutoexecLines.ask())
+			return false;
+		List<org.dbgl.model.conf.Autoexec.UnknownLine> open = org.dbgl.util.UnknownAutoexecLines.undecided(profile_);
+		if (open.isEmpty())
+			return false;
+		unknownLinesAsked_ = true;
+		List<org.dbgl.util.UnknownAutoexecLines.Decision> decisions = new UnknownLinesDialog(shell_, profile_.getTitle(), open).open();
+		if (decisions == null)
+			return false;
+		org.dbgl.util.UnknownAutoexecLines.decide(profile_, decisions, true);
+		profile_.getConfiguration().getAutoexec().getUnknownLines().clear();
+		return true;
+	}
+
 	@Override
 	protected void doPerformDosboxConfAction(DosboxConfAction action, DosboxVersion newDosboxVersion) {
 		try {
@@ -223,6 +248,7 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 
 			computeAllPages(profile_);
 			updateConfigurableByControls(profile_);
+			askUnknownAutoexecLines();
 
 			warningsLog.append(newDosboxVersion.resetAndLoadConfiguration());
 
@@ -582,6 +608,7 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 				}
 				try {
 					updateConfigurableByControls(profile_);
+					askUnknownAutoexecLines(); // kept lines go straight into the configuration saved below
 
 					if (editing_) {
 						new ProfileRepository().update(profile_);
