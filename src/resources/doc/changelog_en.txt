@@ -4,6 +4,15 @@ DBGL Extended Edition - Changes since 0.100 beta 17
 Based on DBGL 0.100 beta 17 by Ronald Blankendaal (https://dbgl.org), source code. Newest version first.
 
 
+0.101 alpha 32 (2026-11-02)
+---------------------------
+- Fixed: when only dbgl.jar was replaced, new messages showed "Can't find
+  resource for bundle ... [key]" instead of their text, e.g. the notice of a
+  new version of the Extended Edition. DBGL takes its texts from the folder
+  plugins/i18n and did not look into dbgl.jar when a text was missing there.
+  Now a missing text comes from dbgl.jar (in the chosen language, else
+  English).
+
 0.101 alpha 31 (2026-11-02)
 ---------------------------
 - Update check for the Extended Edition itself:

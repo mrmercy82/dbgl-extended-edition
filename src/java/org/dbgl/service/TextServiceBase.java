@@ -32,6 +32,8 @@ public abstract class TextServiceBase implements ITextService {
 
 	protected Locale locale_;
 	protected ResourceBundle mes_;
+	/** the texts inside dbgl.jar: used for keys missing in plugins/i18n, e.g. when only dbgl.jar was updated */
+	protected ResourceBundle builtin_;
 
 	protected TextServiceBase(Locale locale) {
 		refresh(locale);
@@ -40,17 +42,29 @@ public abstract class TextServiceBase implements ITextService {
 	public void refresh(Locale locale) {
 		locale_ = locale;
 		Control utf8Control = new CustomEncodingResourceControl(StandardCharsets.UTF_8.name());
+		builtin_ = ResourceBundle.getBundle("i18n/MessagesBundle", locale, utf8Control);
 		try {
 			mes_ = ResourceBundle.getBundle("plugins/i18n/MessagesBundle", locale, utf8Control);
 		} catch (MissingResourceException me) {
-			mes_ = ResourceBundle.getBundle("i18n/MessagesBundle", locale, utf8Control);
+			mes_ = builtin_;
+		}
+	}
+
+	/** the text of a key: from plugins/i18n, or else from dbgl.jar */
+	private String text(String key) {
+		try {
+			return mes_.getString(key);
+		} catch (MissingResourceException me) {
+			if (builtin_ == mes_)
+				throw me;
+			return builtin_.getString(key);
 		}
 	}
 
 	@Override
 	public String get(String key) {
 		try {
-			return mes_.getString(key);
+			return text(key);
 		} catch (MissingResourceException me) {
 			return "[" + key + "]";
 		}
@@ -64,7 +78,7 @@ public abstract class TextServiceBase implements ITextService {
 	@Override
 	public String get(String key, Object[] objs) {
 		try {
-			return new MessageFormat(mes_.getString(key), locale_).format(objs);
+			return new MessageFormat(text(key), locale_).format(objs);
 		} catch (IllegalArgumentException | MissingResourceException e) {
 			return StringRelatedUtils.toString(e) + "[" + get(key) + "]";
 		}
