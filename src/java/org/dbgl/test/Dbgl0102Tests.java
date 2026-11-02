@@ -448,6 +448,37 @@ public class Dbgl0102Tests {
 		}
 	}
 
+	/** the update check of the Extended Edition: version order, pre-releases (GitHub "latest" would leave them out), drafts */
+	@Test
+	public void testEditionUpdateCheck() {
+		java.util.function.BiFunction<String, String, Integer> cmp = org.dbgl.util.EditionUpdateChecker::compare;
+		assertTrue(cmp.apply("v0.101-alpha31", "0.101alpha30") > 0);
+		assertTrue(cmp.apply("v0.101-alpha30", "0.101alpha30") == 0);
+		assertTrue(cmp.apply("v0.101-alpha9", "0.101alpha30") < 0); // 9 < 30, not compared as text
+		assertTrue(cmp.apply("v0.101-beta1", "0.101alpha30") > 0);
+		assertTrue(cmp.apply("v0.101-rc1", "0.101beta5") > 0);
+		assertTrue(cmp.apply("v0.101", "0.101rc2") > 0);
+		assertTrue(cmp.apply("v0.101.1", "0.101") > 0);
+		assertTrue(cmp.apply("v0.102-alpha1", "0.101.1") > 0);
+		assertTrue(cmp.apply("0.101 alpha 31", "0.101alpha30") > 0);
+		assertEquals("0.101 alpha 31", org.dbgl.util.EditionUpdateChecker.readable("v0.101-alpha31"));
+		assertEquals("0.101 alpha 30", org.dbgl.util.EditionUpdateChecker.readable("0.101alpha30"));
+
+		String json = "[{\"tag_name\":\"v0.101-alpha32\",\"draft\":true,\"prerelease\":true,\"html_url\":\"u32\"},"
+				+ "{\"tag_name\":\"v0.101-alpha31\",\"draft\":false,\"prerelease\":true,\"html_url\":\"u31\"},"
+				+ "{\"tag_name\":\"v0.100-final\",\"draft\":false,\"prerelease\":false,\"html_url\":\"x\"},"
+				+ "{\"tag_name\":\"v0.101-alpha30\",\"draft\":false,\"prerelease\":true,\"html_url\":\"u30\"}]";
+		org.dbgl.util.EditionUpdateChecker.Release r = org.dbgl.util.EditionUpdateChecker.newest(json, "0.101alpha30", true);
+		assertEquals("0.101 alpha 31", r.version()); // the draft is left out, an odd tag is skipped
+		assertEquals("u31", r.url());
+		assertTrue(r.prerelease());
+		assertNull(org.dbgl.util.EditionUpdateChecker.newest(json, "0.101alpha30", false)); // without pre-releases: nothing newer
+		assertNull(org.dbgl.util.EditionUpdateChecker.newest(json, "0.101alpha31", true));
+		String withFinal = json.replace("v0.100-final", "v0.101");
+		assertEquals("0.101", org.dbgl.util.EditionUpdateChecker.newest(withFinal, "0.101alpha30", false).version());
+		assertEquals("0.101", org.dbgl.util.EditionUpdateChecker.newest(withFinal, "0.101alpha30", true).version());
+	}
+
 	@Test
 	public void testInvalidValues() throws IOException {
 		org.dbgl.model.aggregate.DosboxVersion v083 = DosboxVersionFactory.create("DOSBox Staging 0.83.0", SettingsService.STAGING_DOSBOX_FAM.title_, "0.83.0", false, true, false, null,

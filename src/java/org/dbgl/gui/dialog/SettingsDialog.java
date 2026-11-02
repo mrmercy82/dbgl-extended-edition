@@ -121,6 +121,12 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 		Button profileWarnings = Chain.on(dosboxGroup).lbl(l -> l.key("dialog.settings.profilewarnings")).but(b -> b.tooltip("dialog.settings.profilewarnings.tooltip").select(settings_.getBooleanValue("gui", "profilewarnings"))).button();
 		Button longToolTips = Chain.on(dosboxGroup).lbl(l -> l.key("dialog.settings.longtooltips")).but(b -> b.tooltip("dialog.settings.longtooltips.tooltip").select(settings_.getBooleanValue("gui", "longtooltips"))).button();
 
+		Group editionGroup = Group_.on(generalComposite).layout(new GridLayout(2, false)).key("dialog.settings.edition").build();
+		Button editionCheck = Chain.on(editionGroup).lbl(l -> l.key("dialog.settings.edition.check")).but(b -> b.tooltip("dialog.settings.edition.check.tooltip")
+				.select(settings_.getBooleanValue(org.dbgl.util.EditionUpdateChecker.SECTION, org.dbgl.util.EditionUpdateChecker.CHECK))).button();
+		Button editionPre = Chain.on(editionGroup).lbl(l -> l.key("dialog.settings.edition.prereleases")).but(b -> b.select(settings_.getBooleanValue(org.dbgl.util.EditionUpdateChecker.SECTION,
+			org.dbgl.util.EditionUpdateChecker.PRERELEASES))).button();
+
 		Group unknownGroup = Group_.on(generalComposite).layout(new GridLayout(2, false)).key("dialog.settings.unknownlines").build();
 		boolean askUnknown = org.dbgl.util.UnknownAutoexecLines.ASK.equals(settings_.getValue(org.dbgl.util.UnknownAutoexecLines.SECTION, org.dbgl.util.UnknownAutoexecLines.MODE));
 		Combo unknownMode = Chain.on(unknownGroup).lbl(l -> l.key("dialog.settings.unknownlines.mode")).cmb(c -> c.items(new String[] {text_.get("dialog.settings.unknownlines.auto"),
@@ -462,6 +468,8 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 				settings_.setBooleanValue("dosbox", "checkbeforestart", checkBeforeStart.getSelection());
 				settings_.setBooleanValue("gui", "profilewarnings", profileWarnings.getSelection());
 				settings_.setBooleanValue("gui", "longtooltips", longToolTips.getSelection());
+				settings_.setBooleanValue(org.dbgl.util.EditionUpdateChecker.SECTION, org.dbgl.util.EditionUpdateChecker.CHECK, editionCheck.getSelection());
+				settings_.setBooleanValue(org.dbgl.util.EditionUpdateChecker.SECTION, org.dbgl.util.EditionUpdateChecker.PRERELEASES, editionPre.getSelection());
 				settings_.setValue(org.dbgl.util.UnknownAutoexecLines.SECTION, org.dbgl.util.UnknownAutoexecLines.MODE,
 					unknownMode.getSelectionIndex() == 1 ? org.dbgl.util.UnknownAutoexecLines.ASK: org.dbgl.util.UnknownAutoexecLines.AUTO);
 				settings_.setBooleanValue(org.dbgl.util.UnknownAutoexecLines.SECTION, org.dbgl.util.UnknownAutoexecLines.NO_MARKERS, unknownNoMarkers.getSelection());

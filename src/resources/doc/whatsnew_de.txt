@@ -86,6 +86,8 @@ KLEINERE VERBESSERUNGEN
   - "Abweichungen vom Standard..." für jedes Profil.
   - Prüfung von Ordnern, Images und Werten vor dem Start.
   - Versionsprüfung beim Start, Konfiguration bei Bedarf neu schreiben.
+  - Auf Wunsch Hinweis auf neue Versionen der Extended Edition, auch
+    Vorabversionen (Einstellungen -> Allgemein, Hilfe -> "Nach Updates...").
   - Neuere, noch unbekannte DOSBox-Versionen werden richtig zugeordnet.
   - Shader-Listen mit selbst installierten Shadern, Seite "Sound Blaster 2".
   - Hilfe -> "Neue Features..." und "Changelog...".

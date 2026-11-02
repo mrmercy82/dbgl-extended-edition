@@ -400,6 +400,10 @@ public class SettingsService {
 		settings_.setValue("dosbox", "checkbeforestart", false);
 		settings_.setValue("gui", "profilewarnings", true);
 		settings_.setValue("gui", "longtooltips", true);
+		settings_.setValue("edition", "checkforupdates", false);
+		settings_.setValue("edition", "prereleases", true);
+		settings_.setValue("edition", "updatechecked", "");
+		settings_.setValue("edition", "updatenoticeshown", "");
 		settings_.setValue("autoexec", "unknownlines", "auto");
 		settings_.setValue("autoexec", "nomarkers", false);
 		settings_.setValue("gui", "extrasexpand", "changed");

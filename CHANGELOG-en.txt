@@ -4,6 +4,22 @@ DBGL Extended Edition - Changes since 0.100 beta 17
 Based on DBGL 0.100 beta 17 by Ronald Blankendaal (https://dbgl.org), source code. Newest version first.
 
 
+0.101 alpha 31 (2026-11-02)
+---------------------------
+- Update check for the Extended Edition itself:
+  - Settings -> General -> "Updates of the Extended Edition": "Look for new
+    versions of the Extended Edition once a day" (off, must be turned on) and
+    "Also report pre-releases (alpha, beta)" (on).
+  - Asks GitHub for the list of releases, not only the "latest release",
+    which leaves out pre-releases. Drafts are skipped.
+  - Versions are ordered correctly: 0.101 alpha 9 < alpha 30 < alpha 31 <
+    beta 1 < rc 1 < 0.101 < 0.101.1 < 0.102 alpha 1.
+  - When a newer version is out, DBGL asks whether to open the download
+    page; each new version is reported once. Nothing is downloaded or
+    installed.
+  - Help -> "Check for updates of the Extended Edition..." checks right away,
+    also when the daily check is off.
+
 0.101 alpha 30 (2026-11-02)
 ---------------------------
 - Help -> "New features..." has an icon of its own (star).

@@ -286,6 +286,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			checkDosboxVersionsInBackground();
 		if (settings_.getBooleanValue("dosbox", "checkforupdates"))
 			checkForDosboxUpdatesInBackground();
+			checkForEditionUpdateInBackground();
 		checkAllProfilesInBackground();
 
 		display_.asyncExec(this::autoBackupIfDue);
@@ -502,6 +503,58 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		checker.setDaemon(true);
 		checker.setPriority(Thread.MIN_PRIORITY);
 		checker.start();
+	}
+
+	/** once a day, if turned on: is a newer version of the Extended Edition out? Each new version is told about once */
+	private void checkForEditionUpdateInBackground() {
+		String section = org.dbgl.util.EditionUpdateChecker.SECTION;
+		if (!settings_.getBooleanValue(section, org.dbgl.util.EditionUpdateChecker.CHECK))
+			return;
+		String today = java.time.LocalDate.now().toString();
+		if (today.equals(settings_.getValue(section, org.dbgl.util.EditionUpdateChecker.CHECKED)))
+			return;
+		settings_.setValue(section, org.dbgl.util.EditionUpdateChecker.CHECKED, today);
+		boolean prereleases = settings_.getBooleanValue(section, org.dbgl.util.EditionUpdateChecker.PRERELEASES);
+		Thread checker = new Thread(() -> {
+			org.dbgl.util.EditionUpdateChecker.Result result = org.dbgl.util.EditionUpdateChecker.check(prereleases);
+			if (result.error() != null)
+				System.out.println("Extended Edition update check failed: " + result.error());
+			if ((result.newer() == null) || display_.isDisposed())
+				return;
+			display_.asyncExec(() -> {
+				if (shell_.isDisposed() || result.newer().version().equals(settings_.getValue(section, org.dbgl.util.EditionUpdateChecker.SHOWN)))
+					return;
+				settings_.setValue(section, org.dbgl.util.EditionUpdateChecker.SHOWN, result.newer().version());
+				offerEditionRelease(result.newer());
+			});
+		}, "Extended Edition update check");
+		checker.setDaemon(true);
+		checker.start();
+	}
+
+	/** Help -> check for updates of the Extended Edition, right now */
+	private void doCheckForEditionUpdate() {
+		boolean prereleases = settings_.getBooleanValue(org.dbgl.util.EditionUpdateChecker.SECTION, org.dbgl.util.EditionUpdateChecker.PRERELEASES);
+		shell_.setCursor(display_.getSystemCursor(SWT.CURSOR_WAIT));
+		org.dbgl.util.EditionUpdateChecker.Result result;
+		try {
+			result = org.dbgl.util.EditionUpdateChecker.check(prereleases);
+		} finally {
+			shell_.setCursor(null);
+		}
+		if (result.error() != null)
+			Mess_.on(shell_).key("dialog.main.editionupdate.error", new Object[] {result.error()}).warning();
+		else if (result.newer() == null)
+			Mess_.on(shell_).key("dialog.main.editionupdate.none", new Object[] {Constants.EDITION_NAME, org.dbgl.util.EditionUpdateChecker.readable(Constants.PROGRAM_VERSION)}).display();
+		else
+			offerEditionRelease(result.newer());
+	}
+
+	private void offerEditionRelease(org.dbgl.util.EditionUpdateChecker.Release r) {
+		String pre = r.prerelease() ? text_.get("dialog.main.editionupdate.prerelease"): "";
+		if (Mess_.on(shell_).key("dialog.main.confirm.editionupdate",
+			new Object[] {Constants.EDITION_NAME, r.version(), org.dbgl.util.EditionUpdateChecker.readable(Constants.PROGRAM_VERSION), pre}).confirm())
+			SystemUtils.openForBrowsing(r.url(), shell_);
 	}
 
 	private void checkForDosboxUpdatesInBackground() {
@@ -1094,6 +1147,12 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			@Override
 			public void widgetSelected(SelectionEvent event) {
 				showDocument("whatsnew", "dialog.main.menu.newfeatures");
+			}
+		}).build();
+		MenuItem_.on(helpMenu).key("dialog.main.menu.editionupdate").image(ImageService.IMG_REFRESH).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				doCheckForEditionUpdate();
 			}
 		}).build();
 		MenuItem_.on(helpMenu).key("dialog.main.menu.changelog").image(ImageService.IMG_LOG).listen(new SelectionAdapter() {

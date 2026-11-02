@@ -85,6 +85,8 @@ SMALLER IMPROVEMENTS
   - "Differences from defaults..." for every profile.
   - Check of folders, images and values before starting.
   - Version check at startup, configuration rewritten when needed.
+  - Optional notice of new versions of the Extended Edition, pre-releases
+    included (Settings -> General, Help -> "Check for updates...").
   - Newer DOSBox versions DBGL does not know yet are mapped correctly.
   - Shader lists with your own shaders, "Sound Blaster 2" page.
   - Help -> "New features..." and "Changelog...".
