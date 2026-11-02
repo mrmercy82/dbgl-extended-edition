@@ -4,6 +4,16 @@ DBGL Extended Edition - Changes since 0.100 beta 17
 Based on DBGL 0.100 beta 17 by Ronald Blankendaal (https://dbgl.org), source code. Newest version first.
 
 
+0.101 alpha 30 (2026-11-02)
+---------------------------
+- Help -> "New features..." has an icon of its own (star).
+- About dialog: two separate links. With the original "Official DBGL website
+  (the original by Ronald Blankendaal)" -> https://dbgl.org, with the
+  Extended Edition "Extended Edition on GitHub: source code, downloads,
+  reporting problems" -> https://github.com/mrmercy82/dbgl-extended-edition
+- README, "New features" and the read-me files name the project page of the
+  Extended Edition.
+
 0.101 alpha 29 (2026-11-02)
 ---------------------------
 - Lines added by hand to the [autoexec] are no longer lost anywhere, not only

@@ -102,6 +102,7 @@ public class ImageService {
 	public static final String IMG_TABLE = "table.png";
 	public static final String IMG_SCREENSHOTS = "screenshots.png";
 	public static final String IMG_NOTES = "notes.png";
+	public static final String IMG_WHATSNEW = "whatsnew.png";
 
 	private static final Color widgetBackgroundColor = Display.getDefault().getSystemColor(SWT.COLOR_WIDGET_BACKGROUND);
 	private static final Color whiteColor = Display.getDefault().getSystemColor(SWT.COLOR_WHITE);

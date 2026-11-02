@@ -68,6 +68,7 @@ public class AboutDialog extends BaseDialog<Object> {
 		// the original program and its author: DBGL up to 0.100 beta 17
 		Chain.on(group).lbl(l -> l.style(SWT.WRAP).layoutData(new GridData_(380).build()).key("dialog.about.createdby", new Object[] {Constants.PROGRAM_NAME_FULL, Constants.BASE_VERSION}))
 				.lbl(l -> l.style(SWT.WRAP).layoutData(new GridData_(380).build()).key("dialog.about.thanks")).build();
+		createLink(group, "<a href=\"" + Constants.ORIGINAL_URL + "\">" + text_.get("dialog.about.website.original") + "</a>", browseAdapter);
 
 		// this edition, clearly apart: an independent continuation the original author is not involved in
 		Label separator = new Label(group, SWT.SEPARATOR | SWT.HORIZONTAL);
@@ -84,12 +85,15 @@ public class AboutDialog extends BaseDialog<Object> {
 		editionBy.setFont(small);
 		editionBy.setForeground(editionBy.getDisplay().getSystemColor(SWT.COLOR_WIDGET_DARK_SHADOW));
 		editionBy.addListener(SWT.Dispose, e -> small.dispose());
+		createLink(group, "<a href=\"" + Constants.EDITION_URL + "\">" + text_.get("dialog.about.website.edition", new Object[] {Constants.EDITION_NAME}) + "</a>", browseAdapter);
+
+		Label separator2 = new Label(group, SWT.SEPARATOR | SWT.HORIZONTAL);
+		separator2.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
 
 		Chain.on(group).lbl(l -> l.style(SWT.WRAP).layoutData(new GridData_(380).build()).key("dialog.about.info",
 			new Object[] {SystemUtils.JVM_ARCH, SystemUtils.JVM_VERSION, SystemUtils.OS_NAME, SystemUtils.OS_VERSION, SystemUtils.OS_ARCH, HsqlDatabaseProperties.PRODUCT_NAME,
 					HsqlDatabaseProperties.THIS_FULL_VERSION, String.valueOf(SWT.getVersion()), SWT.getPlatform()})).build();
 
-		createLink(group, "<a href=\"https://dbgl.org\">" + text_.get("dialog.about.website") + "</a>", browseAdapter);
 
 		shell_.setDefaultButton(Button_.on(group).text().key("button.ok").listen(closeShellAdapter).ctrl());
 		shell_.getDefaultButton().setFocus();

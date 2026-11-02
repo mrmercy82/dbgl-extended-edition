@@ -6,6 +6,11 @@ Ronald Blankendaal developed DBGL up to version 0.100 beta 17 and is **not invol
 
 *Deutsch:* Eine inoffizielle, unabhängige Weiterführung von DBGL 0.100 beta 17 von Ronald Blankendaal, der an dieser Ausgabe nicht beteiligt ist. Rund 80 % des Programmcodes sind unverändert sein Werk. Sie ergänzt vor allem die Unterstützung aktueller DOSBox-Versionen. Siehe `src/resources/doc/whatsnew_de.txt`.
 
+## Links
+
+- **This edition:** https://github.com/mrmercy82/dbgl-extended-edition – source code, [downloads (releases)](https://github.com/mrmercy82/dbgl-extended-edition/releases), [reporting problems (issues)](https://github.com/mrmercy82/dbgl-extended-edition/issues)
+- **The original DBGL by Ronald Blankendaal:** https://dbgl.org – official website; [announcement of 0.100 beta 17 on Vogons](https://www.vogons.org/viewtopic.php?p=1380082#p1380082)
+
 ## What's new
 
 See [`src/resources/doc/whatsnew_en.txt`](src/resources/doc/whatsnew_en.txt) (also in DBGL under Help → New features) and the full [`CHANGELOG-en.txt`](CHANGELOG-en.txt) / [`CHANGELOG-de.txt`](CHANGELOG-de.txt).

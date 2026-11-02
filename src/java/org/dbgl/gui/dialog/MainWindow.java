@@ -1090,7 +1090,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 
 		// what is new since DBGL 0.100 beta 17 and the full changelog, above 'About' (on macOS 'About' is in the application menu)
 		Menu helpMenu = createMenu(appMenuBar, "dialog.main.menu.help");
-		MenuItem_.on(helpMenu).key("dialog.main.menu.newfeatures").image(ImageService.IMG_NOTES).listen(new SelectionAdapter() {
+		MenuItem_.on(helpMenu).key("dialog.main.menu.newfeatures").image(ImageService.IMG_WHATSNEW).listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
 				showDocument("whatsnew", "dialog.main.menu.newfeatures");

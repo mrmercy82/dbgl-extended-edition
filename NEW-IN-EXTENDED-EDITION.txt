@@ -12,6 +12,9 @@ were added).
 
 Profiles, database and settings are kept when switching.
 
+Extended Edition (source code, downloads, reporting problems):
+https://github.com/mrmercy82/dbgl-extended-edition
+
 
 MAJOR NEW FEATURES
 ------------------

@@ -34,6 +34,10 @@ public class Constants {
 
 	/** this edition of DBGL; based on DBGL 0.100 beta 17 by Ronald Blankendaal, see the about dialog */
 	public static final String EDITION_NAME = "Extended Edition";
+	/** the project page of the Extended Edition (source code, downloads, reporting problems) */
+	public static final String EDITION_URL = "https://github.com/mrmercy82/dbgl-extended-edition";
+	/** the website of the original DBGL by Ronald Blankendaal */
+	public static final String ORIGINAL_URL = "https://dbgl.org";
 
 	/** the last version of DBGL by Ronald Blankendaal, the base of this edition */
 	public static final String BASE_VERSION = "0.100 beta 17";

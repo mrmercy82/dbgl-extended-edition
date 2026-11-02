@@ -12,6 +12,9 @@ geändert oder entfernt, etwa 10.000 kamen hinzu).
 
 Profile, Datenbank und Einstellungen bleiben beim Umstieg erhalten.
 
+Extended Edition (Quellcode, Downloads, Fehler melden):
+https://github.com/mrmercy82/dbgl-extended-edition
+
 
 GROSSE NEUERUNGEN
 -----------------
