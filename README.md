@@ -1,6 +1,6 @@
 # DBGL Extended Edition
 
-An unofficial, independent continuation of **DBGL – DOSBox Game Launcher 0.100 beta 17** by **Ronald Blankendaal** ([dbgl.org](https://dbgl.org)).
+An unofficial, independent continuation of **DBGL – DOSBox Game Launcher 0.100 beta 17** by **Ronald Blankendaal** ([dbgl.org](https://dbgl.org), [announcement of 0.100 beta 17 on Vogons](https://www.vogons.org/viewtopic.php?p=1380082#p1380082)).
 
 Ronald Blankendaal developed DBGL up to version 0.100 beta 17 and is **not involved** in this edition. The foundation and almost everything in it are his work of nearly twenty years: about 80 % of the program code is unchanged from his 0.100 beta 17 (of his roughly 42,000 lines, fewer than 200 were changed or removed; the Extended Edition added about 10,000). The Extended Edition mainly adds support for current DOSBox versions (DOSBox Staging 0.83, DOSBox-X up to 2026) and tools for large profile collections. It was started by mrmercy82 with the help of AI.
 

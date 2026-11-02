@@ -2,12 +2,13 @@ DBGL Extended Edition - Neue Features seit DBGL 0.100 beta 17
 ============================================================
 
 DBGL wurde bis zur Version 0.100 beta 17 von Ronald Blankendaal entwickelt
-(https://dbgl.org). Die Extended Edition ist eine unabhängige Weiterführung,
-an der er nicht beteiligt ist. Sie ergänzt vor allem die Unterstützung
-aktueller DOSBox-Versionen; das Fundament und fast alles andere sind sein Werk:
-Rund 80 % des Programmcodes sind unverändert aus seiner 0.100 beta 17 (von
-seinen rund 42.000 Zeilen wurden weniger als 200 geändert oder entfernt,
-etwa 10.000 kamen hinzu).
+(https://dbgl.org; Ankündigung von 0.100 beta 17:
+https://www.vogons.org/viewtopic.php?p=1380082#p1380082). Die Extended Edition
+ist eine unabhängige Weiterführung, an der er nicht beteiligt ist. Sie ergänzt
+vor allem die Unterstützung aktueller DOSBox-Versionen; das Fundament und fast
+alles andere sind sein Werk: Rund 80 % des Programmcodes sind unverändert aus
+seiner 0.100 beta 17 (von seinen rund 42.000 Zeilen wurden weniger als 200
+geändert oder entfernt, etwa 10.000 kamen hinzu).
 
 Profile, Datenbank und Einstellungen bleiben beim Umstieg erhalten.
 

@@ -4,6 +4,11 @@ DBGL Extended Edition - Changes since 0.100 beta 17
 Based on DBGL 0.100 beta 17 by Ronald Blankendaal (https://dbgl.org), source code. Newest version first.
 
 
+0.101 alpha 27 (2026-11-02)
+---------------------------
+- README and "New features": link to Ronald's announcement of 0.100 beta 17
+  on Vogons.
+
 0.101 alpha 26 (2026-11-02)
 ---------------------------
 - "New features" revised: the item "Faster" is gone, "Failed boot: the DOSBox
