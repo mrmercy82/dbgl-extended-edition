@@ -4,6 +4,12 @@ DBGL Extended Edition - Changes since 0.100 beta 17
 Based on DBGL 0.100 beta 17 by Ronald Blankendaal (https://dbgl.org), source code. Newest version first.
 
 
+0.101 alpha 26 (2026-11-02)
+---------------------------
+- "New features" revised: the item "Faster" is gone, "Failed boot: the DOSBox
+  message stays visible" is now listed under the smaller improvements, "No
+  DOSBox window when opening profiles" is gone.
+
 0.101 alpha 25 (2026-11-01)
 ---------------------------
 - Fixed: profiles with problems were listed in the "With problems" tab, but

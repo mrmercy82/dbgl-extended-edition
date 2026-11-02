@@ -4,6 +4,12 @@ DBGL Extended Edition - Änderungen seit 0.100 beta 17
 Grundlage: DBGL 0.100 beta 17 von Ronald Blankendaal (https://dbgl.org), Quellcode. Neueste Version zuerst.
 
 
+0.101 alpha 26 (2026-11-02)
+---------------------------
+- "Neue Features" überarbeitet: Punkt "Schneller" entfällt, "Fehlgeschlagenes
+  Booten: Meldung bleibt stehen" steht jetzt unter den kleineren
+  Verbesserungen, "Kein DOSBox-Fenster beim Öffnen von Profilen" entfällt.
+
 0.101 alpha 25 (2026-11-01)
 ---------------------------
 - Fehler behoben: Profile mit Problemen erschienen im Reiter "Mit Problemen",

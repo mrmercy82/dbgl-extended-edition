@@ -35,11 +35,7 @@ GROSSE NEUERUNGEN
    Auswahllisten kommen aus der Konfiguration der installierten DOSBox. Leere
    Seiten verschwinden. Die Suche findet auch Beschreibungen und Werte.
 
-5. Schneller
-   Der Profildialog öffnet bei DOSBox-X in unter 0,2 statt rund 1 Sekunde.
-   Versionen werden aus der Programmdatei gelesen, ohne DOSBox-Fenster.
-
-6. DOSBox direkt herunterladen
+5. DOSBox direkt herunterladen
    DOSBox -> "DOSBox herunterladen...": Staging oder DOSBox-X von GitHub laden
    (mit Prüfsumme, abbrechbar, Variante wählbar), in einen Ordner deiner Wahl
    entpacken, als DOSBox-Version eintragen und Profile umstellen.
@@ -85,6 +81,7 @@ KLEINERE VERBESSERUNGEN
   - Neuere, noch unbekannte DOSBox-Versionen werden richtig zugeordnet.
   - Shader-Listen mit selbst installierten Shadern, Seite "Sound Blaster 2".
   - Hilfe -> "Neue Features..." und "Changelog...".
+  - Fehlgeschlagenes Booten: Meldung von DOSBox bleibt stehen.
 
 
 FEHLERBEHEBUNGEN GEGENÜBER 0.100 BETA 17
@@ -96,7 +93,5 @@ FEHLERBEHEBUNGEN GEGENÜBER 0.100 BETA 17
   - Boot-Zeilen mit Windows-Pfad erzeugten einen kaputten Mount.
   - Zuordnen einer anderen DOSBox-Version übernahm alte Standardwerte.
   - Leser für ältere DOSBox-Konfigurationen korrigiert.
-  - Kein DOSBox-Fenster mehr beim Öffnen von Profilen oder Erkennen der Version.
-  - Fehlgeschlagenes Booten: Meldung von DOSBox bleibt stehen.
 
 Alle Änderungen im Detail: Hilfe -> Changelog...

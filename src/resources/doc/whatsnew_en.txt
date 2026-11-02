@@ -34,11 +34,7 @@ MAJOR NEW FEATURES
    Option lists come from the configuration of the installed DOSBox. Empty
    pages disappear. The search finds descriptions and values too.
 
-5. Faster
-   The profile dialog opens in under 0.2 instead of about 1 second for
-   DOSBox-X. Versions are read from the executable, without a DOSBox window.
-
-6. Download DOSBox directly
+5. Download DOSBox directly
    DOSBox -> "Download DOSBox...": get Staging or DOSBox-X from GitHub (with
    checksum, cancellable, choice of build), unpack it into a folder of your
    choice, add it as a DOSBox version and switch profiles.
@@ -83,6 +79,7 @@ SMALLER IMPROVEMENTS
   - Newer DOSBox versions DBGL does not know yet are mapped correctly.
   - Shader lists with your own shaders, "Sound Blaster 2" page.
   - Help -> "New features..." and "Changelog...".
+  - Failed boot: the DOSBox message stays visible.
 
 
 BUG FIXES COMPARED TO 0.100 BETA 17
@@ -94,7 +91,5 @@ BUG FIXES COMPARED TO 0.100 BETA 17
   - Boot lines with a Windows path created a broken mount.
   - Assigning another DOSBox version took over old defaults.
   - Reader for older DOSBox configurations fixed.
-  - No DOSBox window when opening profiles or detecting the version.
-  - Failed boot: the DOSBox message stays visible.
 
 All changes in detail: Help -> Changelog...
