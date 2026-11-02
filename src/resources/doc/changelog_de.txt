@@ -4,6 +4,34 @@ DBGL Extended Edition - Änderungen seit 0.100 beta 17
 Grundlage: DBGL 0.100 beta 17 von Ronald Blankendaal (https://dbgl.org), Quellcode. Neueste Version zuerst.
 
 
+0.101 alpha 29 (2026-11-02)
+---------------------------
+- Selbst eingetragene Zeilen im [autoexec] gehen nirgends mehr verloren, nicht
+  nur beim Umstellen der DOSBox-Version (alpha 28), sondern überall, wo DBGL
+  ein Profil speichert: Profildialog, dessen Knopf "Umstellen", mehrere
+  Profile bearbeiten, Voreinstellungen, Pfade reparieren usw.
+- Neue Einstellung unter Einstellungen -> Allgemein, "Zeilen im [autoexec],
+  die DBGL nicht kennt":
+  - "Automatisch in den passenden Abschnitt übernehmen" (Voreinstellung):
+    Beim Einlesen eines Profils kommen solche Zeilen in den passenden eigenen
+    Abschnitt (Am Anfang, Vor dem Start, Nach dem Start, Am Ende) und sind im
+    Profildialog sichtbar.
+    Zusätzlich "Ohne die @REM-Kommentarzeilen von DBGL": Die Zeilen bleiben
+    dann genau an ihrer Stelle, ohne die Zeilen @REM START, @REM /START usw.
+    (sie erscheinen dann nicht im Profildialog).
+  - "Selbst Zeile für Zeile auswählen": Beim Öffnen des Profildialogs (auch
+    beim Bearbeiten mehrerer Profile) erscheint ein Fenster mit allen
+    solchen Zeilen. Pro Zeile: behalten oder entfernen, in welchem Abschnitt,
+    und für alle: mit oder ohne die @REM-Zeilen von DBGL. Die Entscheidung
+    wird sofort gespeichert; ohne @REM-Zeilen behaltene Zeilen werden nicht
+    erneut abgefragt. Abbrechen lässt alles, wie es ist. Wo DBGL nicht fragen
+    kann (z. B. Änderungen an vielen Profilen), bleiben die Zeilen an ihrer
+    Stelle erhalten.
+- Zeilen nach "exit" (von DOSBox nie ausgeführt) bleiben immer nach "exit".
+- Auf andere DOSBox-Version umstellen: neues Häkchen "Mit den
+  @REM-Kommentarzeilen von DBGL" unter der Tabelle; Zeilen nach "exit" sind
+  jetzt ebenfalls vorausgewählt (sie bleiben nach "exit").
+
 0.101 alpha 28 (2026-11-02)
 ---------------------------
 - Auf andere DOSBox-Version umstellen: Selbst eingetragene Zeilen im

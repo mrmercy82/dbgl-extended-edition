@@ -67,6 +67,9 @@ Sicherheit und Komfort
   - Statusfenster mit der Ausgabe von DOSBox, Fehler hervorgehoben,
     Meldungen anklickbar.
   - dosbox.conf auf ein Profil ziehen übernimmt die Einstellungen.
+  - Selbst eingetragene Zeilen im [autoexec] gehen nicht mehr verloren:
+    automatisch übernommen (mit oder ohne die @REM-Zeilen von DBGL) oder
+    Zeile für Zeile selbst gewählt, siehe Einstellungen -> Allgemein.
   - PC-98: Festplatten- und Diskettenimages durchsuchen, starten, booten.
   - Nicht mehr benutzte DOSBox-Versionen samt Ordner entfernen (mit doppelter
     Sicherheitsabfrage).

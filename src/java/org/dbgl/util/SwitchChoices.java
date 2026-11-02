@@ -50,9 +50,9 @@ public final class SwitchChoices {
 	 */
 	public record Choice(int profileId, Kind kind, String section, String item, String oldText, String newText, int autoexecSection, boolean afterExit) {
 
-		/** lines added by hand are kept unless they were never run; converted settings take the new value */
+		/** lines added by hand are kept (a line after "exit" stays there); converted settings take the new value */
 		public boolean defaultKeep() {
-			return (kind == Kind.AUTOEXEC) && !afterExit;
+			return kind == Kind.AUTOEXEC;
 		}
 
 		/** identifies the choice again when switching for real after the preview */
@@ -68,9 +68,13 @@ public final class SwitchChoices {
 	private SwitchChoices() {
 	}
 
-	/** call after loading the configuration of the profile and before switching */
+	/**
+	 * Call after loading the configuration of the profile and before switching. With "ask" (see {@link UnknownAutoexecLines}),
+	 * lines the user already decided to keep are not offered again.
+	 */
 	public static Snapshot before(Profile profile) {
-		return new Snapshot(values(profile.getConfiguration()), new ArrayList<>(profile.getConfiguration().getAutoexec().getUnknownLines()));
+		List<Autoexec.UnknownLine> lines = UnknownAutoexecLines.ask() ? UnknownAutoexecLines.undecided(profile): profile.getConfiguration().getAutoexec().getUnknownLines();
+		return new Snapshot(values(profile.getConfiguration()), new ArrayList<>(lines));
 	}
 
 	/** call after switching: everything the user can keep */
@@ -90,18 +94,24 @@ public final class SwitchChoices {
 		return result;
 	}
 
-	/** keep the previous line for the choices the user wants */
-	public static List<Choice> apply(Profile profile, List<Choice> choices, Predicate<Choice> keep) {
+	/**
+	 * Keep the previous line for the choices the user wants. Lines of the [autoexec] were already kept when the profile was
+	 * read (see {@link UnknownAutoexecLines}); one not wanted is taken out, a wanted one is put with or without marker lines.
+	 */
+	public static List<Choice> apply(Profile profile, List<Choice> choices, Predicate<Choice> keep, boolean markers, boolean preview) {
 		List<Choice> kept = new ArrayList<>();
+		List<UnknownAutoexecLines.Decision> decisions = new ArrayList<>();
 		for (Choice c: choices) {
-			if (!keep.test(c))
-				continue;
+			boolean k = keep.test(c);
 			if (c.kind() == Kind.AUTOEXEC)
-				profile.getConfiguration().getAutoexec().keepUnknownLine(new Autoexec.UnknownLine(c.oldText(), c.autoexecSection(), c.afterExit()));
-			else
+				decisions.add(new UnknownAutoexecLines.Decision(new Autoexec.UnknownLine(c.oldText(), c.autoexecSection(), c.afterExit()), k, c.autoexecSection(), markers));
+			else if (k)
 				profile.getConfiguration().setValue(c.section(), c.item(), c.oldText());
-			kept.add(c);
+			if (k)
+				kept.add(c);
 		}
+		if (!decisions.isEmpty())
+			UnknownAutoexecLines.decide(profile, decisions, !preview);
 		return kept;
 	}
 

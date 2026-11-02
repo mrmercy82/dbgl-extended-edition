@@ -334,8 +334,64 @@ public class Dbgl0102Tests {
 		org.dbgl.util.SwitchChoices.Choice output = choices.stream().filter(c -> "output".equals(c.item())).findFirst().orElseThrow();
 		assertNull(output.newText());
 		assertFalse(output.defaultKeep());
-		org.dbgl.util.SwitchChoices.apply(profile, choices, c -> c == output);
+		org.dbgl.util.SwitchChoices.apply(profile, choices, c -> c == output, true, true);
 		assertEquals("opengl", profile.getConfiguration().getValue("sdl", "output"));
+	}
+
+	/**
+	 * Lines DBGL does not know are kept whenever a profile is read: into the own sections with marker lines, at the same
+	 * place without them, or until the user decides; a line after "exit" stays there.
+	 */
+	@Test
+	public void testUnknownAutoexecLinesKeptOnRead() {
+		SettingsService settings = SettingsService.getInstance();
+		String mode = settings.getValue("autoexec", "unknownlines");
+		boolean noMarkers = settings.getBooleanValue("autoexec", "nomarkers");
+		List<String> lines = List.of("mount c \"games\"", "c:", "cd \\keen", "mouse.com", "keen1.exe", "exit", "rem never run");
+		String eol = org.dbgl.util.SystemUtils.EOLN;
+		try {
+			// automatic, with marker lines
+			settings.setValue("autoexec", "unknownlines", "auto");
+			settings.setBooleanValue("autoexec", "nomarkers", false);
+			org.dbgl.model.conf.Autoexec a = new org.dbgl.model.conf.Autoexec();
+			a.load(lines, null, null);
+			org.dbgl.util.UnknownAutoexecLines.keepOnRead(a);
+			String written = a.toString(false, null);
+			assertTrue(written, written.contains("@REM PRE-LAUNCH" + eol + "mouse.com" + eol + "@REM /PRE-LAUNCH" + eol + "keen1.exe"));
+			assertTrue(written, written.endsWith("exit" + eol + "rem never run" + eol));
+
+			// automatic, without marker lines: in place, and the same again after reading what was written
+			settings.setBooleanValue("autoexec", "nomarkers", true);
+			a = new org.dbgl.model.conf.Autoexec();
+			a.load(lines, null, null);
+			org.dbgl.util.UnknownAutoexecLines.keepOnRead(a);
+			written = a.toString(false, null);
+			assertFalse(written, written.contains("@REM"));
+			assertTrue(written, written.contains("cd \\keen" + eol + "mouse.com" + eol + "keen1.exe"));
+			org.dbgl.model.conf.Autoexec b = new org.dbgl.model.conf.Autoexec();
+			List<String> writtenLines = Arrays.asList(written.split("\\R"));
+			b.load(writtenLines.subList(1, writtenLines.size()), null, null);
+			org.dbgl.util.UnknownAutoexecLines.keepOnRead(b);
+			assertEquals(written, b.toString(false, null));
+
+			// ask: kept in place until decided, then as chosen
+			settings.setValue("autoexec", "unknownlines", "ask");
+			assertFalse(org.dbgl.util.UnknownAutoexecLines.withoutMarkers());
+			a = new org.dbgl.model.conf.Autoexec();
+			a.load(lines, null, null);
+			org.dbgl.util.UnknownAutoexecLines.keepOnRead(a);
+			assertFalse(a.toString(false, null).contains("@REM"));
+			org.dbgl.model.conf.Autoexec.UnknownLine mouse = a.getUnknownLines().get(0);
+			assertEquals("mouse.com", mouse.text());
+			a.removePlacedLine(mouse);
+			a.placeLine(new org.dbgl.model.conf.Autoexec.UnknownLine("mouse.com", 0, false), true); // chosen: At Start, with marker lines
+			written = a.toString(false, null);
+			assertTrue(written, written.startsWith("[autoexec]" + eol + "@REM START" + eol + "mouse.com" + eol + "@REM /START" + eol));
+			assertEquals(1, written.split("mouse\\.com", -1).length - 1);
+		} finally {
+			settings.setValue("autoexec", "unknownlines", mode);
+			settings.setBooleanValue("autoexec", "nomarkers", noMarkers);
+		}
 	}
 
 	/**

@@ -121,6 +121,15 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 		Button profileWarnings = Chain.on(dosboxGroup).lbl(l -> l.key("dialog.settings.profilewarnings")).but(b -> b.tooltip("dialog.settings.profilewarnings.tooltip").select(settings_.getBooleanValue("gui", "profilewarnings"))).button();
 		Button longToolTips = Chain.on(dosboxGroup).lbl(l -> l.key("dialog.settings.longtooltips")).but(b -> b.tooltip("dialog.settings.longtooltips.tooltip").select(settings_.getBooleanValue("gui", "longtooltips"))).button();
 
+		Group unknownGroup = Group_.on(generalComposite).layout(new GridLayout(2, false)).key("dialog.settings.unknownlines").build();
+		boolean askUnknown = org.dbgl.util.UnknownAutoexecLines.ASK.equals(settings_.getValue(org.dbgl.util.UnknownAutoexecLines.SECTION, org.dbgl.util.UnknownAutoexecLines.MODE));
+		Combo unknownMode = Chain.on(unknownGroup).lbl(l -> l.key("dialog.settings.unknownlines.mode")).cmb(c -> c.items(new String[] {text_.get("dialog.settings.unknownlines.auto"),
+			text_.get("dialog.settings.unknownlines.ask")}).select(askUnknown ? 1: 0)).combo();
+		Button unknownNoMarkers = Chain.on(unknownGroup).lbl(l -> l.key("dialog.settings.unknownlines.nomarkers")).but(b -> b.tooltip("dialog.settings.unknownlines.nomarkers.tooltip")
+				.select(settings_.getBooleanValue(org.dbgl.util.UnknownAutoexecLines.SECTION, org.dbgl.util.UnknownAutoexecLines.NO_MARKERS))).button();
+		unknownNoMarkers.setEnabled(!askUnknown);
+		unknownMode.addListener(SWT.Selection, e -> unknownNoMarkers.setEnabled(unknownMode.getSelectionIndex() == 0));
+
 		Group extrasGroup = Group_.on(generalComposite).layout(new GridLayout(2, false)).key("dialog.settings.extras").build();
 		String[] expandModes = {"collapsed", "always", "changed"};
 		Combo extrasExpand = Chain.on(extrasGroup).lbl(l -> l.key("dialog.settings.extrasexpand")).cmb(c -> c.items(new String[] {text_.get("dialog.settings.extrasexpand.collapsed"),
@@ -453,6 +462,9 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 				settings_.setBooleanValue("dosbox", "checkbeforestart", checkBeforeStart.getSelection());
 				settings_.setBooleanValue("gui", "profilewarnings", profileWarnings.getSelection());
 				settings_.setBooleanValue("gui", "longtooltips", longToolTips.getSelection());
+				settings_.setValue(org.dbgl.util.UnknownAutoexecLines.SECTION, org.dbgl.util.UnknownAutoexecLines.MODE,
+					unknownMode.getSelectionIndex() == 1 ? org.dbgl.util.UnknownAutoexecLines.ASK: org.dbgl.util.UnknownAutoexecLines.AUTO);
+				settings_.setBooleanValue(org.dbgl.util.UnknownAutoexecLines.SECTION, org.dbgl.util.UnknownAutoexecLines.NO_MARKERS, unknownNoMarkers.getSelection());
 				org.dbgl.gui.LongToolTips.setEnabled(longToolTips.getSelection());
 				settings_.setValue("gui", "extrasexpand", expandModes[Math.max(0, extrasExpand.getSelectionIndex())]);
 				settings_.setBooleanValue("gui", "extrasexpandonextraspages", extrasOnExtrasPages.getSelection());

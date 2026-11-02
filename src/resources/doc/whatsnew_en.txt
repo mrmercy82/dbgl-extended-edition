@@ -66,6 +66,9 @@ Safety and comfort
   - Create and restore backups, optionally automatic.
   - Status window with DOSBox output, errors highlighted, messages clickable.
   - Drop a dosbox.conf on a profile to take over its settings.
+  - Lines added by hand to the [autoexec] are no longer lost: kept
+    automatically (with or without DBGL's @REM lines) or chosen line by line,
+    see Settings -> General.
   - PC-98: browse, start and boot hard disk and floppy images.
   - Remove unused DOSBox versions together with their folder (with a double
     safety question).

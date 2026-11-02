@@ -154,6 +154,7 @@ public abstract class TemplateProfileBase extends GenerationAwareConfigurable {
 		warningsLog.append(dosboxVersion_.resetAndLoadConfiguration());
 		if (configuration_.getFileLocation() != null) {
 			warningsLog.append(configuration_.reloadWithAutoexec(TextService.getInstance(), getDosboxNettoMountingPoints(), cwd));
+			org.dbgl.util.UnknownAutoexecLines.keepOnRead(configuration_.getAutoexec()); // lines DBGL does not know are not lost
 			configuration_.removeDuplicateValuesIn(dosboxVersion_.getConfiguration());
 		}
 		return warningsLog.toString();

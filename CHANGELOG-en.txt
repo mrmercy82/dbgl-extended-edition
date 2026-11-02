@@ -4,6 +4,32 @@ DBGL Extended Edition - Changes since 0.100 beta 17
 Based on DBGL 0.100 beta 17 by Ronald Blankendaal (https://dbgl.org), source code. Newest version first.
 
 
+0.101 alpha 29 (2026-11-02)
+---------------------------
+- Lines added by hand to the [autoexec] are no longer lost anywhere, not only
+  when switching the DOSBox version (alpha 28) but wherever DBGL saves a
+  profile: profile dialog, its "Switch" button, editing several profiles,
+  presets, repairing paths etc.
+- New setting under Settings -> General, "Lines in the [autoexec] that DBGL
+  does not know":
+  - "Keep them automatically in the matching section" (default): when a
+    profile is read, such lines go into the matching own section (At Start,
+    Before Launch, After Launch, At Finish) and are visible in the profile
+    dialog.
+    Additionally "Without the @REM comment lines of DBGL": the lines then
+    stay exactly where they are, without the lines @REM START, @REM /START
+    etc. (they are then not shown in the profile dialog).
+  - "Let me choose line by line": when opening the profile dialog (also when
+    editing several profiles) a window lists all such lines. Per line: keep
+    or remove, in which section, and for all: with or without DBGL's @REM
+    lines. The choice is saved right away; lines kept without @REM lines are
+    not asked about again. Cancel leaves everything as it is. Where DBGL
+    cannot ask (e.g. changes to many profiles), the lines stay in place.
+- Lines after "exit" (never run by DOSBox) always stay after "exit".
+- Switch to another DOSBox version: new tick "With the @REM comment lines of
+  DBGL" below the table; lines after "exit" are now preselected as well
+  (they stay after "exit").
+
 0.101 alpha 28 (2026-11-02)
 ---------------------------
 - Switch to another DOSBox version: lines added by hand to the [autoexec]

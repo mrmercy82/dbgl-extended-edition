@@ -70,6 +70,7 @@ public class SwitchDosboxVersionDialog extends SizeControlledButtonDialog<Boolea
 	private Label count_;
 	private Text report_;
 	private Table choices_;
+	private org.eclipse.swt.widgets.Button markers_;
 	/** what the user ticked in the preview, by {@link SwitchChoices.Choice#key()}; not in it: the default */
 	private final java.util.Map<String, Boolean> keep_ = new java.util.HashMap<>();
 	private Font font_;
@@ -178,18 +179,22 @@ public class SwitchDosboxVersionDialog extends SizeControlledButtonDialog<Boolea
 	/** the lines that are dropped or changed, each with a tick to keep the previous line */
 	private void createChoices(Composite parent) {
 		Composite box = new Composite(parent, SWT.NONE);
-		GridLayout layout = new GridLayout(3, false);
+		GridLayout layout = new GridLayout(4, false);
 		layout.marginWidth = 0;
 		box.setLayout(layout);
 		Label info = new Label(box, SWT.WRAP);
 		info.setText(text_.get("dialog.switchdosbox.choices"));
-		info.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+		info.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 2, 1));
 		org.eclipse.swt.widgets.Button all = new org.eclipse.swt.widgets.Button(box, SWT.PUSH);
 		all.setText(text_.get("dialog.switchdosbox.keepall"));
 		org.eclipse.swt.widgets.Button none = new org.eclipse.swt.widgets.Button(box, SWT.PUSH);
 		none.setText(text_.get("dialog.switchdosbox.keepnone"));
 		choices_ = new Table(box, SWT.CHECK | SWT.FULL_SELECTION | SWT.BORDER | SWT.V_SCROLL | SWT.H_SCROLL);
-		choices_.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 3, 1));
+		choices_.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 4, 1));
+		markers_ = new org.eclipse.swt.widgets.Button(box, SWT.CHECK);
+		markers_.setText(text_.get("dialog.unknownlines.markers"));
+		markers_.setSelection(!org.dbgl.util.UnknownAutoexecLines.withoutMarkers());
+		markers_.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 4, 1));
 		choices_.setHeaderVisible(true);
 		choices_.setLinesVisible(true);
 		for (String key: new String[] {"dialog.switchdosbox.column.profile", "dialog.switchdosbox.column.where", "dialog.switchdosbox.column.old", "dialog.switchdosbox.column.new"}) {
@@ -319,11 +324,11 @@ public class SwitchDosboxVersionDialog extends SizeControlledButtonDialog<Boolea
 					warnings += prof.switchToDosboxVersion(dst);
 					List<SwitchChoices.Choice> choices = SwitchChoices.after(snapshot, prof);
 					String afterSwitch = prof.getConfiguration().toString(null);
-					List<SwitchChoices.Choice> kept = SwitchChoices.apply(prof, choices, this::keeps);
+					List<SwitchChoices.Choice> kept = SwitchChoices.apply(prof, choices, this::keeps, markers_.getSelection(), preview);
 					List<String> diff = new ArrayList<>(diff(before, afterSwitch));
 					for (SwitchChoices.Choice c: choices)
-						if (c.kind() == SwitchChoices.Kind.AUTOEXEC)
-							diff.add("- [autoexec] " + c.oldText());
+						if ((c.kind() == SwitchChoices.Kind.AUTOEXEC) && !kept.contains(c))
+							diff.add("- [autoexec] " + c.oldText()); // not ticked: removed
 					for (SwitchChoices.Choice c: kept)
 						diff.add("= " + text_.get("dialog.switchdosbox.report.kept") + ": " + where(c) + " " + c.oldText());
 					if (preview)

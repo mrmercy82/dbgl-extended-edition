@@ -330,6 +330,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			return;
 		shell_.forceActive();
 		profileTable_.setSelection(index);
+		askUnknownAutoexecLines(profilesList_.get(index), false);
 		Profile profile = new EditSingleProfileDialog(shell_, profilesList_.get(index), null, false).showSetting(setting).open();
 		if (profile != null) {
 			updateProfileListAfterEdit(index, profile);
@@ -455,6 +456,33 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 	 * Check all profiles once in the background after the start (not only those in the list), so the tab 'With problems' opens
 	 * without waiting. Profiles are only checked again when their configuration changes.
 	 */
+	/**
+	 * With "ask" (see {@link org.dbgl.util.UnknownAutoexecLines}): before a profile is edited, let the user choose what happens
+	 * to the lines of its [autoexec] DBGL does not know. The choice is saved to the configuration file right away. Cancelled,
+	 * everything stays as it is and the user is asked again next time.
+	 *
+	 * @param loaded the profile was read already and is edited as it is (several profiles), else it is read here
+	 */
+	private void askUnknownAutoexecLines(Profile prof, boolean loaded) {
+		if (!org.dbgl.util.UnknownAutoexecLines.ask())
+			return;
+		try {
+			Profile p = loaded ? prof: org.dbgl.model.factory.ProfileFactory.create(prof);
+			if (!loaded)
+				p.resetAndLoadConfiguration();
+			List<org.dbgl.model.conf.Autoexec.UnknownLine> open = org.dbgl.util.UnknownAutoexecLines.undecided(p);
+			if (open.isEmpty())
+				return;
+			List<org.dbgl.util.UnknownAutoexecLines.Decision> decisions = new UnknownLinesDialog(shell_, p.getTitle(), open).open();
+			if (decisions == null)
+				return;
+			org.dbgl.util.UnknownAutoexecLines.decide(p, decisions, true);
+			p.saveConfiguration();
+		} catch (IOException e) {
+			Mess_.on(shell_).exception(e).warning();
+		}
+	}
+
 	private void checkAllProfilesInBackground() {
 		if (!settings_.getBooleanValue("gui", "profilewarnings"))
 			return;
@@ -2422,6 +2450,8 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				
 				List<Profile> loadedProfiles = new ProfileLoader(shell_, getSelectedProfiles()).open();
 				if (loadedProfiles != null) {
+					for (Profile p: loadedProfiles)
+						askUnknownAutoexecLines(p, true);
 					Object results = (loadedProfiles.size() > 1) ? new EditMultiProfileDialog(shell_, loadedProfiles).open()
 							: new EditSingleProfileDialog(shell_, loadedProfiles.get(0), null, focusTitle).open();
 					if (results != null) {
@@ -2430,6 +2460,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 					}
 				}
 			} else {
+				askUnknownAutoexecLines(profilesList_.get(index), false);
 				Profile profile = new EditSingleProfileDialog(shell_, profilesList_.get(index), null, focusTitle).open();
 				if (profile != null) {
 					updateProfileListAfterEdit(index, profile);

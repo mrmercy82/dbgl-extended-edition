@@ -134,11 +134,66 @@ public class Autoexec {
 
 	/** keep a line DBGL does not understand: it goes into the matching own section */
 	public void keepUnknownLine(UnknownLine line) {
-		customSections_[line.section()] += line.text() + SystemUtils.EOLN;
+		placeLine(line, true);
+	}
+
+	/**
+	 * Lines DBGL does not understand that are kept without DBGL's "@REM" marker lines, at the place of the own section (index
+	 * 0 to 3), or after "exit" (index 4). Read again, they are unknown lines again.
+	 */
+	private String[] plainLines_ = emptyPlainLines();
+
+	private static String[] emptyPlainLines() {
+		String[] result = new String[SECTIONS + 1];
+		Arrays.fill(result, StringUtils.EMPTY);
+		return result;
+	}
+
+	/**
+	 * Keep a line DBGL does not understand.
+	 *
+	 * @param markers into the own section with DBGL's "@REM" marker lines (shown in the profile dialog), or else without them
+	 *                at the same place. A line after "exit" always stays after "exit".
+	 */
+	public void placeLine(UnknownLine line, boolean markers) {
+		if (line.afterExit())
+			plainLines_[SECTIONS] += line.text() + SystemUtils.EOLN;
+		else if (markers)
+			customSections_[line.section()] += line.text() + SystemUtils.EOLN;
+		else
+			plainLines_[line.section()] += line.text() + SystemUtils.EOLN;
+	}
+
+	/** take a kept line out again, wherever it was put (see {@link #placeLine(UnknownLine, boolean)}) */
+	public void removePlacedLine(UnknownLine line) {
+		String l = line.text() + SystemUtils.EOLN;
+		for (String[] where: new String[][] {plainLines_, customSections_})
+			for (int i = 0; i < where.length; i++) {
+				String s = where[i];
+				int from = s.startsWith(l) ? 0: s.indexOf(SystemUtils.EOLN + l);
+				if (from > 0)
+					from += SystemUtils.EOLN.length();
+				if (from >= 0) {
+					where[i] = s.substring(0, from) + s.substring(from + l.length());
+					return;
+				}
+			}
+	}
+
+	/** @return true if the line is kept without DBGL's marker lines */
+	public boolean isPlain(UnknownLine line) {
+		String l = line.text() + SystemUtils.EOLN;
+		return java.util.stream.Stream.of(plainLines_).anyMatch(s -> s.startsWith(l) || s.contains(SystemUtils.EOLN + l));
+	}
+
+	private void insertPlainLines(StringBuilder sb, int index) {
+		if (StringUtils.isNotEmpty(plainLines_[index]))
+			sb.append(StringUtils.chomp(plainLines_[index])).append(SystemUtils.EOLN);
 	}
 
 	public Autoexec(Autoexec autoexec) {
 		unknownLines_ = new ArrayList<>(autoexec.unknownLines_);
+		plainLines_ = Arrays.copyOf(autoexec.plainLines_, autoexec.plainLines_.length);
 		main_ = autoexec.main_;
 		parameters_ = autoexec.parameters_;
 		img_ = new String[BOOTER_IMAGES];
@@ -343,6 +398,7 @@ public class Autoexec {
 			sb.append(StringUtils.chomp(customSections_[sectionNr])).append(SystemUtils.EOLN);
 			sb.append(CUSTOM_SECTION_MARKERS[sectionNr * 2 + 1]).append(SystemUtils.EOLN);
 		}
+		insertPlainLines(sb, sectionNr);
 	}
 
 	public List<Mount> getMountingpoints() {
@@ -479,6 +535,7 @@ public class Autoexec {
 		List<UnknownLine> leftOverLines = new ArrayList<>();
 		List<UnknownLine> echoOffLines = new ArrayList<>();
 		unknownLines_ = new ArrayList<>();
+		plainLines_ = emptyPlainLines();
 		// while reading, the section of an unknown line holds its line number; the real section follows at the end
 		int lineNo = -1, firstMountLine = Integer.MAX_VALUE, mainLine = -1;
 		boolean afterExit = false;
@@ -990,6 +1047,7 @@ public class Autoexec {
 
 			if (BooleanUtils.isTrue(exit_)) {
 				result.append("exit").append(SystemUtils.EOLN);
+				insertPlainLines(result, SECTIONS); // kept lines that were after "exit"
 			}
 		}
 

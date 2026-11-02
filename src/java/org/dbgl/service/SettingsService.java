@@ -187,7 +187,9 @@ public class SettingsService {
 		settings_.setValue("gui", "addgamewizard_height", "375");
 		settings_.setValue("gui", "dosboxdialog_width", "600");
 		settings_.setValue("gui", "switchdosboxdialog_width", "760");
-		settings_.setValue("gui", "switchdosboxdialog_height", "560");
+		settings_.setValue("gui", "switchdosboxdialog_height", "680");
+		settings_.setValue("gui", "unknownlinesdialog_width", "760");
+		settings_.setValue("gui", "unknownlinesdialog_height", "420");
 		settings_.setValue("gui", "checkprofilesdialog_width", "760");
 		settings_.setValue("gui", "checkprofilesdialog_height", "560");
 		settings_.setValue("gui", "differencesdialog_width", "600");
@@ -398,6 +400,8 @@ public class SettingsService {
 		settings_.setValue("dosbox", "checkbeforestart", false);
 		settings_.setValue("gui", "profilewarnings", true);
 		settings_.setValue("gui", "longtooltips", true);
+		settings_.setValue("autoexec", "unknownlines", "auto");
+		settings_.setValue("autoexec", "nomarkers", false);
 		settings_.setValue("gui", "extrasexpand", "changed");
 		settings_.setValue("gui", "extrasexpandonextraspages", false);
 		settings_.setValue("gui", "extrascountchanges", true);
