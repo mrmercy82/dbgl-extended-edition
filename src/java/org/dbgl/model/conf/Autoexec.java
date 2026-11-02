@@ -114,7 +114,31 @@ public class Autoexec {
 		mountingpoints_ = new ArrayList<>();
 	}
 
+	/**
+	 * A line of the [autoexec] that DBGL does not understand and therefore does not write again, typically added by hand, e.g.
+	 * a second program started before the game or a line after "exit".
+	 *
+	 * @param text      the line as it was in the file
+	 * @param section   the own section it belongs in when kept: 0 start, 1 before the game, 2 after the game, 3 finish
+	 * @param afterExit the line came after "exit", so DOSBox never ran it
+	 */
+	public record UnknownLine(String text, int section, boolean afterExit) {
+	}
+
+	private List<UnknownLine> unknownLines_ = new ArrayList<>();
+
+	/** @return the lines of the [autoexec] read last that DBGL does not write again, see {@link UnknownLine} */
+	public List<UnknownLine> getUnknownLines() {
+		return unknownLines_;
+	}
+
+	/** keep a line DBGL does not understand: it goes into the matching own section */
+	public void keepUnknownLine(UnknownLine line) {
+		customSections_[line.section()] += line.text() + SystemUtils.EOLN;
+	}
+
 	public Autoexec(Autoexec autoexec) {
+		unknownLines_ = new ArrayList<>(autoexec.unknownLines_);
 		main_ = autoexec.main_;
 		parameters_ = autoexec.parameters_;
 		img_ = new String[BOOTER_IMAGES];
@@ -452,10 +476,25 @@ public class Autoexec {
 		int exeIndex = -1;
 		StringBuilder customEchos = new StringBuilder();
 		List<String> leftOvers = new ArrayList<>();
+		List<UnknownLine> leftOverLines = new ArrayList<>();
+		List<UnknownLine> echoOffLines = new ArrayList<>();
+		unknownLines_ = new ArrayList<>();
+		// while reading, the section of an unknown line holds its line number; the real section follows at the end
+		int lineNo = -1, firstMountLine = Integer.MAX_VALUE, mainLine = -1;
+		boolean afterExit = false;
+		UnknownLine lastExeLine = null;
 		int customSection = -1;
 
 		line: for (String orgLine: lines) {
 			orgLine = orgLine.trim();
+			String rawLine = orgLine;
+			lineNo++;
+			if (afterExit) {
+				if (StringUtils.isNotBlank(orgLine))
+					unknownLines_.add(new UnknownLine(orgLine, 3, true));
+				continue;
+			}
+			int here = lineNo;
 
 			for (int i = 0; i < SECTIONS; i++) {
 				if (orgLine.startsWith(CUSTOM_SECTION_MARKERS[i * 2])) {
@@ -504,6 +543,7 @@ public class Autoexec {
 			String line = orgLine.toLowerCase();
 
 			if (line.startsWith("mount ") || line.startsWith("imgmount ")) {
+				firstMountLine = Math.min(firstMountLine, lineNo);
 				if (cwd == null)
 					addMount(orgLine);
 				else
@@ -515,6 +555,7 @@ public class Autoexec {
 							? Stream.concat(dbMounts.stream(), mountingpoints_.stream()).toList()
 							: mountingpoints_;
 					if (hasDrive(line.charAt(0), mountingpoints)) {
+						firstMountLine = Math.min(firstMountLine, lineNo);
 						driveletter = Character.toUpperCase(line.charAt(0));
 						directory = StringUtils.EMPTY;						
 					} else {
@@ -550,8 +591,13 @@ public class Autoexec {
 			} else if (line.equals("pause")) {
 				pause_ = true;
 			} else if (line.startsWith("z:\\config.com")) {
-				// just ignore
+				unknownLines_.add(new UnknownLine(rawLine, here, false));
 			} else if ((exeIndex = StringUtils.indexOfAny(line, FilesUtils.dosExecutables())) != -1) {
+				// only the last program is the game, an earlier one (e.g. a mouse driver) is not written again; the last one is
+				// taken out of the list again below
+				lastExeLine = new UnknownLine(rawLine, lineNo, false);
+				unknownLines_.add(lastExeLine);
+				mainLine = lineNo;
 				executable = orgLine;
 				// older DBGL versions wrote long names with spaces, e.g. "MM 3.EXE", keep the complete name as an alternative
 				String full = orgLine.substring(0, Math.min(orgLine.length(), exeIndex + 4)).trim();
@@ -577,6 +623,7 @@ public class Autoexec {
 					executable = executable.substring(0, spaceAfterIndex);
 				}
 			} else if (bootMatcher.matches()) {
+				mainLine = lineNo;
 				Matcher bootImgsMatcher = BOOTIMGS_PATRN.matcher(bootMatcher.group(1).trim());
 				if (bootImgsMatcher.matches()) {
 					for (int i = 0; i < BOOTER_IMAGES; i++) {
@@ -602,23 +649,41 @@ public class Autoexec {
 				}
 			} else if (line.equals("exit") || line.startsWith("exit ")) {
 				exit_ = true;
-				break; // no further parsing of lines as DOSBox must have exited
+				afterExit = true; // no further parsing of lines as DOSBox must have exited
 			} else if (line.equals("echo off")) {
-				// just ignore
+				echoOffLines.add(new UnknownLine(rawLine, here, false));
 			} else if (line.equals("echo") || line.startsWith("echo ") || line.startsWith("echo.")) {
 				customEchos.append(orgLine).append(SystemUtils.EOLN);
 			} else if (line.startsWith(":") || line.equals("cd") || line.equals("cls") || line.startsWith("cls ") || line.startsWith("cls\\") || line.equals("rem") || line.startsWith("rem ")
 					|| line.startsWith("goto ") || line.startsWith("if errorlevel ")) {
-				// just ignore
+				unknownLines_.add(new UnknownLine(rawLine, here, false));
 			} else if (StringUtils.isNotBlank(line)) {
 				leftOvers.add(orgLine);
+				UnknownLine leftOver = new UnknownLine(rawLine, here, false);
+				leftOverLines.add(leftOver);
+				unknownLines_.add(leftOver);
 			}
 		}
 
 		if (StringUtils.isNotEmpty(customEchos) && !customEchos.toString().equalsIgnoreCase("echo." + SystemUtils.EOLN)) {
 			customSections_[1] += "@echo off" + SystemUtils.EOLN + customEchos; // add echo commands to pre-launch custom section
 			customSections_[1] += "pause" + SystemUtils.EOLN; // add pause statement to make it all readable
+		} else {
+			unknownLines_.addAll(echoOffLines);
 		}
+
+		java.util.Set<UnknownLine> written = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+		if (lastExeLine != null)
+			written.add(lastExeLine); // the game
+		if (executable.equals(StringUtils.EMPTY) && image[0].equals(StringUtils.EMPTY))
+			written.addAll(leftOverLines); // without a game or booter, these lines become the game and its preparation (below)
+		unknownLines_.removeIf(written::contains);
+		int mainAt = mainLine >= 0 ? mainLine: (leftOverLines.isEmpty() ? Integer.MAX_VALUE: leftOverLines.get(leftOverLines.size() - 1).section());
+		int mountAt = firstMountLine;
+		unknownLines_.replaceAll(l -> l.afterExit() ? l: new UnknownLine(l.text(), l.section() < mountAt ? 0: (l.section() < mainAt ? 1: 2), false));
+		if (StringUtils.isNotEmpty(customEchos) && customEchos.toString().equalsIgnoreCase("echo." + SystemUtils.EOLN))
+			unknownLines_.add(new UnknownLine(customEchos.toString().trim(), 1, false));
+		unknownLines_.sort(java.util.Comparator.comparingInt(UnknownLine::section)); // stable: keeps the order within a section
 
 		if (executable.equals(StringUtils.EMPTY) && image[0].equals(StringUtils.EMPTY) && !leftOvers.isEmpty()) {
 			// add all-but-the-last statement to pre-launch custom section

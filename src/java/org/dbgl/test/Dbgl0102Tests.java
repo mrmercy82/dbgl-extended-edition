@@ -286,6 +286,112 @@ public class Dbgl0102Tests {
 		assertTrue(DosboxVersionDetector.dosboxXBuild(exe).isEmpty());
 	}
 
+	/**
+	 * Lines of the [autoexec] added by hand were lost when switching a profile to another DOSBox version (DBGL writes the
+	 * [autoexec] again from what it understood). They are now listed, and kept lines go into the own sections.
+	 */
+	@Test
+	public void testUnknownAutoexecLinesAndSwitchChoices() throws IOException {
+		org.dbgl.model.conf.Autoexec autoexec = new org.dbgl.model.conf.Autoexec();
+		autoexec.load(List.of("set BLASTER=A220 I7 D1 T6", "mount c \"games\"", "c:", "cd \\keen", "mouse.com", "rem my own note", "keen1.exe -nojoy", "cls", "exit", "echo never shown"), null, null);
+		List<org.dbgl.model.conf.Autoexec.UnknownLine> unknown = autoexec.getUnknownLines();
+		assertEquals(List.of(new org.dbgl.model.conf.Autoexec.UnknownLine("set BLASTER=A220 I7 D1 T6", 0, false), new org.dbgl.model.conf.Autoexec.UnknownLine("mouse.com", 1, false),
+			new org.dbgl.model.conf.Autoexec.UnknownLine("rem my own note", 1, false), new org.dbgl.model.conf.Autoexec.UnknownLine("cls", 2, false),
+			new org.dbgl.model.conf.Autoexec.UnknownLine("echo never shown", 3, true)), unknown);
+		assertEquals("-nojoy", autoexec.getParameters());
+
+		// kept lines are written into the own sections, and read again from there they are known
+		for (org.dbgl.model.conf.Autoexec.UnknownLine l: unknown.subList(0, 4))
+			autoexec.keepUnknownLine(l);
+		String eol = org.dbgl.util.SystemUtils.EOLN;
+		assertEquals("set BLASTER=A220 I7 D1 T6" + eol, autoexec.getCustomSection(0));
+		assertEquals("mouse.com" + eol + "rem my own note" + eol, autoexec.getCustomSection(1));
+		assertEquals("cls" + eol, autoexec.getCustomSection(2));
+		String written = autoexec.toString(false, null);
+		assertTrue(written, written.contains("mouse.com") && written.contains("keen1.exe -nojoy") && written.contains("set BLASTER"));
+		org.dbgl.model.conf.Autoexec again = new org.dbgl.model.conf.Autoexec();
+		List<String> writtenLines = Arrays.asList(written.split("\\R"));
+		assertEquals("[autoexec]", writtenLines.get(0));
+		again.load(writtenLines.subList(1, writtenLines.size()), null, null); // without the section header, as when reading a file
+		assertTrue(again.getUnknownLines().toString(), again.getUnknownLines().isEmpty());
+		assertEquals(autoexec.getCustomSection(1), again.getCustomSection(1));
+
+		// a game without own program line: the last line is the game, nothing is lost
+		org.dbgl.model.conf.Autoexec noExe = new org.dbgl.model.conf.Autoexec();
+		noExe.load(List.of("mount c \"games\"", "c:", "cd \\doom", "doom -nomonsters"), null, null);
+		assertTrue(noExe.getUnknownLines().isEmpty());
+
+		// settings: a dropped value can be kept
+		org.dbgl.model.aggregate.DosboxVersion v083 = DosboxVersionFactory.create("DOSBox Staging 0.83.0", SettingsService.STAGING_DOSBOX_FAM.title_, "0.83.0", false, true, false, null,
+			"staging083", "", "", "staging083/dosbox.conf");
+		File dosboxConfFile = new File(DATA_DIR, "dosbox-staging-0.83.0.conf");
+		v083.loadConfigurationData(GenericTextService.getInstance(), Files.readString(dosboxConfFile.toPath(), StandardCharsets.UTF_8), dosboxConfFile);
+		org.dbgl.model.aggregate.Profile profile = org.dbgl.model.factory.ProfileFactory.create(v083, null);
+		profile.getConfiguration().setValue("sdl", "output", "opengl");
+		org.dbgl.util.SwitchChoices.Snapshot snapshot = org.dbgl.util.SwitchChoices.before(profile);
+		profile.getConfiguration().removeValue("sdl", "output"); // as a switch to a version without this value would do
+		List<org.dbgl.util.SwitchChoices.Choice> choices = org.dbgl.util.SwitchChoices.after(snapshot, profile);
+		org.dbgl.util.SwitchChoices.Choice output = choices.stream().filter(c -> "output".equals(c.item())).findFirst().orElseThrow();
+		assertNull(output.newText());
+		assertFalse(output.defaultKeep());
+		org.dbgl.util.SwitchChoices.apply(profile, choices, c -> c == output);
+		assertEquals("opengl", profile.getConfiguration().getValue("sdl", "output"));
+	}
+
+	/**
+	 * Warning signs with the tooltip "null": the check read configurations again while the window used the same DOSBox
+	 * versions. Checks now use their own copies, and a failure while checking is never shown as a problem.
+	 */
+	@Test
+	public void testProfileWarningsWhileDosboxVersionReloads() throws Exception {
+		File dir = Files.createTempDirectory("dbgl-warnings").toFile();
+		File dosboxConf = new File(dir, "dosbox.conf");
+		Files.copy(new File(DATA_DIR, "dosbox-staging-0.83.0.conf").toPath(), dosboxConf.toPath());
+		org.dbgl.model.aggregate.DosboxVersion dbv = DosboxVersionFactory.create(9000, "Staging", SettingsService.STAGING_DOSBOX_FAM.title_, "0.83.0", false, true, false, null, dir.getPath(), "", "",
+			dosboxConf.getPath(), null, null, null, 0);
+		dbv.resetAndLoadConfiguration();
+		List<org.dbgl.model.aggregate.Profile> profiles = new java.util.ArrayList<>();
+		java.util.Map<Integer, List<String>> expected = new java.util.HashMap<>();
+		for (int i = 0; i < 6; i++) {
+			org.dbgl.model.aggregate.Profile p = org.dbgl.model.factory.ProfileFactory.create(dbv, null);
+			p.setId(9000 + i);
+			p.setConfigurationFileLocation(new File(dir, i + ".conf").getPath());
+			if (i % 2 == 0)
+				p.getConfiguration().setValue("sdl", "output", "overlay"); // invalid in Staging 0.83
+			p.saveConfiguration();
+			profiles.add(p);
+			org.dbgl.util.ProfileWarnings.forget(p.getId());
+			expected.put(p.getId(), org.dbgl.util.ProfileWarnings.check(p));
+		}
+		assertFalse(expected.get(9000).isEmpty());
+		java.util.concurrent.atomic.AtomicBoolean stop = new java.util.concurrent.atomic.AtomicBoolean();
+		Thread window = new Thread(() -> {
+			while (!stop.get()) {
+				try {
+					dbv.resetAndLoadConfiguration();
+					dbv.getConfigurationString();
+				} catch (Exception e) {
+					// only the checks matter here
+				}
+			}
+		});
+		window.start();
+		try {
+			for (int round = 0; round < 20; round++) {
+				for (org.dbgl.model.aggregate.Profile p: profiles) {
+					org.dbgl.util.ProfileWarnings.forget(p.getId());
+					List<String> problems = org.dbgl.util.ProfileWarnings.check(p);
+					assertFalse(problems.contains("null"));
+					assertEquals(expected.get(p.getId()), problems);
+				}
+			}
+		} finally {
+			stop.set(true);
+			window.join();
+			org.apache.commons.io.FileUtils.deleteQuietly(dir);
+		}
+	}
+
 	@Test
 	public void testInvalidValues() throws IOException {
 		org.dbgl.model.aggregate.DosboxVersion v083 = DosboxVersionFactory.create("DOSBox Staging 0.83.0", SettingsService.STAGING_DOSBOX_FAM.title_, "0.83.0", false, true, false, null,

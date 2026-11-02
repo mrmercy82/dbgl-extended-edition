@@ -57,7 +57,8 @@ Many profiles at once
   - Presets (Windows 95/98, Windows 3.1, slow and fast games, Tandy, PC-98,
     your own), also for all selected profiles.
   - Switch to another DOSBox version, with preview, report and a comparison
-    of both versions.
+    of both versions. Whatever would be dropped, including lines added by
+    hand to the [autoexec], can be kept line by line.
   - Edit several profiles, including the further settings.
   - Undo the last change of several profiles.
 

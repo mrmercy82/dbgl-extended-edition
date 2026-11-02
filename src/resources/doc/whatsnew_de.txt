@@ -57,7 +57,8 @@ Viele Profile auf einmal
   - Voreinstellungen (Windows 95/98, Windows 3.1, langsame und schnelle Spiele,
     Tandy, PC-98, eigene), auch für alle markierten Profile.
   - Auf andere DOSBox-Version umstellen, mit Vorschau, Bericht und Vergleich
-    der beiden Versionen.
+    der beiden Versionen. Was dabei wegfiele, auch selbst eingetragene Zeilen
+    im [autoexec], lässt sich Zeile für Zeile behalten.
   - Mehrere Profile bearbeiten, auch die weiteren Einstellungen.
   - Letzte Änderung mehrerer Profile rückgängig machen.
 

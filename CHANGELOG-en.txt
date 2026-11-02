@@ -4,6 +4,29 @@ DBGL Extended Edition - Changes since 0.100 beta 17
 Based on DBGL 0.100 beta 17 by Ronald Blankendaal (https://dbgl.org), source code. Newest version first.
 
 
+0.101 alpha 28 (2026-11-02)
+---------------------------
+- Switch to another DOSBox version: lines added by hand to the [autoexec]
+  are no longer lost unnoticed.
+  - Background: DBGL splits the [autoexec] into its parts when reading it
+    (mounts, game, parameters etc.) and writes it again from them. Lines it
+    does not know (e.g. "set BLASTER=...", a mouse driver before the game,
+    "rem", "cls", lines after "exit") were dropped, unless they were in the
+    own sections (At Start, Before Launch, After Launch, At Finish).
+  - The preview now shows a table below the report with every line that is
+    dropped or changed: lines added by hand to the [autoexec] and settings
+    that are dropped, renamed (e.g. glshader -> shader) or get another value.
+    One tick per line: ticked = keep the previous line. Plus "Keep all" and
+    "Keep none".
+  - Default: lines of the [autoexec] are kept (except lines after "exit",
+    which DOSBox never ran), converted settings take the new value.
+  - Kept lines of the [autoexec] go into the matching own section and are
+    then visible and editable in the profile dialog; kept settings get their
+    previous value back.
+  - The report names every kept line ("= kept: ...").
+- Tests: the test for the false warning signs (alpha 22) was in a test class
+  that did not run. It runs now and passes.
+
 0.101 alpha 27 (2026-11-02)
 ---------------------------
 - README and "New features": link to Ronald's announcement of 0.100 beta 17

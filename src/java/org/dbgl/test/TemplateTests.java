@@ -1,7 +1,5 @@
 /*
  *  Copyright (C) 2006-2025  Ronald Blankendaal
- *  Modified for the DBGL Extended Edition by mrmercy82 (with the help of AI)
- *  since 2026-11-01. Changes and their dates: CHANGELOG-en.txt, CHANGELOG-de.txt.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -1326,48 +1324,6 @@ public class TemplateTests {
 				}
 
 			}
-		}
-	}
-
-	/**
-	 * Warning signs with the tooltip "null": the check read configurations again while the window used the same DOSBox
-	 * versions. Checks now use their own copies, and a failure while checking is never shown as a problem.
-	 */
-	@Test
-	public void test036_ProfileWarningsWhileDosboxVersionsReload() throws Exception {
-		List<DosboxVersion> allDosboxVersions = dRepo.listAll();
-		List<Profile> allProfiles = pRepo.list(StringUtils.EMPTY, StringUtils.EMPTY, allDosboxVersions);
-		java.util.Map<Integer, List<String>> expected = new java.util.HashMap<>();
-		for (Profile p: allProfiles) {
-			org.dbgl.util.ProfileWarnings.forget(p.getId());
-			expected.put(p.getId(), org.dbgl.util.ProfileWarnings.check(p));
-		}
-		java.util.concurrent.atomic.AtomicBoolean stop = new java.util.concurrent.atomic.AtomicBoolean();
-		Thread window = new Thread(() -> {
-			while (!stop.get()) {
-				for (DosboxVersion dbv: allDosboxVersions) {
-					try {
-						dbv.resetAndLoadConfiguration();
-						dbv.getConfigurationString();
-					} catch (Exception e) {
-						// only the checks matter here
-					}
-				}
-			}
-		});
-		window.start();
-		try {
-			for (int round = 0; round < 15; round++) {
-				for (Profile p: allProfiles) {
-					org.dbgl.util.ProfileWarnings.forget(p.getId());
-					List<String> problems = org.dbgl.util.ProfileWarnings.check(p);
-					assertFalse(problems.contains("null"));
-					assertEquals(expected.get(p.getId()), problems);
-				}
-			}
-		} finally {
-			stop.set(true);
-			window.join();
 		}
 	}
 

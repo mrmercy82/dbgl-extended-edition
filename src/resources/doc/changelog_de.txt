@@ -4,6 +4,32 @@ DBGL Extended Edition - Änderungen seit 0.100 beta 17
 Grundlage: DBGL 0.100 beta 17 von Ronald Blankendaal (https://dbgl.org), Quellcode. Neueste Version zuerst.
 
 
+0.101 alpha 28 (2026-11-02)
+---------------------------
+- Auf andere DOSBox-Version umstellen: Selbst eingetragene Zeilen im
+  [autoexec] gehen nicht mehr unbemerkt verloren.
+  - Hintergrund: DBGL zerlegt das [autoexec] beim Einlesen in seine Bausteine
+    (Mounts, Spiel, Parameter usw.) und schreibt es daraus neu. Zeilen, die
+    es nicht kennt (z. B. "set BLASTER=...", ein Maustreiber vor dem Spiel,
+    "rem", "cls", Zeilen nach "exit"), fielen dabei weg, außer sie standen in
+    den eigenen Abschnitten (Am Anfang, Vor dem Start, Nach dem Start,
+    Am Ende).
+  - Die Vorschau zeigt jetzt unter dem Bericht eine Tabelle mit allen Zeilen,
+    die wegfallen oder sich ändern: selbst eingetragene Zeilen im
+    [autoexec] und Einstellungen, die entfallen, umbenannt werden (z. B.
+    glshader -> shader) oder einen anderen Wert bekommen. Pro Zeile ein
+    Haken: angehakt = bisherige Zeile behalten. Dazu "Alle behalten" und
+    "Keine behalten".
+  - Voreinstellung: Zeilen im [autoexec] werden behalten (außer Zeilen nach
+    "exit", die DOSBox nie ausgeführt hat), umgerechnete Einstellungen
+    übernehmen den neuen Wert.
+  - Behaltene Zeilen im [autoexec] kommen in den passenden eigenen Abschnitt
+    und sind danach im Profildialog sichtbar und bearbeitbar; behaltene
+    Einstellungen bekommen wieder den bisherigen Wert.
+  - Der Bericht nennt jede behaltene Zeile ("= behalten: ...").
+- Tests: Der Test zu den falschen Warnsymbolen (alpha 22) lag in einer
+  Testklasse, die nicht mitlief. Er läuft jetzt mit und besteht.
+
 0.101 alpha 27 (2026-11-02)
 ---------------------------
 - README und "Neue Features": Link auf Ronalds Ankündigung von 0.100 beta 17
