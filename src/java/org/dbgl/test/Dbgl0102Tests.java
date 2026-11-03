@@ -489,8 +489,10 @@ public class Dbgl0102Tests {
 		assertEquals("0.82.2", DosboxVersionDetector.versionOfConf(new File(DATA_DIR, "dosbox-staging-0.82.2.conf")));
 		assertEquals("2026.10.01", DosboxVersionDetector.versionOfConf(new File(DATA_DIR, "dosbox-x-2026.10.01.conf")));
 		assertEquals("0.74-3", DosboxVersionDetector.versionOfConf(new File(OFFICIAL_CONF)));
+		// Staging writes the first line in its language: "# Dies ist die Konfigurationsdatei für dosbox-staging (0.83.0)."
+		assertEquals("0.83.0", DosboxVersionDetector.versionOfConf(new File(DATA_DIR, "dosbox-staging-0.83.0-de.conf")));
 		assertNull(DosboxVersionDetector.versionOfConf(new File(DATA_DIR, "dosbox-daum-2015.01.25.conf"))); // "SVN-Daum": no version
-		assertNull(DosboxVersionDetector.versionOfConf(new File(DATA_DIR, "dosbox-staging-0.82.2-subset.conf"))); // no such first line
+		assertEquals("0.82.2", DosboxVersionDetector.versionOfConf(new File(DATA_DIR, "dosbox-staging-0.82.2-subset.conf"))); // "# DOSBox Staging 0.82.2 settings ..." 
 		assertNull(DosboxVersionDetector.versionOfConf(new File(DATA_DIR, "does-not-exist.conf")));
 		File old = Files.createTempFile("dbgl", ".conf").toFile();
 		Files.writeString(old.toPath(), "# This is the configuration file for dosbox-staging (0.81.2).\n[sdl]\n");

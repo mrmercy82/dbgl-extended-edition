@@ -4,6 +4,15 @@ DBGL Extended Edition - Changes since 0.100 beta 17
 Based on DBGL 0.100 beta 17 by Ronald Blankendaal (https://dbgl.org), source code. Newest version first.
 
 
+0.101 alpha 36 (2026-11-03)
+---------------------------
+- Fixed: the version check at startup still offered to write the dosbox.conf
+  of Staging 0.83 again although 0.83 had written it. DOSBox Staging writes
+  the first line in the language it uses ("# Dies ist die
+  Konfigurationsdatei für dosbox-staging (0.83.0)."), DBGL only recognized
+  the English one. Now only the program name and the version number count,
+  in any language.
+
 0.101 alpha 35 (2026-11-03)
 ---------------------------
 - Fixed: at the first start after coming from 0.100 beta 17, DBGL offered to

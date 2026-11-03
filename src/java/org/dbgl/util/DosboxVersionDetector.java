@@ -386,11 +386,13 @@ public class DosboxVersionDetector {
 		return versions.get(versions.size() - 1);
 	}
 
-	private static final Pattern CONF_HEADER_PATRN = Pattern.compile("This is the configuration file for (?:DOSBox(?:-X| Staging)?|dosbox-staging|dosbox-x)\\s*\\(?v?(\\d[\\w.\\-]*?)\\)?\\.?(?:\\s|$)", Pattern.CASE_INSENSITIVE);
+	/** the first comment line names the program and its version, in the language DOSBox uses (Staging translates it) */
+	private static final Pattern CONF_HEADER_PATRN = Pattern.compile("^#.*?\\bdosbox(?:-x|[- ]staging)?\\s*\\(?v?(\\d+(?:\\.\\d+)+(?:-\\d+)?)", Pattern.CASE_INSENSITIVE);
 
 	/**
 	 * @return the version a DOSBox configuration file was written by, from its first line (e.g. "# This is the configuration
-	 *         file for DOSBox Staging (0.83.0)." -> "0.83.0"), or null if it does not say
+	 *         file for DOSBox Staging (0.83.0)." or "# Dies ist die Konfigurationsdatei für dosbox-staging (0.83.0)." ->
+	 *         "0.83.0"), or null if it does not say
 	 */
 	public static String versionOfConf(File conf) {
 		try (java.io.BufferedReader r = java.nio.file.Files.newBufferedReader(conf.toPath(), java.nio.charset.StandardCharsets.ISO_8859_1)) {
