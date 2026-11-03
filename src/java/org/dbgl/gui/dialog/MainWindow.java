@@ -286,7 +286,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			checkDosboxVersionsInBackground();
 		if (settings_.getBooleanValue("dosbox", "checkforupdates"))
 			checkForDosboxUpdatesInBackground();
-			checkForEditionUpdateInBackground();
+		checkForEditionUpdateInBackground(); // has its own setting
 		checkAllProfilesInBackground();
 
 		display_.asyncExec(this::autoBackupIfDue);
@@ -512,12 +512,15 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		String today = java.time.LocalDate.now().toString();
 		if (today.equals(settings_.getValue(section, org.dbgl.util.EditionUpdateChecker.CHECKED)))
 			return;
-		settings_.setValue(section, org.dbgl.util.EditionUpdateChecker.CHECKED, today);
 		boolean prereleases = settings_.getBooleanValue(section, org.dbgl.util.EditionUpdateChecker.PRERELEASES);
 		Thread checker = new Thread(() -> {
 			org.dbgl.util.EditionUpdateChecker.Result result = org.dbgl.util.EditionUpdateChecker.check(prereleases);
-			if (result.error() != null)
-				System.out.println("Extended Edition update check failed: " + result.error());
+			if (result.error() != null) {
+				System.out.println("Extended Edition update check failed: " + result.error()); // tried again at the next start
+				return;
+			}
+			if (!display_.isDisposed())
+				display_.asyncExec(() -> settings_.setValue(section, org.dbgl.util.EditionUpdateChecker.CHECKED, today));
 			if ((result.newer() == null) || display_.isDisposed())
 				return;
 			display_.asyncExec(() -> {
@@ -554,6 +557,12 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		if (Mess_.on(shell_).key("dialog.main.confirm.editionupdate",
 			new Object[] {Constants.EDITION_NAME, r.version(), org.dbgl.util.EditionUpdateChecker.readable(Constants.PROGRAM_VERSION), pre}).confirm())
 			SystemUtils.openForBrowsing(r.url(), shell_);
+	}
+
+	/** @return true if the configuration file of the DOSBox version says it was written by this very version */
+	private static boolean confIsFrom(DosboxVersion v) {
+		String written = DosboxVersionDetector.versionOfConf(v.getConfigurationCanonicalFile());
+		return (written != null) && (DosboxUpdateChecker.compareVersions(written, v.getVersion()) == 0);
 	}
 
 	private void checkForDosboxUpdatesInBackground() {
@@ -851,8 +860,10 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				} catch (SQLException e) {
 					Mess_.on(shell_).exception(e).warning();
 				}
-				// the configuration files were written by the previous version, and may lack settings of the new one
-				List<DosboxVersion> withConf = mismatching.stream().filter(v -> FilesUtils.isReadableFile(v.getConfigurationCanonicalFile()) && FilesUtils.isReadableFile(v.getCanonicalExecutable())).toList();
+				// the configuration files were written by the previous version, and may lack settings of the new one; a file the new
+				// version wrote already (e.g. DBGL 0.100 beta 17 ran a newer DOSBox under the last version it knew) is kept as it is
+				List<DosboxVersion> withConf = mismatching.stream().filter(v -> FilesUtils.isReadableFile(v.getConfigurationCanonicalFile()) && FilesUtils.isReadableFile(v.getCanonicalExecutable()))
+						.filter(v -> !confIsFrom(v)).toList();
 				if (!withConf.isEmpty() && Mess_.on(shell_).key("dialog.main.confirm.recreateconfs",
 					new Object[] {withConf.stream().map(v -> v.getTitle() + ": " + v.getConfigurationCanonicalFile()).collect(Collectors.joining("\n"))}).confirm()) {
 					shell_.setCursor(display_.getSystemCursor(SWT.CURSOR_WAIT));

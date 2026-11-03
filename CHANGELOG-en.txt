@@ -4,6 +4,22 @@ DBGL Extended Edition - Changes since 0.100 beta 17
 Based on DBGL 0.100 beta 17 by Ronald Blankendaal (https://dbgl.org), source code. Newest version first.
 
 
+0.101 alpha 34 (2026-11-03)
+---------------------------
+- Version check at startup: when the version entered for a DOSBox does not
+  match its executable, DBGL offers to write its dosbox.conf again. A
+  dosbox.conf that, by its first line, was written by the detected version
+  already is now left alone. This concerns e.g. everyone who ran DOSBox
+  Staging 0.83 or a new DOSBox-X under DBGL 0.100 beta 17, entered as the
+  last version it knew: their (maybe customized) dosbox.conf is not replaced.
+- Lines in the [autoexec] DBGL does not know: the default is now "Let me
+  choose line by line" (for a new installation and at the first start after
+  coming from 0.100 beta 17). A setting saved before is kept.
+- Window "Lines DBGL does not know": the column "Section" is wide enough for
+  the longest section name.
+- Update check of the Extended Edition: when asking fails (no connection,
+  GitHub limit), it asks again at the next start instead of the next day.
+
 0.101 alpha 33 (2026-11-02)
 ---------------------------
 - "Let me choose line by line" (lines in the [autoexec] DBGL does not know):

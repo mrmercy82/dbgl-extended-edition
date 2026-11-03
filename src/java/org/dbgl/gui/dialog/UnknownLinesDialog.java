@@ -106,7 +106,14 @@ public class UnknownLinesDialog extends SizeControlledButtonDialog<List<UnknownA
 		}
 		lineColumn.pack();
 		lineColumn.setWidth(Math.max(lineColumn.getWidth() + 20, 260));
-		sectionColumn.setWidth(combos.stream().mapToInt(c -> c.getSize().x).max().orElse(150) + 30);
+		// wide enough for the longest section name plus the arrow of the list
+		org.eclipse.swt.graphics.GC gc = new org.eclipse.swt.graphics.GC(table);
+		int longest = 0;
+		for (String s: sections)
+			longest = Math.max(longest, gc.textExtent(s).x);
+		longest = Math.max(longest, gc.textExtent(text_.get("dialog.unknownlines.afterexit")).x);
+		gc.dispose();
+		sectionColumn.setWidth(Math.max(longest + 70, combos.stream().mapToInt(c -> c.getSize().x).max().orElse(0) + 40));
 
 		Button markers = new Button(contents_, SWT.CHECK);
 		markers.setText(text_.get("dialog.unknownlines.markers"));

@@ -404,7 +404,7 @@ public class SettingsService {
 		settings_.setValue("edition", "prereleases", true);
 		settings_.setValue("edition", "updatechecked", "");
 		settings_.setValue("edition", "updatenoticeshown", "");
-		settings_.setValue("autoexec", "unknownlines", "auto");
+		settings_.setValue("autoexec", "unknownlines", "ask"); // the user decides, until set otherwise
 		settings_.setValue("autoexec", "nomarkers", false);
 		settings_.setValue("gui", "extrasexpand", "changed");
 		settings_.setValue("gui", "extrasexpandonextraspages", false);

@@ -479,6 +479,25 @@ public class Dbgl0102Tests {
 		assertEquals("0.101", org.dbgl.util.EditionUpdateChecker.newest(withFinal, "0.101alpha30", true).version());
 	}
 
+	/**
+	 * Which version wrote a DOSBox configuration file: a file written by the new version already is kept when DBGL corrects
+	 * the version of a DOSBox at startup (e.g. DBGL 0.100 beta 17 ran Staging 0.83 under the last version it knew).
+	 */
+	@Test
+	public void testVersionOfConf() throws IOException {
+		assertEquals("0.83.0", DosboxVersionDetector.versionOfConf(new File(DATA_DIR, "dosbox-staging-0.83.0.conf")));
+		assertEquals("0.82.2", DosboxVersionDetector.versionOfConf(new File(DATA_DIR, "dosbox-staging-0.82.2.conf")));
+		assertEquals("2026.10.01", DosboxVersionDetector.versionOfConf(new File(DATA_DIR, "dosbox-x-2026.10.01.conf")));
+		assertEquals("0.74-3", DosboxVersionDetector.versionOfConf(new File(OFFICIAL_CONF)));
+		assertNull(DosboxVersionDetector.versionOfConf(new File(DATA_DIR, "dosbox-daum-2015.01.25.conf"))); // "SVN-Daum": no version
+		assertNull(DosboxVersionDetector.versionOfConf(new File(DATA_DIR, "dosbox-staging-0.82.2-subset.conf"))); // no such first line
+		assertNull(DosboxVersionDetector.versionOfConf(new File(DATA_DIR, "does-not-exist.conf")));
+		File old = Files.createTempFile("dbgl", ".conf").toFile();
+		Files.writeString(old.toPath(), "# This is the configuration file for dosbox-staging (0.81.2).\n[sdl]\n");
+		assertEquals("0.81.2", DosboxVersionDetector.versionOfConf(old));
+		old.delete();
+	}
+
 	@Test
 	public void testInvalidValues() throws IOException {
 		org.dbgl.model.aggregate.DosboxVersion v083 = DosboxVersionFactory.create("DOSBox Staging 0.83.0", SettingsService.STAGING_DOSBOX_FAM.title_, "0.83.0", false, true, false, null,
