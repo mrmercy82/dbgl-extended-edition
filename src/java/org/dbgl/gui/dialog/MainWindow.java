@@ -562,7 +562,15 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 	/** @return true if the configuration file of the DOSBox version says it was written by this very version */
 	private static boolean confIsFrom(DosboxVersion v) {
 		String written = DosboxVersionDetector.versionOfConf(v.getConfigurationCanonicalFile());
-		return (written != null) && (DosboxUpdateChecker.compareVersions(written, v.getVersion()) == 0);
+		boolean same = (written != null) && (DosboxUpdateChecker.compareVersions(releaseOf(written), releaseOf(v.getVersion())) == 0);
+		System.out.println("dosbox.conf of " + v.getTitle() + " written by " + written + ", executable " + v.getVersion() + (same ? ": kept": ": may be written again"));
+		return same;
+	}
+
+	/** the release number only, e.g. "0.83.0-abc123" or "0.83.0 (git)" -> "0.83.0", "2026.10.01 SDL2" -> "2026.10.01" */
+	private static String releaseOf(String version) {
+		java.util.regex.Matcher m = java.util.regex.Pattern.compile("\\d+(?:\\.\\d+)*").matcher(version);
+		return m.find() ? m.group(): version;
 	}
 
 	private void checkForDosboxUpdatesInBackground() {
@@ -570,12 +578,18 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		if (today.equals(settings_.getValue("gui", "updatechecked")))
 			return;
 		settings_.setValue("gui", "updatechecked", today);
-		java.util.Map<String, String> installed = new java.util.HashMap<>();
-		for (DosboxVersion v: dbversionsList_)
-			installed.merge(v.getFamily(), v.getVersion(), (a, b) -> DosboxUpdateChecker.compareVersions(a, b) >= 0 ? a: b);
-		if (!installed.containsKey(SettingsService.STAGING_DOSBOX_FAM.title_) && !installed.containsKey(SettingsService.DOSBOX_X_DOSBOX_FAM.title_))
-			return; // only for the DOSBox families in use
+		List<DosboxVersion> versions = new ArrayList<>(dbversionsList_);
 		Thread checker = new Thread(() -> {
+			// what is really installed: the version of the executable, which may be newer than the entry (e.g. Staging 0.83 entered
+			// as 0.82.2 under DBGL 0.100 beta 17, corrected at this start in parallel)
+			java.util.Map<String, String> installed = new java.util.HashMap<>();
+			for (DosboxVersion v: versions) {
+				DosboxVersionDetector.Result r = DosboxVersionDetector.detectCached(v.getCanonicalExecutable(), v.getCwd());
+				String family = r != null ? r.family_: v.getFamily(), version = r != null ? r.version_: v.getVersion();
+				installed.merge(family, version, (a, b) -> DosboxUpdateChecker.compareVersions(a, b) >= 0 ? a: b);
+			}
+			if (!installed.containsKey(SettingsService.STAGING_DOSBOX_FAM.title_) && !installed.containsKey(SettingsService.DOSBOX_X_DOSBOX_FAM.title_))
+				return; // only for the DOSBox families in use
 			List<DosboxUpdateChecker.Release> newer = DosboxUpdateChecker.latestReleases().stream()
 					.filter(r -> installed.containsKey(r.family()) && (DosboxUpdateChecker.compareVersions(r.version(), installed.get(r.family())) > 0)).toList();
 			if (newer.isEmpty() || display_.isDisposed())
@@ -865,7 +879,8 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				List<DosboxVersion> withConf = mismatching.stream().filter(v -> FilesUtils.isReadableFile(v.getConfigurationCanonicalFile()) && FilesUtils.isReadableFile(v.getCanonicalExecutable()))
 						.filter(v -> !confIsFrom(v)).toList();
 				if (!withConf.isEmpty() && Mess_.on(shell_).key("dialog.main.confirm.recreateconfs",
-					new Object[] {withConf.stream().map(v -> v.getTitle() + ": " + v.getConfigurationCanonicalFile()).collect(Collectors.joining("\n"))}).confirm()) {
+					new Object[] {withConf.stream().map(v -> v.getTitle() + ": " + v.getConfigurationCanonicalFile() + "  [" + StringUtils.defaultIfEmpty(DosboxVersionDetector.versionOfConf(v.getConfigurationCanonicalFile()), "?")
+							+ " -> " + v.getVersion() + "]").collect(Collectors.joining("\n"))}).confirm()) {
 					shell_.setCursor(display_.getSystemCursor(SWT.CURSOR_WAIT));
 					try {
 						for (DosboxVersion v: withConf) {

@@ -4,6 +4,19 @@ DBGL Extended Edition - Changes since 0.100 beta 17
 Based on DBGL 0.100 beta 17 by Ronald Blankendaal (https://dbgl.org), source code. Newest version first.
 
 
+0.101 alpha 35 (2026-11-03)
+---------------------------
+- Fixed: at the first start after coming from 0.100 beta 17, DBGL offered to
+  download a DOSBox version that was installed already, only entered as an
+  older version there (e.g. Staging 0.83 as 0.82.2). The search for new
+  DOSBox versions ran at the same time as the correction of the entry and
+  still saw the old one. It now reads the version from the executable.
+- Version check at startup: whether a dosbox.conf was written by the
+  detected version already is now judged by the version number only
+  (additions such as build ids do not count). The question about writing
+  them again shows for each file which version wrote it, by its first line,
+  e.g. "[0.82.2 -> 0.83.0]".
+
 0.101 alpha 34 (2026-11-03)
 ---------------------------
 - Version check at startup: when the version entered for a DOSBox does not
