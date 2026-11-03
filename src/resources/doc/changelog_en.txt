@@ -4,6 +4,19 @@ DBGL Extended Edition - Changes since 0.100 beta 17
 Based on DBGL 0.100 beta 17 by Ronald Blankendaal (https://dbgl.org), source code. Newest version first.
 
 
+0.101 alpha 37 (2026-11-03)
+---------------------------
+- Fixed (probably also the reported loss of mounts): a mount line added by
+  hand that DBGL cannot read was lost without a word when the profile was
+  saved, e.g.
+  mount D "...\Mega2_DEU1.iso" "...\Mega2_DEU2.iso" -t cdrom
+  ("mount" with two CD images). This was so in 0.100 beta 17 already: mount
+  lines always counted as known, even when reading them failed. Now such a
+  line is one of the lines DBGL does not know, and is kept, or asked about
+  with "Let me choose line by line". The same for imgmount lines.
+- Release text on GitHub: with the changelog of the version and a warning to
+  back up the DBGL folder before installing.
+
 0.101 alpha 36 (2026-11-03)
 ---------------------------
 - Fixed: the version check at startup still offered to write the dosbox.conf

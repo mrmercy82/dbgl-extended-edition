@@ -395,6 +395,32 @@ public class Dbgl0102Tests {
 	}
 
 	/**
+	 * A mount command added by hand that DBGL cannot read ("mount" with two CD images) was dropped without a word whenever the
+	 * profile was saved, already in 0.100 beta 17. It is now a line DBGL does not know, and kept.
+	 */
+	@Test
+	public void testUnreadableMountKept() {
+		SettingsService settings = SettingsService.getInstance();
+		String mode = settings.getValue("autoexec", "unknownlines");
+		try {
+			settings.setValue("autoexec", "unknownlines", "ask"); // kept in place until the user decides
+			String cd = "mount D \"D:\\Spiele\\DOS\\SPIELE\\MEGA2\\iso\\Mega2_DEU1.iso\" \"D:\\Spiele\\DOS\\SPIELE\\MEGA2\\iso\\Mega2_DEU2.iso\" -t cdrom";
+			List<String> lines = List.of("@echo off", "mount C \"D:\\Spiele\\DOS\\SPIELE\\MEGA2\"", cd, "C:", "cd \\", "cls", "MEGARACE.EXE", "exit");
+			org.dbgl.model.conf.Autoexec a = new org.dbgl.model.conf.Autoexec();
+			a.load(lines, null, null);
+			assertEquals(1, a.getMountingpoints().size());
+			assertTrue(a.getUnknownLines().toString(), a.getUnknownLines().stream().anyMatch(l -> l.text().equals(cd)));
+			org.dbgl.util.UnknownAutoexecLines.keepOnRead(a);
+			String written = a.toString(false, null);
+			assertTrue(written, written.contains(cd));
+			assertTrue(written, written.contains("MEGARACE.EXE"));
+			assertEquals(1, written.split(java.util.regex.Pattern.quote(cd), -1).length - 1);
+		} finally {
+			settings.setValue("autoexec", "unknownlines", mode);
+		}
+	}
+
+	/**
 	 * Warning signs with the tooltip "null": the check read configurations again while the window used the same DOSBox
 	 * versions. Checks now use their own copies, and a failure while checking is never shown as a problem.
 	 */

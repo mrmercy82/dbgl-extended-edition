@@ -439,21 +439,25 @@ public class Autoexec {
 	}
 
 	public void addMount(String mount, File baseDir) {
+		tryAddMount(mount, baseDir);
+	}
+
+	/** @return false if DBGL cannot read the mount command (e.g. "mount D a.iso b.iso -t cdrom"), so it is not added */
+	private boolean tryAddMount(String mount, File baseDir) {
 		try {
 			Mount mnt = MountFactory.create(mount);
-			mnt.setBaseDir(baseDir);
+			if (baseDir != null)
+				mnt.setBaseDir(baseDir);
 			mountingpoints_.add(mnt);
+			return true;
 		} catch (InvalidMountstringException e) {
 			System.err.println("Invalid mount command \"" + mount + "\"");
+			return false;
 		}
 	}
 
 	public void addMount(String mount) {
-		try {
-			mountingpoints_.add(MountFactory.create(mount));
-		} catch (InvalidMountstringException e) {
-			System.err.println("Invalid mount command \"" + mount + "\"");
-		}
+		tryAddMount(mount, null);
 	}
 
 	public boolean isDos() {
@@ -601,10 +605,9 @@ public class Autoexec {
 
 			if (line.startsWith("mount ") || line.startsWith("imgmount ")) {
 				firstMountLine = Math.min(firstMountLine, lineNo);
-				if (cwd == null)
-					addMount(orgLine);
-				else
-					addMount(orgLine, baseDir);
+				// a mount command DBGL cannot read is not written again: keep it as a line DBGL does not know
+				if (!tryAddMount(orgLine, cwd == null ? null: baseDir))
+					unknownLines_.add(new UnknownLine(rawLine, here, false));
 			} else if ((line.endsWith(":") && line.length() == 2) || (line.endsWith(":\\") && line.length() == 3)) {
 				if (driveletter != Character.toUpperCase(line.charAt(0))) {
 					// drive letter change
