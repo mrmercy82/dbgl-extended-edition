@@ -27,6 +27,10 @@ public class Mount {
 	protected char drive_;
 	protected String mountAs_, label_;
 	protected boolean unmounted_;
+	/** parameters DBGL has no field for (e.g. of newer DOSBox versions), written again as they are */
+	protected String extraOptions_ = StringUtils.EMPTY;
+	/** the line this mount was read from, and how DBGL would write it then: unchanged, the line is written again exactly */
+	private String original_, parsedForm_;
 
 	public Mount() {
 		drive_ = '\0';
@@ -91,6 +95,35 @@ public class Mount {
 		return null;
 	}
 
+	public String getExtraOptions() {
+		return extraOptions_;
+	}
+
+	public void setExtraOptions(String extraOptions) {
+		extraOptions_ = StringUtils.defaultString(extraOptions).trim();
+	}
+
+	/** remember the line this mount was read from, so that it is written again exactly as long as the mount is not changed */
+	public void rememberOriginal(String line) {
+		original_ = line == null ? null: line.trim();
+		parsedForm_ = toString(false);
+	}
+
+	/**
+	 * A mount edited in the mount dialog is a new object: it keeps the line of the mount it replaces if nothing was changed, and
+	 * the command used ("mount" or "imgmount").
+	 */
+	public void takeOverFrom(Mount previous) {
+		if (previous == null)
+			return;
+		if ((this instanceof ImageMount img) && (previous instanceof ImageMount prev))
+			img.setCommand(prev.getCommand());
+		if ((previous.original_ != null) && toString(false).equals(previous.parsedForm_)) {
+			original_ = previous.original_;
+			parsedForm_ = previous.parsedForm_;
+		}
+	}
+
 	protected String extString(StringBuilder start, boolean forUI) {
 		if (unmounted_ && !forUI) {
 			start.setLength(0);
@@ -101,6 +134,9 @@ public class Mount {
 			}
 			if (StringUtils.isNotBlank(mountAs_)) {
 				start.append(" -t ").append(mountAs_);
+			}
+			if (StringUtils.isNotBlank(extraOptions_)) {
+				start.append(' ').append(extraOptions_);
 			}
 			if (unmounted_) {
 				start.append(" (UNMOUNTED)");
@@ -113,8 +149,10 @@ public class Mount {
 		return extString(new StringBuilder(), forUI);
 	}
 
+	/** as written to the configuration file: the line it was read from if unchanged */
 	@Override
 	public String toString() {
-		return toString(false);
+		String line = toString(false);
+		return (original_ != null) && line.equals(parsedForm_) ? original_: line;
 	}
 }

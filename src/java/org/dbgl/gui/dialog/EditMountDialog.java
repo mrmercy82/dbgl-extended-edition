@@ -57,6 +57,9 @@ public class EditMountDialog extends SizeControlledButtonDialog<String> {
 		driveletter_ = driveletter;
 	}
 
+	/** the mount being edited, as read */
+	private Mount previous_;
+
 	@Override
 	protected String getDialogTitle() {
 		return (mount_ == null) ? text_.get("dialog.mount.title.add"): text_.get("dialog.mount.title.edit");
@@ -67,6 +70,8 @@ public class EditMountDialog extends SizeControlledButtonDialog<String> {
 		contents_.setLayout(new GridLayout(2, false));
 
 		Combo driveletter = Chain.on(contents_).lbl(l -> l.key("dialog.mount.driveletter")).cmb(c -> c.items("ABCDEFGHIJKLMNOPQRSTUVWXY".split("(?!^)"))).combo();
+		// parameters DBGL has no field for, e.g. of newer DOSBox versions: shown and kept as they are
+		Text extraOptions = Chain.on(contents_).lbl(l -> l.key("dialog.mount.extraoptions")).txt(t -> t.tooltip("dialog.mount.extraoptions.tooltip")).text();
 
 		Button mountDirButton = Button_.on(contents_).radio().key("dialog.mount.mountdir").ctrl();
 
@@ -188,6 +193,8 @@ public class EditMountDialog extends SizeControlledButtonDialog<String> {
 					mount = MountFactory.createPhysFsMount(driveletter.getText(), zipMountZip.getText(), zipMountWrite.getText(), zipMountType.getText(), zipMountLabel.getText());
 				}
 				if (mount != null) {
+					mount.setExtraOptions(extraOptions.getText());
+					mount.takeOverFrom(previous_); // unchanged: the line is kept exactly
 					result_ = mount.toString();
 				}
 				shell_.close();
@@ -215,6 +222,9 @@ public class EditMountDialog extends SizeControlledButtonDialog<String> {
 		}
 		if (mount == null)
 			mount = MountFactory.createDefaultNewMount(driveletter_);
+		else
+			previous_ = mount;
+		extraOptions.setText(mount.getExtraOptions());
 
 		driveletter.select(mount.getDrive() - 'A');
 		if (mount instanceof PhysFsMount) {

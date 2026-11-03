@@ -4,6 +4,23 @@ DBGL Extended Edition - Changes since 0.100 beta 17
 Based on DBGL 0.100 beta 17 by Ronald Blankendaal (https://dbgl.org), source code. Newest version first.
 
 
+0.101 alpha 39 (2026-11-03)
+---------------------------
+- Mount lines are kept word for word: DBGL remembers every mount line as it
+  is in the .conf file and writes it again exactly so as long as the mount is
+  not changed (spelling, upper/lower case, quotes, order of parameters). Only
+  a changed mount is written anew by DBGL.
+- Unknown parameters: a mount line with parameters DBGL has no field for
+  (e.g. "-ro" or options of newer DOSBox versions, also an unknown type such
+  as "-t hdd" for mount) is read anyway. The unknown parts are shown in the
+  mount dialog in the new field "Further parameters" (below the drive
+  letter), can be changed there and show up in the list under "Mounting".
+  Before, such a line could not be read and was lost (alpha 37 only saved it
+  as an unknown line).
+- When a mount is confirmed unchanged with OK in the mount dialog, the line
+  is kept word for word as well, also "mount" instead of "imgmount" for
+  images.
+
 0.101 alpha 38 (2026-11-03)
 ---------------------------
 - "mount" with image files is understood: in DOSBox Staging 0.83, MOUNT also

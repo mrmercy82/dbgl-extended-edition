@@ -74,10 +74,90 @@ public class MountFactory {
 		return count > 0;
 	}
 
+	/**
+	 * Read a mount command. Parameters DBGL has no field for are kept as {@link Mount#getExtraOptions()}, and the line is
+	 * written again exactly as long as the mount is not changed.
+	 */
 	public static Mount create(String mount) throws InvalidMountstringException {
+		Mount result;
+		try {
+			result = parse(mount);
+		} catch (InvalidMountstringException e) {
+			result = parseWithUnknownOptions(mount);
+		}
+		result.rememberOriginal(mount);
+		return result;
+	}
+
+	private static final Pattern TOKEN_PATRN = Pattern.compile("\"[^\"]*\"|\\S+");
+	private static final java.util.Map<String, Integer> MOUNT_OPTIONS = java.util.Map.of("-u", 1, "-t", 1, "-label", 1, "-freesize", 1, "-usecd", 1, "-size", 1, "-ioctl", 0,
+		"-ioctl_dx", 0, "-ioctl_dio", 0, "-ioctl_mci", 0);
+	private static final java.util.Map<String, Integer> MOUNT_OPTIONS_2 = java.util.Map.of("-noioctl", 0, "-aspi", 0);
+	private static final java.util.Map<String, Integer> IMGMOUNT_OPTIONS = java.util.Map.of("-t", 1, "-fs", 1, "-size", 1, "-ide", 1);
+
+	/**
+	 * A mount command with parameters DBGL does not know (e.g. "-ro"): read without them, and keep them. An unknown parameter
+	 * takes the next word as its value if that comes after the drive and the path and is no parameter itself. If the value of
+	 * -t is unknown too, -t and its value are kept the same way.
+	 */
+	private static Mount parseWithUnknownOptions(String mount) throws InvalidMountstringException {
+		java.util.List<String> tokens = new java.util.ArrayList<>();
+		Matcher t = TOKEN_PATRN.matcher(mount.trim());
+		while (t.find())
+			tokens.add(t.group());
+		if (tokens.isEmpty())
+			throw new InvalidMountstringException();
+		String command = tokens.get(0).toLowerCase();
+		boolean img = command.equals("imgmount");
+		if (!img && !command.equals("mount"))
+			throw new InvalidMountstringException();
+		java.util.List<String> known = new java.util.ArrayList<>(java.util.List.of(tokens.get(0)));
+		java.util.List<String> extra = new java.util.ArrayList<>();
+		int positional = 0;
+		for (int i = 1; i < tokens.size(); i++) {
+			String tok = tokens.get(i);
+			if (!tok.startsWith("-")) {
+				known.add(tok);
+				positional++;
+				continue;
+			}
+			String name = tok.toLowerCase();
+			Integer arity = img ? IMGMOUNT_OPTIONS.get(name): MOUNT_OPTIONS.getOrDefault(name, MOUNT_OPTIONS_2.get(name));
+			if (arity != null) {
+				known.add(tok);
+				for (int k = 0; (k < arity) && (i + 1 < tokens.size()); k++)
+					known.add(tokens.get(++i));
+			} else {
+				extra.add(tok);
+				if ((positional >= 2) && (i + 1 < tokens.size()) && !tokens.get(i + 1).startsWith("-"))
+					extra.add(tokens.get(++i));
+			}
+		}
+		Mount result;
+		try {
+			result = parse(String.join(" ", known));
+		} catch (InvalidMountstringException e) {
+			// maybe a type DBGL does not know, e.g. "-t hdd" for mount: keep it too
+			int at = -1;
+			for (int i = 1; i < known.size() - 1; i++)
+				if (known.get(i).equalsIgnoreCase("-t"))
+					at = i;
+			if (at < 0)
+				throw e;
+			extra.add(0, known.get(at + 1));
+			extra.add(0, known.get(at));
+			known.remove(at + 1);
+			known.remove(at);
+			result = parse(String.join(" ", known));
+		}
+		result.setExtraOptions(String.join(" ", extra));
+		return result;
+	}
+
+	private static Mount parse(String mount) throws InvalidMountstringException {
 
 		if (isMountOfImages(mount)) {
-			Mount img = create("imgmount" + mount.trim().substring("mount".length()));
+			Mount img = parse("imgmount" + mount.trim().substring("mount".length()));
 			((ImageMount)img).setCommand("mount"); // written again as it was
 			return img;
 		}

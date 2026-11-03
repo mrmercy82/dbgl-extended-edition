@@ -407,7 +407,7 @@ public class Dbgl0102Tests {
 		try {
 			settings.setValue("autoexec", "unknownlines", "ask"); // kept in place until the user decides
 			String cd = "mount D \"D:\\Spiele\\DOS\\SPIELE\\MEGA2\\iso\\Mega2_DEU1.iso\" \"D:\\Spiele\\DOS\\SPIELE\\MEGA2\\iso\\Mega2_DEU2.iso\" -t cdrom";
-			String odd = "mount E \"D:\\Spiele\\x\" -nosuchoption";
+			String odd = "mount E"; // no folder or image: DBGL cannot read it
 			// the game folder relative, as the test also runs on Linux
 			List<String> lines = List.of("@echo off", "mount C \"games\\MEGA2\"", cd, odd, "C:", "cd \\", "cls", "MEGARACE.EXE", "exit");
 			org.dbgl.model.conf.Autoexec a = new org.dbgl.model.conf.Autoexec();
@@ -437,6 +437,48 @@ public class Dbgl0102Tests {
 		} finally {
 			settings.setValue("autoexec", "unknownlines", mode);
 		}
+	}
+
+	/** mount lines are written again exactly as long as they are not changed; parameters DBGL does not know are kept */
+	@Test
+	public void testMountLinesKeptExactly() throws Exception {
+		// written exactly as read, whatever the spelling
+		for (String line: new String[] {"MOUNT c games\\KEEN -freesize 1024", "mount C \"games\" -t dir", "imgmount d \"cd\\game.cue\" -t cdrom",
+			"mount D \"a.iso\" \"b.iso\" -t cdrom", "mount -u d"})
+			assertEquals(line, org.dbgl.model.factory.MountFactory.create(line).toString());
+
+		// parameters DBGL does not know: read without them, kept as further parameters
+		org.dbgl.model.conf.mount.Mount m = org.dbgl.model.factory.MountFactory.create("mount C \"games\\KEEN\" -ro -label KEEN");
+		assertTrue(m instanceof org.dbgl.model.conf.mount.DirMount);
+		assertEquals("KEEN", m.getLabel());
+		assertEquals("-ro", m.getExtraOptions());
+		assertEquals("mount C \"games\\KEEN\" -ro -label KEEN", m.toString());
+		m = org.dbgl.model.factory.MountFactory.create("mount D \"a.iso\" \"b.iso\" -t cdrom -nosuchoption 42");
+		assertTrue(m instanceof org.dbgl.model.conf.mount.ImageMount);
+		assertEquals("-nosuchoption 42", m.getExtraOptions());
+		m = org.dbgl.model.factory.MountFactory.create("mount E \"games\" -t hdd");
+		assertEquals("-t hdd", m.getExtraOptions());
+
+		// changed: written by DBGL, with the further parameters
+		org.dbgl.model.conf.mount.DirMount d = (org.dbgl.model.conf.mount.DirMount)org.dbgl.model.factory.MountFactory.create("mount C \"games\\KEEN\" -ro -label KEEN");
+		d.setLabel("KEEN2");
+		String changed = d.toString();
+		assertTrue(changed, changed.contains("-label KEEN2") && changed.contains("-ro"));
+
+		// as the mount dialog does it: a new object, unchanged -> the line stays exactly
+		org.dbgl.model.conf.mount.Mount previous = org.dbgl.model.factory.MountFactory.create("MOUNT c games -ro");
+		org.dbgl.model.conf.mount.Mount edited = org.dbgl.model.factory.MountFactory.createDirMount("C", "games", "", "", null, null, null);
+		edited.setExtraOptions("-ro");
+		edited.takeOverFrom(previous);
+		assertEquals("MOUNT c games -ro", edited.toString());
+
+		// a whole profile: nothing of the [autoexec] mounts is lost
+		org.dbgl.model.conf.Autoexec a = new org.dbgl.model.conf.Autoexec();
+		a.load(List.of("mount C \"games\\KEEN\" -ro", "imgmount D \"cd\\game.cue\" -t iso -nosuchoption", "c:", "keen1.exe"), null, null);
+		assertEquals(2, a.getMountingpoints().size());
+		assertTrue(a.getUnknownLines().isEmpty());
+		String written = a.toString(false, null);
+		assertTrue(written, written.contains("mount C \"games\\KEEN\" -ro") && written.contains("imgmount D \"cd\\game.cue\" -t iso -nosuchoption"));
 	}
 
 	/**
