@@ -4,6 +4,21 @@ DBGL Extended Edition - Änderungen seit 0.100 beta 17
 Grundlage: DBGL 0.100 beta 17 von Ronald Blankendaal (https://dbgl.org), Quellcode. Neueste Version zuerst.
 
 
+0.101 alpha 40 (2026-11-03)
+---------------------------
+- Profildialog, Seite DOSBox -> "DOSBox [autoexec] Abschnitt": Unter den
+  vier eigenen Abschnitten steht jetzt das Feld "Zeilen, die DBGL nicht
+  kennt, ohne @REM-Zeilen behalten". Es zeigt alle Zeilen, die DBGL ohne
+  seine @REM-Zeilen an ihrer Stelle behält (bei "Automatisch" mit "Ohne die
+  @REM-Kommentarzeilen" und bei "Selbst auswählen", solange nicht
+  entschieden), jeweils mit ihrem Abschnitt. Bisher standen sie nur in der
+  .conf-Datei.
+- Knopf "In die Abschnitte übernehmen...": öffnet das Auswahlfenster; die
+  übernommenen Zeilen erscheinen sofort in den Feldern darüber und lassen
+  sich dort bearbeiten. Zeilen nach "exit" bleiben dort.
+- Release-Text auf GitHub: kann die Änderungen mehrerer Versionen enthalten
+  (diesmal seit alpha 36).
+
 0.101 alpha 39 (2026-11-03)
 ---------------------------
 - Mount-Zeilen werden wörtlich übernommen: DBGL merkt sich jede Mount-Zeile

@@ -180,6 +180,16 @@ public class Autoexec {
 			}
 	}
 
+	/** @return the lines DBGL does not know that are kept without its marker lines, with their section (after "exit": 3, afterExit) */
+	public List<UnknownLine> getPlainLines() {
+		List<UnknownLine> result = new ArrayList<>();
+		for (int i = 0; i < plainLines_.length; i++)
+			for (String l: plainLines_[i].split("\\R"))
+				if (StringUtils.isNotBlank(l))
+					result.add(new UnknownLine(l, Math.min(i, SECTIONS - 1), i == SECTIONS));
+		return result;
+	}
+
 	/** @return true if the line is kept without DBGL's marker lines */
 	public boolean isPlain(UnknownLine line) {
 		String l = line.text() + SystemUtils.EOLN;

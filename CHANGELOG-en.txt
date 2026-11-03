@@ -4,6 +4,20 @@ DBGL Extended Edition - Changes since 0.100 beta 17
 Based on DBGL 0.100 beta 17 by Ronald Blankendaal (https://dbgl.org), source code. Newest version first.
 
 
+0.101 alpha 40 (2026-11-03)
+---------------------------
+- Profile dialog, page DOSBox -> "DOSBox [autoexec] section": below the four
+  own sections there is now the field "Lines DBGL does not know, kept without
+  @REM lines". It shows every line DBGL keeps in place without its @REM lines
+  ("Automatic" with "Without the @REM comment lines", and "Let me choose"
+  while not decided), each with its section. Before, they were only in the
+  .conf file.
+- Button "Put into the sections...": opens the choice window; the lines taken
+  over show up in the fields above right away and can be edited there. Lines
+  after "exit" stay there.
+- Release text on GitHub: can hold the changes of several versions (this
+  time since alpha 36).
+
 0.101 alpha 39 (2026-11-03)
 ---------------------------
 - Mount lines are kept word for word: DBGL remembers every mount line as it

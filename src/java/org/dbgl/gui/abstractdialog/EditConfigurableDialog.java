@@ -222,6 +222,7 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 	}
 
 	protected void updateControlsByConfigurable(TemplateProfileBase configurable) {
+		showUnknownLines(configurable);
 		Configuration combinedConf = configurable.getCombinedConfiguration();
 		Autoexec combinedAuto = combinedConf.getAutoexec();
 
@@ -2133,7 +2134,62 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 			Chain.on(composite).lbl(l -> l.key("dialog.template.customcommand" + j)).txt(Text_.Builder::multi).autoexec(i, Autoexec::getCustomSection, Autoexec::setCustomSection).build(
 				metaControls_).init(configurable);
 		}
+
+		// lines DBGL does not know, kept where they are without its marker lines: shown, and on request put into the sections above
+		Label_.on(composite).style(SWT.SEPARATOR | SWT.HORIZONTAL).layoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 2, 1)).build();
+		org.eclipse.swt.widgets.Label unknownLabel = new org.eclipse.swt.widgets.Label(composite, SWT.WRAP);
+		unknownLabel.setText(text_.get("dialog.template.unknownlines"));
+		unknownLabel.setToolTipText(text_.get("dialog.template.unknownlines.tooltip"));
+		unknownLabel.setLayoutData(new GridData(SWT.BEGINNING, SWT.BEGINNING, false, false));
+		unknownLinesText_ = new Text(composite, SWT.MULTI | SWT.READ_ONLY | SWT.BORDER | SWT.V_SCROLL | SWT.H_SCROLL);
+		GridData textData = new GridData(SWT.FILL, SWT.FILL, true, false);
+		textData.heightHint = 70;
+		unknownLinesText_.setLayoutData(textData);
+		unknownLinesText_.setToolTipText(text_.get("dialog.template.unknownlines.tooltip"));
+		new org.eclipse.swt.widgets.Label(composite, SWT.NONE);
+		Button take = new Button(composite, SWT.PUSH);
+		take.setText(text_.get("dialog.template.unknownlines.take"));
+		take.addListener(SWT.Selection, e -> doTakeUnknownLines(configurable));
+		showUnknownLines(configurable);
 		return composite;
+	}
+
+	private Text unknownLinesText_;
+
+	/** show the lines of the [autoexec] DBGL does not know that are kept without its marker lines */
+	private void showUnknownLines(TemplateProfileBase configurable) {
+		if ((unknownLinesText_ == null) || unknownLinesText_.isDisposed())
+			return;
+		StringBuilder sb = new StringBuilder();
+		for (Autoexec.UnknownLine l: configurable.getConfiguration().getAutoexec().getPlainLines())
+			sb.append(l.afterExit() ? text_.get("dialog.unknownlines.afterexit"): text_.get("dialog.template.customcommand" + (l.section() + 1))).append(": ").append(l.text())
+					.append(Text.DELIMITER);
+		unknownLinesText_.setText(sb.length() == 0 ? text_.get("dialog.template.unknownlines.none"): sb.toString().trim());
+	}
+
+	/** put the lines DBGL does not know into the sections above (or remove them), line by line, as the user chooses */
+	private void doTakeUnknownLines(TemplateProfileBase configurable) {
+		computeAllPages(configurable);
+		updateConfigurableByControls(configurable);
+		Autoexec autoexec = configurable.getConfiguration().getAutoexec();
+		List<Autoexec.UnknownLine> plain = autoexec.getPlainLines();
+		if (plain.isEmpty())
+			return;
+		List<org.dbgl.util.UnknownAutoexecLines.Decision> decisions = new org.dbgl.gui.dialog.UnknownLinesDialog(shell_, configurable.getTitle(), plain).open();
+		if (decisions == null)
+			return;
+		if (configurable instanceof org.dbgl.model.aggregate.Profile profile) {
+			org.dbgl.util.UnknownAutoexecLines.decide(profile, decisions, true);
+		} else {
+			for (org.dbgl.util.UnknownAutoexecLines.Decision d: decisions) {
+				autoexec.removePlacedLine(d.line());
+				if (d.keep())
+					autoexec.placeLine(new Autoexec.UnknownLine(d.line().text(), d.section(), d.line().afterExit()), d.markers());
+			}
+		}
+		java.util.Set<String> decided = decisions.stream().map(d -> d.line().text()).collect(java.util.stream.Collectors.toSet());
+		autoexec.getUnknownLines().removeIf(l -> decided.contains(l.text())); // not asked about again in this dialog
+		updateControlsByConfigurable(configurable);
 	}
 	
 	protected Composite createDosboxStartupPage(TemplateProfileBase configurable, Composite parent) {
