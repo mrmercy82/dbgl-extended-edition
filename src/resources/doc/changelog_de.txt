@@ -4,6 +4,20 @@ DBGL Extended Edition - Änderungen seit 0.100 beta 17
 Grundlage: DBGL 0.100 beta 17 von Ronald Blankendaal (https://dbgl.org), Quellcode. Neueste Version zuerst.
 
 
+0.101 alpha 38 (2026-11-03)
+---------------------------
+- "mount" mit Image-Dateien wird verstanden: In DOSBox Staging 0.83 hängt
+  MOUNT auch CD-, Disketten- und Festplatten-Images ein (IMGMOUNT ist dort
+  nur noch ein anderer Name dafür), z. B.
+  mount D "...\Mega2_DEU1.iso" "...\Mega2_DEU2.iso" -t cdrom
+  Eine solche Zeile ist jetzt ein Image-Mount: Sie erscheint im
+  Profildialog unter "Laufwerke", DBGL prüft, ob die Images existieren, und
+  sie wird wieder als "mount ... -t cdrom" geschrieben, nicht als imgmount.
+  Bisher las DBGL sie entweder als Ordner (ein Image) oder gar nicht (zwei
+  Images, siehe alpha 37).
+- Mount-Zeilen, die DBGL weiterhin nicht lesen kann (z. B. mit unbekannten
+  Optionen), bleiben wie in alpha 37 als unbekannte Zeilen erhalten.
+
 0.101 alpha 37 (2026-11-03)
 ---------------------------
 - Fehler behoben (vermutlich auch der gemeldete Verlust von Mounts):

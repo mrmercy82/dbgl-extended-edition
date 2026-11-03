@@ -395,26 +395,45 @@ public class Dbgl0102Tests {
 	}
 
 	/**
-	 * A mount command added by hand that DBGL cannot read ("mount" with two CD images) was dropped without a word whenever the
-	 * profile was saved, already in 0.100 beta 17. It is now a line DBGL does not know, and kept.
+	 * Mount commands added by hand: "mount" with CD images (as DOSBox Staging 0.83 does it, IMGMOUNT is only an alias there) is
+	 * an image mount now, shown in the profile dialog and written again with "mount". A mount command DBGL cannot read at all
+	 * was dropped without a word when the profile was saved (already in 0.100 beta 17); it is a line DBGL does not know now,
+	 * and kept.
 	 */
 	@Test
-	public void testUnreadableMountKept() {
+	public void testMountLinesAddedByHand() {
 		SettingsService settings = SettingsService.getInstance();
 		String mode = settings.getValue("autoexec", "unknownlines");
 		try {
 			settings.setValue("autoexec", "unknownlines", "ask"); // kept in place until the user decides
 			String cd = "mount D \"D:\\Spiele\\DOS\\SPIELE\\MEGA2\\iso\\Mega2_DEU1.iso\" \"D:\\Spiele\\DOS\\SPIELE\\MEGA2\\iso\\Mega2_DEU2.iso\" -t cdrom";
-			List<String> lines = List.of("@echo off", "mount C \"D:\\Spiele\\DOS\\SPIELE\\MEGA2\"", cd, "C:", "cd \\", "cls", "MEGARACE.EXE", "exit");
+			String odd = "mount E \"D:\\Spiele\\x\" -nosuchoption";
+			// the game folder relative, as the test also runs on Linux
+			List<String> lines = List.of("@echo off", "mount C \"games\\MEGA2\"", cd, odd, "C:", "cd \\", "cls", "MEGARACE.EXE", "exit");
 			org.dbgl.model.conf.Autoexec a = new org.dbgl.model.conf.Autoexec();
 			a.load(lines, null, null);
-			assertEquals(1, a.getMountingpoints().size());
-			assertTrue(a.getUnknownLines().toString(), a.getUnknownLines().stream().anyMatch(l -> l.text().equals(cd)));
+			assertEquals(2, a.getMountingpoints().size());
+			org.dbgl.model.conf.mount.ImageMount images = (org.dbgl.model.conf.mount.ImageMount)a.getMountingpoints().get(1);
+			assertEquals(2, images.getImgPathStrings().length);
+			assertEquals("mount", images.getCommand());
+			assertTrue(a.getUnknownLines().toString(), a.getUnknownLines().stream().anyMatch(l -> l.text().equals(odd)));
+			assertFalse(a.getUnknownLines().toString(), a.getUnknownLines().stream().anyMatch(l -> l.text().equals(cd)));
 			org.dbgl.util.UnknownAutoexecLines.keepOnRead(a);
 			String written = a.toString(false, null);
-			assertTrue(written, written.contains(cd));
+			assertTrue(written, written.contains(odd));
+			assertTrue(written, written.contains("Mega2_DEU2.iso\" -t cdrom"));
+			assertFalse(written, written.contains("imgmount"));
 			assertTrue(written, written.contains("MEGARACE.EXE"));
-			assertEquals(1, written.split(java.util.regex.Pattern.quote(cd), -1).length - 1);
+			// read again: the same
+			org.dbgl.model.conf.Autoexec b = new org.dbgl.model.conf.Autoexec();
+			List<String> again = Arrays.asList(written.split("\\R"));
+			b.load(again.subList(1, again.size()), null, null);
+			org.dbgl.util.UnknownAutoexecLines.keepOnRead(b);
+			assertEquals(written, b.toString(false, null));
+			// plain imgmount stays imgmount
+			org.dbgl.model.conf.Autoexec c = new org.dbgl.model.conf.Autoexec();
+			c.load(List.of("imgmount D \"games\\cd.iso\" -t iso"), null, null);
+			assertTrue(c.toString(false, null), c.toString(false, null).contains("imgmount D"));
 		} finally {
 			settings.setValue("autoexec", "unknownlines", mode);
 		}

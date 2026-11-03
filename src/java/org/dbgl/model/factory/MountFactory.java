@@ -51,7 +51,36 @@ public class MountFactory {
 	private MountFactory() {
 	}
 
+	/** a path of a "mount" command, until the first option */
+	private static final Pattern MOUNT_PATHS_PATRN = Pattern.compile("^\\s*mount\\s+[a-y0-3]\\s+(.*?)(?:\\s+-.*)?$", Pattern.CASE_INSENSITIVE);
+	private static final Pattern PATH_TOKEN_PATRN = Pattern.compile("\"([^\"]+)\"|(\\S+)");
+
+	/**
+	 * @return true for "mount" with image files only, e.g. mount D "a.iso" "b.iso" -t cdrom: DOSBox Staging 0.83 mounts images
+	 *         with MOUNT (IMGMOUNT is an alias there)
+	 */
+	static boolean isMountOfImages(String mount) {
+		Matcher m = MOUNT_PATHS_PATRN.matcher(mount);
+		if (!m.matches())
+			return false;
+		Matcher t = PATH_TOKEN_PATRN.matcher(m.group(1));
+		int count = 0;
+		while (t.find()) {
+			String path = t.group(1) != null ? t.group(1): t.group(2);
+			if (!FilesUtils.isDiskImage(path))
+				return false;
+			count++;
+		}
+		return count > 0;
+	}
+
 	public static Mount create(String mount) throws InvalidMountstringException {
+
+		if (isMountOfImages(mount)) {
+			Mount img = create("imgmount" + mount.trim().substring("mount".length()));
+			((ImageMount)img).setCommand("mount"); // written again as it was
+			return img;
+		}
 
 		Matcher mountMatcher = MOUNT_PATRN.matcher(mount);
 		Matcher imgmountMatcher = IMGMOUNT_PATRN.matcher(mount);

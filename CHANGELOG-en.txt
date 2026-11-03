@@ -4,6 +4,19 @@ DBGL Extended Edition - Changes since 0.100 beta 17
 Based on DBGL 0.100 beta 17 by Ronald Blankendaal (https://dbgl.org), source code. Newest version first.
 
 
+0.101 alpha 38 (2026-11-03)
+---------------------------
+- "mount" with image files is understood: in DOSBox Staging 0.83, MOUNT also
+  attaches CD, floppy and hard disk images (IMGMOUNT is only another name
+  for it there), e.g.
+  mount D "...\Mega2_DEU1.iso" "...\Mega2_DEU2.iso" -t cdrom
+  Such a line is now an image mount: it shows up in the profile dialog under
+  "Mounting", DBGL checks that the images exist, and it is written again as
+  "mount ... -t cdrom", not as imgmount. Before, DBGL read it either as a
+  folder (one image) or not at all (two images, see alpha 37).
+- Mount lines DBGL still cannot read (e.g. with unknown options) are kept as
+  unknown lines as in alpha 37.
+
 0.101 alpha 37 (2026-11-03)
 ---------------------------
 - Fixed (probably also the reported loss of mounts): a mount line added by

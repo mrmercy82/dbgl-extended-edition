@@ -178,6 +178,13 @@ public class FilesUtils {
 		return Stream.of(ARCHIVES).anyMatch(x -> filename.toLowerCase().endsWith(x));
 	}
 
+	/** @return true for a file DOSBox can mount as a CD, floppy or hard disk image */
+	public static boolean isDiskImage(String filename) {
+		String f = filename.toLowerCase();
+		return Stream.of(CDIMAGES).anyMatch(f::endsWith) || Stream.of(FATIMAGES).anyMatch(f::endsWith) || Stream.of(BOOTERIMAGES).anyMatch(f::endsWith) || f.endsWith(".vhd")
+				|| f.endsWith(".chd") || f.endsWith(".ccd") || f.endsWith(".mdf");
+	}
+
 	public static boolean isFatImage(String filename) {
 		return Stream.of(FATIMAGES).anyMatch(x -> filename.toLowerCase().endsWith(x));
 	}

@@ -29,6 +29,16 @@ public class ImageMount extends Mount {
 
 	private FileLocation[] imgPath_;
 	private String fs_, size_, ide_;
+	/** "imgmount", or "mount" as DOSBox Staging 0.83 uses it for images too (IMGMOUNT is only an alias there) */
+	private String command_ = "imgmount";
+
+	public String getCommand() {
+		return command_;
+	}
+
+	public void setCommand(String command) {
+		command_ = command;
+	}
 
 	public ImageMount() {
 		imgPath_ = new FileLocation[0];
@@ -116,7 +126,7 @@ public class ImageMount extends Mount {
 	@Override
 	public String toString(boolean forUI) {
 		StringBuilder result = new StringBuilder();
-		result.append("imgmount ").append(drive_);
+		result.append(command_).append(' ').append(drive_);
 		for (String imgPath: getImgPathStrings()) {
 			result.append(" \"").append(imgPath).append('"');
 		}
@@ -129,6 +139,8 @@ public class ImageMount extends Mount {
 		if (StringUtils.isNotBlank(ide_)) {
 			result.append(" -ide ").append(ide_);
 		}
-		return extString(result, forUI);
+		String line = extString(result, forUI);
+		// IMGMOUNT calls a CD image "iso", MOUNT (DOSBox Staging 0.83) "cdrom"
+		return "mount".equals(command_) ? line.replace(" -t iso", " -t cdrom"): line;
 	}
 }
