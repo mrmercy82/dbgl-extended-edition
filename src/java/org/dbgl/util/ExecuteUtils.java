@@ -197,6 +197,8 @@ public class ExecuteUtils {
 		doCreateDosboxConf(dbversion);
 		if (existed && !FilesUtils.isReadableFile(configFile))
 			java.nio.file.Files.copy(backup.toPath(), configFile.toPath()); // DOSBox did not write it, keep the old one
+		else if (existed)
+			ConfMerge.keepPrevious(backup, configFile); // the [autoexec] (e.g. mount lines) and the user's values stay
 	}
 
 	public static void doCreateDosboxConf(DosboxVersion dbversion) throws IOException {

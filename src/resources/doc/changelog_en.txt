@@ -4,6 +4,23 @@ DBGL Extended Edition - Changes since 0.100 beta 17
 Based on DBGL 0.100 beta 17 by Ronald Blankendaal (https://dbgl.org), source code. Newest version first.
 
 
+0.101 alpha 41 (2026-11-05)
+---------------------------
+- Severe bug fixed (drive C and the game lost in all profiles): at the first
+  start, DBGL offers to let DOSBox write its configuration file again when it
+  comes from an older version. This replaced the whole file. When its
+  [autoexec] held e.g. "mount C ..." for all games (the profiles then only
+  contain "C:", "cd \GAME", "GAME.EXE"), every profile lost its drive C and
+  with it the game; only drives from the profiles themselves (e.g. CD-ROM
+  D:) were left. Restoring the DBGL folder did not help when the DOSBox
+  configuration lives outside of it (e.g. DOSBox-X on macOS).
+  Now the whole [autoexec] section and all own values of the previous file
+  are taken over when writing it again; only the settings of the new version
+  are added. The previous file is still kept as .bak. The question says so
+  now.
+  Already affected: put the lines from the [autoexec] of the file
+  "...conf.bak" next to the DOSBox configuration back into its [autoexec].
+
 0.101 alpha 40 (2026-11-03)
 ---------------------------
 - Profile dialog, page DOSBox -> "DOSBox [autoexec] section": below the four

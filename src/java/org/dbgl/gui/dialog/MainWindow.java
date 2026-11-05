@@ -878,7 +878,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				// version wrote already (e.g. DBGL 0.100 beta 17 ran a newer DOSBox under the last version it knew) is kept as it is
 				List<DosboxVersion> withConf = mismatching.stream().filter(v -> FilesUtils.isReadableFile(v.getConfigurationCanonicalFile()) && FilesUtils.isReadableFile(v.getCanonicalExecutable()))
 						.filter(v -> !confIsFrom(v)).toList();
-				if (!withConf.isEmpty() && Mess_.on(shell_).key("dialog.main.confirm.recreateconfs",
+				if (!withConf.isEmpty() && Mess_.on(shell_).key("dialog.main.confirm.recreateconfs2",
 					new Object[] {withConf.stream().map(v -> v.getTitle() + ": " + v.getConfigurationCanonicalFile() + "  [" + StringUtils.defaultIfEmpty(DosboxVersionDetector.versionOfConf(v.getConfigurationCanonicalFile()), "?")
 							+ " -> " + v.getVersion() + "]").collect(Collectors.joining("\n"))}).confirm()) {
 					shell_.setCursor(display_.getSystemCursor(SWT.CURSOR_WAIT));

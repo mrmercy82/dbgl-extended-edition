@@ -439,6 +439,31 @@ public class Dbgl0102Tests {
 		}
 	}
 
+	/**
+	 * Writing the configuration of a DOSBox again (after an update) replaced the whole file, and with it a "mount C ..." in its
+	 * [autoexec] that all profiles relied on: every profile lost its drive C and its game. The [autoexec] and the user's values
+	 * are taken over now; new settings and comments come from the new file.
+	 */
+	@Test
+	public void testRewrittenDosboxConfKeepsAutoexecAndValues() throws IOException {
+		File dir = Files.createTempDirectory("dbgl-merge").toFile();
+		File previous = new File(dir, "dosbox-x.conf.bak"), fresh = new File(dir, "dosbox-x.conf");
+		String old = Files.readString(new File(DATA_DIR, "dosbox-x-2026.10.01.conf").toPath(), StandardCharsets.ISO_8859_1)
+				.replaceFirst("(?m)^(\\s*fullscreen\\s*=\\s*).*$", "$1true")
+				.replace("[autoexec]", "[autoexec]\r\nmount C \"/Volumes/Games/DOS\"\r\nimgmount D \"/Volumes/Games/CDs/game.cue\" -t iso");
+		Files.writeString(previous.toPath(), old, StandardCharsets.ISO_8859_1);
+		String newer = Files.readString(new File(DATA_DIR, "dosbox-x-2026.10.01.conf").toPath(), StandardCharsets.ISO_8859_1) + "\r\n[brandnew]\r\nsetting = 1\r\n";
+		Files.writeString(fresh.toPath(), newer, StandardCharsets.ISO_8859_1);
+		org.dbgl.util.ConfMerge.keepPrevious(previous, fresh);
+		String merged = Files.readString(fresh.toPath(), StandardCharsets.ISO_8859_1);
+		assertTrue(merged.contains("mount C \"/Volumes/Games/DOS\""));
+		assertTrue(merged.contains("imgmount D \"/Volumes/Games/CDs/game.cue\" -t iso"));
+		assertTrue(java.util.regex.Pattern.compile("(?m)^\\s*fullscreen\\s*=\\s*true\\s*$").matcher(merged).find());
+		assertTrue(merged.contains("[brandnew]") && merged.contains("setting = 1"));
+		assertEquals(1, java.util.regex.Pattern.compile("(?m)^\\[autoexec\\]\\s*$").matcher(merged).results().count());
+		org.apache.commons.io.FileUtils.deleteQuietly(dir);
+	}
+
 	/** mount lines are written again exactly as long as they are not changed; parameters DBGL does not know are kept */
 	@Test
 	public void testMountLinesKeptExactly() throws Exception {

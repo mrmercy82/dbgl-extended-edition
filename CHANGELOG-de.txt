@@ -4,6 +4,26 @@ DBGL Extended Edition - Änderungen seit 0.100 beta 17
 Grundlage: DBGL 0.100 beta 17 von Ronald Blankendaal (https://dbgl.org), Quellcode. Neueste Version zuerst.
 
 
+0.101 alpha 41 (2026-11-05)
+---------------------------
+- Schwerer Fehler behoben (Verlust von Laufwerk C und Spielprogramm in allen
+  Profilen): Beim ersten Start bietet DBGL an, die Konfigurationsdatei einer
+  DOSBox neu schreiben zu lassen, wenn sie von einer älteren Version stammt.
+  Dabei wurde die ganze Datei ersetzt. Stand im [autoexec] dieser Datei
+  z. B. "mount C ..." für alle Spiele (die Profile enthalten dann nur
+  "C:", "cd \SPIEL", "SPIEL.EXE"), fehlte danach in jedem Profil das
+  Laufwerk C und damit auch das Spielprogramm; nur Laufwerke aus den
+  Profilen selbst (z. B. CD-ROM D:) blieben. Ein Zurückspielen des
+  DBGL-Ordners half nicht, wenn die DOSBox-Konfiguration außerhalb liegt
+  (z. B. bei DOSBox-X unter macOS).
+  Jetzt werden beim Neuschreiben der komplette [autoexec]-Abschnitt und alle
+  eigenen Werte aus der bisherigen Datei übernommen; neu kommen nur die
+  Einstellungen der neuen Version dazu. Die bisherige Datei bleibt wie
+  bisher als .bak erhalten. Die Rückfrage sagt das jetzt auch.
+  Wer schon betroffen ist: Die Zeilen aus dem [autoexec] der Datei
+  "...conf.bak" neben der DOSBox-Konfiguration wieder in deren [autoexec]
+  eintragen.
+
 0.101 alpha 40 (2026-11-03)
 ---------------------------
 - Profildialog, Seite DOSBox -> "DOSBox [autoexec] Abschnitt": Unter den
