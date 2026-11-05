@@ -20,7 +20,7 @@ See [`src/resources/doc/whatsnew_en.txt`](src/resources/doc/whatsnew_en.txt) (al
 > [!WARNING]
 > **This is an alpha. Back up your complete DBGL folder and all your DOSBox folders before installing** – copy the whole folder(s) somewhere else. If anything goes wrong, put the copy back and everything is as before.
 
-- **Update an existing DBGL 0.100 beta 17 (or an earlier alpha):** back up your DBGL folder and all your DOSBox folders first, then unzip `dbgl-<version>-update.zip` from the [releases](https://github.com/mrmercy82/dbgl-extended-edition/releases) over your DBGL folder. Profiles, database and settings are kept.
+- **Update an existing DBGL 0.100 beta 17 (or an earlier 0.101 alpha Extended Edition):** back up your DBGL folder and all your DOSBox folders first, then unzip `dbgl-<version>-update.zip` from the [releases](https://github.com/mrmercy82/dbgl-extended-edition/releases) over your DBGL folder. Profiles, database and settings are kept.
 - **From source:** `ant` with the `build.xml` in this folder (Java 21 or later), or apply `dbgl-0100beta17-to-<version>.patch` to the original 0.100 beta 17 source.
 
 Please compare the SHA-256 checksums of the downloads with those published next to them.
