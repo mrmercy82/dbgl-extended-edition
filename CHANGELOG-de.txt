@@ -4,6 +4,19 @@ DBGL Extended Edition - Änderungen seit 0.100 beta 17
 Grundlage: DBGL 0.100 beta 17 von Ronald Blankendaal (https://dbgl.org), Quellcode. Neueste Version zuerst.
 
 
+0.101 alpha 43 (2026-11-07)
+---------------------------
+Fehler behoben
+- Profile prüfen / Prüfung vor dem Start: Shader aus den Shader-Ordnern von
+  DOSBox Staging (z. B. "scaler/advinterp2x") und Presets galten als
+  ungültiger Wert, weil Staging in seiner Beschreibung nur die eingebauten
+  nennt. Jetzt werden sie akzeptiert.
+
+Verbessert
+- "Neue Features" beginnt mit dem Neuesten aus alpha 42 und 43.
+- Update-Archiv: Anleitung zuerst auf Englisch, mit Download-Link zu DBGL
+  0.100 beta 17 für alle, die es noch nicht haben.
+
 0.101 alpha 42 (2026-11-07)
 ---------------------------
 Fehler behoben

@@ -340,6 +340,8 @@ public abstract class TemplateProfileBase extends GenerationAwareConfigurable {
 				String value = StringUtils.defaultString(configuration_.getValue(section, item)).trim().toLowerCase();
 				if ((options == null) || options.isFreeForm() || value.isEmpty())
 					continue;
+				if (isShaderItem(item) && isKnownOrFileShader(value))
+					continue; // DOSBox lists only its built-in shaders; others are files in its shader folders
 				List<String> allowed = options.getValues();
 				boolean switchSetting = SWITCH_VALUES.containsAll(allowed);
 				boolean valid = java.util.Arrays.stream(value.split("[,\\s]+")).allMatch(v -> allowed.contains(v) || (switchSetting && SWITCH_VALUES.contains(v)));
@@ -348,6 +350,28 @@ public abstract class TemplateProfileBase extends GenerationAwareConfigurable {
 			}
 		}
 		return result;
+	}
+
+	static boolean isShaderItem(String item) {
+		return item.equalsIgnoreCase("shader") || item.equalsIgnoreCase("glshader");
+	}
+
+	/**
+	 * A shader DOSBox finds in its shader folders (e.g. "scaler/advinterp2x", "crt/crt-hyllian:vga-4k") or a path to a shader
+	 * file: valid, even though the documentation of the setting only lists the built-in ones.
+	 */
+	boolean isKnownOrFileShader(String value) {
+		String v = value.trim();
+		if (v.contains("/") || v.contains("\\") || v.contains(":") || v.matches("(?i).*\\.(glsl|slang|preset|fx)$"))
+			return true;
+		try {
+			for (String s: glshaderValues())
+				if (s.equalsIgnoreCase(v))
+					return true;
+		} catch (RuntimeException e) {
+			// no list of installed shaders at hand
+		}
+		return false;
 	}
 
 	/** for DOSBox Staging, also the shaders the executable finds in its resource folders (--list-shaders) */

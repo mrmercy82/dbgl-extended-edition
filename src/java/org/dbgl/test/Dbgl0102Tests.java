@@ -625,6 +625,7 @@ public class Dbgl0102Tests {
 		c.setValue("dos", "ems", "true");
 		c.setValue("sdl", "output", "overlay");
 		c.setValue("cpu", "cpu_cycles", "40000");
+		c.setValue("render", "shader", "scaler/advinterp2x"); // a shader file of Staging, not listed in the help text
 		List<String[]> invalid = profile.listInvalidValues();
 		assertEquals(1, invalid.size());
 		assertEquals("output", invalid.get(0)[1]);
