@@ -377,6 +377,56 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 	/** the profile or template being edited */
 	protected abstract TemplateProfileBase currentConfigurable();
 
+	/** false where there is no single profile or template to start, i.e. when editing several profiles at once */
+	protected boolean canTryRun() {
+		return true;
+	}
+
+	/**
+	 * Next to the shader field: look into the shader folders again (a shader pack copied there while DBGL runs), and start the
+	 * game once with the shader chosen, the only real preview, since only DOSBox can draw its shaders.
+	 */
+	private void createShaderButtons(Composite grid, org.eclipse.swt.widgets.Combo shaderCombo) {
+		// a row of their own below the shader field, so the columns of the other fields stay as they are
+		new org.eclipse.swt.widgets.Label(grid, SWT.NONE);
+		Composite parent = new Composite(grid, SWT.NONE);
+		parent.setLayoutData(new GridData(SWT.BEGINNING, SWT.CENTER, false, false, 5, 1));
+		GridLayout row = new GridLayout(2, false);
+		row.marginWidth = row.marginHeight = 0;
+		parent.setLayout(row);
+		Button_.on(parent).imageText(org.dbgl.service.ImageService.IMG_REFRESH, "dialog.template.glshader.refresh").tooltip("dialog.template.glshader.refresh.tooltip").listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				org.dbgl.util.DosboxVersionDetector.clearShaderCaches();
+				TemplateProfileBase configurable = currentConfigurable();
+				if (configurable == null)
+					return;
+				String current = shaderCombo.getText();
+				int before = shaderCombo.getItemCount();
+				shaderCombo.setItems(configurable.glshaderValues());
+				shaderCombo.setText(current);
+				int added = shaderCombo.getItemCount() - before;
+				Mess_.on(shell_).key("dialog.template.glshader.refreshed", new Object[] {shaderCombo.getItemCount(), Math.max(0, added)}).display();
+			}
+		}).ctrl();
+		Button tryRun = Button_.on(parent).imageText(org.dbgl.service.ImageService.IMG_RUN, "dialog.template.glshader.tryrun").tooltip("dialog.template.glshader.tryrun.tooltip").listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				TemplateProfileBase configurable = currentConfigurable();
+				if (configurable == null)
+					return;
+				try {
+					computeAllPages(configurable);
+					updateConfigurableByControls(configurable);
+					org.dbgl.util.ExecuteUtils.doTryRun(configurable, shell_.getDisplay());
+				} catch (Exception e) {
+					Mess_.on(shell_).exception(e).warning();
+				}
+			}
+		}).ctrl();
+		tryRun.setEnabled(canTryRun());
+	}
+
 	protected void updateConfigurableByControls(TemplateProfileBase configurable) {
 		Configuration combinedConf = configurable.getCombinedConfiguration();
 		metaControls_.forEach(x -> x.updateConfigurableByControl(configurable, combinedConf));
@@ -702,8 +752,10 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		GridData gd = new GridData(SWT.FILL, SWT.BEGINNING, true, false, 6, 1);
 		gd.verticalIndent = 20;
 		Group expRendering = Group_.on(composite).layoutData(gd).layout(new GridLayout(6, false)).key("dialog.template.tab.experimentaloptions").build();
-		Chain.on(expRendering).lbl(l -> l.key("dialog.template.glshader")).cmb(c -> c.horSpan(4).tooltip("dialog.template.glshader.tooltip").editable().wide().items(configurable.glshaderValues()).dynItems(GenerationAwareConfigurable::glshaderValues))
+		org.dbgl.util.DosboxVersionDetector.clearShaderCaches(); // shaders copied into the folders since the last dialog show up
+		Chain shaderChain = Chain.on(expRendering).lbl(l -> l.key("dialog.template.glshader")).cmb(c -> c.horSpan(4).tooltip("dialog.template.glshader.tooltip").editable().wide().items(configurable.glshaderValues()).dynItems(GenerationAwareConfigurable::glshaderValues))
 			.but(b -> b.browse(true, Button_.BrowseType.FILE, Button_.CanonicalType.GLSHADER, false)).section("render").item("glshader", "shader").newItemLabel("dialog.template.shader").build(metaControls_).init(configurable);
+		createShaderButtons(expRendering, shaderChain.getCombo());
 		Chain.on(expRendering).lbl(l -> l.key("dialog.template.pixelshader")).txt(t -> t.horSpan(4).tooltip("dialog.template.pixelshader.tooltip"))
 			.but(b -> b.browse(true, Button_.BrowseType.FILE, Button_.CanonicalType.GLSHADER, false)).section("render").item("pixelshader").build(metaControls_).init(configurable);
 		

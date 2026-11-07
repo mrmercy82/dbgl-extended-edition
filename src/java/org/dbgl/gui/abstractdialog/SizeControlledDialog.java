@@ -1,5 +1,7 @@
 /*
  *  Copyright (C) 2006-2025  Ronald Blankendaal
+ *  Modified for the DBGL Extended Edition by mrmercy82 (with the help of AI)
+ *  since 2026-11-07. Changes and their dates: CHANGELOG-en.txt, CHANGELOG-de.txt.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -54,7 +56,10 @@ public abstract class SizeControlledDialog<T> extends BaseDialog<T> {
 			if (settings_.hasValue("gui", prefix_ + "x") && settings_.hasValue("gui", prefix_ + "y")) {
 				shell_.setLocation(settings_.getIntValue("gui", prefix_ + "x"), settings_.getIntValue("gui", prefix_ + "y"));
 			}
-			shell_.setSize(settings_.getIntValue("gui", prefix_ + "width"), settings_.getIntValue("gui", prefix_ + "height"));
+			// a window without a size of its own yet (e.g. a new one) opened tiny, almost like minimized
+			int width = settings_.hasValue("gui", prefix_ + "width") ? settings_.getIntValue("gui", prefix_ + "width"): 0;
+			int height = settings_.hasValue("gui", prefix_ + "height") ? settings_.getIntValue("gui", prefix_ + "height"): 0;
+			shell_.setSize(width < 200 ? 800: width, height < 150 ? 600: height);
 		}
 
 		shell_.addControlListener(new ControlAdapter() {

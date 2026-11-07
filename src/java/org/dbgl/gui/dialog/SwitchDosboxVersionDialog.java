@@ -156,13 +156,22 @@ public class SwitchDosboxVersionDialog extends SizeControlledButtonDialog<Boolea
 				run(false);
 			}
 		});
-		Button_.on(otherButtons_).text().key("dialog.switchdosbox.preview").listen(new SelectionAdapter() {
+		// Preview, Switch, Cancel and Compare versions together on the left; Save report alone on the right
+		((GridLayout)okCancelButtons_.getLayout()).numColumns = 4;
+		org.eclipse.swt.widgets.Control first = okCancelButtons_.getChildren()[0];
+		org.eclipse.swt.widgets.Control preview = Button_.on(okCancelButtons_).text().key("dialog.switchdosbox.preview").listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
 				run(true);
 			}
 		}).ctrl();
-		Button_.on(otherButtons_).text().key("dialog.switchdosbox.compare").tooltip("dialog.switchdosbox.compare.tooltip").listen(new SelectionAdapter() {
+		preview.moveAbove(first);
+		if ((first.getLayoutData() instanceof GridData fd) && (fd.widthHint > 0)) { // as wide as Switch and Cancel
+			GridData pd = preview.getLayoutData() instanceof GridData g ? g: new GridData();
+			pd.widthHint = Math.max(fd.widthHint, preview.computeSize(SWT.DEFAULT, SWT.DEFAULT).x);
+			preview.setLayoutData(pd);
+		}
+		Button_.on(okCancelButtons_).text().key("dialog.switchdosbox.compare").tooltip("dialog.switchdosbox.compare.tooltip").listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
 				compareVersions();
@@ -195,6 +204,7 @@ public class SwitchDosboxVersionDialog extends SizeControlledButtonDialog<Boolea
 		markers_.setText(text_.get("dialog.unknownlines.markers"));
 		markers_.setSelection(!org.dbgl.util.UnknownAutoexecLines.withoutMarkers());
 		markers_.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 4, 1));
+		UnknownLinesDialog.markersWhere(box, 4);
 		choices_.setHeaderVisible(true);
 		choices_.setLinesVisible(true);
 		for (String key: new String[] {"dialog.switchdosbox.column.profile", "dialog.switchdosbox.column.where", "dialog.switchdosbox.column.old", "dialog.switchdosbox.column.new"}) {

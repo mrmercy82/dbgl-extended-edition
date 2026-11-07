@@ -1,5 +1,7 @@
 /*
  *  Copyright (C) 2006-2025  Ronald Blankendaal
+ *  Modified for the DBGL Extended Edition by mrmercy82 (with the help of AI)
+ *  since 2026-11-07. Changes and their dates: CHANGELOG-en.txt, CHANGELOG-de.txt.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -137,6 +139,75 @@ public class Mess_ {
 			style_ = SWT.APPLICATION_MODAL | SWT.ICON_WARNING | SWT.YES | SWT.NO;
 			title_ = TextService.getInstance().get("general.confirmation");
 			return display() == SWT.YES;
+		}
+
+		/**
+		 * Like {@link #confirm()}, but in a small dialog of its own that never wraps lines: the system message box (on Windows
+		 * in particular) breaks long lines, which makes lists such as "title: old -> new" hard to read.
+		 */
+		public boolean confirmUnwrapped() {
+			return confirmUnwrapped(null);
+		}
+
+		/** @param log shown below the question like a log (scrollable, can be selected and copied), e.g. what an undo changes */
+		public boolean confirmUnwrapped(String log) {
+			title_ = TextService.getInstance().get("general.confirmation");
+			String msg = StringRelatedUtils.stringArrayToString(messages_.toArray(new String[messages_.size()]), StringUtils.LF);
+			printStream_.println(title_ + ": " + msg);
+			if (shell_ == null)
+				return false;
+			org.eclipse.swt.widgets.Display display = shell_.getDisplay();
+			Shell dlg = new Shell(shell_, SWT.DIALOG_TRIM | SWT.APPLICATION_MODAL | (log != null ? SWT.RESIZE: SWT.NONE));
+			dlg.setText(title_);
+			dlg.setLayout(new org.eclipse.swt.layout.GridLayout(2, false));
+			org.eclipse.swt.widgets.Label icon = new org.eclipse.swt.widgets.Label(dlg, SWT.NONE);
+			icon.setImage(display.getSystemImage(SWT.ICON_WARNING));
+			icon.setLayoutData(new org.eclipse.swt.layout.GridData(SWT.BEGINNING, SWT.BEGINNING, false, false));
+			org.eclipse.swt.widgets.Label text = new org.eclipse.swt.widgets.Label(dlg, SWT.NONE);
+			text.setText(msg.replace("&", "&&"));
+			org.eclipse.swt.layout.GridData textData = new org.eclipse.swt.layout.GridData(SWT.FILL, SWT.FILL, true, true);
+			textData.horizontalIndent = 8;
+			text.setLayoutData(textData);
+			if (log != null) {
+				textData.grabExcessVerticalSpace = false;
+				org.eclipse.swt.widgets.Text logText = new org.eclipse.swt.widgets.Text(dlg, SWT.MULTI | SWT.READ_ONLY | SWT.BORDER | SWT.V_SCROLL | SWT.H_SCROLL);
+				logText.setText(log.replace("\n", logText.getLineDelimiter()));
+				org.eclipse.swt.layout.GridData logData = new org.eclipse.swt.layout.GridData(SWT.FILL, SWT.FILL, true, true, 2, 1);
+				logData.widthHint = 720;
+				logData.heightHint = 320;
+				logText.setLayoutData(logData);
+			}
+			org.eclipse.swt.widgets.Composite buttons = new org.eclipse.swt.widgets.Composite(dlg, SWT.NONE);
+			buttons.setLayoutData(new org.eclipse.swt.layout.GridData(SWT.END, SWT.END, true, false, 2, 1));
+			buttons.setLayout(new org.eclipse.swt.layout.GridLayout(2, true));
+			boolean[] yes = {false};
+			for (boolean b: new boolean[] {true, false}) {
+				org.eclipse.swt.widgets.Button button = new org.eclipse.swt.widgets.Button(buttons, SWT.PUSH);
+				button.setText(TextService.getInstance().get(b ? "button.yes": "button.no"));
+				org.eclipse.swt.layout.GridData bd = new org.eclipse.swt.layout.GridData(SWT.FILL, SWT.CENTER, true, false);
+				bd.widthHint = Math.max(80, button.computeSize(SWT.DEFAULT, SWT.DEFAULT).x);
+				button.setLayoutData(bd);
+				button.addListener(SWT.Selection, e -> {
+					yes[0] = b;
+					dlg.close();
+				});
+				if (b)
+					dlg.setDefaultButton(button);
+			}
+			dlg.pack();
+			org.eclipse.swt.graphics.Rectangle area = shell_.getMonitor().getClientArea();
+			org.eclipse.swt.graphics.Point size = dlg.getSize();
+			size.x = Math.min(size.x, area.width);
+			size.y = Math.min(size.y, area.height);
+			dlg.setSize(size);
+			org.eclipse.swt.graphics.Rectangle parent = shell_.getBounds();
+			dlg.setLocation(Math.max(area.x, Math.min(parent.x + (parent.width - size.x) / 2, area.x + area.width - size.x)),
+				Math.max(area.y, Math.min(parent.y + (parent.height - size.y) / 2, area.y + area.height - size.y)));
+			dlg.open();
+			while (!dlg.isDisposed())
+				if (!display.readAndDispatch())
+					display.sleep();
+			return yes[0];
 		}
 
 		public boolean noErrors() {

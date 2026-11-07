@@ -336,7 +336,10 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 						if (currTitle.length() >= 1) {
 							try {
 								WebProfile thisGame = null;
-								List<WebProfile> webGamesList = engine.getEntries(currTitle, settings_.getValues(engine.getSimpleName(), "platform_filter"));
+								// in the background with a Cancel button: a slow or blocking game database made the window look hung
+								String searching = text_.get("searchengine.searching", new Object[] {engine.getName()});
+								String[] platformFilter = settings_.getValues(engine.getSimpleName(), "platform_filter");
+								List<WebProfile> webGamesList = org.dbgl.gui.controls.BusyTask.run(shell_, searching, () -> engine.getEntries(currTitle, platformFilter));
 								if (webGamesList.isEmpty()) {
 									Mess_.on(shell_).key("general.notice.searchenginenoresults", new String[] {engine.getName(), currTitle}).display();
 								} else if (webGamesList.size() == 1) {
@@ -346,7 +349,8 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 								}
 								if (thisGame != null) {
 									computePage(profile_, "dialog.profile.tab.custominfo");
-									WebProfile profExt = engine.getEntryDetailedInformation(thisGame);
+									final WebProfile chosen = thisGame;
+									WebProfile profExt = org.dbgl.gui.controls.BusyTask.run(shell_, searching, () -> engine.getEntryDetailedInformation(chosen));
 
 									WebProfile currentProf = new WebProfile();
 									currentProf.setTitle(title_.getText());
@@ -394,7 +398,7 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 									int ss = settings_.getBooleanValue(engine.getSimpleName(), "choose_screenshot") ? Integer.MAX_VALUE: 0;
 									if ((ca > 0) || (ss > 0)) {
 										boolean forceAllRegionsCoverArt = settings_.getBooleanValue(engine.getSimpleName(), "force_all_regions_coverart");
-										imageInformation_ = engine.getEntryImages(profExt, ca, ss, forceAllRegionsCoverArt);
+										imageInformation_ = org.dbgl.gui.controls.BusyTask.run(shell_, searching, () -> engine.getEntryImages(profExt, ca, ss, forceAllRegionsCoverArt));
 
 										webImagesSpaceHolder_ = Composite_.on(contents_).layoutData(new GridData(SWT.FILL, SWT.FILL, false, true)).innerLayout(2).build();
 
@@ -484,8 +488,12 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 										shell_.layout();
 									}
 								}
+							} catch (org.dbgl.gui.controls.BusyTask.Cancelled e) {
+								// the user cancelled: nothing changed
 							} catch (Exception e) {
-								Mess_.on(shell_).key("general.error.retrieveinfosearchengine", new String[] {engine.getName(), currTitle, StringRelatedUtils.toString(e)}).exception(e).warning();
+								org.dbgl.util.searchengine.SearchEngineException explained = org.dbgl.util.searchengine.SearchEngineException.explain(engine.getName(), e);
+								e.printStackTrace();
+								Mess_.on(shell_).key("searchengine.error.retrieve", new Object[] {engine.getName(), currTitle, explained.getMessage()}).warning();
 							}
 						}
 					} else {
@@ -576,11 +584,37 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 	}
 	
 	protected Composite createDosboxPage(TemplateProfileBase configurable, Composite parent) {
-		return super.createDosboxPage(configurable, parent,
+		Composite composite = super.createDosboxPage(configurable, parent,
 			editing_ ? profile_.getCanonicalCaptures().getPath() : text_.get("dialog.profile.automatic"),
 			editing_ ? profile_.getConfigurationCanonicalFile().getPath() : 
 				SettingsDialog.getConfLocations().get(settings_.getIntValue("profiledefaults", "confpath")) + ", " + 
 				SettingsDialog.getConfFilenames().get(settings_.getIntValue("profiledefaults", "conffile")));
+		createAllSettingsControls(composite);
+		return composite;
+	}
+
+	/** this profile alone keeps all DOSBox settings (as D-Fend Reloaded does), with the drawbacks right below it */
+	private void createAllSettingsControls(Composite composite) {
+		org.eclipse.swt.widgets.Group group = new org.eclipse.swt.widgets.Group(composite, SWT.NONE);
+		group.setText(text_.get("dialog.profile.allsettings.group"));
+		group.setLayoutData(new GridData(SWT.FILL, SWT.BEGINNING, true, false));
+		group.setLayout(new GridLayout(1, false));
+		Button keepAll = new Button(group, SWT.CHECK);
+		keepAll.setText(text_.get("dialog.profile.allsettings"));
+		keepAll.setSelection(profile_.keepsAllSettings());
+		org.eclipse.swt.widgets.Label warning = new org.eclipse.swt.widgets.Label(group, SWT.WRAP);
+		GridData warningData = new GridData(SWT.FILL, SWT.BEGINNING, true, false);
+		warningData.widthHint = 560;
+		warning.setLayoutData(warningData);
+		warning.setText(text_.get("dialog.profile.allsettings.warning"));
+		warning.setForeground(display_.getSystemColor(SWT.COLOR_DARK_RED));
+		keepAll.addListener(SWT.Selection, e -> {
+			// take over what is in the dialog first, then fill in (on) or take out what equals the DOSBox configuration (off)
+			computeAllPages(profile_);
+			updateConfigurableByControls(profile_);
+			profile_.setKeepsAllSettings(keepAll.getSelection());
+			updateControlsByConfigurable(profile_);
+		});
 	}
 	
 	private static boolean swapImages(Button btn) {
@@ -614,6 +648,8 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 						new ProfileRepository().update(profile_);
 						result_ = profile_;
 					} else {
+						if (org.dbgl.util.ExtrasFinder.onAdd()) // manuals, walkthroughs, maps, soundtrack of the new game into free links
+							org.dbgl.util.ExtrasFinder.link(profile_, org.dbgl.util.ExtrasFinder.find(profile_));
 						result_ = new ProfileRepository().add(profile_);
 					}
 

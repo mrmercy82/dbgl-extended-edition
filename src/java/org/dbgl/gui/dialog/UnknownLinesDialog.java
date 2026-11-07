@@ -54,6 +54,22 @@ public class UnknownLinesDialog extends SizeControlledButtonDialog<List<UnknownA
 		lines_ = lines;
 	}
 
+	/**
+	 * Below the "with the @REM comment lines" box: where its default is set, in the words of the menus of the language used
+	 * (e.g. "Default: Menu > Settings > General > Lines in [autoexec] DBGL does not know").
+	 */
+	public static void markersWhere(org.eclipse.swt.widgets.Composite parent, int span) {
+		org.dbgl.service.ITextService text = org.dbgl.service.TextService.getInstance();
+		Label where = new Label(parent, SWT.WRAP);
+		where.setText(text.get("dialog.unknownlines.markers.where", new Object[] {text.get("dialog.main.menu.file").replace("&", ""),
+				text.get("dialog.main.menu.adjustsettings").replace("&", "").replace("...", "").replace("…", "").trim(), text.get("dialog.settings.tab.general").replace("&", ""),
+				text.get("dialog.settings.unknownlines")}));
+		GridData data = new GridData(SWT.FILL, SWT.CENTER, true, false, span, 1);
+		data.horizontalIndent = 20;
+		where.setLayoutData(data);
+		where.setForeground(parent.getDisplay().getSystemColor(SWT.COLOR_WIDGET_DARK_SHADOW));
+	}
+
 	@Override
 	protected String getDialogTitle() {
 		return text_.get("dialog.unknownlines.title");
@@ -119,6 +135,7 @@ public class UnknownLinesDialog extends SizeControlledButtonDialog<List<UnknownA
 		markers.setText(text_.get("dialog.unknownlines.markers"));
 		markers.setSelection(true);
 		markers.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 3, 1));
+		markersWhere(contents_, 3);
 
 		all.addListener(SWT.Selection, e -> {
 			for (TableItem item: table.getItems())

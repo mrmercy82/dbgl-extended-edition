@@ -343,6 +343,15 @@ public final class Button_ {
 			}
 		} else if ((builder.browseCanonicalType_ == CanonicalType.CDIMAGE) && (filterPath != null)) {
 			File path = new FileLocation(filterPath.getPath(), builder.canonicalizer_).getFile();
+			if (filenames.length == 1) {
+				// one CD of several chosen (CD1.ISO, while CD2.ISO and CD3.ISO are there too): offer to mount them all, to change with Ctrl+F4
+				java.util.List<File> series = FilesUtils.findImageSeries(new File(filterPath, filenames[0]));
+				if (series.size() > 1) {
+					String list = series.stream().map(File::getName).collect(java.util.stream.Collectors.joining("\n"));
+					if (Mess_.on(shell).key("dialog.mount.confirm.imageseries3", new Object[] {series.size(), list}).confirm())
+						filenames = series.stream().map(File::getName).toArray(String[]::new);
+				}
+			}
 			StringBuilder images = new StringBuilder();
 			for (String file: filenames) {
 				images.append(FilesUtils.concat(path, file)).append(textControl.getLineDelimiter());

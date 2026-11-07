@@ -57,7 +57,7 @@ public class SettingsService {
 	);
 	
 	public static final List<WebSearchEngine> ALL_WEBSEARCH_ENGINES = Arrays.asList(MobyGamesSearchEngine.getInstance(), MetropolisSearchEngine.getInstance(), PouetSearchEngine.getInstance(),
-		TheGamesDBSearchEngine.getInstance());
+		TheGamesDBSearchEngine.getInstance(), org.dbgl.util.searchengine.IgdbSearchEngine.getInstance(), org.dbgl.util.searchengine.SteamGridDbSearchEngine.getInstance());
 
 	private static final String SETTINGS_CONF = "settings.conf";
 
@@ -186,6 +186,10 @@ public class SettingsService {
 		settings_.setValue("gui", "addgamewizard_width", "500");
 		settings_.setValue("gui", "addgamewizard_height", "375");
 		settings_.setValue("gui", "dosboxdialog_width", "600");
+		settings_.setValue("gui", "replacevaluesdialog_width", "820");
+		settings_.setValue("gui", "replacevaluesdialog_height", "640");
+		settings_.setValue("gui", "extrasdialog_width", "920");
+		settings_.setValue("gui", "extrasdialog_height", "600");
 		settings_.setValue("gui", "switchdosboxdialog_width", "760");
 		settings_.setValue("gui", "switchdosboxdialog_height", "680");
 		settings_.setValue("gui", "unknownlinesdialog_width", "760");
@@ -206,7 +210,7 @@ public class SettingsService {
 		settings_.setValue("gui", "templatedialog_width", "768");
 		settings_.setValue("gui", "templatedialog_height", "588");
 		settings_.setValue("gui", "mountdialog_width", "640");
-		settings_.setValue("gui", "mountdialog_height", "500");
+		settings_.setValue("gui", "mountdialog_height", "600");
 		settings_.setValue("gui", "imgsizedialog_width", "330");
 		settings_.setValue("gui", "imgsizedialog_height", "260");
 		settings_.setValue("gui", "archivebrowser_width", "400");
@@ -406,6 +410,11 @@ public class SettingsService {
 		settings_.setValue("edition", "updatenoticeshown", "");
 		settings_.setValue("autoexec", "unknownlines", "ask"); // the user decides, until set otherwise
 		settings_.setValue("autoexec", "nomarkers", false);
+		settings_.setValue("profiles", "allsettings", false); // see FullConfProfiles: only on request, it has drawbacks
+		settings_.setValue("profiles", "findextras", false); // see ExtrasFinder: link manuals etc. when a profile is added
+		settings_.setValue("gui", "viewsize_tiles", 1); // the size the Tiles button brings back (0 small, 1 medium, 2 large)
+		settings_.setValue("gui", "viewsize_boxes", 1);
+		settings_.setValue("gui", "viewhintshown", false);
 		settings_.setValue("gui", "extrasexpand", "changed");
 		settings_.setValue("gui", "extrasexpandonextraspages", false);
 		settings_.setValue("gui", "extrascountchanges", true);
@@ -510,6 +519,27 @@ public class SettingsService {
 		settings_.setValue("thegamesdb", "image_filter", "");
 		settings_.setValue("thegamesdb", "image_base", "original");
 		settings_.setValue("thegamesdb", "api_key", "8364ae0f983f8484afbb70a4d1030292137deaa4131c7765c9b8c0fdfdda1cf7");
+		// IGDB and SteamGridDB: each user enters own keys (free), see the settings
+		for (String engine: new String[] {"igdb", "steamgriddb"}) {
+			boolean igdb = engine.equals("igdb");
+			settings_.setValue(engine, "platform_filter", igdb ? "PC DOS": "");
+			settings_.setValue(engine, "set_title", true);
+			settings_.setValue(engine, "set_developer", igdb);
+			settings_.setValue(engine, "set_publisher", igdb);
+			settings_.setValue(engine, "set_year", true);
+			settings_.setValue(engine, "set_genre", igdb);
+			settings_.setValue(engine, "set_link", true);
+			settings_.setValue(engine, "set_description", igdb);
+			settings_.setValue(engine, "set_rank", false);
+			settings_.setValue(engine, "choose_coverart", true);
+			settings_.setValue(engine, "choose_screenshot", igdb);
+			settings_.setValue(engine, "multi_max_coverart", igdb ? 1: 0);
+			settings_.setValue(engine, "multi_max_screenshot", 0);
+		}
+		settings_.setValue("igdb", "client_id", "");
+		settings_.setValue("igdb", "client_secret", "");
+		settings_.setValue("steamgriddb", "api_key", "");
+		settings_.setValue("mobygames", "api_key", ""); // the official API: MobyGames blocks loading its web pages
 
 		settings_.setValue("environment", "use", false);
 		settings_.setValue("environment", "value", "");

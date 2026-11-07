@@ -78,6 +78,8 @@ public class ProfileFactory {
 		} else {
 			config.getAutoexec().setExit(true);
 		}
+		// "all DOSBox settings in each profile" in the settings: the default for new profiles, each profile can change it
+		config.setAllSettings(org.dbgl.util.FullConfProfiles.enabled());
 
 		return profile;
 	}

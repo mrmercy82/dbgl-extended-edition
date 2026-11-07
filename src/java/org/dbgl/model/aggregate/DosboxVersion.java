@@ -217,19 +217,28 @@ public class DosboxVersion extends Configurable implements ICanBeDefault, Compar
 	 */
 	public ConfValueOptions getConfValueOptions() {
 		if (confValueOptions_ == null) {
-			String data = null;
 			File file = getConfigurationCanonicalFile();
 			if ((file != null) && file.isFile()) {
-				try {
-					data = FileUtils.readFileToString(file, Charset.defaultCharset());
-				} catch (IOException e) {
-					// no documented values then
-				}
+				// parsed once per state of the file and shared (read only): it was parsed again after every reload of the
+				// configuration, e.g. for every profile checked at startup (DOSBox-X: some 3000 lines, about 15 ms each)
+				String key = file.getPath() + '|' + file.lastModified() + '|' + file.length();
+				confValueOptions_ = OPTIONS_CACHE.computeIfAbsent(key, k -> {
+					try {
+						return ConfValueOptions.parse(FileUtils.readFileToString(file, Charset.defaultCharset()));
+					} catch (IOException e) {
+						return ConfValueOptions.parse(null); // no documented values then
+					}
+				});
+				if (OPTIONS_CACHE.size() > 50)
+					OPTIONS_CACHE.keySet().removeIf(k -> !k.equals(key));
+			} else {
+				confValueOptions_ = ConfValueOptions.parse(null);
 			}
-			confValueOptions_ = ConfValueOptions.parse(data);
 		}
 		return confValueOptions_;
 	}
+
+	private static final java.util.Map<String, ConfValueOptions> OPTIONS_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
 
 	public File getCwd() {
 		return FileLocationService.getInstance().getDosroot();

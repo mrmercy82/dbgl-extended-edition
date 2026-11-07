@@ -61,6 +61,15 @@ public final class BulkUndo {
 
 	/** remember the current state of the profiles, before they are changed; replaces the previously remembered change */
 	public static void remember(String label, Collection<Profile> profiles) {
+		remember(label, profiles == null ? null: new java.util.ArrayList<>(profiles), null);
+	}
+
+	/**
+	 * Like {@link #remember(String, Collection)}, for profiles already changed in memory but not yet saved: their files are
+	 * still the old state, the DOSBox versions to go back to come from the originals (same order), when given. Never stops
+	 * the change itself: a profile that cannot be read is just not remembered.
+	 */
+	public static void remember(String label, java.util.List<Profile> profiles, java.util.List<Profile> originals) {
 		if ((profiles == null) || profiles.size() < 2)
 			return; // a single profile has its own history
 		File dir = dir();
@@ -68,15 +77,17 @@ public final class BulkUndo {
 			clear();
 			Files.createDirectories(dir.toPath());
 			StringBuilder meta = new StringBuilder(label.replaceAll("[\\r\\n]", " ")).append('\n').append(new SimpleDateFormat(STAMP).format(new Date())).append('\n');
-			for (Profile p: profiles) {
+			for (int i = 0; i < profiles.size(); i++) {
+				Profile p = profiles.get(i);
 				byte[] content = ProfileHistory.read(p);
 				if (content == null)
 					continue;
+				Profile versionOf = (originals != null) && (i < originals.size()) ? originals.get(i): p;
 				Files.write(new File(dir, p.getId() + ".conf").toPath(), content);
-				meta.append(p.getId()).append('=').append(p.getDosboxVersion() == null ? -1: p.getDosboxVersion().getId()).append('\n');
+				meta.append(p.getId()).append('=').append(versionOf.getDosboxVersion() == null ? -1: versionOf.getDosboxVersion().getId()).append('\n');
 			}
 			Files.writeString(new File(dir, META).toPath(), meta.toString(), StandardCharsets.UTF_8);
-		} catch (IOException e) {
+		} catch (IOException | RuntimeException e) {
 			e.printStackTrace();
 		}
 	}
@@ -134,6 +145,103 @@ public final class BulkUndo {
 		}
 		clear();
 		return restored;
+	}
+
+	/**
+	 * What undoing would change, for a look before: per profile its DOSBox version and the settings that go back, as
+	 * "title: [sdl] output: opengl -> surface"; at most maxLines lines.
+	 */
+	public static String preview(List<DosboxVersion> dbversions, int maxLines) {
+		try {
+			Map<Integer, Integer> entries = new LinkedHashMap<>();
+			if (read(entries) == null)
+				return "";
+			String ids = entries.keySet().stream().map(String::valueOf).collect(Collectors.joining(","));
+			List<String> lines = new ArrayList<>();
+			Map<Integer, Map<String, String>> defaults = new java.util.HashMap<>();
+			int more = 0;
+			for (Profile p: new ProfileRepository().list("", "GAM.ID IN (" + ids + ")", dbversions)) {
+				File saved = new File(dir(), p.getId() + ".conf");
+				File current = p.getConfigurationCanonicalFile();
+				if (!saved.isFile() || (current == null))
+					continue;
+				List<String> changes = new ArrayList<>();
+				DosboxVersion before = BaseRepository.findById(dbversions, entries.get(p.getId()));
+				if ((before != null) && (p.getDosboxVersion() != null) && (before.getId() != p.getDosboxVersion().getId()))
+					changes.add("DOSBox: " + p.getDosboxVersion().getTitle() + " -> " + before.getTitle());
+				Map<String, String> now = settingsOf(current), then = settingsOf(saved);
+				// a setting the profile does not have itself: the value of its DOSBox version counts (shown as such)
+				Map<String, String> nowDefaults = defaultsOf(p.getDosboxVersion(), defaults);
+				Map<String, String> thenDefaults = before == null ? nowDefaults: defaultsOf(before, defaults);
+				java.util.Set<String> keys = new java.util.TreeSet<>(now.keySet());
+				keys.addAll(then.keySet());
+				for (String k: keys) {
+					String a = shown(k, now, nowDefaults), b = shown(k, then, thenDefaults);
+					if (!a.equals(b)) // the [autoexec] as its number of lines: "[autoexec]: 7 -> 5"
+						changes.add(k + ": " + a + " -> " + b);
+				}
+				// like a log: the profile, below it what goes back (now -> before)
+				if (!changes.isEmpty() && (lines.size() < maxLines))
+					lines.add(p.getTitle());
+				for (String c: changes) {
+					if (lines.size() < maxLines)
+						lines.add("    " + c);
+					else
+						more++;
+				}
+			}
+			if (more > 0)
+				lines.add("... (+" + more + ")");
+			return String.join("\n", lines);
+		} catch (Exception e) {
+			return "";
+		}
+	}
+
+	/** the settings of the configuration file of a DOSBox version, read once per preview */
+	static Map<String, String> defaultsOf(DosboxVersion v, Map<Integer, Map<String, String>> cache) {
+		if (v == null)
+			return Map.of();
+		return cache.computeIfAbsent(v.getId(), id -> {
+			try {
+				File f = v.getConfigurationCanonicalFile();
+				return (f != null) && f.isFile() ? settingsOf(f): Map.of();
+			} catch (IOException | RuntimeException e) {
+				return Map.of();
+			}
+		});
+	}
+
+	/** the value in the profile, else that of its DOSBox version marked as such, else "-" */
+	static String shown(String key, Map<String, String> own, Map<String, String> dosbox) {
+		if (own.containsKey(key))
+			return own.get(key).replaceAll("\\|.*", "");
+		if (dosbox.containsKey(key) && !key.equals("[autoexec]"))
+			return org.dbgl.service.TextService.getInstance().get("dialog.bulkundo.dosboxdefault", new Object[] {dosbox.get(key)});
+		return "-";
+	}
+
+	/** "[section] item" -> value, the [autoexec] as one entry */
+	static Map<String, String> settingsOf(File conf) throws IOException {
+		Map<String, String> result = new LinkedHashMap<>();
+		String section = "";
+		StringBuilder autoexec = new StringBuilder();
+		for (String line: Files.readAllLines(conf.toPath(), java.nio.charset.Charset.defaultCharset())) {
+			String l = line.trim();
+			if (l.startsWith("[") && l.endsWith("]")) {
+				section = l.substring(1, l.length() - 1).toLowerCase();
+				continue;
+			}
+			if (section.equals("autoexec")) {
+				if (!l.isEmpty())
+					autoexec.append(l).append('\n');
+			} else if (!l.startsWith("#") && (l.indexOf('=') > 0)) {
+				result.put('[' + section + "] " + l.substring(0, l.indexOf('=')).trim(), l.substring(l.indexOf('=') + 1).trim());
+			}
+		}
+		if (autoexec.length() > 0)
+			result.put("[autoexec]", autoexec.toString().lines().count() + "|" + autoexec.toString().hashCode());
+		return result;
 	}
 
 	public static void clear() {

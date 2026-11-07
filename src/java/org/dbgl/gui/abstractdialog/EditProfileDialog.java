@@ -134,8 +134,18 @@ public abstract class EditProfileDialog<T> extends EditConfigurableDialog<T> {
 				b -> b.browse(false, Button_.BrowseType.FILE, Button_.CanonicalType.DOC, false)).build(metaControls_).init(configurable);
 			link_[i] = chnLink.getText();
 			linkBrowseButton_[i] = chnLink.getButton();
-			linkTitle_[i] = Chain.on(composite).lbl(l -> l.key("dialog.profile.linktitle")).txt(t -> t.horSpan(2)).profile(i, Profile::getLinkTitle, Profile::setLinkTitle).build(
+			linkTitle_[i] = Chain.on(composite).lbl(l -> l.key("dialog.profile.linktitle")).txt(t -> t).profile(i, Profile::getLinkTitle, Profile::setLinkTitle).build(
 				metaControls_).init(configurable).getText();
+			// empty link and title at once, e.g. to make room for more manuals and extras (8 links per profile)
+			final int index = i;
+			org.eclipse.swt.widgets.Button remove = new org.eclipse.swt.widgets.Button(composite, SWT.PUSH);
+			remove.setText(text_.get("dialog.profile.link.remove"));
+			remove.setToolTipText(text_.get("dialog.profile.link.remove.tooltip"));
+			remove.setLayoutData(new org.eclipse.swt.layout.GridData(SWT.FILL, SWT.CENTER, false, false));
+			remove.addListener(SWT.Selection, e -> {
+				link_[index].setText("");
+				linkTitle_[index].setText("");
+			});
 		}
 		
 		Chain.on(composite).lbl(l -> l.key("dialog.profile.status")).cmb(c -> c.horSpan(2).autoSelect(statusList_)).profile(Profile::getStatus, Profile::setStatus).build(metaControls_).init(configurable);

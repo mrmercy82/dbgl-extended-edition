@@ -1,5 +1,7 @@
 /*
  *  Copyright (C) 2006-2025  Ronald Blankendaal
+ *  Modified for the DBGL Extended Edition by mrmercy82 (with the help of AI)
+ *  since 2026-11-07. Changes and their dates: CHANGELOG-en.txt, CHANGELOG-de.txt.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -95,6 +97,65 @@ public abstract class WebSearchEngine {
 
 	public static int getEntryBestMatchIndex(String search, List<WebProfile> profs) {
 		return StringRelatedUtils.findBestMatchIndex(search, profs.stream().map(WebProfile::getTitle).toArray(String[]::new));
+	}
+
+	/** how long to wait for a game database: long enough for a slow answer, short enough not to look like DBGL hangs */
+	protected static final int TIMEOUT_MILLIS = 15000;
+
+	/** load a web page, a failure explained for the user (see {@link SearchEngineException}) */
+	protected static org.jsoup.nodes.Document fetchDocument(String engineName, String url, String userAgent) throws IOException {
+		try {
+			org.jsoup.Connection connection = org.jsoup.Jsoup.connect(url).timeout(TIMEOUT_MILLIS);
+			if (userAgent != null)
+				connection.userAgent(userAgent);
+			return connection.get();
+		} catch (IOException e) {
+			throw SearchEngineException.explain(engineName, e);
+		}
+	}
+
+	/**
+	 * A request to a web API (GET when body is null, else POST), the answer as text; a failure explained for the user.
+	 */
+	protected static String request(String engineName, String url, java.util.Map<String, String> headers, String body) throws IOException {
+		try {
+			HttpURLConnection conn = getHttpURLConnection(url);
+			conn.setConnectTimeout(TIMEOUT_MILLIS);
+			conn.setReadTimeout(TIMEOUT_MILLIS);
+			conn.setRequestProperty("Accept", "application/json");
+			headers.forEach(conn::setRequestProperty);
+			if (body != null) {
+				conn.setRequestMethod("POST");
+				conn.setDoOutput(true);
+				try (java.io.OutputStream os = conn.getOutputStream()) {
+					os.write(body.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+				}
+			}
+			int status = conn.getResponseCode();
+			if (status == 401)
+				throw SearchEngineException.key(engineName);
+			if (status >= 400)
+				throw SearchEngineException.http(engineName, status, null);
+			try (java.io.InputStream is = conn.getInputStream()) {
+				return new String(is.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+			}
+		} catch (IOException e) {
+			throw SearchEngineException.explain(engineName, e);
+		}
+	}
+
+	/** an empty entry, all texts set, so that taking it over never meets a null */
+	protected static WebProfile emptyWebProfile() {
+		WebProfile p = new WebProfile();
+		p.setTitle("");
+		p.setPlatform("");
+		p.setYear("");
+		p.setUrl("");
+		p.setDeveloperName("");
+		p.setPublisherName("");
+		p.setGenre("");
+		p.setNotes("");
+		return p;
 	}
 
 	public static HttpURLConnection getHttpURLConnection(String url) throws IOException {

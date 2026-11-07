@@ -4,6 +4,51 @@ DBGL Extended Edition - Änderungen seit 0.100 beta 17
 Grundlage: DBGL 0.100 beta 17 von Ronald Blankendaal (https://dbgl.org), Quellcode. Neueste Version zuerst.
 
 
+0.101 alpha 42 (2026-11-07)
+---------------------------
+Fehler behoben
+- Mehrere Profile bearbeiten brach seit alpha 19 beim OK mit einer
+  Fehlermeldung ab, nichts wurde gespeichert. Jetzt geht es wieder.
+- CD-Abbilder: DBGL schreibt "mount"/"imgmount" passend zur DOSBox-Version
+  (DOSBox-X brach mit "PHYSFS couldn't mount" ab, z. B. nach dem Umstellen
+  von Staging; Staging 0.83 bekommt "mount").
+- MobyGames: keine Endlosschleife mehr; Suche im Hintergrund mit Abbrechen
+  und verständlichen Fehlermeldungen (gilt für alle Quellen).
+- Mehrere Profile bearbeiten: nur die Online-Abfrage einzuschalten startet
+  sie jetzt auch.
+- Wertelisten aus DOSBox-Konfigurationen in anderen Sprachen (z. B. eine
+  deutsche Staging-Datei) werden erkannt.
+- Warnsymbol "nicht gefunden" nicht mehr für RAN2.EXE, wenn es RAN2.BAT gibt.
+- Ansicht-Symbol zeigte nach dem Start immer "kleine Kacheln".
+
+Neu
+- MobyGames über die offizielle API (kostenloser Schlüssel in den
+  Einstellungen), da MobyGames seine Webseiten für Programme sperrt.
+- Neue Quellen für Spielinfos: IGDB und SteamGridDB.
+- "Werte ersetzen..." für alle markierten Profile, mit Vorschau und
+  Auswahllisten der möglichen Werte.
+- "Handbücher und Extras suchen...": Handbücher, Lösungen, Karten,
+  Referenzkarten, Kopierschutz und Soundtracks im Spielordner finden und als
+  Links eintragen; auf Wunsch beim Anlegen eines Profils.
+- Auf Wunsch alle DOSBox-Einstellungen im Profil (wie D-Fend Reloaded), je
+  Profil oder für neue Profile; die Nachteile stehen direkt daneben.
+- Ansicht: Knöpfe Liste / Kacheln / Boxen und Menü "Ansicht" (Strg+1 bis 7).
+- Shader: Presets von Staging 0.83, "Neu einlesen" und "Probestart".
+- Mehrere CDs: DBGL bietet an, CD2, CD3 ... mit einzutragen; Hinweis zum
+  CD-Wechsel (Strg+F4, DOSBox-X Host-Taste+D).
+- Links im Profil lassen sich mit "Entfernen" freimachen.
+- Symbole für die Links im Kontextmenü "Anzeigen".
+
+Verbessert
+- Schneller: Warnsymbole beim Start bis zu 4-mal so schnell, Kachel- und
+  Boxen-Ansicht zeichnen viel seltener neu.
+- Rückgängig machen mehrerer Profile zeigt vorher ein Protokoll, was sich
+  ändert.
+- Leere Protokolle in Assistenten sagen jetzt "Fertig – keine Probleme".
+- Neue Fenster öffnen in brauchbarer Größe.
+- Kleinigkeiten: Fenstertitel mit Version, Über-Fenster, Knopf-Anordnung in
+  "Profil umstellen", OK-Knopf rechts unten, Startabfrage ohne Zeilenumbrüche.
+
 0.101 alpha 41 (2026-11-05)
 ---------------------------
 - Schwerer Fehler behoben (Verlust von Laufwerk C und Spielprogramm in allen

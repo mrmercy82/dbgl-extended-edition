@@ -135,9 +135,11 @@ public class ConfValueOptions {
 				String item = setm.group(1).trim().toLowerCase();
 				if (oldStyleValues == null)
 					oldStyleValues = parseOldStyleHeader(block, oldStyleHelp); // the old format documents all settings of a section in front of the first one
-				Options o = parseNewStyle(block);
+				Options o = parseNewStyle(block, false);
 				if ((o == null) && oldStyleValues.containsKey(item))
 					o = parseOldStyle(oldStyleValues.get(item));
+				if ((o == null) && oldStyleValues.isEmpty())
+					o = parseNewStyle(block, true); // a file in another language (new format only)
 				if (o != null)
 					options_.computeIfAbsent(section, k -> new HashMap<>()).put(item, o);
 				String help = (firstSetting && oldStyleHelp.containsKey(item)) || block.isEmpty() ? oldStyleHelp.get(item): blockText(block);
@@ -219,7 +221,24 @@ public class ConfValueOptions {
 		return values.isEmpty() ? null: new Options(new ArrayList<>(values), freeForm);
 	}
 
-	private static Options parseNewStyle(List<String> block) {
+	/**
+	 * DOSBox Staging writes its configuration file in the language of the system (e.g. "Mögliche Werte:" in German), so the
+	 * English words cannot be relied on. The list itself looks the same in every language: an empty comment line, then at
+	 * least two lines "#   value:  description" (the descriptions may go on over more, further indented lines, and empty
+	 * comment lines may come between the values). @return the line after that empty comment line, or -1
+	 */
+	private static int listStart(List<String> block) {
+		for (int i = 0; i + 1 < block.size(); i++) {
+			if (block.get(i).equals("#") && NEW_OPTION_PATRN.matcher(block.get(i + 1)).find()) {
+				long options = block.subList(i + 1, block.size()).stream().filter(l -> NEW_OPTION_PATRN.matcher(l).find()).count();
+				if (options >= 2)
+					return i + 1;
+			}
+		}
+		return -1;
+	}
+
+	private static Options parseNewStyle(List<String> block, boolean anyLanguage) {
 		// find "Possible values:", which can be wrapped over two lines ("Possible\n# values:")
 		int start = -1;
 		for (int i = 0; i < block.size() && start == -1; i++) {
@@ -229,6 +248,8 @@ public class ConfValueOptions {
 			else if (l.endsWith("possible") && (i + 1 < block.size()) && block.get(i + 1).toLowerCase().startsWith("# values:"))
 				start = i + 2;
 		}
+		if ((start == -1) && anyLanguage)
+			start = listStart(block);
 		if (start == -1)
 			return null;
 		Set<String> values = new LinkedHashSet<>();

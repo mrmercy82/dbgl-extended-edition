@@ -65,7 +65,10 @@ public class AboutDialog extends BaseDialog<Object> {
 		canvas.addPaintListener(e -> e.gc.drawImage(ImageService.getResourceImage(getParent().getDisplay(), "ico/256.png"), 0, 0));
 
 		Group group = Group_.on(shell_).layoutData(new GridData(SWT.FILL, SWT.CENTER, true, true)).layout(new GridLayout()).build();
-		// the original program and its author: DBGL up to 0.100 beta 17
+		// the original program and its author: DBGL up to 0.100 beta 17, introduced by a small "based on"
+		Label basedOn = new Label(group, SWT.NONE);
+		basedOn.setText(text_.get("dialog.about.basedon"));
+		smallGray(basedOn);
 		Chain.on(group).lbl(l -> l.style(SWT.WRAP).layoutData(new GridData_(380).build()).key("dialog.about.createdby", new Object[] {Constants.PROGRAM_NAME_FULL, Constants.BASE_VERSION}))
 				.lbl(l -> l.style(SWT.WRAP).layoutData(new GridData_(380).build()).key("dialog.about.thanks")).build();
 		createLink(group, "<a href=\"" + Constants.ORIGINAL_URL + "\">" + text_.get("dialog.about.website.original") + "</a>", browseAdapter);
@@ -74,17 +77,11 @@ public class AboutDialog extends BaseDialog<Object> {
 		Label separator = new Label(group, SWT.SEPARATOR | SWT.HORIZONTAL);
 		separator.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
 		Chain.on(group).lbl(l -> l.style(SWT.WRAP).layoutData(new GridData_(380).build()).key("dialog.about.editioninfo",
-			new Object[] {Constants.EDITION_NAME, Constants.PROGRAM_VERSION, Constants.BASE_VERSION})).build();
+			new Object[] {Constants.EDITION_NAME, org.dbgl.util.EditionUpdateChecker.readable(Constants.PROGRAM_VERSION), Constants.BASE_VERSION})).build();
 		Label editionBy = new Label(group, SWT.WRAP);
 		editionBy.setLayoutData(new GridData_(380).build());
 		editionBy.setText(text_.get("dialog.about.editionby", new Object[] {Constants.EDITION_NAME}));
-		FontData[] fontData = editionBy.getFont().getFontData();
-		for (FontData fd: fontData)
-			fd.setHeight(Math.max(6, fd.getHeight() - 2));
-		Font small = new Font(editionBy.getDisplay(), fontData);
-		editionBy.setFont(small);
-		editionBy.setForeground(editionBy.getDisplay().getSystemColor(SWT.COLOR_WIDGET_DARK_SHADOW));
-		editionBy.addListener(SWT.Dispose, e -> small.dispose());
+		smallGray(editionBy);
 		createLink(group, "<a href=\"" + Constants.EDITION_URL + "\">" + text_.get("dialog.about.website.edition", new Object[] {Constants.EDITION_NAME}) + "</a>", browseAdapter);
 
 		Label separator2 = new Label(group, SWT.SEPARATOR | SWT.HORIZONTAL);
@@ -97,5 +94,16 @@ public class AboutDialog extends BaseDialog<Object> {
 
 		shell_.setDefaultButton(Button_.on(group).text().key("button.ok").listen(closeShellAdapter).ctrl());
 		shell_.getDefaultButton().setFocus();
+	}
+
+	/** smaller and gray, for the lines that only introduce or credit */
+	private static void smallGray(Label label) {
+		FontData[] fontData = label.getFont().getFontData();
+		for (FontData fd: fontData)
+			fd.setHeight(Math.max(6, fd.getHeight() - 2));
+		Font small = new Font(label.getDisplay(), fontData);
+		label.setFont(small);
+		label.setForeground(label.getDisplay().getSystemColor(SWT.COLOR_WIDGET_DARK_SHADOW));
+		label.addListener(SWT.Dispose, e -> small.dispose());
 	}
 }

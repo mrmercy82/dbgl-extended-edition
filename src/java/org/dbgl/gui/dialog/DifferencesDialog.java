@@ -58,5 +58,7 @@ public class DifferencesDialog extends SizeControlledButtonDialog<Object> {
 		shell_.addDisposeListener(e -> font_.dispose());
 		text.setText(content_);
 		createOkButton(closeShellAdapter);
+		// OK at the bottom right, as usual for a dialog that only shows something
+		okCancelButtons_.setLayoutData(new GridData(SWT.END, SWT.FILL, true, false));
 	}
 }

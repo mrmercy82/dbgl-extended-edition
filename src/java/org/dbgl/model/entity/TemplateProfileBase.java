@@ -155,7 +155,8 @@ public abstract class TemplateProfileBase extends GenerationAwareConfigurable {
 		if (configuration_.getFileLocation() != null) {
 			warningsLog.append(configuration_.reloadWithAutoexec(TextService.getInstance(), getDosboxNettoMountingPoints(), cwd));
 			org.dbgl.util.UnknownAutoexecLines.keepOnRead(configuration_.getAutoexec()); // lines DBGL does not know are not lost
-			configuration_.removeDuplicateValuesIn(dosboxVersion_.getConfiguration());
+			if (!keepsAllSettings())
+				configuration_.removeDuplicateValuesIn(dosboxVersion_.getConfiguration());
 		}
 		return warningsLog.toString();
 	}
@@ -164,7 +165,8 @@ public abstract class TemplateProfileBase extends GenerationAwareConfigurable {
 		StringBuilder warningsLog = new StringBuilder();
 		if (configuration_.getFileLocation() != null) {
 			warningsLog.append(configuration_.loadWithAutoexec(TextService.getInstance(), getDosboxNettoMountingPoints(), cwd));
-			configuration_.removeDuplicateValuesIn(dosboxVersion_.getConfiguration());
+			if (!keepsAllSettings())
+				configuration_.removeDuplicateValuesIn(dosboxVersion_.getConfiguration());
 		}
 		return warningsLog.toString();
 	}
@@ -178,13 +180,87 @@ public abstract class TemplateProfileBase extends GenerationAwareConfigurable {
 	}
 
 	public void saveConfiguration() throws IOException {
-		removeEmptyValuesOverridingDosboxDefaults();
-		configuration_.save(false, getNettoMountingPoints());
+		saveConfiguration(false);
 	}
 
 	public void saveConfiguration(boolean prepareOnly) throws IOException {
 		removeEmptyValuesOverridingDosboxDefaults();
+		adaptImageMountsToDosbox();
+		if (keepsAllSettings())
+			completeWithDosboxSettings();
 		configuration_.save(prepareOnly, getNettoMountingPoints());
+	}
+
+	/**
+	 * "mount D game.cue -t cdrom" for an image works in DOSBox Staging 0.83 and newer only (IMGMOUNT is an alias there).
+	 * DOSBox-X, older Staging versions and DOSBox 0.74 need "imgmount"; DOSBox-X even quits with "PHYSFS couldn't mount
+	 * ... unsupported". So for those, such lines are written as imgmount (e.g. after switching a profile from Staging 0.83
+	 * to DOSBox-X), and for Staging 0.83 and newer imgmount lines as mount (IMGMOUNT is only an old name there).
+	 * 
+	 * @return true if a line was changed
+	 */
+	public boolean adaptImageMountsToDosbox() {
+		if (dosboxVersion_ == null)
+			return false;
+		// DOSBox Staging 0.83 and newer: MOUNT, IMGMOUNT is only an old name there; all others: IMGMOUNT
+		String wanted = mountTakesImages(dosboxVersion_) ? "mount": "imgmount";
+		boolean changed = false;
+		for (org.dbgl.model.conf.mount.Mount m: configuration_.getAutoexec().getMountingpoints()) {
+			if ((m instanceof org.dbgl.model.conf.mount.ImageMount im) && !wanted.equalsIgnoreCase(im.getCommand())) {
+				im.setCommand(wanted);
+				changed = true;
+			}
+		}
+		return changed;
+	}
+
+	/** DOSBox Staging 0.83 and newer mount images with MOUNT as well */
+	public static boolean mountTakesImages(DosboxVersion v) {
+		String family = StringUtils.defaultString(v.getFamily()).toLowerCase();
+		return family.contains("staging") && (org.dbgl.util.DosboxUpdateChecker.compareVersions(StringUtils.defaultString(v.getVersion()), "0.83") >= 0);
+	}
+
+	/** a profile that keeps all DOSBox settings (its own choice, see {@link org.dbgl.util.FullConfProfiles}) */
+	public boolean keepsAllSettings() {
+		return (this instanceof org.dbgl.model.aggregate.Profile) && configuration_.isAllSettings();
+	}
+
+	/**
+	 * Switch keeping all DOSBox settings for this profile: on fills in all settings, off takes out again what equals the DOSBox
+	 * configuration.
+	 */
+	public void setKeepsAllSettings(boolean keep) {
+		configuration_.setAllSettings(keep);
+		if (keep)
+			completeWithDosboxSettings();
+		else
+			reduceToDifferences();
+	}
+
+	/** @return how many settings of the DOSBox configuration were added because the profile did not have them yet */
+	public int completeWithDosboxSettings() {
+		if (dosboxVersion_ == null)
+			return 0;
+		Configuration dosboxConf = dosboxVersion_.getConfiguration();
+		int added = 0;
+		for (String section: dosboxConf.getSectionNames()) {
+			for (String item: dosboxConf.getItemNames(section)) {
+				if (org.dbgl.util.FullConfProfiles.skipped(section, item) || configuration_.hasValue(section, item))
+					continue;
+				configuration_.setValue(section, item, dosboxConf.getValue(section, item));
+				added++;
+			}
+		}
+		return added;
+	}
+
+	/** @return how many settings were taken out of the profile because they are the same as in the DOSBox configuration */
+	public int reduceToDifferences() {
+		if (dosboxVersion_ == null)
+			return 0;
+		int before = org.dbgl.util.FullConfProfiles.count(configuration_);
+		configuration_.removeDuplicateValuesIn(dosboxVersion_.getConfiguration());
+		return before - org.dbgl.util.FullConfProfiles.count(configuration_);
 	}
 
 	/**
@@ -241,7 +317,7 @@ public abstract class TemplateProfileBase extends GenerationAwareConfigurable {
 				files.add(autoexec.getImg(i));
 		for (String file: files) {
 			File f = FilesUtils.determineMainFile(new org.dbgl.model.FileLocation(file, org.dbgl.service.FileLocationService.getInstance().dosrootRelative()).getCanonicalFile());
-			if (!f.exists() && !result.contains(f.getPath()))
+			if (!FilesUtils.existsAsDosProgram(f) && !result.contains(f.getPath()))
 				result.add(f.getPath());
 		}
 		return result;
@@ -325,7 +401,7 @@ public abstract class TemplateProfileBase extends GenerationAwareConfigurable {
 
 		if (dosboxVersion_.getConfiguration().hasValue(sectionTitle, sectionItem)) {
 			String dbValue = dosboxVersion_.getConfiguration().getValue(sectionTitle, sectionItem);
-			if (!value.equals(dbValue) && (!value.startsWith("0.") || !value.substring(1).equals(dbValue)))
+			if (keepsAllSettings() || (!value.equals(dbValue) && (!value.startsWith("0.") || !value.substring(1).equals(dbValue))))
 				configuration_.setValue(sectionTitle, sectionItem, value);
 		}
 	}
@@ -404,7 +480,8 @@ public abstract class TemplateProfileBase extends GenerationAwareConfigurable {
 		
 		configuration_.removeValuesNotSetIn(dstDosboxVersion.getConfiguration());
 		alignBooleanNotation(configuration_, dstDosboxVersion.getConfiguration());
-		configuration_.removeDuplicateValuesIn(dstDosboxVersion.getConfiguration());
+		if (!keepsAllSettings())
+			configuration_.removeDuplicateValuesIn(dstDosboxVersion.getConfiguration());
 		setDosboxVersion(dstDosboxVersion);
 		return warningsLog;
 	}

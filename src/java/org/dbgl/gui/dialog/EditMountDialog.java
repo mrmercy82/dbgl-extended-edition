@@ -1,5 +1,7 @@
 /*
  *  Copyright (C) 2006-2025  Ronald Blankendaal
+ *  Modified for the DBGL Extended Edition by mrmercy82 (with the help of AI)
+ *  since 2026-11-07. Changes and their dates: CHANGELOG-en.txt, CHANGELOG-de.txt.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -108,6 +110,14 @@ public class EditMountDialog extends SizeControlledButtonDialog<String> {
 					imgMountSize.setText(command);
 			}
 		})).button();
+
+		// how to change CDs in the game: hard to find otherwise
+		Label imgSeriesHint = new Label(imgComposite, SWT.WRAP);
+		GridData hintData = new GridData(SWT.FILL, SWT.BEGINNING, true, false, 5, 1);
+		hintData.widthHint = 420;
+		imgSeriesHint.setLayoutData(hintData);
+		imgSeriesHint.setText(text_.get("dialog.mount.imageseries.hint3"));
+		imgSeriesHint.setForeground(shell_.getDisplay().getSystemColor(SWT.COLOR_WIDGET_DARK_SHADOW));
 
 		Text imgMountImage = imgChain.getText();
 		imgChain.getButton().setData(Button_.DATA_COMBO, imgMountType);
@@ -310,6 +320,14 @@ public class EditMountDialog extends SizeControlledButtonDialog<String> {
 		});
 
 		updateInterfaceElements(imgSizeHelperButton, dirMountUseCd, dirMountFreesize, dirMountMbLabel, dirMountType, dirMountLowlevelCdType, imgMountFs, imgMountSize);
+
+		// room for three images and the hint below them, also when a smaller size of this window was saved before
+		((GridData)imgMountImage.getLayoutData()).heightHint = imgMountImage.getLineHeight() * 3;
+		org.eclipse.swt.graphics.Point size = shell_.getSize();
+		org.eclipse.swt.graphics.Point wanted = shell_.computeSize(size.x, SWT.DEFAULT);
+		org.eclipse.swt.graphics.Rectangle area = shell_.getMonitor().getClientArea();
+		if (wanted.y > size.y)
+			shell_.setSize(size.x, Math.min(wanted.y, area.height));
 	}
 
 	private void updateInterfaceElements(Button imgSizeConfig, Combo usecd, Combo freesize, Label mbLabel, Combo mountType, Combo lowlevelcdType, Combo imgmountFs, Text imgmountSize) {

@@ -842,6 +842,8 @@ public class AddGameWizardDialog extends WizardDialog<Profile> {
 			updateProfileByControls();
 
 			profile_.ensurePc98MachineForHdi();
+			if (org.dbgl.util.ExtrasFinder.onAdd()) // manuals, walkthroughs, maps, soundtrack of the new game into free links
+				org.dbgl.util.ExtrasFinder.link(profile_, org.dbgl.util.ExtrasFinder.find(profile_));
 			result_ = new ProfileRepository().add(profile_);
 
 			if (imageInformation_ != null) {

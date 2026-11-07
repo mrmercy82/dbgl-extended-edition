@@ -1,5 +1,7 @@
 /*
  *  Copyright (C) 2006-2025  Ronald Blankendaal
+ *  Modified for the DBGL Extended Edition by mrmercy82 (with the help of AI)
+ *  since 2026-11-07. Changes and their dates: CHANGELOG-en.txt, CHANGELOG-de.txt.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -41,8 +43,15 @@ public class Configuration extends Settings {
 	private static final String AUTOEXEC_SECTION_NAME = "autoexec";
 	private static final String[] CUSTOM_SECTION = {"#REM DBGL-CUSTOM", "#REM /DBGL-CUSTOM"};
 
+	/**
+	 * A comment line at the top of a profile configuration: this profile keeps all settings of its DOSBox version, not only
+	 * those that differ (see FullConfProfiles). DOSBox reads it as a comment; it travels with the file, e.g. on export.
+	 */
+	public static final String ALL_SETTINGS_MARKER = "# DBGL: all DOSBox settings are kept in this profile";
+
 	private String customSection_;
 	private Autoexec autoexec_;
+	private boolean allSettings_;
 
 	public Configuration() {
 		super();
@@ -55,6 +64,16 @@ public class Configuration extends Settings {
 		sections_ = new SectionsCollection(configuration.getSections());
 		customSection_ = configuration.getCustomSection();
 		autoexec_ = new Autoexec(configuration.getAutoexec());
+		allSettings_ = configuration.allSettings_;
+	}
+
+	/** @return true if this (profile) configuration keeps all DOSBox settings, see {@link #ALL_SETTINGS_MARKER} */
+	public boolean isAllSettings() {
+		return allSettings_;
+	}
+
+	public void setAllSettings(boolean allSettings) {
+		allSettings_ = allSettings;
 	}
 
 	public String getCustomSection() {
@@ -81,6 +100,7 @@ public class Configuration extends Settings {
 		sections_ = new SectionsCollection();
 		customSection_ = StringUtils.EMPTY;
 		autoexec_ = new Autoexec();
+		allSettings_ = false;
 
 		return loadWithAutoexec(text, dbMounts, cwd);
 	}
@@ -110,7 +130,10 @@ public class Configuration extends Settings {
 
 		List<String> autoexecLines = new ArrayList<>();
 		List<String> customLines = new ArrayList<>();
-		warningsLog.append(loadData(text, reader, file, AUTOEXEC_SECTION_NAME, autoexecLines, CUSTOM_SECTION, customLines));
+		String content = org.apache.commons.io.IOUtils.toString(reader);
+		if (content.lines().anyMatch(l -> l.trim().equalsIgnoreCase(ALL_SETTINGS_MARKER)))
+			allSettings_ = true;
+		warningsLog.append(loadData(text, new StringReader(content), file, AUTOEXEC_SECTION_NAME, autoexecLines, CUSTOM_SECTION, customLines));
 		if (!autoexecLines.isEmpty())
 			warningsLog.append(autoexec_.load(autoexecLines, dbMounts, cwd));
 		if (!customLines.isEmpty())
@@ -132,6 +155,8 @@ public class Configuration extends Settings {
 	}
 
 	private void writeData(BufferedWriter writer, boolean prepareOnly, List<Mount> combinedMountingPoints) throws IOException {
+		if (allSettings_)
+			writer.write(ALL_SETTINGS_MARKER + SystemUtils.EOLN + SystemUtils.EOLN);
 		writer.write(sections_.toString());
 		if (StringUtils.isNotBlank(customSection_)) {
 			StringBuilder result = new StringBuilder();

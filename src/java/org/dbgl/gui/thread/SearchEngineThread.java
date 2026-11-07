@@ -1,5 +1,7 @@
 /*
  *  Copyright (C) 2006-2025  Ronald Blankendaal
+ *  Modified for the DBGL Extended Edition by mrmercy82 (with the help of AI)
+ *  since 2026-11-07. Changes and their dates: CHANGELOG-en.txt, CHANGELOG-de.txt.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -127,8 +129,9 @@ public class SearchEngineThread extends UIThread<Profile> {
 				} else {
 					messageLog.append(text_.get("dialog.multiprofile.notice.titlenotunique", new String[] {engine_.getName(), title})).append(StringUtils.LF);
 				}
-			} catch (IOException e) {
-				messageLog.append(text_.get("general.error.retrieveinfosearchengine", new String[] {engine_.getName(), title, e.toString()})).append(StringUtils.LF);
+			} catch (IOException | RuntimeException e) {
+				String explained = org.dbgl.util.searchengine.SearchEngineException.explain(engine_.getName(), e).getMessage();
+				messageLog.append(text_.get("searchengine.error.retrieve", new Object[] {engine_.getName(), title, explained})).append(StringUtils.LF);
 			}
 		}
 

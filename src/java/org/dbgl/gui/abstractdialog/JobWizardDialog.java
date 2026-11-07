@@ -1,5 +1,7 @@
 /*
  *  Copyright (C) 2006-2025  Ronald Blankendaal
+ *  Modified for the DBGL Extended Edition by mrmercy82 (with the help of AI)
+ *  since 2026-11-07. Changes and their dates: CHANGELOG-en.txt, CHANGELOG-de.txt.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -77,5 +79,18 @@ public abstract class JobWizardDialog<T> extends WizardDialog<T> {
 		status_ = chain.getLabel();
 		log_ = chain.getText();
 		addStep(progressGroup);
+	}
+	/**
+	 * The status line at the end: "please review the log" only when the log says something. When everything went fine the
+	 * log stays empty, and the hint pointed to an empty box; now it says so.
+	 */
+	protected void setReviewStatus(String reviewKey) {
+		if ((log_ != null) && !log_.isDisposed() && log_.getText().isBlank()) {
+			String ok = text_.get("dialog.job.nothingtoreport");
+			log_.setText(ok);
+			status_.setText(ok);
+		} else {
+			status_.setText(text_.get(reviewKey));
+		}
 	}
 }

@@ -443,6 +443,57 @@ public class FilesUtils {
 		return null;
 	}
 
+	/**
+	 * @return true if DOS would find the program: the file itself, or, as DOS does for a program called without or with
+	 *         another of these extensions, the same name with .com, .exe or .bat (e.g. "ran2.exe" missing, "ran2.bat"
+	 *         there); upper and lower case do not matter, as in DOS
+	 */
+	public static boolean existsAsDosProgram(File file) {
+		if (file.exists())
+			return true;
+		File dir = file.getAbsoluteFile().getParentFile();
+		String[] names = dir == null ? null: dir.list();
+		if (names == null)
+			return false;
+		String name = file.getName();
+		int dot = name.lastIndexOf('.');
+		String ext = dot < 0 ? "": name.substring(dot).toLowerCase();
+		boolean program = ext.isEmpty() || Stream.of(EXECUTABLES).anyMatch(ext::equals);
+		String base = dot < 0 ? name: name.substring(0, dot);
+		for (String n: names) {
+			if (n.equalsIgnoreCase(name))
+				return true;
+			if (program) {
+				int d = n.lastIndexOf('.');
+				if ((d > 0) && n.substring(0, d).equalsIgnoreCase(base) && Stream.of(EXECUTABLES).anyMatch(n.substring(d).toLowerCase()::equals))
+					return true;
+			}
+		}
+		return false;
+	}
+
+	private static final java.util.regex.Pattern SERIES_NUMBER = java.util.regex.Pattern.compile("^(.*?)(\\d{1,2})(\\D*)$");
+
+	/**
+	 * @return the images of the same series in the same folder, e.g. for "GAME_CD1.ISO" also "GAME_CD2.ISO" and "GAME_CD3.ISO",
+	 *         sorted by their number (the image given included); just the image given when there is no series
+	 */
+	public static List<File> findImageSeries(File image) {
+		File dir = image.getAbsoluteFile().getParentFile();
+		java.util.regex.Matcher m = SERIES_NUMBER.matcher(image.getName());
+		String[] names = dir == null ? null: dir.list();
+		if (!m.matches() || (names == null))
+			return List.of(image);
+		String prefix = m.group(1), suffix = m.group(3);
+		java.util.TreeMap<Integer, File> series = new java.util.TreeMap<>();
+		for (String n: names) {
+			java.util.regex.Matcher s = SERIES_NUMBER.matcher(n);
+			if (s.matches() && s.group(1).equalsIgnoreCase(prefix) && s.group(3).equalsIgnoreCase(suffix) && new File(dir, n).isFile())
+				series.putIfAbsent(Integer.parseInt(s.group(2)), new File(image.getParentFile(), n));
+		}
+		return series.size() > 1 ? new ArrayList<>(series.values()): List.of(image);
+	}
+
 	public static File determineMainFile(File file) {
 		String f = file.getPath();
 		int isoIdx = cdImageIndex(f);

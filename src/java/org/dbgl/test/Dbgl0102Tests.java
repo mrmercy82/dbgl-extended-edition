@@ -20,6 +20,7 @@ package org.dbgl.test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
@@ -936,5 +937,153 @@ public class Dbgl0102Tests {
 		org.dbgl.util.DosboxFolderRemoval.delete(staging);
 		assertFalse(staging.exists());
 		assertTrue(other.exists());
+	}
+	@Test
+	public void testExistsAsDosProgram() throws IOException {
+		// "ran2.exe" is missing, but "RAN2.BAT" is there: DOS starts it when "ran2" is called, so no warning
+		File dir = Files.createTempDirectory("dbgl-prog").toFile();
+		Files.writeString(new File(dir, "RAN2.BAT").toPath(), "@echo off");
+		Files.writeString(new File(dir, "readme.txt").toPath(), "x");
+		assertTrue(org.dbgl.util.FilesUtils.existsAsDosProgram(new File(dir, "ran2.exe")));
+		assertTrue(org.dbgl.util.FilesUtils.existsAsDosProgram(new File(dir, "ran2")));
+		assertTrue(org.dbgl.util.FilesUtils.existsAsDosProgram(new File(dir, "Ran2.Bat")));
+		assertFalse(org.dbgl.util.FilesUtils.existsAsDosProgram(new File(dir, "ran3.exe")));
+		assertFalse(org.dbgl.util.FilesUtils.existsAsDosProgram(new File(dir, "readme.exe")));
+		assertFalse(org.dbgl.util.FilesUtils.existsAsDosProgram(new File(dir, "ran2.txt")));
+		assertFalse(org.dbgl.util.FilesUtils.existsAsDosProgram(new File(new File(dir, "gone"), "ran2.exe")));
+		assertTrue(org.dbgl.util.EditionUpdateChecker.readable("0.101alpha42").equals("0.101 alpha 42"));
+	}
+	@Test
+	public void testStagingShaderPresetsAndRefresh() throws IOException {
+		// Staging 0.83 looks for presets as shader-presets/<shader>/<preset>.preset next to its shaders
+		File dir = Files.createTempDirectory("dbgl-shaders").toFile();
+		File exe = new File(dir, "dosbox.exe");
+		Files.writeString(exe.toPath(), "MZ");
+		File crt = new File(dir, "resources/shaders/crt");
+		crt.mkdirs();
+		Files.writeString(new File(crt, "crt-hyllian.glsl").toPath(), "//");
+		File presets = new File(dir, "resources/shader-presets/crt/crt-hyllian");
+		presets.mkdirs();
+		Files.writeString(new File(presets, "vga-4k.preset").toPath(), "[settings]");
+		Files.writeString(new File(dir, "resources/shader-presets/readme.preset").toPath(), "x"); // belongs to no shader
+		List<String> found = DosboxVersionDetector.listShadersCached(exe, dir, true);
+		assertTrue(found.toString(), found.contains("crt/crt-hyllian"));
+		assertTrue(found.toString(), found.contains("crt/crt-hyllian:vga-4k"));
+		assertFalse(found.toString(), found.stream().anyMatch(x -> x.contains("readme")));
+		assertFalse(DosboxVersionDetector.listShadersCached(exe, dir, false).contains("crt/crt-hyllian:vga-4k")); // 0.81/0.82 have no presets
+
+		// a shader pack copied there while DBGL runs: found after the caches are cleared (button "Refresh")
+		Files.writeString(new File(crt, "crt-new.glsl").toPath(), "//");
+		assertFalse(DosboxVersionDetector.listShadersCached(exe, dir, true).contains("crt/crt-new"));
+		DosboxVersionDetector.clearShaderCaches();
+		assertTrue(DosboxVersionDetector.listShadersCached(exe, dir, true).contains("crt/crt-new"));
+	}
+	@Test
+	public void testImageSeries() throws IOException {
+		// CD1.ISO chosen: CD2 and CD3 are offered too, sorted by number; other files and other games are not
+		File dir = Files.createTempDirectory("dbgl-cds").toFile();
+		for (String n: new String[] {"GAME_CD1.ISO", "game_cd3.iso", "GAME_CD2.ISO", "GAME_CD2.CUE", "OTHER_CD1.ISO", "readme.txt"})
+			Files.writeString(new File(dir, n).toPath(), "x");
+		List<File> series = org.dbgl.util.FilesUtils.findImageSeries(new File(dir, "GAME_CD1.ISO"));
+		assertEquals(List.of("GAME_CD1.ISO", "GAME_CD2.ISO", "game_cd3.iso"), series.stream().map(File::getName).toList());
+		assertEquals(1, org.dbgl.util.FilesUtils.findImageSeries(new File(dir, "OTHER_CD1.ISO")).size());
+		assertEquals(1, org.dbgl.util.FilesUtils.findImageSeries(new File(dir, "readme.txt")).size());
+	}
+
+	@Test
+	public void testSearchEngineErrorsExplained() {
+		// a user gets told what happened, not a stack trace
+		assertTrue(org.dbgl.util.searchengine.SearchEngineException.explain("MobyGames", new java.net.SocketTimeoutException("Read timed out")).getMessage().contains("MobyGames"));
+		String blocked = org.dbgl.util.searchengine.SearchEngineException.explain("MobyGames", new org.jsoup.HttpStatusException("x", 429, "u")).getMessage();
+		assertTrue(blocked, blocked.contains("429"));
+		assertFalse(blocked.equals(org.dbgl.util.searchengine.SearchEngineException.explain("MobyGames", new org.jsoup.HttpStatusException("x", 500, "u")).getMessage()));
+		assertTrue(org.dbgl.util.searchengine.SearchEngineException.explain("X", new java.net.UnknownHostException("h")).getMessage().length() > 10);
+		assertEquals(org.dbgl.util.searchengine.SearchEngineException.changed("X", null).getMessage(),
+			org.dbgl.util.searchengine.SearchEngineException.explain("X", new NullPointerException()).getMessage());
+		assertTrue(org.dbgl.util.searchengine.SearchEngineException.explain("X", new java.io.IOException("wrapped", new java.net.SocketTimeoutException())).getMessage()
+				.equals(org.dbgl.util.searchengine.SearchEngineException.explain("X", new java.net.SocketTimeoutException()).getMessage()));
+	}
+	@Test
+	public void testExtrasFinder() throws IOException {
+		File game = Files.createTempDirectory("dbgl-extras").toFile();
+		File docs = new File(game, "DOCS");
+		File music = new File(game, "Soundtrack");
+		File sounds = new File(game, "SOUND");
+		docs.mkdirs();
+		music.mkdirs();
+		sounds.mkdirs();
+		for (String n: new String[] {"GAME.EXE", "README.TXT", "setup.txt", "DOCS/Manual.pdf", "DOCS/walkthrough.txt", "DOCS/Karte.jpg", "DOCS/cover.jpg", "Soundtrack/01 Intro.mp3",
+				"SOUND/explode.wav", "SOUND/shot.voc", "reference card.pdf", "DOCS/Codewheel.jpg", "Kopierschutz.txt"})
+			Files.writeString(new File(game, n).toPath(), "x");
+		List<org.dbgl.util.ExtrasFinder.Extra> found = org.dbgl.util.ExtrasFinder.find(game);
+		java.util.Map<String, org.dbgl.util.ExtrasFinder.Kind> byName = new java.util.HashMap<>();
+		found.forEach(e -> byName.put(e.file().getName(), e.kind()));
+		assertEquals(byName.toString(), org.dbgl.util.ExtrasFinder.Kind.MANUAL, byName.get("Manual.pdf"));
+		assertEquals(org.dbgl.util.ExtrasFinder.Kind.REFERENCE, byName.get("reference card.pdf"));
+		assertEquals(org.dbgl.util.ExtrasFinder.Kind.WALKTHROUGH, byName.get("walkthrough.txt"));
+		assertEquals(org.dbgl.util.ExtrasFinder.Kind.COPYPROTECTION, byName.get("Codewheel.jpg"));
+		assertEquals(org.dbgl.util.ExtrasFinder.Kind.COPYPROTECTION, byName.get("Kopierschutz.txt"));
+		assertEquals(org.dbgl.util.ExtrasFinder.Kind.MAP, byName.get("Karte.jpg"));
+		assertEquals(org.dbgl.util.ExtrasFinder.Kind.SOUNDTRACK, byName.get("Soundtrack")); // the folder, named so
+		// not extras: the program, a readme, other pictures, sound effects of the game
+		for (String n: new String[] {"GAME.EXE", "README.TXT", "setup.txt", "cover.jpg", "SOUND", "explode.wav", "01 Intro.mp3"})
+			assertFalse(n, byName.containsKey(n));
+	}
+	@Test
+	public void testExtrasFinderCollectionFolder() throws IOException {
+		// SMARTDRV.EXE as main program in the folder of all games: not the manuals of all the games
+		File games = Files.createTempDirectory("dbgl-games").toFile();
+		Files.writeString(new File(games, "SMARTDRV.EXE").toPath(), "x");
+		Files.writeString(new File(games, "games-list.pdf").toPath(), "x");
+		for (int i = 0; i < 6; i++) {
+			File g = new File(games, "GAME" + i);
+			g.mkdirs();
+			Files.writeString(new File(g, "GAME.EXE").toPath(), "x");
+			Files.writeString(new File(g, "manual.pdf").toPath(), "x");
+		}
+		// the folders of the other games (they have profiles of their own) are left out
+		java.util.Set<File> others = new java.util.HashSet<>();
+		for (int i = 0; i < 6; i++)
+			others.add(new File(games, "GAME" + i));
+		List<org.dbgl.util.ExtrasFinder.Extra> found = org.dbgl.util.ExtrasFinder.find(games, others);
+		assertEquals(found.toString(), 1, found.size());
+		assertEquals("games-list.pdf", found.get(0).file().getName());
+		// a game whose parts lie in subfolders without profiles of their own (like DSA): all of it is searched
+		assertEquals(7, org.dbgl.util.ExtrasFinder.find(games).size());
+		assertEquals(1, org.dbgl.util.ExtrasFinder.find(new File(games, "GAME0")).size());
+	}
+
+	@Test
+	public void testStagingCdMountForOtherDosbox() throws Exception {
+		// "mount d x.cue -t cdrom" (DOSBox Staging 0.83) under DOSBox-X: becomes "imgmount d x.cue -t iso"
+		org.dbgl.model.conf.mount.Mount m = org.dbgl.model.factory.MountFactory.create("mount D \"JP CD-ROM.CUE\" -t cdrom");
+		assertTrue(m instanceof org.dbgl.model.conf.mount.ImageMount);
+		org.dbgl.model.conf.mount.ImageMount im = (org.dbgl.model.conf.mount.ImageMount)m;
+		assertTrue(im.toString(false).toLowerCase().startsWith("mount d"));
+		assertTrue(im.toString(false).contains("-t cdrom"));
+		im.setCommand("imgmount");
+		assertTrue(im.toString(false).toLowerCase().startsWith("imgmount d"));
+		assertTrue(im.toString(false).contains("-t iso"));
+	}
+
+	@Test
+	public void testExtraIcons() {
+		assertEquals("extra_web.png", org.dbgl.util.ExtrasFinder.iconOf("MobyGames", "https://www.mobygames.com/game/1"));
+		assertEquals("extra_manual.png", org.dbgl.util.ExtrasFinder.iconOf("x", "docs/Handbuch.pdf"));
+		assertEquals("extra_copyprotection.png", org.dbgl.util.ExtrasFinder.iconOf("", "Codewheel.jpg"));
+		assertEquals("extra_other.png", org.dbgl.util.ExtrasFinder.iconOf("", "readme.txt"));
+		for (org.dbgl.util.ExtrasFinder.Kind k: org.dbgl.util.ExtrasFinder.Kind.values())
+			assertNotNull(k.name(), getClass().getResource("/img/extra_" + k.name().toLowerCase() + ".png"));
+		assertNotNull(getClass().getResource("/img/profile_conf.png"));
+	}
+
+	@Test
+	public void testDocumentedValuesStaging083German() throws IOException {
+		// written in the language of the system: no "Possible values:", but the list looks the same
+		ConfValueOptions o = parse(new File(DATA_DIR, "dosbox-staging-0.83.0-de.conf"));
+		assertValues(o, "cpu", "core", false, "auto", "normal", "simple", "dynamic");
+		assertValues(o, "sblaster", "sbtype", false, "gb", "sb1", "sb2", "sbpro1", "sbpro2", "sb16", "ess", "none", "off");
+		assertTrue(o.get("dosbox", "machine").getValues().contains("svga_s3"));
+		assertTrue(o.get("sdl", "output").getValues().contains("opengl"));
 	}
 }

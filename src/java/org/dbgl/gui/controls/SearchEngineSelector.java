@@ -1,5 +1,7 @@
 /*
  *  Copyright (C) 2006-2025  Ronald Blankendaal
+ *  Modified for the DBGL Extended Edition by mrmercy82 (with the help of AI)
+ *  since 2026-11-07. Changes and their dates: CHANGELOG-en.txt, CHANGELOG-de.txt.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -88,6 +90,18 @@ public class SearchEngineSelector {
 		});
 	}
 
+	private Runnable onSelected_;
+
+	/** called when the toggle is switched on, e.g. to say what happens then */
+	public void setOnSelected(Runnable onSelected) {
+		onSelected_ = onSelected;
+	}
+
+	/** a tooltip of its own instead of the name of the source */
+	public void setToolTipText(String text) {
+		toolItem_.setToolTipText(text);
+	}
+
 	public void addToggleSelectionListener(boolean initialValue) {
 		if (!initialValue)
 			toolItem_.setImage(ImageService.createDisabledImage(ImageService.getResourceImage(display_, WebSearchEngine.getBySimpleName(settings_.getValue("gui", "searchengine")).getIcon())));
@@ -102,6 +116,8 @@ public class SearchEngineSelector {
 					toolItem_.setImage(
 						selected ? ImageService.getResourceImage(display_, engine.getIcon()): ImageService.createDisabledImage(ImageService.getResourceImage(display_, engine.getIcon())));
 					toolItem_.setData("selected", selected);
+					if (selected && (onSelected_ != null))
+						onSelected_.run();
 					if (addGameWizard_)
 						settings_.setBooleanValue("addgamewizard", "consultsearchengine", selected);
 				}

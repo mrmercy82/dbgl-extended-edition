@@ -1,5 +1,7 @@
 /*
  *  Copyright (C) 2006-2025  Ronald Blankendaal
+ *  Modified for the DBGL Extended Edition by mrmercy82 (with the help of AI)
+ *  since 2026-11-07. Changes and their dates: CHANGELOG-en.txt, CHANGELOG-de.txt.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -79,7 +81,7 @@ public class MigrateDialog extends JobWizardDialog<String> {
 			else
 				Mess_.on(shell_).key("dialog.migration.error.problem").warning();
 
-			status_.setText(text_.get("dialog.migration.reviewlog"));
+			setReviewStatus("dialog.migration.reviewlog");
 			status_.pack();
 
 			result_ = from_.getText();

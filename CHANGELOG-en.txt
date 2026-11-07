@@ -4,6 +4,50 @@ DBGL Extended Edition - Changes since 0.100 beta 17
 Based on DBGL 0.100 beta 17 by Ronald Blankendaal (https://dbgl.org), source code. Newest version first.
 
 
+0.101 alpha 42 (2026-11-07)
+---------------------------
+Fixed
+- Editing several profiles stopped with an error on OK since alpha 19, and
+  nothing was saved. It works again.
+- CD images: DBGL writes "mount"/"imgmount" to suit the DOSBox version
+  (DOSBox-X stopped with "PHYSFS couldn't mount", e.g. after switching from
+  Staging; Staging 0.83 gets "mount").
+- MobyGames: no more endless loop; the search runs in the background with
+  Cancel and clear error messages (for all sources).
+- Editing several profiles: switching on only the online lookup now runs it.
+- Lists of values from DOSBox configurations in other languages (e.g. a
+  German Staging file) are recognised.
+- Warning "not found" no longer for RAN2.EXE when there is RAN2.BAT.
+- The view icon always showed "small tiles" after start.
+
+New
+- MobyGames through its official API (free key in the settings), since
+  MobyGames blocks its web pages for programs.
+- New sources for game information: IGDB and SteamGridDB.
+- "Replace values..." for all selected profiles, with preview and lists of
+  the possible values.
+- "Find manuals and extras...": finds manuals, walkthroughs, maps, reference
+  cards, copy protection and soundtracks in the game folder and adds them as
+  links; optionally when a profile is added.
+- Optionally all DOSBox settings in the profile (like D-Fend Reloaded), per
+  profile or for new profiles; the drawbacks are shown right next to it.
+- View: buttons List / Tiles / Boxes and a "View" menu (Ctrl+1 to 7).
+- Shaders: presets of Staging 0.83, "Refresh" and "Try".
+- Several CDs: DBGL offers to add CD2, CD3 ... as well; hint on changing CDs
+  (Ctrl+F4, DOSBox-X host key+D).
+- Links in the profile can be freed with "Remove".
+- Icons for the links in the context menu "View".
+
+Improved
+- Faster: warning signs at start up to 4 times as fast, tile and box views
+  redraw far less often.
+- Undoing a change of several profiles shows a log of what changes first.
+- Empty logs in wizards now say "Done – no problems".
+- New windows open at a usable size.
+- Small things: window title with version, About window, button order in
+  "Switch profile", OK button bottom right, startup question without line
+  breaks.
+
 0.101 alpha 41 (2026-11-05)
 ---------------------------
 - Severe bug fixed (drive C and the game lost in all profiles): at the first

@@ -288,7 +288,44 @@ public class DosboxVersionDetector {
 				// skip this folder
 			}
 		}
+		if (staging083)
+			result.addAll(listShaderPresets(parents));
 		return new java.util.ArrayList<>(result);
+	}
+
+	/**
+	 * The shader presets of DOSBox Staging 0.83+, as "shader:preset" (e.g. "crt/crt-hyllian:vga-4k"): Staging looks for them
+	 * as shader-presets/&lt;shader&gt;/&lt;preset&gt;.preset in the same resource folders as the shaders (see LoadShaderPreset).
+	 */
+	static List<String> listShaderPresets(java.util.Collection<File> parents) {
+		java.util.Set<String> result = new java.util.TreeSet<>();
+		for (File parent: parents) {
+			File dir = new File(parent, "shader-presets");
+			if (!dir.isDirectory())
+				continue;
+			try (java.util.stream.Stream<java.nio.file.Path> files = java.nio.file.Files.walk(dir.toPath(), 5)) {
+				files.filter(p -> java.nio.file.Files.isRegularFile(p) && p.getFileName().toString().toLowerCase().endsWith(".preset")).forEach(p -> {
+					java.nio.file.Path rel = dir.toPath().relativize(p);
+					if (rel.getNameCount() < 2)
+						return; // a preset always belongs to a shader folder
+					String shader = rel.getParent().toString().replace(File.separatorChar, '/');
+					String preset = rel.getFileName().toString();
+					result.add(shader + ':' + preset.substring(0, preset.length() - 7));
+				});
+			} catch (IOException e) {
+				// skip this folder
+			}
+		}
+		return new java.util.ArrayList<>(result);
+	}
+
+	/**
+	 * Forget the shaders found so far, so that the next look into the folders finds shaders copied there meanwhile (without
+	 * restarting DBGL).
+	 */
+	public static void clearShaderCaches() {
+		SHADER_CACHE.clear();
+		X_SHADER_CACHE.clear();
 	}
 
 	private static final Map<String, List<String>> X_SHADER_CACHE = new ConcurrentHashMap<>();

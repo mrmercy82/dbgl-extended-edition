@@ -64,6 +64,10 @@ Viele Profile auf einmal
     im [autoexec], lässt sich Zeile für Zeile behalten.
   - Mehrere Profile bearbeiten, auch die weiteren Einstellungen.
   - Letzte Änderung mehrerer Profile rückgängig machen.
+  - Werte ersetzen, z. B. output=surface durch texture in allen markierten
+    Profilen, mit Vorschau und Auswahl der möglichen Werte.
+  - Handbücher, Lösungen, Karten, Referenzkarten, Kopierschutz und
+    Soundtracks im Spielordner finden und als Links ins Profil eintragen.
 
 Sicherheit und Komfort
   - Sicherung erstellen und wiederherstellen, auf Wunsch automatisch.
@@ -92,6 +96,15 @@ KLEINERE VERBESSERUNGEN
   - Shader-Listen mit selbst installierten Shadern, Seite "Sound Blaster 2".
   - Hilfe -> "Neue Features..." und "Changelog...".
   - Fehlgeschlagenes Booten: Meldung von DOSBox bleibt stehen.
+  - Ansicht als Liste, Kacheln (mit Screenshot) oder Boxen (mit Cover):
+    Knöpfe oben rechts oder Menü "Ansicht" (Strg+1 bis Strg+7).
+  - Spielinfos auch von IGDB und SteamGridDB, MobyGames über seine offizielle
+    API; Suche mit Abbrechen-Knopf und verständlichen Fehlermeldungen.
+  - Mehrere CDs: CD2, CD3 ... werden mit angeboten; CD-Abbilder werden je
+    nach DOSBox-Version richtig eingebunden (mount oder imgmount).
+  - Symbole für Links und Profil-Konfiguration im Kontextmenü "Anzeigen".
+  - Shader-Presets von DOSBox Staging 0.83, Shader neu einlesen, Probestart.
+  - Auf Wunsch alle DOSBox-Einstellungen im Profil (wie D-Fend Reloaded).
 
 
 FEHLERBEHEBUNGEN GEGENÜBER 0.100 BETA 17

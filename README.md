@@ -37,4 +37,4 @@ Bundled libraries keep their own licenses (Eclipse SWT and Nebula Gallery: EPL; 
 
 ## Feedback
 
-Problems and test results (especially on Windows and macOS): please open an issue. `TESTEN-WINDOWS.txt` has a test checklist (German).
+Problems and test results (especially on Windows and macOS): please open an issue.

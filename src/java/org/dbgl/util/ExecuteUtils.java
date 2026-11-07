@@ -232,6 +232,23 @@ public class ExecuteUtils {
 		new ConfigurableExecutor(preparedTemplate, preparedTemplate.getDosboxVersion(), preparedTemplate.getConfigurationCanonicalFile(), display).start();
 	}
 
+	/**
+	 * Start a profile or template once as it is in its dialog right now, e.g. to try a shader, without saving anything: it
+	 * runs from a temporary copy of its configuration, and a profile run is not counted.
+	 */
+	public static void doTryRun(TemplateProfileBase configurable, Display display) throws IOException {
+		if (configurable instanceof Template template) {
+			doRunTemplate(template, display);
+			return;
+		}
+		Profile prof = (Profile)configurable;
+		Profile tryProfile = ProfileFactory.createCopy(prof);
+		tryProfile.loadConfigurationData(TextService.getInstance(), prof.getConfigurationString(), prof.getConfigurationCanonicalFile());
+		tryProfile.getConfiguration().setFileLocation(FileLocationService.getInstance().getTmpConfLocation());
+		tryProfile.saveConfiguration(false);
+		new ConfigurableExecutor(tryProfile, prof.getDosboxVersion(), tryProfile.getConfigurationCanonicalFile(), display, -1).start();
+	}
+
 	public static void doRunProfile(ProfileRunMode mode, Profile prof, boolean prepareOnly, Display display) throws IOException {
 		doRunProfile(mode, prof, prof.getDosboxVersion(), prepareOnly, display);
 	}
@@ -256,7 +273,9 @@ public class ExecuteUtils {
 			}
 		}
 		boolean pc98Changed = prof.ensurePc98MachineForHdi(); // DOSBox-X crashes when booting an .HDI in IBM PC mode
-		if ((mode == ProfileRunMode.NORMAL) && !prepareOnly && (pc98Changed || prof.getConfiguration().getAutoexec().hasLongNamesWithSpaces())) {
+		// "mount D game.cue" works in Staging 0.83+ only; DOSBox-X quits with "PHYSFS couldn't mount ... unsupported"
+		boolean mountsChanged = prof.adaptImageMountsToDosbox();
+		if ((mode == ProfileRunMode.NORMAL) && !prepareOnly && (pc98Changed || mountsChanged || prof.getConfiguration().getAutoexec().hasLongNamesWithSpaces())) {
 			// written by an older DBGL version with names like "cd \M&M 3" and "MM 3.EXE", which DOS can't use; write it again
 			// with the short names DOSBox gives them (M&M3~1, MM3~1.EXE)
 			prof.saveConfiguration(false);

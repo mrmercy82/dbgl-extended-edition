@@ -72,6 +72,23 @@ public final class ProfileWarnings {
 	private static DosboxVersion privateCopy(DosboxVersion dbv) {
 		if (dbv == null)
 			return null;
+		// one copy per DOSBox version and state of its configuration file: the documented values of a DOSBox configuration
+		// (DOSBox-X: some 3000 lines) were parsed again for every profile checked
+		java.io.File conf = dbv.getConfiguration().getFile();
+		String key = dbv.getId() + "|" + dbv.getExe().getPath() + "|" + (conf == null ? "": conf.getPath() + "|" + conf.lastModified() + "|" + conf.length());
+		DosboxVersion cached = COPIES.get(key);
+		if (cached != null)
+			return cached;
+		DosboxVersion copy = newCopy(dbv);
+		COPIES.entrySet().removeIf(e -> e.getKey().startsWith(dbv.getId() + "|"));
+		COPIES.put(key, copy);
+		return copy;
+	}
+
+	/** only used while holding LOCK, one check after another */
+	private static final Map<String, DosboxVersion> COPIES = new java.util.HashMap<>();
+
+	private static DosboxVersion newCopy(DosboxVersion dbv) {
 		DosboxVersion copy = DosboxVersionFactory.create(dbv.getId(), dbv.getTitle(), dbv.getFamily(), dbv.getVersion(), dbv.isDefault(), dbv.isMultiConfig(), dbv.isUsingCurses(),
 			dbv.getDynamicOptions(), dbv.getPath().getPath(), dbv.getExe().getPath(), dbv.getExecutableParameters(), dbv.getConfiguration().getFile().getPath(), null, null, null, 0);
 		return copy;

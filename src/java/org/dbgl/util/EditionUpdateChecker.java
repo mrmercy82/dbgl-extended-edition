@@ -63,7 +63,8 @@ public final class EditionUpdateChecker {
 	static long[] key(String version) {
 		if (version == null)
 			return null;
-		Matcher m = VERSION_PATRN.matcher(version.trim().toLowerCase().replaceAll("[\\s_-]", ""));
+		// a test build ("0.101alpha42-test") counts as that version, so the update check does not offer the previous one
+		Matcher m = VERSION_PATRN.matcher(version.trim().toLowerCase().replaceAll("[\\s_-]", "").replaceAll("(test|dev)$", ""));
 		if (!m.matches())
 			return null;
 		String[] numbers = m.group(1).split("\\.");

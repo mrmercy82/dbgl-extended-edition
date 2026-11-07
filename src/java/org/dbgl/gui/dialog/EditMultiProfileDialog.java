@@ -167,6 +167,11 @@ public class EditMultiProfileDialog extends EditProfileDialog<List<Profile>> {
 	}
 
 	@Override
+	protected boolean canTryRun() {
+		return false;
+	}
+
+	@Override
 	protected void onShellCreated() {
 		TreeItem infoItem = addPageGenerator("dialog.template.tab.info", this::createInfoPage);
 		addPageGenerator(infoItem, "dialog.profile.tab.custominfo", this::createCustomInfoPage);
@@ -191,6 +196,10 @@ public class EditMultiProfileDialog extends EditProfileDialog<List<Profile>> {
 	protected Composite createInfoPage(TemplateProfileBase configurable, Composite parent) {
 		Composite composite = super.createInfoPage(configurable, parent, false);
 		engineSelector_.addToggleSelectionListener(false);
+		// for several profiles nothing happens at once: each is looked up with its own title after OK
+		engineSelector_.setToolTipText(text_.get("dialog.multiprofile.searchengine.tooltip"));
+		engineSelector_.setOnSelected(() -> Mess_.on(shell_).key("dialog.multiprofile.searchengine.info", new Object[] {profiles_.size(),
+			WebSearchEngine.getBySimpleName(settings_.getValue("gui", "searchengine")).getName()}).display());
 		return composite;
 	}
 	

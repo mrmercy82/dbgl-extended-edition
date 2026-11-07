@@ -167,6 +167,17 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 
 		Combo capturesLocation = Chain.on(profileDefGroup).lbl(l -> l.key("dialog.settings.captures")).cmb(
 			c -> c.horSpan(2).items(getCapsLocations()).select(settings_.getIntValue("profiledefaults", "capturespath"))).combo();
+		Button findExtras = Chain.on(profileDefGroup).lbl(l -> l.key("dialog.settings.findextras")).but(b -> b.horSpan(2).tooltip("dialog.settings.findextras.tooltip")
+				.select(settings_.getBooleanValue(org.dbgl.util.ExtrasFinder.SECTION, org.dbgl.util.ExtrasFinder.ON_ADD))).button();
+		// all DOSBox settings in each profile (as D-Fend Reloaded does), with the drawbacks right below, impossible to miss
+		boolean allSettingsBefore = org.dbgl.util.FullConfProfiles.enabled();
+		Button allSettings = Chain.on(profileDefGroup).lbl(l -> l.key("dialog.settings.allsettings.new")).but(b -> b.horSpan(2).select(allSettingsBefore)).button();
+		org.eclipse.swt.widgets.Label allSettingsWarning = new org.eclipse.swt.widgets.Label(profileDefGroup, SWT.WRAP);
+		GridData warningData = new GridData(SWT.BEGINNING, SWT.BEGINNING, false, false, 3, 1);
+		warningData.widthHint = 640;
+		allSettingsWarning.setLayoutData(warningData);
+		allSettingsWarning.setText(text_.get("dialog.settings.allsettings.warning"));
+		allSettingsWarning.setForeground(shell_.getDisplay().getSystemColor(SWT.COLOR_DARK_RED));
 
 		Group i18nGroup = Group_.on(generalComposite).layout(new GridLayout(2, false)).key("dialog.settings.i18n").build();
 		Combo localeCombo = Chain.on(i18nGroup).lbl(l -> l.key("dialog.settings.languagecountry")).cmb(c -> c.items(locales.keySet().toArray(new String[0])).visibleItemCount(20)).combo();
@@ -355,6 +366,7 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 		Spinner[] maxCoverArt = new Spinner[nrOfEngines];
 		Spinner[] maxScreenshots = new Spinner[nrOfEngines];
 		Text[] apiKeys = new Text[nrOfEngines];
+		Text[] apiSecrets = new Text[nrOfEngines];
 		Text[] platformFilterValues = new Text[nrOfEngines];
 
 		CTabFolder enginesTabFolder = CTabFolder_.on(enginesComposite).ctrl();
@@ -367,15 +379,30 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 			Group consultGroup = Group_.on(engineComposite).layoutData(new GridData(SWT.FILL, SWT.FILL, true, true)).layout(new GridLayout(3, false)).txt(
 				text_.get("dialog.settings.consult", new String[] {engine.getName()})).build();
 			
-			if (engine instanceof TheGamesDBSearchEngine) {
+			if (engine instanceof TheGamesDBSearchEngine || engine instanceof org.dbgl.util.searchengine.SteamGridDbSearchEngine || engine instanceof MobyGamesSearchEngine) {
 				apiKeys[i] = Chain.on(consultGroup).lbl(l -> l.key("dialog.settings.apikey")).txt(
 						t -> t.horSpan(2).val(settings_.getValue(engine.getSimpleName(), "api_key"))).text();
+			}
+			if (engine instanceof org.dbgl.util.searchengine.IgdbSearchEngine) {
+				apiKeys[i] = Chain.on(consultGroup).lbl(l -> l.key("dialog.settings.igdb.clientid")).txt(
+						t -> t.horSpan(2).val(settings_.getValue(engine.getSimpleName(), org.dbgl.util.searchengine.IgdbSearchEngine.CLIENT_ID))).text();
+				apiSecrets[i] = Chain.on(consultGroup).lbl(l -> l.key("dialog.settings.igdb.clientsecret")).txt(
+						t -> t.horSpan(2).val(settings_.getValue(engine.getSimpleName(), org.dbgl.util.searchengine.IgdbSearchEngine.CLIENT_SECRET))).text();
+			}
+			if (engine instanceof org.dbgl.util.searchengine.IgdbSearchEngine || engine instanceof org.dbgl.util.searchengine.SteamGridDbSearchEngine || engine instanceof MobyGamesSearchEngine) {
+				// where to get the free key: a link, and what this source gives
+				org.eclipse.swt.widgets.Link how = new org.eclipse.swt.widgets.Link(consultGroup, SWT.WRAP);
+				GridData howData = new GridData(SWT.FILL, SWT.BEGINNING, true, false, 3, 1);
+				howData.widthHint = 480;
+				how.setLayoutData(howData);
+				how.setText(text_.get("dialog.settings." + engine.getSimpleName() + ".howto"));
+				how.addListener(SWT.Selection, e -> org.dbgl.util.SystemUtils.openForBrowsing(e.text, shell_));
 			}
 			
 			setTitle[i] = Chain.on(consultGroup).lbl(l -> l.key("dialog.settings.settitle")).but(b -> b.horSpan(2).select(settings_.getBooleanValue(engine.getSimpleName(), "set_title"))).button();
 			setDev[i] = Chain.on(consultGroup).lbl(l -> l.key("dialog.settings.setdeveloper")).but(
 				b -> b.horSpan(2).select(settings_.getBooleanValue(engine.getSimpleName(), "set_developer"))).button();
-			if (engine instanceof MobyGamesSearchEngine || engine instanceof MetropolisSearchEngine || engine instanceof TheGamesDBSearchEngine) {
+			if (engine instanceof MobyGamesSearchEngine || engine instanceof MetropolisSearchEngine || engine instanceof TheGamesDBSearchEngine || engine instanceof org.dbgl.util.searchengine.IgdbSearchEngine) {
 				setPub[i] = Chain.on(consultGroup).lbl(l -> l.key("dialog.settings.setpublisher")).but(
 					b -> b.horSpan(2).select(settings_.getBooleanValue(engine.getSimpleName(), "set_publisher"))).button();
 			}
@@ -383,15 +410,15 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 			setGenre[i] = Chain.on(consultGroup).lbl(l -> l.key("dialog.settings.setgenre")).but(b -> b.horSpan(2).select(settings_.getBooleanValue(engine.getSimpleName(), "set_genre"))).button();
 			String name = engine instanceof MetropolisSearchEngine ? MobyGamesSearchEngine.getInstance().getName(): engine.getName();
 			setLink[i] = Chain.on(consultGroup).lbl(l -> l.key("dialog.settings.setlink", name)).but(b -> b.horSpan(2).select(settings_.getBooleanValue(engine.getSimpleName(), "set_link"))).button();
-			if (engine instanceof MobyGamesSearchEngine || engine instanceof MetropolisSearchEngine) {
+			if (engine instanceof MobyGamesSearchEngine || engine instanceof MetropolisSearchEngine || engine instanceof org.dbgl.util.searchengine.IgdbSearchEngine) {
 				setRank[i] = Chain.on(consultGroup).lbl(l -> l.key("dialog.settings.setrank", columnNames_[Constants.RO_COLUMN_NAMES + 8])).but(
 					b -> b.horSpan(2).select(settings_.getBooleanValue(engine.getSimpleName(), "set_rank"))).button();
 			}
-			if (engine instanceof MobyGamesSearchEngine || engine instanceof MetropolisSearchEngine || engine instanceof TheGamesDBSearchEngine) {
+			if (engine instanceof MobyGamesSearchEngine || engine instanceof MetropolisSearchEngine || engine instanceof TheGamesDBSearchEngine || engine instanceof org.dbgl.util.searchengine.IgdbSearchEngine) {
 				setDescr[i] = Chain.on(consultGroup).lbl(l -> l.key("dialog.settings.setdescription")).but(
 					b -> b.horSpan(2).select(settings_.getBooleanValue(engine.getSimpleName(), "set_description"))).button();
 			}
-			if (engine instanceof MobyGamesSearchEngine || engine instanceof MetropolisSearchEngine || engine instanceof TheGamesDBSearchEngine) {
+			if (engine instanceof MobyGamesSearchEngine || engine instanceof MetropolisSearchEngine || engine instanceof TheGamesDBSearchEngine || engine instanceof org.dbgl.util.searchengine.IgdbSearchEngine || engine instanceof org.dbgl.util.searchengine.SteamGridDbSearchEngine) {
 				chooseCoverArt[i] = Chain.on(consultGroup).lbl(l -> l.key("dialog.settings.choosecoverart")).but(
 					b -> b.select(settings_.getBooleanValue(engine.getSimpleName(), "choose_coverart"))).button();
 
@@ -403,7 +430,7 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 			}
 			chooseScreenshot[i] = Chain.on(consultGroup).lbl(l -> l.key("dialog.settings.choosescreenshot")).but(
 				b -> b.horSpan(2).select(settings_.getBooleanValue(engine.getSimpleName(), "choose_screenshot"))).button();
-			if (engine instanceof MobyGamesSearchEngine || engine instanceof MetropolisSearchEngine || engine instanceof TheGamesDBSearchEngine) {
+			if (engine instanceof MobyGamesSearchEngine || engine instanceof MetropolisSearchEngine || engine instanceof TheGamesDBSearchEngine || engine instanceof org.dbgl.util.searchengine.IgdbSearchEngine || engine instanceof org.dbgl.util.searchengine.SteamGridDbSearchEngine) {
 				maxCoverArt[i] = Chain.on(consultGroup).lbl(l -> l.key("dialog.settings.multieditmaxcoverart")).spn(
 					s -> s.min(0).horSpan(2).select(settings_.getIntValue(engine.getSimpleName(), "multi_max_coverart"))).spinner();
 			}
@@ -484,6 +511,9 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 				settings_.setIntValue("profiledefaults", "confpath", confLocation.getSelectionIndex());
 				settings_.setIntValue("profiledefaults", "conffile", confFilename.getSelectionIndex());
 				settings_.setIntValue("profiledefaults", "capturespath", capturesLocation.getSelectionIndex());
+				settings_.setBooleanValue(org.dbgl.util.ExtrasFinder.SECTION, org.dbgl.util.ExtrasFinder.ON_ADD, findExtras.getSelection());
+				if (allSettings.getSelection() != allSettingsBefore)
+					changeAllSettings(allSettings.getSelection());
 				for (int i = 0; i < columnNames_.length; i++) {
 					settings_.setBooleanValue("gui", "column" + (i + 1) + "visible", visibleColumns[allColumnIds.indexOf(i)].getChecked());
 				}
@@ -513,31 +543,35 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 					WebSearchEngine engine = SettingsService.availableWebSearchEngines().get(i);
 					settings_.setBooleanValue(engine.getSimpleName(), "set_title", setTitle[i].getSelection());
 					settings_.setBooleanValue(engine.getSimpleName(), "set_developer", setDev[i].getSelection());
-					if (engine instanceof MobyGamesSearchEngine || engine instanceof MetropolisSearchEngine || engine instanceof TheGamesDBSearchEngine) {
+					if (engine instanceof MobyGamesSearchEngine || engine instanceof MetropolisSearchEngine || engine instanceof TheGamesDBSearchEngine || engine instanceof org.dbgl.util.searchengine.IgdbSearchEngine) {
 						settings_.setBooleanValue(engine.getSimpleName(), "set_publisher", setPub[i].getSelection());
 						settings_.setBooleanValue(engine.getSimpleName(), "set_description", setDescr[i].getSelection());
 					}
 					settings_.setBooleanValue(engine.getSimpleName(), "set_year", setYear[i].getSelection());
 					settings_.setBooleanValue(engine.getSimpleName(), "set_genre", setGenre[i].getSelection());
 					settings_.setBooleanValue(engine.getSimpleName(), "set_link", setLink[i].getSelection());
-					if (engine instanceof MobyGamesSearchEngine || engine instanceof MetropolisSearchEngine) {
+					if (engine instanceof MobyGamesSearchEngine || engine instanceof MetropolisSearchEngine || engine instanceof org.dbgl.util.searchengine.IgdbSearchEngine) {
 						settings_.setBooleanValue(engine.getSimpleName(), "set_rank", setRank[i].getSelection());
 					}
 					if (engine instanceof MetropolisSearchEngine) {
 						settings_.setBooleanValue(engine.getSimpleName(), "force_all_regions_coverart", allRegionsCoverArt[i].getSelection());
 					}
-					if (engine instanceof MobyGamesSearchEngine || engine instanceof MetropolisSearchEngine || engine instanceof TheGamesDBSearchEngine) {
+					if (engine instanceof MobyGamesSearchEngine || engine instanceof MetropolisSearchEngine || engine instanceof TheGamesDBSearchEngine || engine instanceof org.dbgl.util.searchengine.IgdbSearchEngine || engine instanceof org.dbgl.util.searchengine.SteamGridDbSearchEngine) {
 						settings_.setBooleanValue(engine.getSimpleName(), "choose_coverart", chooseCoverArt[i].getSelection());
 						settings_.setIntValue(engine.getSimpleName(), "multi_max_coverart", maxCoverArt[i].getSelection());
 					}
-					if (engine instanceof MobyGamesSearchEngine || engine instanceof MetropolisSearchEngine || engine instanceof PouetSearchEngine || engine instanceof TheGamesDBSearchEngine) {
+					if (engine instanceof MobyGamesSearchEngine || engine instanceof MetropolisSearchEngine || engine instanceof PouetSearchEngine || engine instanceof TheGamesDBSearchEngine || engine instanceof org.dbgl.util.searchengine.IgdbSearchEngine || engine instanceof org.dbgl.util.searchengine.SteamGridDbSearchEngine) {
 						settings_.setBooleanValue(engine.getSimpleName(), "choose_screenshot", chooseScreenshot[i].getSelection());
 						settings_.setIntValue(engine.getSimpleName(), "multi_max_screenshot", maxScreenshots[i].getSelection());
 					}
-					if (engine instanceof TheGamesDBSearchEngine) {
-						settings_.setValue(engine.getSimpleName(), "api_key", apiKeys[i].getText());
+					if (engine instanceof TheGamesDBSearchEngine || engine instanceof org.dbgl.util.searchengine.SteamGridDbSearchEngine || engine instanceof MobyGamesSearchEngine) {
+						settings_.setValue(engine.getSimpleName(), "api_key", apiKeys[i].getText().trim());
 					}
-					if (engine instanceof MobyGamesSearchEngine || engine instanceof MetropolisSearchEngine || engine instanceof PouetSearchEngine || engine instanceof TheGamesDBSearchEngine) {
+					if (engine instanceof org.dbgl.util.searchengine.IgdbSearchEngine) {
+						settings_.setValue(engine.getSimpleName(), org.dbgl.util.searchengine.IgdbSearchEngine.CLIENT_ID, apiKeys[i].getText().trim());
+						settings_.setValue(engine.getSimpleName(), org.dbgl.util.searchengine.IgdbSearchEngine.CLIENT_SECRET, apiSecrets[i].getText().trim());
+					}
+					if (engine instanceof MobyGamesSearchEngine || engine instanceof MetropolisSearchEngine || engine instanceof PouetSearchEngine || engine instanceof TheGamesDBSearchEngine || engine instanceof org.dbgl.util.searchengine.IgdbSearchEngine || engine instanceof org.dbgl.util.searchengine.SteamGridDbSearchEngine) {
 						String vOld = settings_.getMultilineValue(engine.getSimpleName(), "platform_filter", platformFilterValues[i].getLineDelimiter());
 						String vNew = platformFilterValues[i].getText();
 						if (!vOld.equals(vNew)) {
@@ -698,5 +732,29 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 
 	public static List<String> getCapsLocations() {
 		return Arrays.asList(TextService.getInstance().get("dialog.settings.capturestogether"), TextService.getInstance().get("dialog.settings.capturesseparate"));
+	}
+	/**
+	 * Switch the option "all DOSBox settings in each profile": say clearly what it costs, and offer to bring the existing
+	 * profiles in line now (fill them up, or take out again what equals the DOSBox configuration).
+	 */
+	private void changeAllSettings(boolean on) {
+		int profiles = 0;
+		try {
+			profiles = new org.dbgl.model.repository.ProfileRepository().list("", "", new org.dbgl.model.repository.DosboxVersionRepository().listAll()).size();
+		} catch (java.sql.SQLException e) {
+			e.printStackTrace();
+		}
+		// the default for new profiles; existing ones only when asked to, each profile can also be switched in its own window
+		settings_.setBooleanValue(org.dbgl.util.FullConfProfiles.SECTION, org.dbgl.util.FullConfProfiles.KEY, on);
+		if ((profiles == 0) || !Mess_.on(shell_).key(on ? "dialog.settings.allsettings.existingon": "dialog.settings.allsettings.existingoff", new Object[] {profiles}).confirm())
+			return;
+		try {
+			int[] r = org.dbgl.gui.controls.BusyTask.run(shell_, text_.get("dialog.settings.allsettings.working"), () -> org.dbgl.util.FullConfProfiles.applyToAll(on));
+			Mess_.on(shell_).key("dialog.settings.allsettings.done", new Object[] {r[0], r[1]}).display();
+		} catch (org.dbgl.gui.controls.BusyTask.Cancelled e) {
+			// the work goes on in the background; each profile is complete or not touched
+		} catch (Exception e) {
+			Mess_.on(shell_).exception(e).warning();
+		}
 	}
 }

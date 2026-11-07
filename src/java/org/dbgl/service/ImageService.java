@@ -88,6 +88,8 @@ public class ImageService {
 	public static final String IMG_POUET = "pouet.png";
 	public static final String IMG_HOTUD = "hotud.png";
 	public static final String IMG_THEGAMESDB = "thegamesdb.png";
+	public static final String IMG_IGDB = "igdb.png";
+	public static final String IMG_STEAMGRIDDB = "steamgriddb.png";
 	public static final String IMG_SHARE = "share.png";
 	public static final String IMG_UNDO = "undo.png";
 	public static final String IMG_TOPDOG = "topdog.png";
@@ -103,6 +105,10 @@ public class ImageService {
 	public static final String IMG_SCREENSHOTS = "screenshots.png";
 	public static final String IMG_NOTES = "notes.png";
 	public static final String IMG_WHATSNEW = "whatsnew.png";
+	public static final String IMG_PROFILE_CONF = "profile_conf.png";
+	public static final String IMG_EXTRA_WEB = "extra_web.png";
+	/** per kind of extra (see ExtrasFinder.Kind): "extra_" + kind in lower case + ".png" */
+	public static final String IMG_EXTRA_PREFIX = "extra_";
 
 	private static final Color widgetBackgroundColor = Display.getDefault().getSystemColor(SWT.COLOR_WIDGET_BACKGROUND);
 	private static final Color whiteColor = Display.getDefault().getSystemColor(SWT.COLOR_WHITE);

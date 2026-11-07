@@ -197,7 +197,8 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 
 	@Override
 	protected String getDialogTitle() {
-		return text_.get("main.title", new Object[] {Constants.PROGRAM_VERSION}) + " - " + Constants.EDITION_NAME;
+		// e.g. "DOSBox Game Launcher - Extended Edition v0.101 alpha 42"
+		return Constants.PROGRAM_NAME_FULL + " - " + Constants.EDITION_NAME + " v" + org.dbgl.util.EditionUpdateChecker.readable(Constants.PROGRAM_VERSION);
 	}
 
 	@Override
@@ -860,9 +861,14 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				if (shell_.isDisposed())
 					return;
 				StringBuilder list = new StringBuilder();
-				for (int i = 0; i < mismatching.size(); i++)
-					list.append(mismatching.get(i).getTitle()).append(": ").append(mismatching.get(i).getFamily()).append(' ').append(mismatching.get(i).getVersion()).append(" -> ").append(detected.get(i)).append('\n');
-				if (!Mess_.on(shell_).key("dialog.main.confirm.versionmismatch", new Object[] {list.toString().trim()}).confirm())
+				for (int i = 0; i < mismatching.size(); i++) {
+					// short, so that a line fits: "title: 0.82.2 -> 0.83.0", the family only where it changes
+					DosboxVersion v = mismatching.get(i);
+					DosboxVersionDetector.Result r = detected.get(i);
+					boolean sameFamily = r.family_.equalsIgnoreCase(v.getFamily());
+					list.append(v.getTitle()).append(": ").append(sameFamily ? "": v.getFamily() + ' ').append(v.getVersion()).append(" -> ").append(sameFamily ? "": r.family_ + ' ').append(r.version_).append('\n');
+				}
+				if (!Mess_.on(shell_).key("dialog.main.confirm.versionmismatch", new Object[] {list.toString().trim()}).confirmUnwrapped())
 					return;
 				try {
 					for (int i = 0; i < mismatching.size(); i++) {
@@ -1166,6 +1172,8 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			}
 		}).build();
 
+		createViewMenu(appMenuBar);
+
 		// what is new since DBGL 0.100 beta 17 and the full changelog, above 'About' (on macOS 'About' is in the application menu)
 		Menu helpMenu = createMenu(appMenuBar, "dialog.main.menu.help");
 		MenuItem_.on(helpMenu).key("dialog.main.menu.newfeatures").image(ImageService.IMG_WHATSNEW).listen(new SelectionAdapter() {
@@ -1242,14 +1250,9 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 
 		initColumnIds();
 
-		ViewType[] views = new ViewType[] {new ViewType(ProfilesListType.TABLE.toString(), ImageService.IMG_TABLE, "dialog.main.profiles.viewtype.table"),
-				new ViewType(ProfilesListType.SMALL_TILES.toString(), ImageService.IMG_TILES_SMALL, "dialog.main.profiles.viewtype.smalltiles"),
-				new ViewType(ProfilesListType.MEDIUM_TILES.toString(), ImageService.IMG_TILES_MEDIUM, "dialog.main.profiles.viewtype.mediumtiles"),
-				new ViewType(ProfilesListType.LARGE_TILES.toString(), ImageService.IMG_TILES_LARGE, "dialog.main.profiles.viewtype.largetiles"),
-				new ViewType(ProfilesListType.SMALL_BOXES.toString(), ImageService.IMG_BOXES_SMALL, "dialog.main.profiles.viewtype.smallboxes"),
-				new ViewType(ProfilesListType.MEDIUM_BOXES.toString(), ImageService.IMG_BOXES_MEDIUM, "dialog.main.profiles.viewtype.mediumboxes"),
-				new ViewType(ProfilesListType.LARGE_BOXES.toString(), ImageService.IMG_BOXES_LARGE, "dialog.main.profiles.viewtype.largeboxes")};
-		ViewType currentViewType = settings_.getValue("gui", "viewstyle").equalsIgnoreCase(views[0].getName()) ? views[0]: views[1];
+		ViewType[] views = VIEWS;
+		// the view that is set (before, any tile or box view showed the symbol of small tiles after a start)
+		ViewType currentViewType = views[currentViewIndex()];
 
 		Menu viewMenu = new Menu(shell_, SWT.POP_UP);
 		for (ViewType view: views) {
@@ -1266,6 +1269,21 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		}
 
 		ToolBar toolBarRight = createToolBar(toolbarComposite);
+		// List | Tiles | Boxes as labelled buttons, easy to see; the size comes from the arrow next to them or the View menu
+		String[] kindKeys = {"dialog.main.view.list", "dialog.main.view.tiles", "dialog.main.view.boxes"};
+		String[] kindImages = {ImageService.IMG_TABLE, ImageService.IMG_TILES_MEDIUM, ImageService.IMG_BOXES_MEDIUM};
+		for (int k = 0; k < 3; k++) {
+			final int kind = k;
+			viewKindItems_[k] = new ToolItem(toolBarRight, SWT.RADIO);
+			viewKindItems_[k].setImage(ImageService.getResourceImage(shell_.getDisplay(), kindImages[k]));
+			viewKindItems_[k].setText(text_.get(kindKeys[k]));
+			viewKindItems_[k].setToolTipText(text_.get(kindKeys[k] + ".tooltip"));
+			viewKindItems_[k].addListener(SWT.Selection, e -> {
+				if (viewKindItems_[kind].getSelection() && (kindOfView(currentViewIndex()) != kind))
+					toggleProfileViewType(VIEWS[kind == 0 ? 0: 1 + 3 * (kind - 1) + settings_.getIntValue("gui", kind == 1 ? "viewsize_tiles": "viewsize_boxes")]);
+			});
+		}
+		viewKindItems_[kindOfView(currentViewIndex())].setSelection(true);
 		viewSelector_ = createImageToolItem(toolBarRight, SWT.DROP_DOWN, ImageService.getResourceImage(shell_.getDisplay(), currentViewType.getImage()), text_.get(currentViewType.getDisplayName()),
 			new SelectionAdapter() {
 				@Override
@@ -1312,6 +1330,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			});
 		displayNotes.setSelection(settings_.getBooleanValue("gui", "notesvisible"));
 
+		createViewHint(composite, toolbarComposite);
 		sashInfoForm_ = createSashForm(composite, 1);
 		filterFolder_ = CTabFolder_.on(sashInfoForm_).style(SWT.BORDER).ctrl();
 		filterFolder_.addSelectionListener(new SelectionAdapter() {
@@ -1547,6 +1566,18 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		MenuItem_.on(menu).build();
 		MenuItem_.on(menu).key("dialog.main.profile.add").image(ImageService.IMG_NEW).listen(addProfAdapter).build();
 		MenuItem_.on(menu).key("dialog.main.profile.edit").image(ImageService.IMG_EDIT).listen(editProfAdapter).build();
+		MenuItem_.on(menu).key("dialog.main.profile.replacevalues").image(ImageService.IMG_EDIT).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				doReplaceValues();
+			}
+		}).build();
+		MenuItem_.on(menu).key("dialog.main.profile.findextras").image(ImageService.IMG_ZOOM).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				doFindExtras();
+			}
+		}).build();
 		MenuItem_.on(menu).key("dialog.main.profile.duplicate").image(ImageService.IMG_DUPLICATE).listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
@@ -1628,10 +1659,20 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 
 					for (MenuItem item: profileViewSubMenu.getItems())
 						item.dispose();
+					// the profile configuration file always first, then the links (manuals, extras, ...)
+					MenuItem_.on(profileViewSubMenu).key("dialog.main.profile.view.conf").image(ImageService.IMG_PROFILE_CONF).listen(new SelectionAdapter() {
+						@Override
+						public void widgetSelected(SelectionEvent evnt) {
+							SystemUtils.openForEditing(prof.getConfigurationCanonicalFile(), getParent());
+						}
+					}).build();
+					if (Stream.of(prof.getLinks()).anyMatch(l -> StringUtils.isNotBlank(l.getDestination())))
+						MenuItem_.on(profileViewSubMenu).build();
 					for (org.dbgl.model.Link lnk: prof.getLinks()) {
 						String destination = lnk.getDestination();
 						if (StringUtils.isNotBlank(destination)) {
-							MenuItem_.on(profileViewSubMenu).txt(StringUtils.abbreviateMiddle(lnk.getDisplayTitle(), "....", 80)).listen(new SelectionAdapter() {
+							MenuItem_.on(profileViewSubMenu).txt(StringUtils.abbreviateMiddle(lnk.getDisplayTitle(), "....", 80))
+									.image(org.dbgl.util.ExtrasFinder.iconOf(lnk.getTitle(), destination)).listen(new SelectionAdapter() {
 								@Override
 								public void widgetSelected(SelectionEvent evnt) {
 									SystemUtils.openForBrowsing(destination, getParent());
@@ -1639,12 +1680,6 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 							}).build();
 						}
 					}
-					MenuItem_.on(profileViewSubMenu).key("dialog.main.profile.view.conf").listen(new SelectionAdapter() {
-						@Override
-						public void widgetSelected(SelectionEvent evnt) {
-							SystemUtils.openForEditing(prof.getConfigurationCanonicalFile(), getParent());
-						}
-					}).build();
 				}
 			}
 		});
@@ -1789,7 +1824,95 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		viewSelector_.setImage(ImageService.getResourceImage(shell_.getDisplay(), newViewType.getImage()));
 		viewSelector_.setToolTipText(text_.get(newViewType.getDisplayName()));
 		settings_.setValue("gui", "viewstyle", newViewType.getName().toLowerCase());
+		int index = currentViewIndex();
+		if (index > 0) // remember the size per kind, for the List | Tiles | Boxes buttons
+			settings_.setIntValue("gui", kindOfView(index) == 1 ? "viewsize_tiles": "viewsize_boxes", (index - 1) % 3);
+		for (int k = 0; k < viewKindItems_.length; k++)
+			if (viewKindItems_[k] != null)
+				viewKindItems_[k].setSelection(k == kindOfView(index));
+		for (int i = 0; i < viewMenuItems_.length; i++)
+			if (viewMenuItems_[i] != null)
+				viewMenuItems_[i].setSelection(i == index);
+		settings_.setBooleanValue("gui", "viewhintshown", true); // found it: no more hint
+		if ((viewHint_ != null) && !viewHint_.isDisposed()) {
+			Composite p = viewHint_.getParent();
+			viewHint_.dispose();
+			p.layout();
+		}
 		rebuildProfilesTable();
+	}
+
+	/** the 7 views: list, then small, medium and large tiles, then small, medium and large boxes */
+	private static final ViewType[] VIEWS = {new ViewType(ProfilesListType.TABLE.toString(), ImageService.IMG_TABLE, "dialog.main.profiles.viewtype.table"),
+			new ViewType(ProfilesListType.SMALL_TILES.toString(), ImageService.IMG_TILES_SMALL, "dialog.main.profiles.viewtype.smalltiles"),
+			new ViewType(ProfilesListType.MEDIUM_TILES.toString(), ImageService.IMG_TILES_MEDIUM, "dialog.main.profiles.viewtype.mediumtiles"),
+			new ViewType(ProfilesListType.LARGE_TILES.toString(), ImageService.IMG_TILES_LARGE, "dialog.main.profiles.viewtype.largetiles"),
+			new ViewType(ProfilesListType.SMALL_BOXES.toString(), ImageService.IMG_BOXES_SMALL, "dialog.main.profiles.viewtype.smallboxes"),
+			new ViewType(ProfilesListType.MEDIUM_BOXES.toString(), ImageService.IMG_BOXES_MEDIUM, "dialog.main.profiles.viewtype.mediumboxes"),
+			new ViewType(ProfilesListType.LARGE_BOXES.toString(), ImageService.IMG_BOXES_LARGE, "dialog.main.profiles.viewtype.largeboxes")};
+	private final ToolItem[] viewKindItems_ = new ToolItem[3];
+	private final MenuItem[] viewMenuItems_ = new MenuItem[VIEWS.length];
+	private Composite viewHint_;
+
+	private int currentViewIndex() {
+		String style = settings_.getValue("gui", "viewstyle");
+		for (int i = 0; i < VIEWS.length; i++)
+			if (VIEWS[i].getName().equalsIgnoreCase(style))
+				return i;
+		return 0;
+	}
+
+	/** 0 list, 1 tiles, 2 boxes */
+	private static int kindOfView(int index) {
+		return index == 0 ? 0: (index <= 3 ? 1: 2);
+	}
+
+	/** the View menu: all 7 views, Ctrl+1 to Ctrl+7 */
+	private void createViewMenu(Menu appMenuBar) {
+		Menu viewMenu = createMenu(appMenuBar, "dialog.main.menu.view");
+		for (int i = 0; i < VIEWS.length; i++) {
+			if ((i == 1) || (i == 4))
+				new MenuItem(viewMenu, SWT.SEPARATOR);
+			final int index = i;
+			MenuItem item = new MenuItem(viewMenu, SWT.RADIO);
+			item.setText(text_.get(VIEWS[i].getDisplayName()) + (SystemUtils.IS_OSX ? "\tCmd+": "\tCtrl+") + (i + 1));
+			item.setAccelerator(SWT.MOD1 | ('1' + i));
+			item.setImage(ImageService.getResourceImage(shell_.getDisplay(), VIEWS[i].getImage()));
+			item.addListener(SWT.Selection, e -> {
+				if (item.getSelection() && (currentViewIndex() != index))
+					toggleProfileViewType(VIEWS[index]);
+			});
+			viewMenuItems_[i] = item;
+		}
+		viewMenuItems_[currentViewIndex()].setSelection(true);
+	}
+
+	/** once, while the list view is used: a small bar that tells about the tile and box views */
+	private void createViewHint(Composite parent, Control below) {
+		if (settings_.getBooleanValue("gui", "viewhintshown") || (currentViewIndex() != 0))
+			return;
+		viewHint_ = new Composite(parent, SWT.BORDER);
+		viewHint_.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+		GridLayout layout = new GridLayout(4, false);
+		layout.marginHeight = 2;
+		viewHint_.setLayout(layout);
+		Label icon = new Label(viewHint_, SWT.NONE);
+		icon.setImage(ImageService.getResourceImage(shell_.getDisplay(), ImageService.IMG_TILES_MEDIUM));
+		Label text = new Label(viewHint_, SWT.WRAP);
+		text.setText(text_.get("dialog.main.view.hint"));
+		text.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+		Button tryIt = new Button(viewHint_, SWT.PUSH);
+		tryIt.setText(text_.get("dialog.main.view.hint.try"));
+		tryIt.addListener(SWT.Selection, e -> display_.asyncExec(() -> toggleProfileViewType(VIEWS[2])));
+		Button never = new Button(viewHint_, SWT.PUSH);
+		never.setText(text_.get("dialog.main.view.hint.never"));
+		never.addListener(SWT.Selection, e -> {
+			settings_.setBooleanValue("gui", "viewhintshown", true);
+			Composite p = viewHint_.getParent();
+			viewHint_.dispose();
+			p.layout();
+		});
+		viewHint_.moveBelow(below);
 	}
 
 	@Override
@@ -2292,16 +2415,45 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 	}
 
 	/** Show the warning sign of a profile in the list, if it is there. May be called from any thread. */
+	private final java.util.Set<Profile> pendingWarningSigns_ = new java.util.LinkedHashSet<>();
+	private boolean warningSignsScheduled_;
+
+	/**
+	 * Show the warning sign of a profile; called from the background checks, one profile at a time. The signs are collected and
+	 * shown together a moment later: in the tile and box views each sign repainted the whole view, with 1000 profiles some 600
+	 * times in a row at startup.
+	 */
 	private void showWarningSign(Profile prof) {
 		if (display_.isDisposed())
 			return;
-		display_.asyncExec(() -> {
-			if (shell_.isDisposed() || (profilesList_ == null) || !settings_.getBooleanValue("gui", "profilewarnings"))
+		synchronized (pendingWarningSigns_) {
+			pendingWarningSigns_.add(prof);
+			if (warningSignsScheduled_)
 				return;
-			int index = BaseRepository.indexOf(profilesList_, prof);
-			if ((index >= 0) && (index < profileTable_.getItemCount()))
-				profileTable_.getItem(index).setWarning(true);
-		});
+			warningSignsScheduled_ = true;
+		}
+		display_.asyncExec(() -> display_.timerExec(150, this::applyWarningSigns));
+	}
+
+	private void applyWarningSigns() {
+		List<Profile> profiles;
+		synchronized (pendingWarningSigns_) {
+			profiles = new ArrayList<>(pendingWarningSigns_);
+			pendingWarningSigns_.clear();
+			warningSignsScheduled_ = false;
+		}
+		if (shell_.isDisposed() || (profilesList_ == null) || !settings_.getBooleanValue("gui", "profilewarnings"))
+			return;
+		profileTable_.setRedraw(false);
+		try {
+			for (Profile prof: profiles) {
+				int index = BaseRepository.indexOf(profilesList_, prof);
+				if ((index >= 0) && (index < profileTable_.getItemCount()))
+					profileTable_.getItem(index).setWarning(true);
+			}
+		} finally {
+			profileTable_.setRedraw(true);
+		}
 	}
 
 	private void setDosboxTableItem(TableItem newItemTableItem, DosboxVersion dbversion) {
@@ -2495,7 +2647,9 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		if (info == null)
 			return;
 		String when = java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT).format(info.when());
-		if (!Mess_.on(shell_).key("dialog.main.confirm.undobulk", new Object[] {info.label(), when, info.profiles()}).confirm())
+		// what goes back, profile by profile, so the undo can be checked before
+		String changes = org.dbgl.util.BulkUndo.preview(dbversionsList_, 2000);
+		if (!Mess_.on(shell_).key("dialog.main.confirm.undobulk3", new Object[] {info.label(), when, info.profiles()}).confirmUnwrapped(changes.isEmpty() ? "-": changes))
 			return;
 		try {
 			List<Integer> restored = org.dbgl.util.BulkUndo.undo(dbversionsList_);
@@ -2523,6 +2677,46 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		item.setText("   " + filter.getTitle() + "   ");
 		item.setData(filter.getId());
 		return item;
+	}
+
+	/** link manuals, walkthroughs, maps and soundtracks found in the game folders of the selected profiles (see ExtrasDialog) */
+	private void doFindExtras() {
+		if (profileTable_.getSelectionIndex() == -1)
+			return;
+		List<Profile> loadedProfiles = new ProfileLoader(shell_, getSelectedProfiles()).open();
+		if (loadedProfiles == null)
+			return;
+		java.util.Map<Profile, List<org.dbgl.util.ExtrasFinder.Extra>> found;
+		try { // many games or large folders take a moment: a bar shows how far it is, Cancel stops waiting
+			java.util.concurrent.atomic.AtomicInteger done = new java.util.concurrent.atomic.AtomicInteger();
+			found = org.dbgl.gui.controls.BusyTask.run(shell_, text_.get("dialog.extras.searching"), done, loadedProfiles.size(), () -> ExtrasDialog.search(loadedProfiles, done));
+		} catch (org.dbgl.gui.controls.BusyTask.Cancelled e) {
+			return;
+		} catch (Exception e) {
+			Mess_.on(shell_).exception(e).warning();
+			return;
+		}
+		Integer added = new ExtrasDialog(shell_, loadedProfiles, found).open();
+		if (added != null) {
+			updateProfilesList(getSelectedProfileIds());
+			displayProfileInformation(false);
+			Mess_.on(shell_).key("dialog.extras.done", new Object[] {added}).display();
+		}
+	}
+
+	/** replace a setting value in all selected profiles at once, with a preview (see ReplaceValuesDialog) */
+	private void doReplaceValues() {
+		if (profileTable_.getSelectionIndex() == -1)
+			return;
+		List<Profile> loadedProfiles = new ProfileLoader(shell_, getSelectedProfiles()).open();
+		if (loadedProfiles == null)
+			return;
+		Integer changed = new ReplaceValuesDialog(shell_, loadedProfiles).open();
+		if (changed != null) {
+			updateProfilesList(getSelectedProfileIds());
+			displayProfileInformation(false);
+			Mess_.on(shell_).key("dialog.replacevalues.done", new Object[] {changed}).display();
+		}
 	}
 
 	private void doEditProfile(boolean focusTitle) {

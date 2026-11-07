@@ -64,6 +64,10 @@ Many profiles at once
     hand to the [autoexec], can be kept line by line.
   - Edit several profiles, including the further settings.
   - Undo the last change of several profiles.
+  - Replace values, e.g. output=surface by texture in all selected profiles,
+    with a preview and a choice of the possible values.
+  - Find manuals, walkthroughs, maps, reference cards, copy protection and
+    soundtracks in the game folder and link them in the profile.
 
 Safety and comfort
   - Create and restore backups, optionally automatic.
@@ -91,6 +95,15 @@ SMALLER IMPROVEMENTS
   - Shader lists with your own shaders, "Sound Blaster 2" page.
   - Help -> "New features..." and "Changelog...".
   - Failed boot: the DOSBox message stays visible.
+  - View as list, tiles (with screenshot) or boxes (with cover art): buttons
+    at the top right or the "View" menu (Ctrl+1 to Ctrl+7).
+  - Game information also from IGDB and SteamGridDB, MobyGames through its
+    official API; searching with a Cancel button and understandable errors.
+  - Several CDs: CD2, CD3 ... are offered as well; CD images are mounted the
+    right way for each DOSBox version (mount or imgmount).
+  - Icons for links and the profile configuration in the context menu "View".
+  - Shader presets of DOSBox Staging 0.83, refresh shaders, try run.
+  - Optionally all DOSBox settings in the profile (as D-Fend Reloaded does).
 
 
 BUG FIXES COMPARED TO 0.100 BETA 17

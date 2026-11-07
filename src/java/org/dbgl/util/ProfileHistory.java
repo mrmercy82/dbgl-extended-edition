@@ -53,8 +53,8 @@ public final class ProfileHistory {
 		try {
 			File file = profile.getConfigurationCanonicalFile();
 			return (file != null) && file.isFile() ? Files.readAllBytes(file.toPath()): null;
-		} catch (IOException e) {
-			return null;
+		} catch (IOException | RuntimeException e) {
+			return null; // e.g. a copy of a profile without a configuration file of its own
 		}
 	}
 

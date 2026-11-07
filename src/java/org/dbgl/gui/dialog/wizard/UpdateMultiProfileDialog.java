@@ -89,7 +89,9 @@ public class UpdateMultiProfileDialog extends JobWizardDialog<Boolean> {
 		extraChanges_.forEach(x -> info.append('[').append(x.section()).append("] ").append(x.item()).append(": ").append(x.conflicting() && x.oldValue().isEmpty() ? conflicting: '"' + x.oldValue() + '"')
 				.append(" -> ").append(x.newValue().isEmpty() ? defaultText: '"' + x.newValue() + '"').append(SystemUtils.EOLN));
 
-		if (!dbversionChanged_ && !templateReloaded_ && (nativeCommandControl_ == null) && metaControls_.isEmpty() && extraChanges_.isEmpty()) {
+		if (engine_ != null) // only the online lookup is something to do as well: before, 'no changes' stopped it here
+			info.append(text_.get("dialog.multiprofile.onlinelookup", new Object[] {engine_.getName(), profs_.size()})).append(SystemUtils.EOLN);
+		if (!dbversionChanged_ && !templateReloaded_ && (nativeCommandControl_ == null) && metaControls_.isEmpty() && extraChanges_.isEmpty() && (engine_ == null)) {
 			info.append(text_.get("dialog.multiprofile.notice.nochanges")).append(SystemUtils.EOLN);
 			nextButton_.setEnabled(false);
 		}
@@ -105,7 +107,9 @@ public class UpdateMultiProfileDialog extends JobWizardDialog<Boolean> {
 	@Override
 	protected boolean onNext(int step) {
 		if (step == 1) {
-			org.dbgl.util.BulkUndo.remember(text_.get("dialog.bulkundo.multiedit"), orgProfs_);
+			// the edited profiles: their files are still the old state (the copies in orgProfs_ have no file and no ID); the
+			// DOSBox versions to go back to come from orgProfs_. Remembering them failed and stopped every multi-edit before.
+			org.dbgl.util.BulkUndo.remember(text_.get("dialog.bulkundo.multiedit"), profs_, orgProfs_);
 			for (Profile prof: profs_) {
 				Configuration combinedConf = prof.getCombinedConfiguration();
 				metaControls_.forEach(x -> x.updateConfigurableByControl(prof, combinedConf));
@@ -129,7 +133,7 @@ public class UpdateMultiProfileDialog extends JobWizardDialog<Boolean> {
 			if (!job_.isEverythingOk())
 				Mess_.on(shell_).key("dialog.multiprofile.error.problem").warning();
 
-			status_.setText(text_.get("dialog.multiprofile.reviewlog"));
+			setReviewStatus("dialog.multiprofile.reviewlog");
 			status_.pack();
 
 			result_ = true;
