@@ -61,6 +61,8 @@ public class CheckProfilesDialog extends SizeControlledButtonDialog<Boolean> {
 	private final java.util.Set<Integer> selected_;
 	/** per profile: folders and files that do not exist */
 	private final java.util.Map<Profile, List<String>> missing_ = new java.util.LinkedHashMap<>();
+	/** per profile: the numbers of the links whose file is not there */
+	private final java.util.Map<Profile, List<Integer>> missingLinks_ = new java.util.LinkedHashMap<>();
 
 	public CheckProfilesDialog(Shell parent) {
 		this(parent, null);
@@ -127,6 +129,7 @@ public class CheckProfilesDialog extends SizeControlledButtonDialog<Boolean> {
 		invalidValues_ = 0;
 		invalidProfiles_ = 0;
 		missing_.clear();
+		missingLinks_.clear();
 		int withProblems = 0;
 		try {
 			for (Profile prof: profiles_) {
@@ -136,12 +139,22 @@ public class CheckProfilesDialog extends SizeControlledButtonDialog<Boolean> {
 					List<String[]> invalid = prof.listInvalidValues();
 					for (String[] v: invalid)
 						lines.append("   [").append(v[0]).append("] ").append(v[1]).append('=').append(v[2]).append(": ").append(
-							text_.get("dialog.checkprofiles.invalid", new Object[] {v[3]})).append(Text.DELIMITER);
+							(v.length > 4) && "shader".equals(v[4]) ? text_.get("dialog.checkprofiles.shadermissing")
+									: text_.get("dialog.checkprofiles.invalid", new Object[] {v[3]})).append(Text.DELIMITER);
 					List<String> missing = prof.listMissingPaths();
 					if (!missing.isEmpty())
 						missing_.put(prof, missing);
 					for (String path: missing)
 						lines.append("   ").append(text_.get("dialog.checkprofiles.missing", new Object[] {path})).append(Text.DELIMITER);
+					List<Integer> links = prof.listMissingLinks();
+					if (!links.isEmpty())
+						missingLinks_.put(prof, links);
+					for (int i: links)
+						lines.append("   ").append(text_.get("dialog.checkprofiles.missinglink", new Object[] {prof.getLinks()[i].getDisplayTitle(),
+							Profile.linkFile(prof.getLinks()[i]).getPath()})).append(Text.DELIMITER);
+					// the same as the warning symbol in the list says (ProfileWarnings): a PC-98 image needs DOSBox-X
+					if (prof.needsDosboxXForPc98())
+						lines.append("   ").append(text_.get("dialog.profile.pc98needsdosboxx.short")).append(Text.DELIMITER);
 					if (StringUtils.isNotBlank(warnings))
 						lines.append("   ! ").append(warnings.trim().replace("\n", Text.DELIMITER + "   ! ")).append(Text.DELIMITER);
 					if (!invalid.isEmpty()) {
@@ -198,11 +211,12 @@ public class CheckProfilesDialog extends SizeControlledButtonDialog<Boolean> {
 	 * letter or a renamed folder); it is changed in all profiles with missing paths, wherever the new path exists.
 	 */
 	private void relocateMissing() {
-		if (missing_.isEmpty()) {
+		if (missing_.isEmpty() && missingLinks_.isEmpty()) {
 			Mess_.on(shell_).key("dialog.checkprofiles.nomissing").display();
 			return;
 		}
-		String first = missing_.values().iterator().next().get(0);
+		String first = !missing_.isEmpty() ? missing_.values().iterator().next().get(0)
+				: Profile.linkFile(missingLinks_.keySet().iterator().next().getLinks()[missingLinks_.values().iterator().next().get(0)]).getPath();
 		String question = text_.get("dialog.checkprofiles.relocate.where", new Object[] {first});
 		String chosen;
 		if (looksLikeFile(first)) {
@@ -234,14 +248,43 @@ public class CheckProfilesDialog extends SizeControlledButtonDialog<Boolean> {
 				count += map.size();
 			}
 		}
-		if (changes.isEmpty()) {
+		// links (manuals, extras) moved the same way: they are kept in the database, not in the profile configuration
+		java.util.Map<Profile, java.util.Map<Integer, String>> linkChanges = new java.util.LinkedHashMap<>();
+		for (java.util.Map.Entry<Profile, List<Integer>> e: missingLinks_.entrySet()) {
+			java.util.Map<Integer, String> map = new java.util.LinkedHashMap<>();
+			for (int i: e.getValue()) {
+				String moved = PathRelocation.relocate(Profile.linkFile(e.getKey().getLinks()[i]).getPath(), prefixes[0], prefixes[1]);
+				if ((moved != null) && new File(moved).exists())
+					map.put(i, moved);
+			}
+			if (!map.isEmpty()) {
+				linkChanges.put(e.getKey(), map);
+				count += map.size();
+			}
+		}
+		if (changes.isEmpty() && linkChanges.isEmpty()) {
 			Mess_.on(shell_).key("dialog.checkprofiles.relocate.nothing", new Object[] {prefixes[0], prefixes[1]}).warning();
 			return;
 		}
-		if (!Mess_.on(shell_).key("dialog.checkprofiles.relocate.confirm", new Object[] {count, changes.size(), prefixes[0], prefixes[1]}).confirm())
+		java.util.Set<Profile> touched = new java.util.LinkedHashSet<>(changes.keySet());
+		touched.addAll(linkChanges.keySet());
+		if (!Mess_.on(shell_).key("dialog.checkprofiles.relocate.confirm", new Object[] {count, touched.size(), prefixes[0], prefixes[1]}).confirm())
 			return;
-		org.dbgl.util.BulkUndo.remember(text_.get("dialog.bulkundo.relocate"), changes.keySet());
+		if (!changes.isEmpty())
+			org.dbgl.util.BulkUndo.remember(text_.get("dialog.bulkundo.relocate"), changes.keySet());
 		int changed = 0;
+		for (java.util.Map.Entry<Profile, java.util.Map<Integer, String>> e: linkChanges.entrySet()) {
+			Profile prof = e.getKey();
+			try {
+				for (java.util.Map.Entry<Integer, String> l: e.getValue().entrySet()) // stored relative to the DBGL folder when inside it
+					prof.setLinkDestination(l.getKey(), new org.dbgl.model.FileLocation(l.getValue(), org.dbgl.service.FileLocationService.getInstance().dataRelative()).getFile().getPath());
+				new ProfileRepository().update(prof);
+				if (!changes.containsKey(prof))
+					changed++;
+			} catch (SQLException ex) {
+				Mess_.on(shell_).exception(ex).warning();
+			}
+		}
 		for (java.util.Map.Entry<Profile, java.util.Map<String, String>> e: changes.entrySet()) {
 			Profile prof = e.getKey();
 			try {

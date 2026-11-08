@@ -114,6 +114,8 @@ public abstract class BaseDialog<T> extends Dialog {
 
 		onShellCreated();
 
+		placeShell();
+
 		shell_.open();
 
 		onShellOpened();
@@ -132,6 +134,24 @@ public abstract class BaseDialog<T> extends Dialog {
 
 	protected boolean prepare() {
 		return true;
+	}
+
+	/** where the window opens: in the middle of the window it belongs to (the main window: where it was) */
+	protected void placeShell() {
+		if (shellStyle_ != SWT.PRIMARY_MODAL)
+			centerOn(shell_, getParent());
+	}
+
+	/** put a window in the middle of another one (if that is shown), else of the screen, and fully on that screen */
+	public static void centerOn(Shell shell, Shell parent) {
+		org.eclipse.swt.graphics.Rectangle area = ((parent != null) && !parent.isDisposed() ? parent.getMonitor(): shell.getDisplay().getPrimaryMonitor()).getClientArea();
+		org.eclipse.swt.graphics.Rectangle around = (parent != null) && !parent.isDisposed() && parent.isVisible() && !parent.getMinimized() ? parent.getBounds(): area;
+		org.eclipse.swt.graphics.Point size = shell.getSize();
+		int x = around.x + (around.width - size.x) / 2;
+		int y = around.y + (around.height - size.y) / 2;
+		x = Math.max(area.x, Math.min(x, area.x + area.width - size.x));
+		y = Math.max(area.y, Math.min(y, area.y + area.height - size.y));
+		shell.setLocation(x, y);
 	}
 
 	protected void onShellInit() {

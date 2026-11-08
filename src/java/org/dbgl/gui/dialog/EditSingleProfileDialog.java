@@ -109,11 +109,25 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 		return this;
 	}
 
+	private boolean consultSearchEngine_;
+
+	/** open the dialog and ask the game database (as with its button) right away */
+	public EditSingleProfileDialog consultSearchEngine() {
+		consultSearchEngine_ = true;
+		return this;
+	}
+
 	@Override
 	protected void onShellOpened() {
 		super.onShellOpened();
 		if (initialSearch_ != null)
 			display_.asyncExec(() -> searchAndJump(initialSearch_));
+		if (consultSearchEngine_)
+			display_.asyncExec(() -> {
+				ToolItem item = engineSelector_ == null ? null: engineSelector_.getToolItem();
+				if ((item != null) && !item.isDisposed())
+					item.notifyListeners(SWT.Selection, new org.eclipse.swt.widgets.Event());
+			});
 	}
 
 	@Override
@@ -243,14 +257,16 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 
 	@Override
 	protected void doPerformDosboxConfAction(DosboxConfAction action, DosboxVersion newDosboxVersion) {
-		try {
-			StringBuilder warningsLog = new StringBuilder();
-
-			computeAllPages(profile_);
+		StringBuilder warningsLog = new StringBuilder();
+		// all pages are built first and the values taken over: that takes a moment, so with a progress bar
+		try (org.dbgl.gui.controls.UiProgress progress = new org.dbgl.gui.controls.UiProgress(shell_, text_.get("dialog.profile.working"), pagesToCompute() + 4 + controlsUpdateSteps())) {
+			computeAllPages(profile_, progress);
 			updateConfigurableByControls(profile_);
+			progress.step();
 			askUnknownAutoexecLines();
 
 			warningsLog.append(newDosboxVersion.resetAndLoadConfiguration());
+			progress.step();
 
 			if (action == DosboxConfAction.SET) {
 				warningsLog.append(profile_.setToDosboxVersion(newDosboxVersion));
@@ -269,14 +285,18 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 				warningsLog.append(templ.resetAndLoadConfiguration());
 				warningsLog.append(profile_.reloadTemplate(newDosboxVersion, templ));
 			}
+			progress.step();
 
+			uiProgress_ = progress;
 			updateControlsByConfigurable(profile_);
-
-			if (StringUtils.isNotEmpty(warningsLog)) {
-				Mess_.on(getParent()).txt(warningsLog.toString()).warning();
-			}
 		} catch (IOException e) {
 			Mess_.on(getParent()).exception(e).warning();
+			return;
+		} finally {
+			uiProgress_ = null;
+		}
+		if (StringUtils.isNotEmpty(warningsLog)) {
+			Mess_.on(getParent()).txt(warningsLog.toString()).warning();
 		}
 	}
 	
@@ -423,6 +443,13 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 												})).build();
 										}
 
+										// how far loading the images is, and why some could not be loaded
+										GridData statusData = new GridData(SWT.FILL, SWT.CENTER, true, false, 2, 1);
+										statusData.widthHint = 2 * (WEB_IMAGE_WIDTH + 10);
+										org.dbgl.gui.controls.ImageLoadStatus loadStatus = imageInformation_.length > 0
+												? new org.dbgl.gui.controls.ImageLoadStatus(webImagesSpaceHolder_, imageInformation_.length, statusData)
+												: null;
+
 										ScrolledComposite webImagesSpace = createScrolledComposite(webImagesSpaceHolder_, SWT.V_SCROLL);
 										webImagesSpace.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 2, 1));
 										webImagesSpace.setLayout(new GridLayout());
@@ -446,11 +473,13 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 													true).toggle().tooltipTxt(imageInformation_[i].getDescription()).ctrl();
 											
 												final int j = i;
+												final String imgUrl = imageInformation_[i].getUrl();
 												new Thread() {
 													@Override
 													public void run() {
 														try {
 															ImageData imgData = profExt.getWebImage(j);
+															loadStatus.loaded();
 															if (!display_.isDisposed()) {
 																display_.asyncExec(() -> {
 																	if (!imgButtons_[j].isDisposed()) {
@@ -470,8 +499,8 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 																	}
 																});
 															}
-														} catch (IOException e) {
-															// ignore any missing images
+														} catch (Exception e) {
+															loadStatus.failed(e, imgUrl); // shown above the images
 														}
 													}
 												}.start();
@@ -590,7 +619,35 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 				SettingsDialog.getConfLocations().get(settings_.getIntValue("profiledefaults", "confpath")) + ", " + 
 				SettingsDialog.getConfFilenames().get(settings_.getIntValue("profiledefaults", "conffile")));
 		createAllSettingsControls(composite);
+		createDosboxLogControls(composite);
 		return composite;
+	}
+
+	private Button saveDosboxLog_;
+
+	/** save what DOSBox puts out as a log file, for this profile; at the top of the page */
+	private void createDosboxLogControls(Composite composite) {
+		org.eclipse.swt.widgets.Group group = new org.eclipse.swt.widgets.Group(composite, SWT.NONE);
+		group.setText(text_.get("dialog.profile.dosboxlog.group"));
+		group.setLayoutData(new GridData(SWT.FILL, SWT.BEGINNING, true, false));
+		group.setLayout(new GridLayout(2, false));
+		saveDosboxLog_ = new Button(group, SWT.CHECK);
+		saveDosboxLog_.setText(text_.get("dialog.profile.dosboxlog"));
+		saveDosboxLog_.setToolTipText(text_.get("dialog.profile.dosboxlog.tooltip", new Object[] {org.dbgl.util.DosboxLog.logsDir().getPath(), org.dbgl.util.DosboxLog.KEEP}));
+		saveDosboxLog_.setSelection(editing_ && org.dbgl.util.DosboxLog.isOn(profile_.getId()));
+		saveDosboxLog_.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+		Button open = new Button(group, SWT.PUSH);
+		open.setText(text_.get("dialog.profile.dosboxlog.open"));
+		java.io.File dir = editing_ ? org.dbgl.util.DosboxLog.folderOf(profile_.getId(), profile_.getTitle()): null;
+		open.setEnabled((dir != null) && dir.isDirectory());
+		open.addListener(SWT.Selection, e -> SystemUtils.openDirForViewing(dir, shell_));
+		// below the title of the page, above its first group
+		for (org.eclipse.swt.widgets.Control child: composite.getChildren()) {
+			if ((child != group) && (child instanceof org.eclipse.swt.widgets.Group)) {
+				group.moveAbove(child);
+				break;
+			}
+		}
 	}
 
 	/** this profile alone keeps all DOSBox settings (as D-Fend Reloaded does), with the drawbacks right below it */
@@ -610,10 +667,17 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 		warning.setForeground(display_.getSystemColor(SWT.COLOR_DARK_RED));
 		keepAll.addListener(SWT.Selection, e -> {
 			// take over what is in the dialog first, then fill in (on) or take out what equals the DOSBox configuration (off)
-			computeAllPages(profile_);
-			updateConfigurableByControls(profile_);
-			profile_.setKeepsAllSettings(keepAll.getSelection());
-			updateControlsByConfigurable(profile_);
+			try (org.dbgl.gui.controls.UiProgress progress = new org.dbgl.gui.controls.UiProgress(shell_, text_.get("dialog.profile.working"), pagesToCompute() + 3 + controlsUpdateSteps())) {
+				computeAllPages(profile_, progress);
+				updateConfigurableByControls(profile_);
+				progress.step();
+				profile_.setKeepsAllSettings(keepAll.getSelection());
+				progress.step();
+				uiProgress_ = progress;
+				updateControlsByConfigurable(profile_);
+			} finally {
+				uiProgress_ = null;
+			}
 		});
 	}
 	
@@ -634,24 +698,37 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 		createOkCancelButtons(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
-				computePage(profile_, "dialog.template.tab.mounting");
-				computePage(profile_, "dialog.template.tab.dosbox");
-				computePage(profile_, "dialog.template.tab.startup");
+				try (org.dbgl.gui.controls.UiProgress progress = new org.dbgl.gui.controls.UiProgress(shell_, text_.get("dialog.profile.working"), 4)) {
+					computePage(profile_, "dialog.template.tab.mounting");
+					progress.step();
+					computePage(profile_, "dialog.template.tab.dosbox");
+					progress.step();
+					computePage(profile_, "dialog.template.tab.startup");
+					progress.step();
+				}
 				if (!isValid()) {
 					return;
 				}
 				try {
-					updateConfigurableByControls(profile_);
+					try (org.dbgl.gui.controls.UiProgress progress = new org.dbgl.gui.controls.UiProgress(shell_, text_.get("dialog.profile.working"), 2)) {
+						updateConfigurableByControls(profile_);
+						progress.step();
+					}
 					askUnknownAutoexecLines(); // kept lines go straight into the configuration saved below
 
-					if (editing_) {
-						new ProfileRepository().update(profile_);
-						result_ = profile_;
-					} else {
+					// saving (database, configuration file, history, extras) in the background: with a progress bar when it takes a moment
+					// (without Cancel: half saved is worse than waiting)
+					result_ = org.dbgl.gui.controls.BusyTask.runToEnd(shell_, text_.get("dialog.profile.saving"), () -> {
+						if (editing_) {
+							new ProfileRepository().update(profile_);
+							return profile_;
+						}
 						if (org.dbgl.util.ExtrasFinder.onAdd()) // manuals, walkthroughs, maps, soundtrack of the new game into free links
 							org.dbgl.util.ExtrasFinder.link(profile_, org.dbgl.util.ExtrasFinder.find(profile_));
-						result_ = new ProfileRepository().add(profile_);
-					}
+						return new ProfileRepository().add(profile_);
+					});
+					if ((saveDosboxLog_ != null) && !saveDosboxLog_.isDisposed())
+						org.dbgl.util.DosboxLog.setOn(result_.getId(), saveDosboxLog_.getSelection());
 
 					if (imageInformation_ != null) {
 						File canonicalCapturesDir = profile_.getCanonicalCaptures();

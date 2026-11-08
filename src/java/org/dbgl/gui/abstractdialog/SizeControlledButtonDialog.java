@@ -1,5 +1,7 @@
 /*
  *  Copyright (C) 2006-2025  Ronald Blankendaal
+ *  Modified for the DBGL Extended Edition by mrmercy82 (with the help of AI)
+ *  since 2026-11-01. Changes and their dates: CHANGELOG-en.txt, CHANGELOG-de.txt.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -57,6 +59,7 @@ public abstract class SizeControlledButtonDialog<T> extends SizeControlledDialog
 
 	protected void createGoButton(String title, SelectionListener listener) {
 		okButton_ = Button_.on(okCancelButtons_).text().key(title).listen(listener).ctrl();
+		setLayoutDataButtons(okButton_); // a single OK was hardly wider than high
 
 		shell_.setDefaultButton(okButton_);
 	}

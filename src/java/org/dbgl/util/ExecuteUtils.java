@@ -87,12 +87,13 @@ public class ExecuteUtils {
 		@Override
 		public void run() {
 			LINK_PROFILE.set(templateOrProfile_ instanceof Profile p ? p.getId(): -1);
+			LINK_TITLE.set(templateOrProfile_ instanceof Profile p ? p.getTitle(): "");
 			try {
 				for (NativeCommand cmd: templateOrProfile_.getNativeCommands()) {
 					if (cmd.isDosboxCommand()) {
 						long start = System.currentTimeMillis();
 						doRunDosbox(dosboxVersion_, new String[] {"-conf", conf_.getPath()}, false, dosboxVersion_.getCwd(), true);
-						registerPlayTime(playTimeProfileId_, System.currentTimeMillis() - start);
+						registerPlayTime(playTimeProfileId_, start, System.currentTimeMillis() - start);
 					} else {
 						execute(cmd.getCanonicalCommandAndParameters(), cmd.getCanonicalCwd(), cmd.isWaitFor());
 					}
@@ -107,6 +108,8 @@ public class ExecuteUtils {
 
 	/** the profile DOSBox is started for in this thread, so the status window can link its messages to the profile's settings */
 	private static final ThreadLocal<Integer> LINK_PROFILE = ThreadLocal.withInitial(() -> -1);
+	/** its title, for the folder of its DOSBox logs (see {@link DosboxLog}) */
+	private static final ThreadLocal<String> LINK_TITLE = ThreadLocal.withInitial(() -> "");
 
 	/** told about the play time added to a profile (profile id, total seconds), on the UI thread */
 	private static volatile java.util.function.IntConsumer playTimeListener_;
@@ -116,11 +119,11 @@ public class ExecuteUtils {
 	}
 
 	/** add the time DOSBox ran to the profile; very short runs are failed starts and don't count */
-	private static void registerPlayTime(int profileId, long millis) {
+	private static void registerPlayTime(int profileId, long start, long millis) {
 		if ((profileId < 0) || (millis < DosboxStatusWindow.QUICK_EXIT_MILLIS))
 			return;
 		try {
-			new org.dbgl.model.repository.ProfileRepository().addPlayTime(profileId, millis / 1000);
+			new org.dbgl.model.repository.ProfileRepository().addPlayTime(profileId, start, millis / 1000);
 			java.util.function.IntConsumer listener = playTimeListener_;
 			Display display = Display.getDefault();
 			if ((listener != null) && !display.isDisposed())
@@ -136,16 +139,18 @@ public class ExecuteUtils {
 		private final String logType_;
 		private final DosboxStatusWindow statusWindow_;
 		private final List<String> collector_;
+		private final DosboxLog log_;
 
 		public StreamGobbler(InputStream istream, String logType) {
-			this(istream, logType, null, null);
+			this(istream, logType, null, null, null);
 		}
 
-		public StreamGobbler(InputStream istream, String logType, DosboxStatusWindow statusWindow, List<String> collector) {
+		public StreamGobbler(InputStream istream, String logType, DosboxStatusWindow statusWindow, List<String> collector, DosboxLog log) {
 			istream_ = istream;
 			logType_ = logType;
 			statusWindow_ = statusWindow;
 			collector_ = collector;
+			log_ = log;
 		}
 
 		@Override
@@ -156,6 +161,8 @@ public class ExecuteUtils {
 					System.out.println(logType_ + "> " + line);
 					if (statusWindow_ != null)
 						statusWindow_.append(line);
+					if (log_ != null)
+						log_.line(line);
 					if (collector_ != null) {
 						synchronized (collector_) {
 							if (collector_.size() < MAX_COLLECTED_LINES)
@@ -260,6 +267,9 @@ public class ExecuteUtils {
 			// say which folder or image is missing, instead of DOSBox failing with a message that is hard to relate to it
 			List<String> missing = prof.listMissingPaths();
 			if (!missing.isEmpty() && !Mess_.on(display.getActiveShell()).key("general.confirm.missingpaths", new Object[] {String.join("\n", missing)}).confirm())
+				return;
+			// a PC-98 image (.hdi etc.) only works with DOSBox-X
+			if (prof.needsDosboxXForPc98() && !Mess_.on(display.getActiveShell()).key("dialog.profile.pc98needsdosboxx", new Object[] {prof.getDosboxVersion().getTitle()}).confirm())
 				return;
 			if (SettingsService.getInstance().getBooleanValue("dosbox", "checkbeforestart")) {
 				// values the DOSBox version does not know are ignored by DOSBox, often with a message that is easy to miss
@@ -462,7 +472,7 @@ public class ExecuteUtils {
 		}
 
 		try {
-			execute(commandItems, cwd, waitFor, allowStatusWindow && dbglShowsStatusWindow(dbversion), allowStatusWindow && !dbversion.isUsingCurses());
+			execute(commandItems, cwd, waitFor, allowStatusWindow && dbglShowsStatusWindow(dbversion), allowStatusWindow && !dbversion.isUsingCurses(), true);
 		} catch (IOException e) {
 			e.printStackTrace();
 			throw new IOException(TextService.getInstance().get("general.error.startdosbox", new Object[] {StringUtils.join(commandItems, ' ')}));
@@ -472,7 +482,7 @@ public class ExecuteUtils {
 	private static final int MAX_COLLECTED_LINES = 5000;
 
 	private static void execute(List<String> execCommands, File cwd, boolean waitFor) throws IOException {
-		execute(execCommands, cwd, waitFor, false, false);
+		execute(execCommands, cwd, waitFor, false, false, false);
 	}
 
 	/**
@@ -480,7 +490,7 @@ public class ExecuteUtils {
 	 * @param detectFailedStart if DOSBox ends within moments without a status window, show its output afterwards, as starting
 	 *                          the game most likely failed and DOSBox closed before its message could be read
 	 */
-	private static void execute(List<String> execCommands, File cwd, boolean waitFor, boolean showStatusWindow, boolean detectFailedStart) throws IOException {
+	private static void execute(List<String> execCommands, File cwd, boolean waitFor, boolean showStatusWindow, boolean detectFailedStart, boolean dosbox) throws IOException {
 		System.out.print(StringUtils.join(execCommands, ' '));
 		ProcessBuilder pb = new ProcessBuilder(execCommands.toArray(new String[execCommands.size()]));
 		pb.directory(cwd);
@@ -503,10 +513,22 @@ public class ExecuteUtils {
 		if (statusWindow != null)
 			proc.onExit().thenAccept(p -> statusWindow.processEnded(p.exitValue()));
 		try {
-			StreamGobbler errorGobbler = new StreamGobbler(proc.getErrorStream(), "DOSBox stderr", statusWindow, collected);
-			StreamGobbler outputGobbler = new StreamGobbler(proc.getInputStream(), "DOSBox stdout", statusWindow, collected);
+			// the output of DOSBox into a log file, for the profiles that want that
+			DosboxLog log = dosbox ? DosboxLog.open(linkProfile, LINK_TITLE.get(), StringUtils.join(execCommands, ' ')): null;
+			StreamGobbler errorGobbler = new StreamGobbler(proc.getErrorStream(), "DOSBox stderr", statusWindow, collected, log);
+			StreamGobbler outputGobbler = new StreamGobbler(proc.getInputStream(), "DOSBox stdout", statusWindow, collected, log);
 			outputGobbler.start();
 			errorGobbler.start();
+			if (log != null)
+				proc.onExit().thenAccept(p -> {
+					try {
+						outputGobbler.join(3000);
+						errorGobbler.join(3000);
+					} catch (InterruptedException e) {
+						Thread.currentThread().interrupt();
+					}
+					log.close(p.exitValue());
+				});
 			if (collected != null) {
 				proc.onExit().thenAccept(p -> {
 					long elapsed = System.currentTimeMillis() - startMillis;

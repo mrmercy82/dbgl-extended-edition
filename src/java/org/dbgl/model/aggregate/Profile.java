@@ -172,6 +172,31 @@ public class Profile extends TemplateProfileBase {
 		links_[index] = new Link(links_[index].getTitle(), destination);
 	}
 
+	/** @return the file a link points to on this computer, or null for a web page or an empty link */
+	public static File linkFile(Link link) {
+		String d = StringUtils.trimToEmpty(link.getDestination());
+		if (d.toLowerCase().startsWith("file://"))
+			d = d.substring(7);
+		if (d.isEmpty() || d.contains("://") || d.toLowerCase().startsWith("www."))
+			return null;
+		return new FileLocation(d, FileLocationService.getInstance().dataRelative()).getCanonicalFile();
+	}
+
+	/** @return the numbers of the links whose file or folder is not there (e.g. a manual that was moved or deleted) */
+	public List<Integer> listMissingLinks() {
+		List<Integer> result = new java.util.ArrayList<>();
+		if (links_ == null)
+			return result;
+		for (int i = 0; i < links_.length; i++) {
+			if (links_[i] == null)
+				continue;
+			File f = linkFile(links_[i]);
+			if ((f != null) && !f.exists())
+				result.add(i);
+		}
+		return result;
+	}
+
 	public String getLinkTitle(int index) {
 		return links_[index].getTitle();
 	}

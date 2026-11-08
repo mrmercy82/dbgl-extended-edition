@@ -985,11 +985,11 @@ public class Autoexec {
 				result.append("loadfix -").append(loadfixValue_ > 0 ? loadfixValue_: DEFAULT_LOADFIX_VALUE).append(SystemUtils.EOLN);
 			}
 			insertCustomSection(result, 1);
-			Mount hdiMount = FilesUtils.isPc98HdImage(img_[0])
-					? mountingpoints_.stream().filter(x -> (x instanceof ImageMount im) && im.matchesImgPath(img_[0]) && (x.getDrive() >= '0') && (x.getDrive() <= '3')).findFirst().orElse(null)
-					: null;
+			// an image attached by number (imgmount 2 x.img -t hdd = C:, 0 = A:) is booted by its drive: "boot -l C". Booting the file
+			// again would attach it a second time, without its -size (e.g. Windows 95 on a hard disk image); PC-98 .HDI the same
+			Mount hdiMount = mountingpoints_.stream().filter(x -> (x instanceof ImageMount im) && im.matchesImgPath(img_[0]) && (x.getDrive() >= '0') && (x.getDrive() <= '3')).findFirst().orElse(null);
 			if (!prepareOnly && (hdiMount != null)) {
-				// self-booting PC-98 hard disk image, attached by number (imgmount 2 = C:, 3 = D:)
+				// an image attached by number (imgmount 0 = A:, 2 = C:, 3 = D:), e.g. a PC-98 .HDI or a Windows 95 hard disk
 				result.append("boot -l ").append((char)(hdiMount.getDrive() + 17)).append(SystemUtils.EOLN);
 				appendPauseAfterFailedBoot(result);
 				insertCustomSection(result, 2);

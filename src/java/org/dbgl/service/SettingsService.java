@@ -56,8 +56,10 @@ public class SettingsService {
 		OFFICIAL_DOSBOX_FAM, SVN_DOSBOX_FAM, DAUM_DOSBOX_FAM, ECE_DOSBOX_FAM, STAGING_DOSBOX_FAM, DOSBOX_X_DOSBOX_FAM
 	);
 	
-	public static final List<WebSearchEngine> ALL_WEBSEARCH_ENGINES = Arrays.asList(MobyGamesSearchEngine.getInstance(), MetropolisSearchEngine.getInstance(), PouetSearchEngine.getInstance(),
-		TheGamesDBSearchEngine.getInstance(), org.dbgl.util.searchengine.IgdbSearchEngine.getInstance(), org.dbgl.util.searchengine.SteamGridDbSearchEngine.getInstance());
+	// MobyGames last: its API key is paid now, and without one its web pages are blocked (since alpha 44)
+	public static final List<WebSearchEngine> ALL_WEBSEARCH_ENGINES = Arrays.asList(TheGamesDBSearchEngine.getInstance(), MetropolisSearchEngine.getInstance(), PouetSearchEngine.getInstance(),
+		org.dbgl.util.searchengine.IgdbSearchEngine.getInstance(), org.dbgl.util.searchengine.SteamGridDbSearchEngine.getInstance(),
+		org.dbgl.util.searchengine.ScreenScraperSearchEngine.getInstance(), MobyGamesSearchEngine.getInstance());
 
 	private static final String SETTINGS_CONF = "settings.conf";
 
@@ -82,6 +84,9 @@ public class SettingsService {
 		} catch (IOException e) {
 			// if settings could not be read, use only the defaults
 		}
+		// MobyGames is no longer the default source: without an API key (paid) it gives nothing, so use TheGamesDB instead
+		if ("mobygames".equalsIgnoreCase(settings_.getValue("gui", "searchengine")) && StringUtils.isBlank(settings_.getValue("mobygames", "api_key")))
+			settings_.setValue("gui", "searchengine", "thegamesdb");
 	}
 
 	private static class SettingsServiceHolder {
@@ -366,7 +371,7 @@ public class SettingsService {
 		settings_.setValue("gui", "custom12", "Custom12");
 		settings_.setValue("gui", "custom13", "Custom13");
 		settings_.setValue("gui", "custom14", "Custom14");
-		settings_.setValue("gui", "searchengine", "mobygames");
+		settings_.setValue("gui", "searchengine", "thegamesdb");
 
 		settings_.setValue("gui", "notesfont", "Courier 10 0"); // 0 = SWT.NORMAL
 		settings_.setValue("gui", "notesvisible", true);
@@ -520,9 +525,9 @@ public class SettingsService {
 		settings_.setValue("thegamesdb", "image_base", "original");
 		settings_.setValue("thegamesdb", "api_key", "8364ae0f983f8484afbb70a4d1030292137deaa4131c7765c9b8c0fdfdda1cf7");
 		// IGDB and SteamGridDB: each user enters own keys (free), see the settings
-		for (String engine: new String[] {"igdb", "steamgriddb"}) {
-			boolean igdb = engine.equals("igdb");
-			settings_.setValue(engine, "platform_filter", igdb ? "PC DOS": "");
+		for (String engine: new String[] {"igdb", "steamgriddb", "screenscraper"}) {
+			boolean igdb = engine.equals("igdb") || engine.equals("screenscraper"); // both give everything
+			settings_.setValue(engine, "platform_filter", engine.equals("screenscraper") ? "DOS": igdb ? "PC DOS": "");
 			settings_.setValue(engine, "set_title", true);
 			settings_.setValue(engine, "set_developer", igdb);
 			settings_.setValue(engine, "set_publisher", igdb);
@@ -539,6 +544,10 @@ public class SettingsService {
 		settings_.setValue("igdb", "client_id", "");
 		settings_.setValue("igdb", "client_secret", "");
 		settings_.setValue("steamgriddb", "api_key", "");
+		settings_.setValue("screenscraper", "ssid", ""); // the user's ScreenScraper account (more requests per day)
+		settings_.setValue("screenscraper", "sspassword", "");
+		settings_.setValue("screenscraper", "devid", ""); // the developer access of DBGL, if not built in
+		settings_.setValue("screenscraper", "devpassword", "");
 		settings_.setValue("mobygames", "api_key", ""); // the official API: MobyGames blocks loading its web pages
 
 		settings_.setValue("environment", "use", false);

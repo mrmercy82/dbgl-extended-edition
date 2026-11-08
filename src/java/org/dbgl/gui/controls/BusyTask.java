@@ -53,6 +53,16 @@ public final class BusyTask {
 	 * Like {@link #run(Shell, String, Callable)}, with a bar that shows how far the work is: it counts progress up to total.
 	 */
 	public static <T> T run(Shell parent, String message, java.util.concurrent.atomic.AtomicInteger progress, int total, Callable<T> work) throws Exception {
+		return run(parent, message, progress, total, true, 400, work);
+	}
+
+	/** for work that must not be left half done (e.g. saving): a progress bar without Cancel, shown a little earlier */
+	public static <T> T runToEnd(Shell parent, String message, Callable<T> work) throws Exception {
+		return run(parent, message, null, 0, false, 150, work);
+	}
+
+	private static <T> T run(Shell parent, String message, java.util.concurrent.atomic.AtomicInteger progress, int total, boolean cancellable, long delayMillis, Callable<T> work)
+			throws Exception {
 		Display display = parent.getDisplay();
 		AtomicReference<Object> result = new AtomicReference<>();
 		AtomicReference<Exception> failure = new AtomicReference<>();
@@ -75,16 +85,16 @@ public final class BusyTask {
 		worker.start();
 
 		// only show the window when it takes a moment, so quick answers do not flicker
-		long showAt = System.currentTimeMillis() + 400;
+		long showAt = System.currentTimeMillis() + delayMillis;
 		Shell busy = null;
 		Runnable[] tick = new Runnable[1];
 		tick[0] = () -> {
 			synchronized (done) {
 				if (!done[0] && !cancelled[0])
-					display.timerExec(100, tick[0]); // wake up now and then to check
+					display.timerExec(50, tick[0]); // wake up now and then to check
 			}
 		};
-		display.timerExec(100, tick[0]);
+		display.timerExec(50, tick[0]);
 		while (true) {
 			synchronized (done) {
 				if (done[0])
@@ -93,7 +103,7 @@ public final class BusyTask {
 			if (cancelled[0])
 				break;
 			if ((busy == null) && (System.currentTimeMillis() >= showAt))
-				busy = open(parent, message, cancelled, (progress != null) && (total > 0) ? total: 0);
+				busy = open(parent, message, cancellable ? cancelled: null, (progress != null) && (total > 0) ? total: 0);
 			if ((busy != null) && (progress != null) && (busy.getData() instanceof ProgressBar bar) && !bar.isDisposed())
 				bar.setSelection(Math.min(total, progress.get()));
 			if (!display.readAndDispatch())
@@ -110,6 +120,7 @@ public final class BusyTask {
 		return t;
 	}
 
+	/** @param cancelled null: no Cancel, and the window cannot be closed */
 	private static Shell open(Shell parent, String message, boolean[] cancelled, int total) {
 		Shell busy = new Shell(parent, SWT.DIALOG_TRIM | SWT.APPLICATION_MODAL);
 		busy.setText(parent.getText());
@@ -122,13 +133,17 @@ public final class BusyTask {
 			bar.setMaximum(total);
 			busy.setData(bar);
 		}
-		Button cancel = new Button(busy, SWT.PUSH);
-		cancel.setText(TextService.getInstance().get("button.cancel"));
-		GridData cd = new GridData(SWT.END, SWT.CENTER, false, false);
-		cd.widthHint = Math.max(80, cancel.computeSize(SWT.DEFAULT, SWT.DEFAULT).x);
-		cancel.setLayoutData(cd);
-		cancel.addListener(SWT.Selection, e -> cancelled[0] = true);
-		busy.addListener(SWT.Close, e -> cancelled[0] = true);
+		if (cancelled != null) {
+			Button cancel = new Button(busy, SWT.PUSH);
+			cancel.setText(TextService.getInstance().get("button.cancel"));
+			GridData cd = new GridData(SWT.END, SWT.CENTER, false, false);
+			cd.widthHint = Math.max(80, cancel.computeSize(SWT.DEFAULT, SWT.DEFAULT).x);
+			cancel.setLayoutData(cd);
+			cancel.addListener(SWT.Selection, e -> cancelled[0] = true);
+			busy.addListener(SWT.Close, e -> cancelled[0] = true);
+		} else {
+			busy.addListener(SWT.Close, e -> e.doit = false);
+		}
 		busy.pack();
 		org.eclipse.swt.graphics.Point size = busy.getSize();
 		size.x = Math.max(size.x, 360);

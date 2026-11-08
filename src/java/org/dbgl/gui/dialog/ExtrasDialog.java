@@ -81,7 +81,7 @@ public class ExtrasDialog extends SizeControlledButtonDialog<Integer> {
 		Label info = new Label(contents_, SWT.WRAP);
 		info.setText(text_.get("dialog.extras.info"));
 		GridData infoData = new GridData(SWT.FILL, SWT.BEGINNING, true, false);
-		infoData.widthHint = 600;
+		infoData.widthHint = 720;
 		info.setLayoutData(infoData);
 
 		Table table = new Table(contents_, SWT.CHECK | SWT.FULL_SELECTION | SWT.BORDER | SWT.V_SCROLL | SWT.H_SCROLL);
@@ -90,8 +90,9 @@ public class ExtrasDialog extends SizeControlledButtonDialog<Integer> {
 		table.setLayoutData(tableData);
 		table.setHeaderVisible(true);
 		table.setLinesVisible(true);
-		String[] keys = {"dialog.replacevalues.column.profile", "dialog.extras.column.kind", "dialog.extras.column.file", "dialog.extras.column.open"};
-		int[] widths = {190, 150, 330, 90};
+		String[] keys = {"dialog.replacevalues.column.profile", "dialog.extras.column.links", "dialog.extras.column.kind", "dialog.extras.column.file",
+				"dialog.extras.column.open"};
+		int[] widths = {190, 120, 150, 330, 90};
 		for (int i = 0; i < keys.length; i++) {
 			TableColumn col = new TableColumn(table, SWT.NONE);
 			col.setText(text_.get(keys[i]));
@@ -100,8 +101,17 @@ public class ExtrasDialog extends SizeControlledButtonDialog<Integer> {
 		// the kind can be changed per find (it decides the title of the link), and each find can be opened to check it
 		ExtrasFinder.Kind[] kinds = ExtrasFinder.Kind.values();
 		String[] kindNames = java.util.Arrays.stream(kinds).map(k -> new ExtrasFinder.Extra(k, null).title()).toArray(String[]::new);
-		List<org.eclipse.swt.custom.CCombo> kindCombos = new ArrayList<>();
+		List<org.eclipse.swt.widgets.Combo> kindCombos = new ArrayList<>();
 		java.util.Map<ExtrasFinder.Kind, org.eclipse.swt.graphics.Image> kindIcons = new java.util.EnumMap<>(ExtrasFinder.Kind.class);
+		// the system drop-down (its list follows the mouse); on Windows the rows are made as high as it is (on Linux that
+		// would cost the colour of the link count)
+		org.eclipse.swt.widgets.Combo probe = new org.eclipse.swt.widgets.Combo(table, SWT.DROP_DOWN | SWT.READ_ONLY);
+		int rowHeight = "win32".equals(SWT.getPlatform()) ? probe.computeSize(SWT.DEFAULT, SWT.DEFAULT).y: 0;
+		probe.dispose();
+		if (rowHeight > 0)
+			table.addListener(SWT.MeasureItem, ev -> ev.height = Math.max(ev.height, rowHeight));
+		// the free link fields per profile
+		Map<Profile, Integer> free = new java.util.HashMap<>();
 		int noFolder = 0;
 		for (Profile p: profiles_) {
 			if (!found_.containsKey(p)) {
@@ -116,14 +126,21 @@ public class ExtrasDialog extends SizeControlledButtonDialog<Integer> {
 				if (linked)
 					continue;
 				rows_.add(new Row(p, e));
+				int f = free.computeIfAbsent(p, x -> {
+					int n = 0;
+					for (int i = 0; i < Profile.NR_OF_LINK_TITLES; i++)
+						if (org.apache.commons.lang3.StringUtils.isBlank(x.getLinkDestination(i)))
+							n++;
+					return n;
+				});
 				TableItem item = new TableItem(table, SWT.NONE);
-				item.setText(new String[] {p.getTitle(), "", link, ""});
+				item.setText(new String[] {p.getTitle(), text_.get("dialog.extras.links", new Object[] {Profile.NR_OF_LINK_TITLES - f, f}), "", link, ""});
 				item.setChecked(true);
-				org.eclipse.swt.custom.CCombo kind = new org.eclipse.swt.custom.CCombo(table, SWT.READ_ONLY | SWT.FLAT);
+				org.eclipse.swt.widgets.Combo kind = new org.eclipse.swt.widgets.Combo(table, SWT.DROP_DOWN | SWT.READ_ONLY);
 				kind.setItems(kindNames);
 				kind.select(e.kind().ordinal());
 				// the icon of the kind in front of the file, as in the context menu 'View' later
-				java.util.function.IntConsumer showIcon = k -> item.setImage(2, kindIcons.computeIfAbsent(kinds[Math.max(0, k)], x -> {
+				java.util.function.IntConsumer showIcon = k -> item.setImage(3, kindIcons.computeIfAbsent(kinds[Math.max(0, k)], x -> {
 					org.eclipse.swt.graphics.Image img = org.dbgl.service.ImageService.getResourceImage(shell_.getDisplay(),
 						org.dbgl.service.ImageService.IMG_EXTRA_PREFIX + x.name().toLowerCase(java.util.Locale.ROOT) + ".png");
 					shell_.addDisposeListener(d -> img.dispose());
@@ -133,14 +150,16 @@ public class ExtrasDialog extends SizeControlledButtonDialog<Integer> {
 				kind.addListener(SWT.Selection, ev -> showIcon.accept(kind.getSelectionIndex()));
 				org.eclipse.swt.custom.TableEditor kindEditor = new org.eclipse.swt.custom.TableEditor(table);
 				kindEditor.grabHorizontal = true;
-				kindEditor.setEditor(kind, item, 1);
+				kindEditor.minimumHeight = rowHeight;
+				kindEditor.setEditor(kind, item, 2);
 				kindCombos.add(kind);
 				org.eclipse.swt.widgets.Button open = new org.eclipse.swt.widgets.Button(table, SWT.PUSH);
 				open.setText(text_.get("dialog.extras.open"));
 				open.addListener(SWT.Selection, ev -> openFind(e.file()));
 				org.eclipse.swt.custom.TableEditor openEditor = new org.eclipse.swt.custom.TableEditor(table);
 				openEditor.grabHorizontal = true;
-				openEditor.setEditor(open, item, 3);
+				openEditor.minimumHeight = rowHeight;
+				openEditor.setEditor(open, item, 4);
 			}
 		}
 		table.addListener(SWT.DefaultSelection, ev -> { // double-click on a row opens the find too
@@ -150,7 +169,28 @@ public class ExtrasDialog extends SizeControlledButtonDialog<Integer> {
 		});
 		Label summary = new Label(contents_, SWT.WRAP);
 		summary.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
-		summary.setText(text_.get("dialog.extras.summary", new Object[] {rows_.size(), profiles_.size(), noFolder}));
+		String found = text_.get("dialog.extras.summary", new Object[] {rows_.size(), profiles_.size(), noFolder});
+		// more ticked than free: the link count of those profiles in red, and a note below
+		Runnable checkFree = () -> {
+			Map<Profile, Integer> ticked = new java.util.HashMap<>();
+			for (int i = 0; i < rows_.size(); i++)
+				if (table.getItem(i).getChecked())
+					ticked.merge(rows_.get(i).profile(), 1, Integer::sum);
+			java.util.Set<Profile> over = new java.util.HashSet<>();
+			ticked.forEach((p, n) -> {
+				if (n > free.get(p))
+					over.add(p);
+			});
+			for (int i = 0; i < rows_.size(); i++)
+				table.getItem(i).setForeground(1, over.contains(rows_.get(i).profile()) ? shell_.getDisplay().getSystemColor(SWT.COLOR_RED): null);
+			summary.setText(over.isEmpty() ? found: found + "\n" + text_.get("dialog.extras.toomany", new Object[] {over.size()}));
+			contents_.layout(true, true);
+		};
+		checkFree.run();
+		table.addListener(SWT.Selection, ev -> {
+			if (ev.detail == SWT.CHECK)
+				checkFree.run();
+		});
 
 		createOkCancelButtons(new SelectionAdapter() {
 			@Override

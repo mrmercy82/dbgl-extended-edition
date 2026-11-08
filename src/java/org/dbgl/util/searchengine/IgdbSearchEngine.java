@@ -159,7 +159,11 @@ public class IgdbSearchEngine extends WebSearchEngine {
 	public List<WebProfile> getEntries(String title, String[] platforms) throws IOException {
 		Set<Integer> ids = platformIds(platforms);
 		String where = ids.isEmpty() ? "": " where platforms = (" + StringUtils.join(ids, ',') + ");";
-		JSONArray games = query("games", "search " + quoted(prepareSearchTerm(title)) + "; fields name,first_release_date,platforms.name,url;" + where + " limit 50;");
+		return parseEntries(query("games", "search " + quoted(prepareSearchTerm(title)) + "; fields name,first_release_date,platforms.name,url;" + where + " limit 50;"));
+	}
+
+	/** the answers of IGDB, split off to be tested with saved answers */
+	public static List<WebProfile> parseEntries(JSONArray games) {
 		List<WebProfile> result = new ArrayList<>();
 		for (int i = 0; i < games.length(); i++) {
 			JSONObject g = games.getJSONObject(i);
@@ -178,9 +182,12 @@ public class IgdbSearchEngine extends WebSearchEngine {
 	public WebProfile getEntryDetailedInformation(WebProfile entry) throws IOException {
 		JSONArray games = query("games", "fields name,first_release_date,summary,total_rating,url,genres.name,platforms.name,involved_companies.company.name,"
 				+ "involved_companies.developer,involved_companies.publisher; where id = " + entry.getGameId() + ";");
-		if (games.isEmpty())
-			return entry;
-		JSONObject g = games.getJSONObject(0);
+		if (!games.isEmpty())
+			parseDetails(entry, games.getJSONObject(0));
+		return entry;
+	}
+
+	public static void parseDetails(WebProfile entry, JSONObject g) {
 		entry.setTitle(g.optString("name", entry.getTitle()));
 		entry.setYear(year(g));
 		entry.setNotes(g.optString("summary", ""));
@@ -203,7 +210,6 @@ public class IgdbSearchEngine extends WebSearchEngine {
 			}
 		entry.setDeveloperName(String.join(", ", developers));
 		entry.setPublisherName(String.join(", ", publishers));
-		return entry;
 	}
 
 	@Override
@@ -211,8 +217,17 @@ public class IgdbSearchEngine extends WebSearchEngine {
 		List<SearchEngineImageInformation> result = new ArrayList<>();
 		if ((coverArtMax > 0) || (screenshotsMax > 0)) {
 			JSONArray games = query("games", "fields cover.image_id,screenshots.image_id; where id = " + entry.getGameId() + ";");
-			if (!games.isEmpty()) {
-				JSONObject g = games.getJSONObject(0);
+			if (!games.isEmpty())
+				result.addAll(parseImages(games.getJSONObject(0), coverArtMax, screenshotsMax));
+		}
+		entry.setWebImages(result.toArray(new SearchEngineImageInformation[0]));
+		return entry.getWebImages();
+	}
+
+	public static List<SearchEngineImageInformation> parseImages(JSONObject g, int coverArtMax, int screenshotsMax) {
+		List<SearchEngineImageInformation> result = new ArrayList<>();
+		{
+			{
 				JSONObject cover = g.optJSONObject("cover");
 				if ((coverArtMax > 0) && (cover != null) && cover.has("image_id"))
 					result.add(new SearchEngineImageInformation(SearchEngineImageType.COVER_ART, IMAGES + "t_cover_big/" + cover.getString("image_id") + ".jpg", "Cover"));
@@ -223,7 +238,6 @@ public class IgdbSearchEngine extends WebSearchEngine {
 								"Screenshot " + (i + 1)));
 			}
 		}
-		entry.setWebImages(result.toArray(new SearchEngineImageInformation[0]));
-		return entry.getWebImages();
+		return result;
 	}
 }

@@ -78,6 +78,16 @@ public class ProfileRepository extends LoggingRepository<Profile> {
 
 	private static final String REGISTER_RUN_QRY = "UPDATE GAMES SET STATS_LASTRUN = CURRENT_TIMESTAMP, STATS_RUNS = (STATS_RUNS + 1) WHERE ID = ?";
 	private static final String ADD_PLAYTIME_QRY = "UPDATE GAMES SET STATS_PLAYTIME = (STATS_PLAYTIME + ?) WHERE ID = ?";
+	private static final String ADD_SESSION_QRY = "INSERT INTO PLAYSESSIONS(GAME_ID, STARTED, SECONDS) VALUES(?, ?, ?)";
+	private static final String LIST_SESSIONS_QRY = "SELECT GAME_ID, STARTED, SECONDS FROM PLAYSESSIONS";
+	private static final String DEL_SESSIONS_QRY = "DELETE FROM PLAYSESSIONS WHERE GAME_ID = ?";
+	private static final String MOVE_SESSIONS_QRY = "UPDATE PLAYSESSIONS SET GAME_ID = ? WHERE GAME_ID = ?";
+	private static final String REMOVED_SESSIONS_WHERE = " FROM PLAYSESSIONS WHERE GAME_ID NOT IN (SELECT ID FROM GAMES)";
+	private static final String REMOVED_LOG_WHERE = " FROM LOG WHERE ENTITY_TYPE = " + LogEntry.EntityType.PROFILE.ordinal() + " AND ENTITY_ID NOT IN (SELECT ID FROM GAMES)";
+
+	/** one time a profile was played: when DOSBox started and how long it ran, in seconds */
+	public record PlaySession(int profileId, java.util.Date started, int seconds) {
+	}
 	private static final String REGISTER_SETUP_QRY = "UPDATE GAMES SET STATS_LASTSETUP = CURRENT_TIMESTAMP, STATS_SETUPS = (STATS_SETUPS + 1) WHERE ID = ?";
 
 	public ProfileRepository() {
@@ -303,6 +313,7 @@ public class ProfileRepository extends LoggingRepository<Profile> {
 	public void remove(Profile profile, boolean removeConfig, boolean removeCustomMapper, boolean removeCaptures) throws SQLException {
 		try (Transaction transaction = dbService_.startTransaction()) {
 			actionOnEntity(transaction, DEL_NTVCMD_QRY, "remove profile native commands", profile);
+			actionOnEntity(transaction, DEL_SESSIONS_QRY, "remove profile play sessions", profile);
 			actionOnEntity(transaction, DEL_QRY, "remove profile", profile);
 			log(transaction, LogEntry.Event.REMOVE, LogEntry.EntityType.PROFILE, profile);
 			if (removeConfig) {
@@ -346,12 +357,74 @@ public class ProfileRepository extends LoggingRepository<Profile> {
 		return register(profile, REGISTER_RUN_QRY, "register run profile", LogEntry.Event.RUN);
 	}
 
-	/** add to the time the profile was played, in seconds */
-	public void addPlayTime(int profileId, long seconds) throws SQLException {
-		try (Connection con = dbService_.getConnection(); PreparedStatement stmt = con.prepareStatement(ADD_PLAYTIME_QRY)) {
-			stmt.setLong(1, seconds);
-			stmt.setInt(2, profileId);
-			stmt.executeUpdate();
+	/** add to the time the profile was played, in seconds, and keep this time as a play session (started at 'startedMillis') */
+	public void addPlayTime(int profileId, long startedMillis, long seconds) throws SQLException {
+		try (Transaction transaction = dbService_.startTransaction()) {
+			try (PreparedStatement stmt = transaction.prepareStatement(ADD_PLAYTIME_QRY)) {
+				stmt.setLong(1, seconds);
+				stmt.setInt(2, profileId);
+				stmt.executeUpdate();
+			}
+			try (PreparedStatement stmt = transaction.prepareStatement(ADD_SESSION_QRY)) {
+				stmt.setInt(1, profileId);
+				stmt.setTimestamp(2, new java.sql.Timestamp(startedMillis));
+				stmt.setLong(3, seconds);
+				stmt.executeUpdate();
+			}
+			transaction.commit();
+		}
+	}
+
+	/** all play sessions (since 0.101 alpha 44; before, only the total play time per profile was kept) */
+	public List<PlaySession> listPlaySessions() throws SQLException {
+		List<PlaySession> result = new ArrayList<>();
+		try (Connection con = dbService_.getConnection(); Statement stmt = con.createStatement(); ResultSet rs = stmt.executeQuery(LIST_SESSIONS_QRY)) {
+			while (rs.next())
+				result.add(new PlaySession(rs.getInt(1), new java.util.Date(rs.getTimestamp(2).getTime()), rs.getInt(3)));
+		}
+		return result;
+	}
+
+	/** what is left of removed profiles: play sessions, and entries in the log */
+	public int[] countRemovedProfileData() throws SQLException {
+		try (Connection con = dbService_.getConnection(); Statement stmt = con.createStatement()) {
+			int[] result = new int[2];
+			try (ResultSet rs = stmt.executeQuery("SELECT COUNT(*)" + REMOVED_SESSIONS_WHERE)) {
+				rs.next();
+				result[0] = rs.getInt(1);
+			}
+			try (ResultSet rs = stmt.executeQuery("SELECT COUNT(*)" + REMOVED_LOG_WHERE)) {
+				rs.next();
+				result[1] = rs.getInt(1);
+			}
+			return result;
+		}
+	}
+
+	/** remove the play sessions and the log entries of profiles that were removed */
+	public void removeRemovedProfileData() throws SQLException {
+		try (Transaction transaction = dbService_.startTransaction(); Statement stmt = transaction.createStatement()) {
+			stmt.executeUpdate("DELETE" + REMOVED_SESSIONS_WHERE);
+			stmt.executeUpdate("DELETE" + REMOVED_LOG_WHERE);
+			transaction.commit();
+		}
+	}
+
+	/** when duplicates are merged: the play time and the play sessions of 'from' go to 'to' */
+	public void movePlayTime(Profile from, Profile to) throws SQLException {
+		int seconds = from.getProfileStats() == null ? 0: from.getProfileStats().getPlayTime();
+		try (Transaction transaction = dbService_.startTransaction()) {
+			try (PreparedStatement stmt = transaction.prepareStatement(ADD_PLAYTIME_QRY)) {
+				stmt.setLong(1, seconds);
+				stmt.setInt(2, to.getId());
+				stmt.executeUpdate();
+			}
+			try (PreparedStatement stmt = transaction.prepareStatement(MOVE_SESSIONS_QRY)) {
+				stmt.setInt(1, to.getId());
+				stmt.setInt(2, from.getId());
+				stmt.executeUpdate();
+			}
+			transaction.commit();
 		}
 	}
 

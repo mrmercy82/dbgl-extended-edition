@@ -120,7 +120,7 @@ public class MobyGamesSearchEngine extends WebSearchEngine {
 				doc = fetchDocument(getName(), url, USER_AGENT);
 			} catch (SearchEngineException e) {
 				if ((e.getMessage() != null) && e.getMessage().contains("403"))
-					throw new SearchEngineException(org.dbgl.service.TextService.getInstance().get("searchengine.error.mobygames.apikey"), e);
+					throw new SearchEngineException(org.dbgl.service.TextService.getInstance().get("searchengine.error.mobygames.apikey2"), e);
 				throw e;
 			}
 			Element browser = doc.selectFirst("game-browser");
@@ -249,10 +249,10 @@ public class MobyGamesSearchEngine extends WebSearchEngine {
 
 	/**
 	 * The official MobyGames API (https://www.mobygames.com/info/api), used when an API key is entered in the settings.
-	 * MobyGames blocks automated loading of its web pages (403), the API is the way it allows. The free key allows about one
+	 * MobyGames blocks automated loading of its web pages (403), the API is the way it allows (the key needs a paid plan). The key allows about one
 	 * request per second (and some 360 per hour), so requests are spaced out.
 	 */
-	static final class Api {
+	public static final class Api {
 
 		static final String BASE = "https://api.mobygames.com/v1/";
 		static final String API_KEY = "api_key";
@@ -261,7 +261,7 @@ public class MobyGamesSearchEngine extends WebSearchEngine {
 		private static long lastRequest_;
 
 		/** an entry found: the game on one platform */
-		static final class Entry extends WebProfile {
+		public static final class Entry extends WebProfile {
 			int platformId_;
 			String description_ = "", genres_ = "";
 			int score_;
@@ -279,7 +279,7 @@ public class MobyGamesSearchEngine extends WebSearchEngine {
 		}
 
 		/** MobyGames platform IDs for the names in the platform filter: DOS 2, Windows 3, PC Booter 4, Windows 3.x 5 */
-		static List<Integer> platformIds(String[] platforms) {
+		public static List<Integer> platformIds(String[] platforms) {
 			List<Integer> ids = new ArrayList<>();
 			for (String p: platforms) {
 				String s = StringUtils.trimToEmpty(p).toLowerCase();
@@ -325,7 +325,12 @@ public class MobyGamesSearchEngine extends WebSearchEngine {
 			StringBuilder query = new StringBuilder("title=" + URLEncoder.encode(title, StandardCharsets.UTF_8) + "&format=normal&limit=100");
 			for (Integer id: ids)
 				query.append("&platform=").append(id);
-			JSONArray games = get(engineName, "games", query.toString()).optJSONArray("games");
+			return parseEntries(get(engineName, "games", query.toString()), ids);
+		}
+
+		/** @param json the answer of /games (format normal), split off to be tested with saved answers */
+		public static List<WebProfile> parseEntries(JSONObject json, List<Integer> ids) {
+			JSONArray games = json.optJSONArray("games");
 			List<WebProfile> result = new ArrayList<>();
 			if (games == null)
 				return result;
@@ -367,10 +372,15 @@ public class MobyGamesSearchEngine extends WebSearchEngine {
 		}
 
 		static WebProfile getDetails(String engineName, Entry e) throws IOException {
+			parseDetails(e, get(engineName, "games/" + e.getGameId() + "/platforms/" + e.platformId_, ""));
+			return e;
+		}
+
+		/** @param details the answer of /games/{id}/platforms/{platform} */
+		public static void parseDetails(Entry e, JSONObject details) {
 			e.setNotes(e.description_.isEmpty() ? "": unescapeHtml(removeAllTags(e.description_)));
 			e.setGenre(e.genres_);
 			e.setRank(e.score_);
-			JSONObject details = get(engineName, "games/" + e.getGameId() + "/platforms/" + e.platformId_, "");
 			List<String> developers = new ArrayList<>(), publishers = new ArrayList<>();
 			JSONArray releases = details.optJSONArray("releases");
 			if (releases != null)
@@ -394,14 +404,23 @@ public class MobyGamesSearchEngine extends WebSearchEngine {
 			String date = details.optString("first_release_date", null);
 			if (StringUtils.isNotBlank(date))
 				e.setYear(year(date));
-			return e;
 		}
 
 		static List<SearchEngineImageInformation> getImages(String engineName, Entry e, int coverArtMax, int screenshotsMax) throws IOException {
 			List<SearchEngineImageInformation> result = new ArrayList<>();
 			String base = "games/" + e.getGameId() + "/platforms/" + e.platformId_ + "/";
-			if (coverArtMax > 0) {
-				JSONArray groups = get(engineName, base + "covers", "").optJSONArray("cover_groups");
+			if (coverArtMax > 0)
+				result.addAll(parseCovers(get(engineName, base + "covers", ""), coverArtMax));
+			if (screenshotsMax > 0)
+				result.addAll(parseScreenshots(get(engineName, base + "screenshots", ""), screenshotsMax));
+			return result;
+		}
+
+		/** @param json the answer of /games/{id}/platforms/{platform}/covers */
+		public static List<SearchEngineImageInformation> parseCovers(JSONObject json, int coverArtMax) {
+			List<SearchEngineImageInformation> result = new ArrayList<>();
+			{
+				JSONArray groups = json.optJSONArray("cover_groups");
 				int found = 0;
 				for (int i = 0; (groups != null) && (i < groups.length()) && (found < coverArtMax); i++) {
 					JSONArray covers = groups.getJSONObject(i).optJSONArray("covers");
@@ -414,8 +433,14 @@ public class MobyGamesSearchEngine extends WebSearchEngine {
 					}
 				}
 			}
-			if (screenshotsMax > 0) {
-				JSONArray shots = get(engineName, base + "screenshots", "").optJSONArray("screenshots");
+			return result;
+		}
+
+		/** @param json the answer of /games/{id}/platforms/{platform}/screenshots */
+		public static List<SearchEngineImageInformation> parseScreenshots(JSONObject json, int screenshotsMax) {
+			List<SearchEngineImageInformation> result = new ArrayList<>();
+			{
+				JSONArray shots = json.optJSONArray("screenshots");
 				for (int i = 0; (shots != null) && (i < shots.length()) && (i < screenshotsMax); i++) {
 					JSONObject sh = shots.getJSONObject(i);
 					result.add(new SearchEngineImageInformation(SearchEngineImageType.SCREENSHOT, sh.optString("image", ""), sh.isNull("caption") ? "Screenshot " + (i + 1): sh.optString("caption")));

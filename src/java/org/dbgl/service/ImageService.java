@@ -90,6 +90,7 @@ public class ImageService {
 	public static final String IMG_THEGAMESDB = "thegamesdb.png";
 	public static final String IMG_IGDB = "igdb.png";
 	public static final String IMG_STEAMGRIDDB = "steamgriddb.png";
+	public static final String IMG_SCREENSCRAPER = "screenscraper.png";
 	public static final String IMG_SHARE = "share.png";
 	public static final String IMG_UNDO = "undo.png";
 	public static final String IMG_TOPDOG = "topdog.png";
@@ -104,6 +105,11 @@ public class ImageService {
 	public static final String IMG_TABLE = "table.png";
 	public static final String IMG_SCREENSHOTS = "screenshots.png";
 	public static final String IMG_NOTES = "notes.png";
+	public static final String IMG_STATISTICS = "statistics.png";
+	public static final String IMG_TB_SETTINGS = "tb_settings.png";
+	public static final String IMG_GLOBE = "globe.png";
+	public static final String IMG_CHECKPROFILES = "checkprofiles.png";
+	public static final String IMG_RANDOM = "random.png";
 	public static final String IMG_WHATSNEW = "whatsnew.png";
 	public static final String IMG_PROFILE_CONF = "profile_conf.png";
 	public static final String IMG_EXTRA_WEB = "extra_web.png";
@@ -210,8 +216,45 @@ public class ImageService {
 		});
 	}
 
+	/** images read and scaled in the background already (see prepareResizedImage), taken over by getCachedResizedImage */
+	private static final Map<String, ImageData> preparedImageData = new java.util.concurrent.ConcurrentHashMap<>();
+
+	/**
+	 * Read and scale an image the way getCachedResizedImage does, but in any thread, so that showing it later is quick (e.g. the
+	 * tiles and boxes, with a progress bar). Images with transparency are left to getCachedResizedImage.
+	 */
+	public static void prepareResizedImage(int width, int height, boolean keepAspectRatio, String path) {
+		String key = path + width + height + keepAspectRatio;
+		if (preparedImageData.containsKey(key) || (width <= 0) || (height <= 0))
+			return;
+		try {
+			BufferedImage org = javax.imageio.ImageIO.read(new java.io.File(path));
+			if ((org == null) || org.getColorModel().hasAlpha())
+				return;
+			int orgW = org.getWidth(), orgH = org.getHeight();
+			int cropX = 0, cropY = 0;
+			if (keepAspectRatio) {
+				double factor = Math.max((double)width / (double)orgW, (double)height / (double)orgH);
+				cropX = (int)(((orgW * factor) - width) / factor);
+				cropY = (int)(((orgH * factor) - height) / factor);
+			}
+			BufferedImage scaled = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+			java.awt.Graphics2D g = scaled.createGraphics();
+			g.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION, java.awt.RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+			g.setRenderingHint(java.awt.RenderingHints.KEY_RENDERING, java.awt.RenderingHints.VALUE_RENDER_QUALITY);
+			g.drawImage(org, 0, 0, width, height, cropX / 2, cropY / 2, cropX / 2 + orgW - cropX, cropY / 2 + orgH - cropY, null);
+			g.dispose();
+			preparedImageData.put(key, convertToSWT(scaled));
+		} catch (Exception | OutOfMemoryError e) {
+			// shown the usual way then
+		}
+	}
+
 	public static Image getCachedResizedImage(Display display, int width, int height, boolean keepAspectRatio, String path) {
 		return imageCacheMap.computeIfAbsent(path + width + height + keepAspectRatio, h -> {
+			ImageData prepared = preparedImageData.remove(h);
+			if (prepared != null)
+				return new Image(display, prepared);
 			Image orgImage = getImage(display, path);
 			int orgW = orgImage.getBounds().width;
 			int orgH = orgImage.getBounds().height;

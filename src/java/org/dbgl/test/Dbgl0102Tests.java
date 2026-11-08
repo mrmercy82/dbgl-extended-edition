@@ -1087,4 +1087,310 @@ public class Dbgl0102Tests {
 		assertTrue(o.get("dosbox", "machine").getValues().contains("svga_s3"));
 		assertTrue(o.get("sdl", "output").getValues().contains("opengl"));
 	}
+
+	@Test
+	public void testShaderFiles() throws IOException {
+		// a Staging 0.83 folder with one shader file of its own: that one is valid, one that is not there is reported
+		File dir = Files.createTempDirectory("dbgl-staging").toFile();
+		new File(dir, org.dbgl.service.FileLocationService.DOSBOX_EXE_STRING).createNewFile();
+		File shader = new File(dir, "resources/shaders/scaler/advinterp2x.glsl");
+		shader.getParentFile().mkdirs();
+		Files.writeString(shader.toPath(), "// shader");
+		org.dbgl.util.DosboxVersionDetector.clearShaderCaches();
+		org.dbgl.model.aggregate.DosboxVersion v083 = DosboxVersionFactory.create("DOSBox Staging 0.83.0", SettingsService.STAGING_DOSBOX_FAM.title_, "0.83.0", false, true, false, null,
+			dir.getAbsolutePath(), "", "", new File(dir, "dosbox.conf").getAbsolutePath());
+		File dosboxConfFile = new File(DATA_DIR, "dosbox-staging-0.83.0.conf");
+		v083.loadConfigurationData(GenericTextService.getInstance(), Files.readString(dosboxConfFile.toPath(), StandardCharsets.UTF_8), dosboxConfFile);
+		org.dbgl.model.aggregate.Profile profile = org.dbgl.model.factory.ProfileFactory.create(v083, null);
+		Configuration c = profile.getConfiguration();
+		c.setValue("render", "shader", "scaler/advinterp2x");
+		assertEquals(0, profile.listInvalidValues().size());
+		c.setValue("render", "shader", "crt-auto");
+		assertEquals(0, profile.listInvalidValues().size());
+		c.setValue("render", "shader", shader.getAbsolutePath());
+		assertEquals(0, profile.listInvalidValues().size());
+		c.setValue("render", "shader", "scaler/notthere");
+		List<String[]> invalid = profile.listInvalidValues();
+		assertEquals(1, invalid.size());
+		assertEquals("shader", invalid.get(0)[4]);
+		org.apache.commons.io.FileUtils.deleteQuietly(dir);
+		org.dbgl.util.DosboxVersionDetector.clearShaderCaches();
+	}
+
+	private static org.json.JSONObject savedAnswer(String name) throws IOException {
+		return new org.json.JSONObject(Files.readString(new File(DATA_DIR, "online/" + name).toPath(), StandardCharsets.UTF_8));
+	}
+
+	@Test
+	public void testMobyGamesApiAnswers() throws IOException {
+		// saved answers of the MobyGames API (https://www.mobygames.com/info/api): a change there shows up here
+		assertEquals(List.of(2, 3), org.dbgl.util.searchengine.MobyGamesSearchEngine.Api.platformIds(new String[] {"DOS", "Windows", "Amiga 500"}));
+		List<org.dbgl.model.WebProfile> entries = org.dbgl.util.searchengine.MobyGamesSearchEngine.Api.parseEntries(savedAnswer("mobygames-games.json"), List.of(2));
+		assertEquals(2, entries.size()); // the Amiga and Windows versions are not wanted
+		org.dbgl.model.WebProfile e = entries.get(0);
+		assertEquals("The Secret of Monkey Island", e.getTitle());
+		assertEquals("DOS", e.getPlatform());
+		assertEquals("1990", e.getYear());
+		assertEquals("Adventure", e.getGenre()); // only the basic genres
+		assertEquals(1, e.getGameId());
+		assertEquals(4, org.dbgl.util.searchengine.MobyGamesSearchEngine.Api.parseEntries(savedAnswer("mobygames-games.json"), List.of()).size()); // every platform
+		org.dbgl.util.searchengine.MobyGamesSearchEngine.Api.Entry entry = (org.dbgl.util.searchengine.MobyGamesSearchEngine.Api.Entry)e;
+		org.dbgl.util.searchengine.MobyGamesSearchEngine.Api.parseDetails(entry, savedAnswer("mobygames-platform.json"));
+		assertEquals("Lucasfilm Games LLC", entry.getDeveloperName());
+		assertEquals("Lucasfilm Games LLC, Softgold", entry.getPublisherName());
+		assertEquals(86, entry.getRank());
+		assertTrue(entry.getNotes().contains("pirate & more"));
+		assertFalse(entry.getNotes().contains("<"));
+		// a game without description and score
+		org.dbgl.util.searchengine.MobyGamesSearchEngine.Api.Entry second = (org.dbgl.util.searchengine.MobyGamesSearchEngine.Api.Entry)entries.get(1);
+		org.dbgl.util.searchengine.MobyGamesSearchEngine.Api.parseDetails(second, new org.json.JSONObject("{}"));
+		assertEquals("", second.getNotes());
+		assertEquals(0, second.getRank());
+		var covers = org.dbgl.util.searchengine.MobyGamesSearchEngine.Api.parseCovers(savedAnswer("mobygames-covers.json"), 2);
+		assertEquals(2, covers.size());
+		assertEquals("https://cdn.mobygames.com/covers/front.jpg", covers.get(0).getUrl());
+		assertEquals("Front Cover", covers.get(0).getDescription());
+		var shots = org.dbgl.util.searchengine.MobyGamesSearchEngine.Api.parseScreenshots(savedAnswer("mobygames-screenshots.json"), 10);
+		assertEquals(3, shots.size());
+		assertEquals("Screenshot 2", shots.get(1).getDescription()); // no caption
+	}
+
+	@Test
+	public void testIgdbAnswers() throws IOException {
+		org.json.JSONArray search = new org.json.JSONArray(Files.readString(new File(DATA_DIR, "online/igdb-search.json").toPath(), StandardCharsets.UTF_8));
+		List<org.dbgl.model.WebProfile> entries = org.dbgl.util.searchengine.IgdbSearchEngine.parseEntries(search);
+		assertEquals(2, entries.size());
+		assertEquals("The Secret of Monkey Island", entries.get(0).getTitle());
+		assertEquals("1990", entries.get(0).getYear());
+		assertEquals("DOS, Amiga", entries.get(0).getPlatform());
+		assertEquals("", entries.get(1).getYear()); // no date
+		org.dbgl.model.WebProfile e = entries.get(0);
+		org.dbgl.util.searchengine.IgdbSearchEngine.parseDetails(e, savedAnswer("igdb-details.json"));
+		assertEquals("Lucasfilm Games", e.getDeveloperName());
+		assertEquals("Lucasfilm Games, U.S. Gold", e.getPublisherName());
+		assertEquals("Adventure, Puzzle", e.getGenre());
+		assertEquals(88, e.getRank());
+		var images = org.dbgl.util.searchengine.IgdbSearchEngine.parseImages(savedAnswer("igdb-images.json"), 1, 2);
+		assertEquals(3, images.size());
+		assertEquals("https://images.igdb.com/igdb/image/upload/t_cover_big/co1abc.jpg", images.get(0).getUrl());
+		assertEquals("https://images.igdb.com/igdb/image/upload/t_screenshot_big/sc2.jpg", images.get(2).getUrl());
+	}
+
+	@Test
+	public void testMissingLinks() throws IOException {
+		org.dbgl.model.aggregate.DosboxVersion v = DosboxVersionFactory.create("DOSBox Staging 0.83.0", SettingsService.STAGING_DOSBOX_FAM.title_, "0.83.0", false, true, false, null,
+			"staging083", "", "", "staging083/dosbox.conf");
+		org.dbgl.model.aggregate.Profile profile = org.dbgl.model.factory.ProfileFactory.create(v, null);
+		File manual = Files.createTempFile("dbgl-manual", ".pdf").toFile();
+		profile.setLinkDestination(0, manual.getAbsolutePath());
+		profile.setLinkDestination(1, new File(manual.getParentFile(), "moved-away.pdf").getAbsolutePath());
+		profile.setLinkDestination(2, "https://www.mobygames.com/game/1");
+		profile.setLinkDestination(3, "file://" + new File(manual.getParentFile(), "gone.txt").getAbsolutePath());
+		assertEquals(List.of(1, 3), profile.listMissingLinks()); // web pages and empty links are not checked
+		assertNull(org.dbgl.model.aggregate.Profile.linkFile(profile.getLinks()[2]));
+		manual.delete();
+		assertEquals(List.of(0, 1, 3), profile.listMissingLinks());
+	}
+
+	@Test
+	public void testScreenScraperAnswers() throws IOException {
+		// saved answer of jeuRecherche.php (ScreenScraper API v2); [{}] at the end is how it says "nothing more found"
+		org.json.JSONObject response = savedAnswer("screenscraper-search.json").getJSONObject("response");
+		List<org.dbgl.model.WebProfile> entries = org.dbgl.util.searchengine.ScreenScraperSearchEngine.parseEntries(response);
+		assertEquals(1, entries.size());
+		org.dbgl.util.searchengine.ScreenScraperSearchEngine.Entry e = (org.dbgl.util.searchengine.ScreenScraperSearchEngine.Entry)entries.get(0);
+		assertEquals("The Secret of Monkey Island", e.getTitle()); // the name for the whole world
+		assertEquals("PC Dos", e.getPlatform());
+		assertEquals("1990", e.getYear()); // the US date before the European one
+		assertEquals(18471, e.getGameId());
+		org.dbgl.util.searchengine.ScreenScraperSearchEngine.parseDetails(e, "de");
+		assertEquals("Lucasfilm Games", e.getDeveloperName());
+		assertEquals("Abenteuer, Point and Click", e.getGenre()); // German where there is, else English
+		assertEquals("Guybrush will Pirat werden.", e.getNotes());
+		assertEquals(85, e.getRank()); // 17 of 20
+		org.dbgl.util.searchengine.ScreenScraperSearchEngine.parseDetails(e, "ko");
+		assertEquals("Guybrush wants to be a pirate.", e.getNotes());
+		var images = org.dbgl.util.searchengine.ScreenScraperSearchEngine.parseImages(e, 1, 5);
+		assertEquals(3, images.size());
+		assertTrue(images.get(0).getUrl().endsWith("box-2D(us)")); // US box before the European one
+		assertTrue(images.get(1).getUrl().endsWith("sstitle")); // title screen first
+		assertEquals(List.of(135, 138), org.dbgl.util.searchengine.ScreenScraperSearchEngine.systemIds(new String[] {"DOS", "Windows", "Atari"}));
+		assertEquals(List.of(135), org.dbgl.util.searchengine.ScreenScraperSearchEngine.systemIds(new String[0]));
+		assertEquals(Integer.valueOf(430), org.dbgl.util.searchengine.ScreenScraperSearchEngine.statusIn("ScreenScraper refused the request (HTTP 430)."));
+		assertNull(org.dbgl.util.searchengine.ScreenScraperSearchEngine.statusIn("no connection"));
+		assertFalse(org.dbgl.util.searchengine.ScreenScraperSearchEngine.getInstance().available()); // until DBGL has a developer access
+	}
+
+	/** a GOG game as GOG installs it, and a Steam game with one dosbox.conf */
+	private static File storeGames() throws IOException {
+		File root = Files.createTempDirectory("dbgl-store").toFile();
+		File duke = new File(root, "Duke Nukem 3D");
+		new File(duke, "DOSBOX").mkdirs();
+		new File(duke, "DUKE3D").mkdirs();
+		new File(duke, "DOSBOX/DOSBox.exe").createNewFile();
+		new File(duke, "DUKE3D/DUKE3D.EXE").createNewFile();
+		new File(duke, "game.ins").createNewFile();
+		Files.writeString(new File(duke, "goggame-1207658730.info").toPath(), "{\"gameId\":\"1207658730\",\"name\":\"Duke Nukem 3D: Atomic Edition\",\"playTasks\":[{\"isPrimary\":true,"
+			+ "\"type\":\"FileTask\",\"path\":\"DOSBOX\\\\dosbox.exe\",\"workingDir\":\"DOSBOX\",\"arguments\":\"-conf \\\"..\\\\dosboxDUKE3D.conf\\\" -conf \\\"..\\\\dosboxDUKE3D_single.conf\\\" -noconsole -c \\\"exit\\\"\"}]}");
+		Files.writeString(new File(duke, "dosboxDUKE3D.conf").toPath(), "[sdl]\nfullscreen=true\noutput=overlay\n[cpu]\ncore=auto\ncycles=fixed 30000\n[sblaster]\nsbtype=sb16\n[autoexec]\n");
+		Files.writeString(new File(duke, "dosboxDUKE3D_single.conf").toPath(), "[autoexec]\n@echo off\ncls\nmount C \"..\"\nmount C \"..\\cloud_saves\" -t overlay\nimgmount d \"..\\game.ins\" -t iso -fs iso\nc:\ncd DUKE3D\nDUKE3D.EXE\nexit\n");
+		File quake = new File(root, "steamapps/common/Quake");
+		quake.mkdirs();
+		new File(quake, "QUAKE.EXE").createNewFile();
+		Files.writeString(new File(quake, "dosbox_quake.conf").toPath(), "[cpu]\ncycles=max\n[autoexec]\nmount c .\nc:\nQUAKE.EXE\nexit\n");
+		new File(root, "other").mkdirs();
+		Files.writeString(new File(root, "other/dosbox-x.conf").toPath(), "[sdl]\nfullscreen=false\n[autoexec]\n"); // a DOSBox, not a game
+		return root;
+	}
+
+	@Test
+	public void testStoreGameImport() throws IOException {
+		File root = storeGames();
+		List<org.dbgl.util.StoreGameImport.Found> found = org.dbgl.util.StoreGameImport.find(root);
+		assertEquals(found.toString(), 2, found.size());
+		org.dbgl.util.StoreGameImport.Found duke = found.stream().filter(f -> f.store().equals("GOG")).findFirst().orElseThrow();
+		assertEquals("Duke Nukem 3D: Atomic Edition", duke.title());
+		assertEquals(2, duke.confs().size());
+		assertEquals("DOSBOX", duke.workingDir().getName());
+		org.dbgl.util.StoreGameImport.Found quake = found.stream().filter(f -> f.store().equals("Steam")).findFirst().orElseThrow();
+		assertEquals("Quake", quake.title());
+
+		String combined = org.dbgl.util.StoreGameImport.combined(duke);
+		assertFalse(combined, combined.contains("fullscreen")); // the screen is DBGL's business
+		assertTrue(combined.contains("sbtype=sb16"));
+		assertFalse(combined.contains("overlay"));
+		assertFalse(combined.toLowerCase().contains("echo"));
+
+		File dosboxConfFile = new File(DATA_DIR, "dosbox-staging-0.83.0.conf");
+		org.dbgl.model.aggregate.DosboxVersion v083 = DosboxVersionFactory.create("DOSBox Staging 0.83.0", SettingsService.STAGING_DOSBOX_FAM.title_, "0.83.0", false, true, false, null,
+			"staging083", "", "", dosboxConfFile.getAbsolutePath());
+		v083.resetAndLoadConfiguration();
+		org.dbgl.model.aggregate.Profile p = org.dbgl.util.StoreGameImport.toProfile(duke, v083, GenericTextService.getInstance());
+		assertEquals("Duke Nukem 3D: Atomic Edition", p.getTitle());
+		var mounts = p.getConfiguration().getAutoexec().getMountingpoints();
+		assertEquals(mounts.toString(), 2, mounts.size());
+		assertTrue(mounts.get(1) instanceof org.dbgl.model.conf.mount.ImageMount);
+		assertEquals(new File(duke.gameDir(), "game.ins").getCanonicalFile(), ((org.dbgl.model.conf.mount.ImageMount)mounts.get(1)).getCanonicalImgPaths()[0].getCanonicalFile());
+		assertEquals(new File(duke.gameDir(), "DUKE3D/DUKE3D.EXE").getCanonicalFile(), new File(p.getConfiguration().getAutoexec().getMain()).getCanonicalFile());
+		assertFalse(p.getConfiguration().hasValue("sblaster", "sbtype")); // sb16 is what Staging uses anyway: not written twice
+		org.dbgl.model.aggregate.Profile q = org.dbgl.util.StoreGameImport.toProfile(quake, v083, GenericTextService.getInstance());
+		assertEquals(new File(quake.gameDir(), "QUAKE.EXE").getCanonicalFile(), new File(q.getConfiguration().getAutoexec().getMain()).getCanonicalFile());
+		// Steam's X-COM: dosbox.exe and a DOSBox 0.72 dosbox.conf in the game folder, a "dosbox" folder with only the documentation
+		File xcom = new File(root, "steamapps/common/xcom ufo defense");
+		new File(xcom, "dosbox").mkdirs();
+		new File(xcom, "XCOM").mkdirs();
+		new File(xcom, "dosbox.exe").createNewFile();
+		new File(xcom, "dosbox/README.txt").createNewFile();
+		new File(xcom, "XCOM/UFOCD.BAT").createNewFile();
+		Files.writeString(new File(xcom, "dosbox.conf").toPath(), "# This is the configurationfile for DOSBox 0.72.\n[sdl]\nfullscreen=true\n[dosbox]\nmachine=vga\nmemsize=16\n[cpu]\ncore=normal\ncycles=max\n"
+			+ "[sblaster]\nsbtype=sb16\nmixer=true\n[speaker]\npcspeaker=true\n[autoexec]\n# Lines in this section will be run at startup.\n@echo off\nmount c XCOM -freesize 1024\nc:\ncd XCOM\ncall ufocd.bat\nexit\n");
+		org.dbgl.util.StoreGameImport.Found x = org.dbgl.util.StoreGameImport.find(root).stream().filter(f -> f.gameDir().getName().equals("xcom ufo defense")).findFirst().orElseThrow();
+		assertEquals(xcom.getCanonicalFile(), x.workingDir().getCanonicalFile()); // not the "dosbox" folder
+		org.dbgl.model.aggregate.Profile xp = org.dbgl.util.StoreGameImport.toProfile(x, v083, GenericTextService.getInstance());
+		var xm = xp.getConfiguration().getAutoexec().getMountingpoints();
+		assertEquals(xm.toString(), 1, xm.size());
+		assertTrue(xm.get(0).toString(), xm.get(0).toString().contains("XCOM"));
+		// "cd XCOM" on C: (which is ...\XCOM already) fails in DOSBox, so UFOCD.BAT is started from C:\
+		assertEquals(new File(xcom, "XCOM/UFOCD.BAT").getCanonicalPath().toLowerCase(), new File(xp.getConfiguration().getAutoexec().getMain()).getCanonicalPath().toLowerCase());
+		assertFalse(xp.getConfiguration().hasValue("sblaster", "mixer")); // unknown to Staging 0.83
+		assertFalse(xp.getConfiguration().hasValue("cpu", "cycles")); // converted for Staging
+		assertTrue(xp.listInvalidValues().isEmpty());
+		System.out.println("X-COM for Staging 0.83: " + xp.getConfiguration().getSectionNames() + " " + xm);
+		// GOG's World of Xeen: its own menu (choice, goto) -> the game is the program, the settings program the setup
+		File xeen = new File(root, "World of Xeen");
+		new File(xeen, "DOSBOX").mkdirs();
+		new File(xeen, "DOSBOX/DOSBox.exe").createNewFile();
+		new File(xeen, "XEEN.EXE").createNewFile();
+		new File(xeen, "INSTALL.EXE").createNewFile();
+		Files.writeString(new File(xeen, "dosboxMM4-5.conf").toPath(), "# This is the configuration file for DOSBox 0.74-2.\n[dosbox]\nmemsize=16\n[cpu]\ncycles=fixed 20000\n");
+		Files.writeString(new File(xeen, "dosboxMM4-5_single.conf").toPath(), "[autoexec]\n# Lines in this section will be run at startup.\n\n@ECHO OFF\nmount C \"..\"\nmount C \"..\\cloud_saves\" -t overlay\n"
+			+ "c:\ngoto launcher\n\n:launcher\ncls\nECHO  1) World of Xeen\nECHO  2) Game DOS Settings\n\nchoice /c123 /s Which program do you want to run? [1-3]: /n\nif errorlevel 3 goto exit\n"
+			+ "if errorlevel 2 goto setup\nif errorlevel 1 goto game\n\n:game\ncls\nxeen.exe\ngoto exit\n\n:setup\ncls\ninstall.exe\ngoto launcher\n\n:exit\nexit\n");
+		org.dbgl.util.StoreGameImport.Found w = org.dbgl.util.StoreGameImport.find(root).stream().filter(f -> f.gameDir().getName().equals("World of Xeen")).findFirst().orElseThrow();
+		String wc = org.dbgl.util.StoreGameImport.combined(w);
+		assertFalse(wc, wc.toLowerCase().contains("choice"));
+		assertFalse(wc, wc.toLowerCase().contains("goto"));
+		org.dbgl.model.aggregate.Profile wp = org.dbgl.util.StoreGameImport.toProfile(w, v083, GenericTextService.getInstance());
+		assertEquals(new File(xeen, "XEEN.EXE").getCanonicalPath().toLowerCase(), new File(wp.getConfiguration().getAutoexec().getMain()).getCanonicalPath().toLowerCase());
+		assertEquals(new File(xeen, "INSTALL.EXE").getCanonicalFile(), new File(wp.getSetupString()).getCanonicalFile());
+		assertEquals(1, wp.getConfiguration().getAutoexec().getMountingpoints().size());
+		// a DOSBox SVN-Daum bundle (Earthsiege 2): Windows 95 booted from a hard disk image, the CD on the IDE bus, "imgmount d:" with a colon
+		File es = new File(root, "earthsiege ii");
+		new File(es, "CD").mkdirs();
+		for (String n: new String[] {"dosbox.exe", "250.img", "CD/track01.cue"})
+			new File(es, n).createNewFile();
+		Files.writeString(new File(es, "dosbox.conf").toPath(), "# This is the configuration file for DOSBox SVN-Daum.\n[cpu]\ncore=dynamic\ncycles=max 105%\n[autoexec]\nlgdfxrom 86c764x1.bin\n"
+			+ "imgmount 2 250.img -size 512,63,16,520 -t hdd -fs none\nimgmount d: \"CD\\track01.cue\" -t iso -fs iso -ide 2m\nboot -l c\n");
+		org.dbgl.util.StoreGameImport.Found e = org.dbgl.util.StoreGameImport.find(root).stream().filter(f -> f.gameDir().getName().equals("earthsiege ii")).findFirst().orElseThrow();
+		org.dbgl.model.aggregate.Profile ep = org.dbgl.util.StoreGameImport.toProfile(e, v083, GenericTextService.getInstance());
+		var em = ep.getConfiguration().getAutoexec().getMountingpoints();
+		assertEquals(em.toString(), 2, em.size()); // the CD is there (before, "d:" made it an invalid mount and it was left out)
+		assertTrue(em.get(1).toString(), em.get(1).toString().contains("track01.cue"));
+		assertFalse(em.get(1).toString(), em.get(1).toString().contains("-ide")); // Staging has no IDE bus
+		assertEquals("max", ep.getConfiguration().getValue("cpu", "cpu_cycles"));
+		assertFalse(String.valueOf(ep.getConfiguration().getValue("cpu", "cpu_cycles_protected")).contains("%"));
+		assertEquals("ide", org.dbgl.util.StoreGameImport.needsDosboxX(e)); // the import recommends DOSBox-X for it
+		assertTrue(ep.getConfiguration().getAutoexec().toString(), ep.getConfiguration().getAutoexec().toString().contains("boot -l C")); // the hard disk by its drive, not the file again
+		assertNull(org.dbgl.util.StoreGameImport.needsDosboxX(duke));
+		// for Staging 0.83: the CD image and the hard disk image for booting both become MOUNT
+		ep.adaptImageMountsToDosbox();
+		assertEquals("mount", ((org.dbgl.model.conf.mount.ImageMount)em.get(0)).getCommand().toLowerCase());
+		assertEquals("mount", ((org.dbgl.model.conf.mount.ImageMount)em.get(1)).getCommand().toLowerCase());
+		String auto = ep.getConfiguration().getAutoexec().toString();
+		assertTrue(auto, auto.contains("-size 512,63,16,520") && auto.contains("-fs none") && auto.contains("boot -l C")); // nothing of the booter lost
+		// and back: switched to DOSBox-X, both are IMGMOUNT again, with everything the hard disk image needs
+		org.dbgl.model.aggregate.DosboxVersion vx = DosboxVersionFactory.create("DOSBox-X", SettingsService.DOSBOX_X_DOSBOX_FAM.title_, "2025.10.07", false, true, false, null,
+			"dosboxx", "", "", "dosboxx/dosbox-x.conf");
+		ep.setDosboxVersion(vx);
+		assertTrue(ep.adaptImageMountsToDosbox());
+		assertEquals("imgmount", ((org.dbgl.model.conf.mount.ImageMount)em.get(0)).getCommand().toLowerCase());
+		assertEquals("imgmount", ((org.dbgl.model.conf.mount.ImageMount)em.get(1)).getCommand().toLowerCase());
+		auto = ep.getConfiguration().getAutoexec().toString();
+		assertTrue(auto, auto.contains("-size 512,63,16,520") && auto.contains("-fs none") && auto.contains("boot -l C"));
+		// a PC-98 image (.hdi): only DOSBox-X can mount it, a warning for any other DOSBox, and the import recommends DOSBox-X
+		org.dbgl.model.aggregate.Profile hp = org.dbgl.model.factory.ProfileFactory.create(v083, null);
+		hp.addMount("imgmount 2 \"" + new File(root, "win95.hdi").getPath() + "\" -t hdd");
+		assertTrue(hp.needsDosboxXForPc98());
+		hp.setDosboxVersion(vx);
+		assertFalse(hp.needsDosboxXForPc98());
+		File pc = new File(root, "pc98 game");
+		pc.mkdirs();
+		new File(pc, "dosbox.exe").createNewFile();
+		new File(pc, "game.hdi").createNewFile();
+		Files.writeString(new File(pc, "dosbox.conf").toPath(), "[autoexec]\nimgmount 2 game.hdi\nboot -l c\n");
+		org.dbgl.util.StoreGameImport.Found pf = org.dbgl.util.StoreGameImport.find(root).stream().filter(f -> f.gameDir().getName().equals("pc98 game")).findFirst().orElseThrow();
+		assertEquals("pc98", org.dbgl.util.StoreGameImport.needsDosboxX(pf));
+		org.apache.commons.io.FileUtils.deleteQuietly(root);
+	}
+
+	@Test
+	public void testDuplicateProfiles() {
+		org.dbgl.model.aggregate.DosboxVersion v = DosboxVersionFactory.create("DOSBox Staging 0.83.0", SettingsService.STAGING_DOSBOX_FAM.title_, "0.83.0", false, true, false, null,
+			"staging083", "", "", "staging083/dosbox.conf");
+		java.util.function.Function<String[], org.dbgl.model.aggregate.Profile> make = a -> {
+			org.dbgl.model.aggregate.Profile p = org.dbgl.model.factory.ProfileFactory.create(v, null);
+			p.setTitle(a[0]); p.setDeveloper(a[2]); p.setPublisher(""); p.setGenre(""); p.setYear(a[3]); p.setStatus(""); p.setNotes(a[4]);
+			p.getConfiguration().getAutoexec().setMain(a[1]);
+			return p;
+		};
+		org.dbgl.model.aggregate.Profile doom = make.apply(new String[] {"Doom", "GAMES/DOOM/DOOM.EXE", "id Software", "", ""});
+		org.dbgl.model.aggregate.Profile doom2 = make.apply(new String[] {"DOOM (GOG)", "games/doom/doom.exe", "", "1993", "GOG: C:\\GOG Games\\DOOM"});
+		org.dbgl.model.aggregate.Profile setup = make.apply(new String[] {"Doom Setup", "GAMES/DOOM/SETUP.EXE", "", "", ""});
+		org.dbgl.model.aggregate.Profile none = make.apply(new String[] {"Empty", "", "", "", ""});
+		doom2.setLinkDestination(0, "https://www.mobygames.com/game/1069/doom/");
+		doom2.setLinkTitle(0, "MobyGames");
+		List<org.dbgl.util.DuplicateProfiles.Group> groups = org.dbgl.util.DuplicateProfiles.findLoaded(List.of(doom, doom2, setup, none));
+		assertEquals(1, groups.size()); // the setup starts another program, the empty one none
+		assertEquals(2, groups.get(0).profiles().size());
+		org.dbgl.model.aggregate.Profile keep = groups.get(0).profiles().get(0); // the one with more information
+		org.dbgl.model.aggregate.Profile other = groups.get(0).profiles().get(1);
+		org.dbgl.util.DuplicateProfiles.merge(keep, List.of(other));
+		assertEquals("id Software", keep.getDeveloper());
+		assertEquals("1993", keep.getYear());
+		assertTrue(keep.getNotes().contains("GOG"));
+		assertTrue(java.util.Arrays.stream(keep.getLinks()).anyMatch(l -> l != null && "https://www.mobygames.com/game/1069/doom/".equals(l.getDestination())));
+		org.dbgl.util.DuplicateProfiles.merge(keep, List.of(other)); // twice: nothing doubled
+		assertEquals(1, java.util.Arrays.stream(keep.getLinks()).filter(l -> l != null && "https://www.mobygames.com/game/1069/doom/".equals(l.getDestination())).count());
+		assertEquals(1, keep.getNotes().split("GOG:").length - 1);
+	}
 }

@@ -34,13 +34,37 @@ import org.eclipse.swt.widgets.Text;
 public class DifferencesDialog extends SizeControlledButtonDialog<Object> {
 
 	private final String title_;
-	private final String content_;
+	private String content_;
+	private final String saveName_;
+	private String actionKey_;
+	private java.util.function.Function<Shell, String> action_;
+	private Text text_;
 	private Font font_;
 
 	public DifferencesDialog(Shell parent, String title, String content) {
-		super(parent, "differencesdialog");
+		this(parent, title, content, null, "differencesdialog");
+	}
+
+	/**
+	 * @param saveName with a button to save the text as a report, suggesting this file name; null for none
+	 * @param dialogName for the size and place of the window that are kept
+	 */
+	public DifferencesDialog(Shell parent, String title, String content, String saveName, String dialogName) {
+		super(parent, dialogName);
 		title_ = title;
 		content_ = content;
+		saveName_ = saveName;
+	}
+
+	/**
+	 * a button at the far left, e.g. to tidy up what the text is about
+	 *
+	 * @param action does it (it may ask first) and gives the new text, or null when nothing changed
+	 */
+	public DifferencesDialog withAction(String key, java.util.function.Function<Shell, String> action) {
+		actionKey_ = key;
+		action_ = action;
+		return this;
 	}
 
 	@Override
@@ -51,14 +75,50 @@ public class DifferencesDialog extends SizeControlledButtonDialog<Object> {
 	@Override
 	protected void onShellCreated() {
 		contents_.setLayout(new GridLayout(1, false));
-		Text text = new Text(contents_, SWT.MULTI | SWT.READ_ONLY | SWT.V_SCROLL | SWT.H_SCROLL | SWT.BORDER);
-		text.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
+		text_ = new Text(contents_, SWT.MULTI | SWT.READ_ONLY | SWT.V_SCROLL | SWT.H_SCROLL | SWT.BORDER);
+		text_.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
 		font_ = new Font(shell_.getDisplay(), SystemUtils.IS_WINDOWS ? "Consolas": (SystemUtils.IS_OSX ? "Menlo": "Monospace"), 9, SWT.NORMAL);
-		text.setFont(font_);
+		text_.setFont(font_);
 		shell_.addDisposeListener(e -> font_.dispose());
-		text.setText(content_);
+		text_.setText(content_);
+		// 'save report' right next to OK, at the bottom right as usual for a dialog that only shows something
+		if (saveName_ != null)
+			org.dbgl.gui.controls.Button_.on(okCancelButtons_).text().key("dialog.switchdosbox.savereport").listen(new org.eclipse.swt.events.SelectionAdapter() {
+				@Override
+				public void widgetSelected(org.eclipse.swt.events.SelectionEvent event) {
+					saveReport();
+				}
+			}).ctrl();
 		createOkButton(closeShellAdapter);
-		// OK at the bottom right, as usual for a dialog that only shows something
 		okCancelButtons_.setLayoutData(new GridData(SWT.END, SWT.FILL, true, false));
+		// another action at the far left
+		if (action_ != null) {
+			otherButtons_.moveAbove(okCancelButtons_);
+			org.dbgl.gui.controls.Button_.on(otherButtons_).text().key(actionKey_).listen(new org.eclipse.swt.events.SelectionAdapter() {
+				@Override
+				public void widgetSelected(org.eclipse.swt.events.SelectionEvent event) {
+					String changed = action_.apply(shell_);
+					if (changed != null) {
+						content_ = changed;
+						text_.setText(changed);
+					}
+				}
+			}).ctrl();
+		}
+	}
+
+	private void saveReport() {
+		org.eclipse.swt.widgets.FileDialog dialog = new org.eclipse.swt.widgets.FileDialog(shell_, SWT.SAVE);
+		dialog.setFilterExtensions(new String[] {"*.txt", "*.*"});
+		dialog.setFileName(saveName_);
+		dialog.setOverwrite(true);
+		String file = dialog.open();
+		if (file != null) {
+			try {
+				java.nio.file.Files.writeString(new java.io.File(file).toPath(), content_, java.nio.charset.StandardCharsets.UTF_8);
+			} catch (java.io.IOException e) {
+				org.dbgl.gui.controls.Mess_.on(shell_).exception(e).warning();
+			}
+		}
 	}
 }

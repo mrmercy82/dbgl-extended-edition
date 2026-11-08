@@ -169,6 +169,21 @@ public abstract class SizeControlledPagedDialog<T> extends SizeControlledButtonD
 	protected void computeAllPages(TemplateProfileBase configurable) {
 		pageGenerators_.keySet().forEach(key -> computePage(configurable, key));
 	}
+
+	/** how many pages are not built yet (for a progress bar) */
+	protected int pagesToCompute() {
+		return (int)pageGenerators_.keySet().stream().filter(k -> !pages_.containsKey(k)).count();
+	}
+
+	/** build all pages, with a step of the progress bar for each one that was not built yet */
+	protected void computeAllPages(TemplateProfileBase configurable, org.dbgl.gui.controls.UiProgress progress) {
+		for (String key: pageGenerators_.keySet()) {
+			boolean built = pages_.containsKey(key);
+			computePage(configurable, key);
+			if (!built)
+				progress.step();
+		}
+	}
 	
 	protected Composite computePage(TemplateProfileBase configurable, String key) {
 		return pages_.computeIfAbsent(key, k -> {

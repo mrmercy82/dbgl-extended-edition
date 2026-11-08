@@ -144,40 +144,188 @@ public final class ProfileReports {
 		return sb.toString();
 	}
 
-	public static String statistics(List<Profile> profiles, ITextService text) {
+	/** how many entries the top lists have */
+	private static final int TOP = 15;
+
+	/**
+	 * The statistics of all profiles as a text that can be saved as a report.
+	 *
+	 * @param sessions the play sessions (kept since 0.101 alpha 44), of these profiles and maybe of removed ones
+	 * @param locale for the names of the months and the dates
+	 * @param now the date of the report (the current calendar year comes from it)
+	 */
+	public static String statistics(List<Profile> profiles, List<org.dbgl.model.repository.ProfileRepository.PlaySession> sessions, ITextService text, java.util.Locale locale,
+			java.util.Date now) {
 		StringBuilder sb = new StringBuilder();
+		DateFormat df = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT, locale);
+		sb.append(text.get("dialog.statistics.reportdate", new Object[] {df.format(now)})).append(NL).append(NL);
+
 		long total = profiles.stream().mapToLong(ProfileReports::playTime).sum();
 		long played = profiles.stream().filter(p -> runs(p) > 0).count();
 		long starts = profiles.stream().mapToLong(ProfileReports::runs).sum();
+		Map<Integer, Profile> byId = new java.util.HashMap<>();
+		profiles.forEach(p -> byId.put(p.getId(), p));
+		List<org.dbgl.model.repository.ProfileRepository.PlaySession> own = sessions.stream().filter(x -> byId.containsKey(x.profileId())).toList();
 		sb.append(text.get("dialog.statistics.profiles", new Object[] {profiles.size()})).append(NL);
 		sb.append(text.get("dialog.statistics.played", new Object[] {played, profiles.size() - played})).append(NL);
 		sb.append(text.get("dialog.statistics.starts", new Object[] {starts})).append(NL);
-		sb.append(text.get("dialog.statistics.totaltime", new Object[] {StringUtils.defaultIfEmpty(ProfileStats.formatPlayTime((int)Math.min(Integer.MAX_VALUE, total)), "0:00")})).append(NL);
+		sb.append(text.get("dialog.statistics.totaltime", new Object[] {time(total)})).append(NL);
+		long timed = profiles.stream().filter(p -> playTime(p) > 0).count();
+		sb.append(text.get("dialog.statistics.averagetime", new Object[] {time(timed == 0 ? 0: total / timed)})).append(NL);
+		sb.append(text.get("dialog.statistics.favorites", new Object[] {profiles.stream().filter(p -> Boolean.TRUE.equals(p.isFavorite())).count()})).append(NL);
+		long monthAgo = now.getTime() - 30L * 24 * 60 * 60 * 1000;
+		sb.append(text.get("dialog.statistics.recentplayed", new Object[] {profiles.stream().filter(p -> (p.getStats() != null) && (p.getStats().getLastRun() != null)
+				&& (p.getStats().getLastRun().getTime() >= monthAgo)).count()})).append(NL);
+		sb.append(text.get("dialog.statistics.recentadded", new Object[] {profiles.stream().filter(p -> (p.getStats() != null) && (p.getStats().getCreated() != null)
+				&& (p.getStats().getCreated().getTime() >= monthAgo)).count()})).append(NL);
+		sb.append(text.get("dialog.statistics.sessions", new Object[] {own.size()})).append(NL);
 
-		List<Profile> byTime = profiles.stream().filter(p -> playTime(p) > 0).sorted(Comparator.comparingInt(ProfileReports::playTime).reversed()).limit(10).toList();
+		List<Profile> byTime = profiles.stream().filter(p -> playTime(p) > 0).sorted(Comparator.comparingInt(ProfileReports::playTime).reversed()).limit(TOP).toList();
 		section(sb, text.get("dialog.statistics.mostplayed"));
 		byTime.forEach(p -> sb.append(pad(ProfileStats.formatPlayTime(playTime(p)), 9)).append(p.getTitle()).append(NL));
 		if (byTime.isEmpty())
 			sb.append("-").append(NL);
 
-		List<Profile> byStarts = profiles.stream().filter(p -> runs(p) > 0).sorted(Comparator.comparingInt(ProfileReports::runs).reversed()).limit(10).toList();
+		List<Profile> byStarts = profiles.stream().filter(p -> runs(p) > 0).sorted(Comparator.comparingInt(ProfileReports::runs).reversed()).limit(TOP).toList();
 		section(sb, text.get("dialog.statistics.moststarted"));
 		byStarts.forEach(p -> sb.append(pad(String.valueOf(runs(p)), 9)).append(p.getTitle()).append(NL));
 		if (byStarts.isEmpty())
 			sb.append("-").append(NL);
 
-		DateFormat df = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT);
+		// the longest single sessions, and per game its play time divided by its starts
+		List<org.dbgl.model.repository.ProfileRepository.PlaySession> longest = own.stream()
+				.sorted(Comparator.comparingInt(org.dbgl.model.repository.ProfileRepository.PlaySession::seconds).reversed()).limit(TOP).toList();
+		section(sb, text.get("dialog.statistics.longestsessions"));
+		longest.forEach(x -> sb.append(pad(time(x.seconds()), 9)).append(pad(df.format(x.started()), 22)).append(byId.get(x.profileId()).getTitle()).append(NL));
+		if (longest.isEmpty())
+			sb.append("-").append(NL);
+
+		List<Profile> byAverage = profiles.stream().filter(p -> (playTime(p) > 0) && (runs(p) > 0))
+				.sorted(Comparator.comparingDouble((Profile p) -> (double)playTime(p) / runs(p)).reversed()).limit(TOP).toList();
+		section(sb, text.get("dialog.statistics.longestaverage"));
+		byAverage.forEach(p -> sb.append(pad(time(playTime(p) / runs(p)), 9)).append(pad(ProfileStats.formatPlayTime(playTime(p)) + " / " + runs(p), 22)).append(p.getTitle()).append(NL));
+		if (byAverage.isEmpty())
+			sb.append("-").append(NL);
+
 		List<Profile> last = profiles.stream().filter(p -> (p.getStats() != null) && (p.getStats().getLastRun() != null))
-				.sorted(Comparator.comparing((Profile p) -> p.getStats().getLastRun()).reversed()).limit(10).toList();
+				.sorted(Comparator.comparing((Profile p) -> p.getStats().getLastRun()).reversed()).limit(TOP).toList();
 		section(sb, text.get("dialog.statistics.lastplayed"));
 		last.forEach(p -> sb.append(pad(df.format(p.getStats().getLastRun()), 22)).append(p.getTitle()).append(NL));
 		if (last.isEmpty())
 			sb.append("-").append(NL);
 
+		// played, but not for the longest time (not those under 'last played' already)
+		List<Profile> longAgo = profiles.stream().filter(p -> (p.getStats() != null) && (p.getStats().getLastRun() != null) && !last.contains(p))
+				.sorted(Comparator.comparing((Profile p) -> p.getStats().getLastRun())).limit(TOP).toList();
+		section(sb, text.get("dialog.statistics.notplayedlong"));
+		longAgo.forEach(p -> sb.append(pad(df.format(p.getStats().getLastRun()), 22)).append(p.getTitle()).append(NL));
+		if (longAgo.isEmpty())
+			sb.append("-").append(NL);
+
+		List<Profile> added = profiles.stream().filter(p -> (p.getStats() != null) && (p.getStats().getCreated() != null))
+				.sorted(Comparator.comparing((Profile p) -> p.getStats().getCreated()).reversed()).limit(TOP).toList();
+		section(sb, text.get("dialog.statistics.lastadded"));
+		added.forEach(p -> sb.append(pad(df.format(p.getStats().getCreated()), 22)).append(p.getTitle()).append(NL));
+		if (added.isEmpty())
+			sb.append("-").append(NL);
+
+		// when it was played: per calendar year, per month over all years, and per month of the current year
+		java.util.Calendar cal = java.util.Calendar.getInstance(locale);
+		cal.setTime(now);
+		int thisYear = cal.get(java.util.Calendar.YEAR);
+		java.util.TreeMap<Integer, long[]> years = new java.util.TreeMap<>();
+		long[][] months = new long[12][2], monthsThisYear = new long[12][2];
+		for (org.dbgl.model.repository.ProfileRepository.PlaySession x: own) {
+			cal.setTime(x.started());
+			int y = cal.get(java.util.Calendar.YEAR), m = cal.get(java.util.Calendar.MONTH);
+			long[] c = years.computeIfAbsent(y, k -> new long[2]);
+			c[0]++;
+			c[1] += x.seconds();
+			months[m][0]++;
+			months[m][1] += x.seconds();
+			if (y == thisYear) {
+				monthsThisYear[m][0]++;
+				monthsThisYear[m][1] += x.seconds();
+			}
+		}
+		section(sb, text.get("dialog.statistics.bycalendaryear"));
+		years.forEach((y, c) -> sb.append(pad(String.valueOf(c[0]), 7)).append(pad(time(c[1]), 9)).append(y).append(NL));
+		if (years.isEmpty())
+			sb.append("-").append(NL);
+		String[] monthNames = java.text.DateFormatSymbols.getInstance(locale).getMonths();
+		section(sb, text.get("dialog.statistics.bymonth"));
+		for (int m = 0; m < 12; m++)
+			sb.append(pad(String.valueOf(months[m][0]), 7)).append(pad(months[m][0] == 0 ? "-": time(months[m][1]), 9)).append(monthNames[m]).append(NL);
+		section(sb, text.get("dialog.statistics.bymonththisyear", new Object[] {String.valueOf(thisYear)}));
+		cal.setTime(now);
+		for (int m = 0; m <= cal.get(java.util.Calendar.MONTH); m++)
+			sb.append(pad(String.valueOf(monthsThisYear[m][0]), 7)).append(pad(monthsThisYear[m][0] == 0 ? "-": time(monthsThisYear[m][1]), 9)).append(monthNames[m]).append(NL);
+
+		String none = text.get("dialog.statistics.none");
+		groups(sb, text.get("dialog.statistics.byversion"), profiles, p -> p.getDosboxVersion() == null ? none: p.getDosboxVersion().getTitle(), none, true, false, Integer.MAX_VALUE);
+		groups(sb, text.get("dialog.statistics.bygenre"), profiles, p -> StringUtils.defaultIfBlank(StringUtils.strip(p.getGenre()), none), none, true, false, TOP);
+		groups(sb, text.get("dialog.statistics.bydecade2"), profiles, p -> {
+			String y = releaseYear(p);
+			return y != null ? text.get("dialog.statistics.decade", new Object[] {y.substring(0, 3) + "0"}): none;
+		}, none, true, true, Integer.MAX_VALUE);
+		groups(sb, text.get("dialog.statistics.byreleaseyear"), profiles, p -> StringUtils.defaultIfEmpty(releaseYear(p), none), none, true, true, Integer.MAX_VALUE);
+		groups(sb, text.get("dialog.statistics.bydeveloper2"), profiles, p -> StringUtils.defaultIfBlank(StringUtils.strip(p.getDeveloper()), none), none, true, false, TOP);
+		if (profiles.stream().anyMatch(p -> StringUtils.isNotBlank(p.getStatus())))
+			groups(sb, text.get("dialog.statistics.bystatus"), profiles, p -> StringUtils.defaultIfBlank(StringUtils.strip(p.getStatus()), none), none, false, false, Integer.MAX_VALUE);
+
 		List<Profile> never = profiles.stream().filter(p -> runs(p) == 0).sorted(Comparator.comparing(p -> p.getTitle().toLowerCase())).toList();
 		section(sb, text.get("dialog.statistics.neverplayed", new Object[] {never.size()}));
 		never.forEach(p -> sb.append(p.getTitle()).append(NL));
 		return sb.toString();
+	}
+
+	/** the year of release of a profile (the first 4 digits), or null */
+	private static String releaseYear(Profile p) {
+		String y = StringUtils.left(StringUtils.strip(p.getYear()), 4);
+		return (y != null) && y.matches("\\d{4}") ? y: null;
+	}
+
+	/** seconds as hours:minutes, "0:00" for none */
+	private static String time(long seconds) {
+		return StringUtils.defaultIfEmpty(ProfileStats.formatPlayTime((int)Math.min(Integer.MAX_VALUE, seconds)), "0:00");
+	}
+
+	/**
+	 * The profiles counted per group, most first (or by name, for the decades), with their play time if wanted; the group
+	 * 'none' (no value) always last. At most 'max' groups are listed.
+	 */
+	private static void groups(StringBuilder sb, String title, List<Profile> profiles, java.util.function.Function<Profile, String> groupOf, String none, boolean withTime,
+			boolean byName, int max) {
+		Map<String, long[]> counts = new LinkedHashMap<>(); // count and play time; groups are case-insensitive, shown as first seen
+		Map<String, String> names = new LinkedHashMap<>();
+		for (Profile p: profiles) {
+			String g = groupOf.apply(p);
+			String k = g.toLowerCase();
+			names.putIfAbsent(k, g);
+			long[] c = counts.computeIfAbsent(k, x -> new long[2]);
+			c[0]++;
+			c[1] += playTime(p);
+		}
+		String noneKey = none.toLowerCase();
+		List<String> keys = new ArrayList<>(counts.keySet());
+		keys.remove(noneKey);
+		keys.sort(byName ? Comparator.naturalOrder(): Comparator.comparingLong((String k) -> counts.get(k)[0]).reversed().thenComparing(Comparator.naturalOrder()));
+		boolean more = keys.size() > max;
+		if (more)
+			keys = new ArrayList<>(keys.subList(0, max));
+		if (counts.containsKey(noneKey))
+			keys.add(noneKey);
+		section(sb, title);
+		for (String k: keys) {
+			sb.append(pad(String.valueOf(counts.get(k)[0]), 7));
+			if (withTime)
+				sb.append(pad(StringUtils.defaultIfEmpty(ProfileStats.formatPlayTime((int)Math.min(Integer.MAX_VALUE, counts.get(k)[1])), "-"), 9));
+			sb.append(names.get(k)).append(NL);
+		}
+		if (more)
+			sb.append("...").append(NL);
+		if (keys.isEmpty())
+			sb.append("-").append(NL);
 	}
 
 	private static void section(StringBuilder sb, String title) {

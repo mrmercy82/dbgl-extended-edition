@@ -6,14 +6,27 @@ DBGL was developed up to version 0.100 beta 17 by Ronald Blankendaal
 https://www.vogons.org/viewtopic.php?p=1380082#p1380082). The Extended Edition
 is an independent continuation he is not involved in. It mainly adds support
 for current DOSBox versions; the foundation and almost everything else are his
-work: about three quarters of the program code are unchanged from his 0.100
-beta 17 (of his roughly 42,000 lines, fewer than 250 were changed or removed;
-about 14,500 were added).
+work: nearly three quarters of the program code are unchanged from his 0.100
+beta 17 (of his roughly 42,000 lines, fewer than 300 were changed or removed;
+about 16,000 were added).
 
 Profiles, database and settings are kept when switching.
 
 Extended Edition (source code, downloads, reporting problems):
 https://github.com/mrmercy82/dbgl-extended-edition
+
+
+NEWEST IN 0.101 ALPHA 44
+------------------------
+  - Import GOG and Steam games, recommending DOSBox-X where needed.
+  - Find and merge duplicate profiles.
+  - Statistics with play sessions, play time by year and month, counts by
+    version, genre, developer and year of release; can be saved as a
+    report.
+  - Toolbar with filter, online info, check profiles, random game,
+    statistics and settings.
+  - DOSBox output as a log per profile; warning for PC-98 images without
+    DOSBox-X; progress bars instead of hangs.
 
 
 NEWEST IN 0.101 ALPHA 42 AND 43

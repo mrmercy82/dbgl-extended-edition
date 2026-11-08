@@ -111,21 +111,22 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 		Locale locale = new Locale(settings_.getValue("locale", "language"), settings_.getValue("locale", "country"), settings_.getValue("locale", "variant"));
 		String locString = locales.keySet().stream().filter(key -> locales.get(key).equals(locale)).findFirst().orElse(StringUtils.EMPTY);
 
+		// first what DBGL looks for on the internet by itself, then the settings for DOSBox
+		Group updatesGroup = Group_.on(generalComposite).layout(new GridLayout(2, false)).key("dialog.settings.autoupdates").build();
+		Button checkForUpdates = Chain.on(updatesGroup).lbl(l -> l.key("dialog.settings.checkforupdates")).but(b -> b.tooltip("dialog.settings.checkforupdates.tooltip").select(settings_.getBooleanValue("dosbox", "checkforupdates"))).button();
+		Button editionCheck = Chain.on(updatesGroup).lbl(l -> l.key("dialog.settings.edition.check2")).but(b -> b.tooltip("dialog.settings.edition.check.tooltip")
+				.select(settings_.getBooleanValue(org.dbgl.util.EditionUpdateChecker.SECTION, org.dbgl.util.EditionUpdateChecker.CHECK))).button();
+		Button editionPre = Chain.on(updatesGroup).lbl(l -> l.key("dialog.settings.edition.prereleases2")).but(b -> b.select(settings_.getBooleanValue(org.dbgl.util.EditionUpdateChecker.SECTION,
+			org.dbgl.util.EditionUpdateChecker.PRERELEASES))).button();
+
 		Group dosboxGroup = Group_.on(generalComposite).layout(new GridLayout(2, false)).key("dialog.settings.dosbox").build();
 		Button console = Chain.on(dosboxGroup).lbl(l -> l.key("dialog.settings.hidestatuswindow")).but(b -> b.select(settings_.getBooleanValue("dosbox", "hideconsole"))).button();
 		Button hideUnsupported = Chain.on(dosboxGroup).lbl(l -> l.key("dialog.settings.hideunsupportedsettings")).but(b -> b.select(settings_.getBooleanValue("gui", "hideunsupportedsettings"))).button();
 		Button detectFailedStart = Chain.on(dosboxGroup).lbl(l -> l.key("dialog.settings.detectfailedstart")).but(b -> b.select(settings_.getBooleanValue("dosbox", "detectfailedstart"))).button();
 		Button checkVersions = Chain.on(dosboxGroup).lbl(l -> l.key("dialog.settings.checkversionsatstartup")).but(b -> b.select(settings_.getBooleanValue("dosbox", "checkversionsatstartup"))).button();
-		Button checkForUpdates = Chain.on(dosboxGroup).lbl(l -> l.key("dialog.settings.checkforupdates")).but(b -> b.tooltip("dialog.settings.checkforupdates.tooltip").select(settings_.getBooleanValue("dosbox", "checkforupdates"))).button();
 		Button checkBeforeStart = Chain.on(dosboxGroup).lbl(l -> l.key("dialog.settings.checkbeforestart")).but(b -> b.select(settings_.getBooleanValue("dosbox", "checkbeforestart"))).button();
 		Button profileWarnings = Chain.on(dosboxGroup).lbl(l -> l.key("dialog.settings.profilewarnings")).but(b -> b.tooltip("dialog.settings.profilewarnings.tooltip").select(settings_.getBooleanValue("gui", "profilewarnings"))).button();
 		Button longToolTips = Chain.on(dosboxGroup).lbl(l -> l.key("dialog.settings.longtooltips")).but(b -> b.tooltip("dialog.settings.longtooltips.tooltip").select(settings_.getBooleanValue("gui", "longtooltips"))).button();
-
-		Group editionGroup = Group_.on(generalComposite).layout(new GridLayout(2, false)).key("dialog.settings.edition").build();
-		Button editionCheck = Chain.on(editionGroup).lbl(l -> l.key("dialog.settings.edition.check")).but(b -> b.tooltip("dialog.settings.edition.check.tooltip")
-				.select(settings_.getBooleanValue(org.dbgl.util.EditionUpdateChecker.SECTION, org.dbgl.util.EditionUpdateChecker.CHECK))).button();
-		Button editionPre = Chain.on(editionGroup).lbl(l -> l.key("dialog.settings.edition.prereleases")).but(b -> b.select(settings_.getBooleanValue(org.dbgl.util.EditionUpdateChecker.SECTION,
-			org.dbgl.util.EditionUpdateChecker.PRERELEASES))).button();
 
 		Group unknownGroup = Group_.on(generalComposite).layout(new GridLayout(2, false)).key("dialog.settings.unknownlines").build();
 		boolean askUnknown = org.dbgl.util.UnknownAutoexecLines.ASK.equals(settings_.getValue(org.dbgl.util.UnknownAutoexecLines.SECTION, org.dbgl.util.UnknownAutoexecLines.MODE));
@@ -383,26 +384,34 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 				apiKeys[i] = Chain.on(consultGroup).lbl(l -> l.key("dialog.settings.apikey")).txt(
 						t -> t.horSpan(2).val(settings_.getValue(engine.getSimpleName(), "api_key"))).text();
 			}
+			if (engine instanceof org.dbgl.util.searchengine.ScreenScraperSearchEngine) {
+				apiKeys[i] = Chain.on(consultGroup).lbl(l -> l.key("dialog.settings.screenscraper.user")).txt(
+						t -> t.horSpan(2).val(settings_.getValue(engine.getSimpleName(), org.dbgl.util.searchengine.ScreenScraperSearchEngine.USER))).text();
+				apiSecrets[i] = Chain.on(consultGroup).lbl(l -> l.key("dialog.settings.screenscraper.password")).txt(
+						t -> t.horSpan(2).val(settings_.getValue(engine.getSimpleName(), org.dbgl.util.searchengine.ScreenScraperSearchEngine.PASSWORD))).text();
+				apiSecrets[i].setEchoChar('\u25CF'); // the password is not shown
+			}
 			if (engine instanceof org.dbgl.util.searchengine.IgdbSearchEngine) {
 				apiKeys[i] = Chain.on(consultGroup).lbl(l -> l.key("dialog.settings.igdb.clientid")).txt(
 						t -> t.horSpan(2).val(settings_.getValue(engine.getSimpleName(), org.dbgl.util.searchengine.IgdbSearchEngine.CLIENT_ID))).text();
 				apiSecrets[i] = Chain.on(consultGroup).lbl(l -> l.key("dialog.settings.igdb.clientsecret")).txt(
 						t -> t.horSpan(2).val(settings_.getValue(engine.getSimpleName(), org.dbgl.util.searchengine.IgdbSearchEngine.CLIENT_SECRET))).text();
 			}
-			if (engine instanceof org.dbgl.util.searchengine.IgdbSearchEngine || engine instanceof org.dbgl.util.searchengine.SteamGridDbSearchEngine || engine instanceof MobyGamesSearchEngine) {
-				// where to get the free key: a link, and what this source gives
+			if (engine instanceof org.dbgl.util.searchengine.IgdbSearchEngine || engine instanceof org.dbgl.util.searchengine.ScreenScraperSearchEngine || engine instanceof org.dbgl.util.searchengine.SteamGridDbSearchEngine || engine instanceof MobyGamesSearchEngine) {
+				// where to get the key: a link, and what this source gives
 				org.eclipse.swt.widgets.Link how = new org.eclipse.swt.widgets.Link(consultGroup, SWT.WRAP);
 				GridData howData = new GridData(SWT.FILL, SWT.BEGINNING, true, false, 3, 1);
 				howData.widthHint = 480;
 				how.setLayoutData(howData);
-				how.setText(text_.get("dialog.settings." + engine.getSimpleName() + ".howto"));
+				// MobyGames: the API key is no longer free (other text since alpha 44)
+				how.setText(text_.get("dialog.settings." + engine.getSimpleName() + (engine instanceof MobyGamesSearchEngine ? ".howto2": ".howto")));
 				how.addListener(SWT.Selection, e -> org.dbgl.util.SystemUtils.openForBrowsing(e.text, shell_));
 			}
 			
 			setTitle[i] = Chain.on(consultGroup).lbl(l -> l.key("dialog.settings.settitle")).but(b -> b.horSpan(2).select(settings_.getBooleanValue(engine.getSimpleName(), "set_title"))).button();
 			setDev[i] = Chain.on(consultGroup).lbl(l -> l.key("dialog.settings.setdeveloper")).but(
 				b -> b.horSpan(2).select(settings_.getBooleanValue(engine.getSimpleName(), "set_developer"))).button();
-			if (engine instanceof MobyGamesSearchEngine || engine instanceof MetropolisSearchEngine || engine instanceof TheGamesDBSearchEngine || engine instanceof org.dbgl.util.searchengine.IgdbSearchEngine) {
+			if (engine instanceof MobyGamesSearchEngine || engine instanceof MetropolisSearchEngine || engine instanceof TheGamesDBSearchEngine || engine instanceof org.dbgl.util.searchengine.IgdbSearchEngine || engine instanceof org.dbgl.util.searchengine.ScreenScraperSearchEngine) {
 				setPub[i] = Chain.on(consultGroup).lbl(l -> l.key("dialog.settings.setpublisher")).but(
 					b -> b.horSpan(2).select(settings_.getBooleanValue(engine.getSimpleName(), "set_publisher"))).button();
 			}
@@ -410,15 +419,15 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 			setGenre[i] = Chain.on(consultGroup).lbl(l -> l.key("dialog.settings.setgenre")).but(b -> b.horSpan(2).select(settings_.getBooleanValue(engine.getSimpleName(), "set_genre"))).button();
 			String name = engine instanceof MetropolisSearchEngine ? MobyGamesSearchEngine.getInstance().getName(): engine.getName();
 			setLink[i] = Chain.on(consultGroup).lbl(l -> l.key("dialog.settings.setlink", name)).but(b -> b.horSpan(2).select(settings_.getBooleanValue(engine.getSimpleName(), "set_link"))).button();
-			if (engine instanceof MobyGamesSearchEngine || engine instanceof MetropolisSearchEngine || engine instanceof org.dbgl.util.searchengine.IgdbSearchEngine) {
+			if (engine instanceof MobyGamesSearchEngine || engine instanceof MetropolisSearchEngine || engine instanceof org.dbgl.util.searchengine.IgdbSearchEngine || engine instanceof org.dbgl.util.searchengine.ScreenScraperSearchEngine) {
 				setRank[i] = Chain.on(consultGroup).lbl(l -> l.key("dialog.settings.setrank", columnNames_[Constants.RO_COLUMN_NAMES + 8])).but(
 					b -> b.horSpan(2).select(settings_.getBooleanValue(engine.getSimpleName(), "set_rank"))).button();
 			}
-			if (engine instanceof MobyGamesSearchEngine || engine instanceof MetropolisSearchEngine || engine instanceof TheGamesDBSearchEngine || engine instanceof org.dbgl.util.searchengine.IgdbSearchEngine) {
+			if (engine instanceof MobyGamesSearchEngine || engine instanceof MetropolisSearchEngine || engine instanceof TheGamesDBSearchEngine || engine instanceof org.dbgl.util.searchengine.IgdbSearchEngine || engine instanceof org.dbgl.util.searchengine.ScreenScraperSearchEngine) {
 				setDescr[i] = Chain.on(consultGroup).lbl(l -> l.key("dialog.settings.setdescription")).but(
 					b -> b.horSpan(2).select(settings_.getBooleanValue(engine.getSimpleName(), "set_description"))).button();
 			}
-			if (engine instanceof MobyGamesSearchEngine || engine instanceof MetropolisSearchEngine || engine instanceof TheGamesDBSearchEngine || engine instanceof org.dbgl.util.searchengine.IgdbSearchEngine || engine instanceof org.dbgl.util.searchengine.SteamGridDbSearchEngine) {
+			if (engine instanceof MobyGamesSearchEngine || engine instanceof MetropolisSearchEngine || engine instanceof TheGamesDBSearchEngine || engine instanceof org.dbgl.util.searchengine.IgdbSearchEngine || engine instanceof org.dbgl.util.searchengine.ScreenScraperSearchEngine || engine instanceof org.dbgl.util.searchengine.SteamGridDbSearchEngine) {
 				chooseCoverArt[i] = Chain.on(consultGroup).lbl(l -> l.key("dialog.settings.choosecoverart")).but(
 					b -> b.select(settings_.getBooleanValue(engine.getSimpleName(), "choose_coverart"))).button();
 
@@ -430,7 +439,7 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 			}
 			chooseScreenshot[i] = Chain.on(consultGroup).lbl(l -> l.key("dialog.settings.choosescreenshot")).but(
 				b -> b.horSpan(2).select(settings_.getBooleanValue(engine.getSimpleName(), "choose_screenshot"))).button();
-			if (engine instanceof MobyGamesSearchEngine || engine instanceof MetropolisSearchEngine || engine instanceof TheGamesDBSearchEngine || engine instanceof org.dbgl.util.searchengine.IgdbSearchEngine || engine instanceof org.dbgl.util.searchengine.SteamGridDbSearchEngine) {
+			if (engine instanceof MobyGamesSearchEngine || engine instanceof MetropolisSearchEngine || engine instanceof TheGamesDBSearchEngine || engine instanceof org.dbgl.util.searchengine.IgdbSearchEngine || engine instanceof org.dbgl.util.searchengine.ScreenScraperSearchEngine || engine instanceof org.dbgl.util.searchengine.SteamGridDbSearchEngine) {
 				maxCoverArt[i] = Chain.on(consultGroup).lbl(l -> l.key("dialog.settings.multieditmaxcoverart")).spn(
 					s -> s.min(0).horSpan(2).select(settings_.getIntValue(engine.getSimpleName(), "multi_max_coverart"))).spinner();
 			}
@@ -543,35 +552,39 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 					WebSearchEngine engine = SettingsService.availableWebSearchEngines().get(i);
 					settings_.setBooleanValue(engine.getSimpleName(), "set_title", setTitle[i].getSelection());
 					settings_.setBooleanValue(engine.getSimpleName(), "set_developer", setDev[i].getSelection());
-					if (engine instanceof MobyGamesSearchEngine || engine instanceof MetropolisSearchEngine || engine instanceof TheGamesDBSearchEngine || engine instanceof org.dbgl.util.searchengine.IgdbSearchEngine) {
+					if (engine instanceof MobyGamesSearchEngine || engine instanceof MetropolisSearchEngine || engine instanceof TheGamesDBSearchEngine || engine instanceof org.dbgl.util.searchengine.IgdbSearchEngine || engine instanceof org.dbgl.util.searchengine.ScreenScraperSearchEngine) {
 						settings_.setBooleanValue(engine.getSimpleName(), "set_publisher", setPub[i].getSelection());
 						settings_.setBooleanValue(engine.getSimpleName(), "set_description", setDescr[i].getSelection());
 					}
 					settings_.setBooleanValue(engine.getSimpleName(), "set_year", setYear[i].getSelection());
 					settings_.setBooleanValue(engine.getSimpleName(), "set_genre", setGenre[i].getSelection());
 					settings_.setBooleanValue(engine.getSimpleName(), "set_link", setLink[i].getSelection());
-					if (engine instanceof MobyGamesSearchEngine || engine instanceof MetropolisSearchEngine || engine instanceof org.dbgl.util.searchengine.IgdbSearchEngine) {
+					if (engine instanceof MobyGamesSearchEngine || engine instanceof MetropolisSearchEngine || engine instanceof org.dbgl.util.searchengine.IgdbSearchEngine || engine instanceof org.dbgl.util.searchengine.ScreenScraperSearchEngine) {
 						settings_.setBooleanValue(engine.getSimpleName(), "set_rank", setRank[i].getSelection());
 					}
 					if (engine instanceof MetropolisSearchEngine) {
 						settings_.setBooleanValue(engine.getSimpleName(), "force_all_regions_coverart", allRegionsCoverArt[i].getSelection());
 					}
-					if (engine instanceof MobyGamesSearchEngine || engine instanceof MetropolisSearchEngine || engine instanceof TheGamesDBSearchEngine || engine instanceof org.dbgl.util.searchengine.IgdbSearchEngine || engine instanceof org.dbgl.util.searchengine.SteamGridDbSearchEngine) {
+					if (engine instanceof MobyGamesSearchEngine || engine instanceof MetropolisSearchEngine || engine instanceof TheGamesDBSearchEngine || engine instanceof org.dbgl.util.searchengine.IgdbSearchEngine || engine instanceof org.dbgl.util.searchengine.ScreenScraperSearchEngine || engine instanceof org.dbgl.util.searchengine.SteamGridDbSearchEngine) {
 						settings_.setBooleanValue(engine.getSimpleName(), "choose_coverart", chooseCoverArt[i].getSelection());
 						settings_.setIntValue(engine.getSimpleName(), "multi_max_coverart", maxCoverArt[i].getSelection());
 					}
-					if (engine instanceof MobyGamesSearchEngine || engine instanceof MetropolisSearchEngine || engine instanceof PouetSearchEngine || engine instanceof TheGamesDBSearchEngine || engine instanceof org.dbgl.util.searchengine.IgdbSearchEngine || engine instanceof org.dbgl.util.searchengine.SteamGridDbSearchEngine) {
+					if (engine instanceof MobyGamesSearchEngine || engine instanceof MetropolisSearchEngine || engine instanceof PouetSearchEngine || engine instanceof TheGamesDBSearchEngine || engine instanceof org.dbgl.util.searchengine.IgdbSearchEngine || engine instanceof org.dbgl.util.searchengine.ScreenScraperSearchEngine || engine instanceof org.dbgl.util.searchengine.SteamGridDbSearchEngine) {
 						settings_.setBooleanValue(engine.getSimpleName(), "choose_screenshot", chooseScreenshot[i].getSelection());
 						settings_.setIntValue(engine.getSimpleName(), "multi_max_screenshot", maxScreenshots[i].getSelection());
 					}
 					if (engine instanceof TheGamesDBSearchEngine || engine instanceof org.dbgl.util.searchengine.SteamGridDbSearchEngine || engine instanceof MobyGamesSearchEngine) {
 						settings_.setValue(engine.getSimpleName(), "api_key", apiKeys[i].getText().trim());
 					}
+					if (engine instanceof org.dbgl.util.searchengine.ScreenScraperSearchEngine) {
+						settings_.setValue(engine.getSimpleName(), org.dbgl.util.searchengine.ScreenScraperSearchEngine.USER, apiKeys[i].getText().trim());
+						settings_.setValue(engine.getSimpleName(), org.dbgl.util.searchengine.ScreenScraperSearchEngine.PASSWORD, apiSecrets[i].getText().trim());
+					}
 					if (engine instanceof org.dbgl.util.searchengine.IgdbSearchEngine) {
 						settings_.setValue(engine.getSimpleName(), org.dbgl.util.searchengine.IgdbSearchEngine.CLIENT_ID, apiKeys[i].getText().trim());
 						settings_.setValue(engine.getSimpleName(), org.dbgl.util.searchengine.IgdbSearchEngine.CLIENT_SECRET, apiSecrets[i].getText().trim());
 					}
-					if (engine instanceof MobyGamesSearchEngine || engine instanceof MetropolisSearchEngine || engine instanceof PouetSearchEngine || engine instanceof TheGamesDBSearchEngine || engine instanceof org.dbgl.util.searchengine.IgdbSearchEngine || engine instanceof org.dbgl.util.searchengine.SteamGridDbSearchEngine) {
+					if (engine instanceof MobyGamesSearchEngine || engine instanceof MetropolisSearchEngine || engine instanceof PouetSearchEngine || engine instanceof TheGamesDBSearchEngine || engine instanceof org.dbgl.util.searchengine.IgdbSearchEngine || engine instanceof org.dbgl.util.searchengine.ScreenScraperSearchEngine || engine instanceof org.dbgl.util.searchengine.SteamGridDbSearchEngine) {
 						String vOld = settings_.getMultilineValue(engine.getSimpleName(), "platform_filter", platformFilterValues[i].getLineDelimiter());
 						String vNew = platformFilterValues[i].getText();
 						if (!vOld.equals(vNew)) {

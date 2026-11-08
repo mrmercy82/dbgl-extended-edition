@@ -475,10 +475,13 @@ public class AddGameWizardDialog extends WizardDialog<Profile> {
 		if (engineSelector_.isSelected()) {
 			WebSearchEngine engine = WebSearchEngine.getBySimpleName(settings_.getValue("gui", "searchengine"));
 			try {
-				List<WebProfile> webGamesList = engine.getEntries(currTitle, settings_.getValues(engine.getSimpleName(), "platform_filter"));
+				// in the background with a progress bar and a Cancel button, as in the profile dialog
+				String searching = text_.get("searchengine.searching", new Object[] {engine.getName()});
+				String[] platformFilter = settings_.getValues(engine.getSimpleName(), "platform_filter");
+				List<WebProfile> webGamesList = org.dbgl.gui.controls.BusyTask.run(shell_, searching, () -> engine.getEntries(currTitle, platformFilter));
 				final WebProfile thisGame = webGamesList.isEmpty() ? null: new BrowseSearchEngineDialog(shell_, currTitle, webGamesList, engine).open();
 				if (thisGame != null) {
-					engine.getEntryDetailedInformation(thisGame);
+					org.dbgl.gui.controls.BusyTask.run(shell_, searching, () -> engine.getEntryDetailedInformation(thisGame));
 					if (settings_.getBooleanValue(engine.getSimpleName(), "set_title"))
 						title_.setText(thisGame.getTitle());
 					if (settings_.getBooleanValue(engine.getSimpleName(), "set_developer"))
@@ -512,7 +515,7 @@ public class AddGameWizardDialog extends WizardDialog<Profile> {
 						}
 
 						boolean forceAllRegionsCoverArt = settings_.getBooleanValue(engine.getSimpleName(), "force_all_regions_coverart");
-						imageInformation_ = engine.getEntryImages(thisGame, ca, ss, forceAllRegionsCoverArt);
+						imageInformation_ = org.dbgl.gui.controls.BusyTask.run(shell_, searching, () -> engine.getEntryImages(thisGame, ca, ss, forceAllRegionsCoverArt));
 
 						if (imageInformation_.length > 0) {
 							Chain.on(webImagesSpaceHolder_).but(b -> b.layoutData(new GridData((WEB_IMAGE_WIDTH + 10), SWT.DEFAULT)).text().key("button.all").listen(new SelectionAdapter() {
@@ -535,6 +538,11 @@ public class AddGameWizardDialog extends WizardDialog<Profile> {
 								}
 							})).build();
 						}
+
+						// how far loading the images is, and why some could not be loaded
+						org.dbgl.gui.controls.ImageLoadStatus loadStatus = imageInformation_.length > 0
+								? new org.dbgl.gui.controls.ImageLoadStatus(webImagesSpaceHolder_, imageInformation_.length, new GridData(SWT.FILL, SWT.CENTER, true, false, 2, 1))
+								: null;
 
 						ScrolledComposite webImagesSpace = createScrolledComposite(webImagesSpaceHolder_, SWT.V_SCROLL);
 						webImagesSpace.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 2, 1));
@@ -562,11 +570,13 @@ public class AddGameWizardDialog extends WizardDialog<Profile> {
 									imageInformation_[i].getDescription()).layoutData(new RowData()).ctrl();
 
 								final int j = i;
+								final String imgUrl = imageInformation_[i].getUrl();
 								Thread thread = new Thread() {
 									@Override
 									public void run() {
 										try {
 											ImageData imgData = thisGame.getWebImage(j);
+											loadStatus.loaded();
 											if (!display_.isDisposed()) {
 												display_.asyncExec(() -> {
 													if (!imgButtons_[j].isDisposed()) {
@@ -588,8 +598,8 @@ public class AddGameWizardDialog extends WizardDialog<Profile> {
 													}
 												});
 											}
-										} catch (IOException e) {
-											// ignore any missing images
+										} catch (Exception e) {
+											loadStatus.failed(e, imgUrl); // shown above the images
 										}
 									}
 								};
@@ -602,6 +612,8 @@ public class AddGameWizardDialog extends WizardDialog<Profile> {
 						webImagesComposite.pack();
 					}
 				}
+			} catch (org.dbgl.gui.controls.BusyTask.Cancelled e) {
+				// the user cancelled: go on without the information
 			} catch (Exception e) {
 				Mess_.on(shell_).key("general.error.retrieveinfosearchengine", new String[] {engine.getName(), currTitle, StringRelatedUtils.toString(e)}).exception(e).warning();
 			}

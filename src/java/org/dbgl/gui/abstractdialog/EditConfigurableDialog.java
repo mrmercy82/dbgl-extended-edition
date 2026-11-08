@@ -221,6 +221,26 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 				+ SettingsService.getInstance().getBooleanValue("gui", "hideunsupportedsettings") + '|' + supportsMoreSettingsPage();
 	}
 
+	/** a progress bar while the controls are filled (that takes a moment with all pages), or null */
+	protected org.dbgl.gui.controls.UiProgress uiProgress_;
+	private static final int CONTROLS_PER_STEP = 100;
+
+	/** how many steps updateControlsByConfigurable makes on uiProgress_ */
+	protected int controlsUpdateSteps() {
+		return 3 * ((metaControls_.size() + CONTROLS_PER_STEP - 1) / CONTROLS_PER_STEP) + 2;
+	}
+
+	private void forEachControl(java.util.function.Consumer<Chain> action) {
+		int i = 0;
+		for (Chain c: metaControls_) {
+			action.accept(c);
+			if ((++i % CONTROLS_PER_STEP == 0) && (uiProgress_ != null))
+				uiProgress_.step();
+		}
+		if ((i % CONTROLS_PER_STEP != 0) && (uiProgress_ != null))
+			uiProgress_.step();
+	}
+
 	protected void updateControlsByConfigurable(TemplateProfileBase configurable) {
 		showUnknownLines(configurable);
 		Configuration combinedConf = configurable.getCombinedConfiguration();
@@ -230,11 +250,13 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		// pages without any setting of the selected DOSBox version are always left out, hiding single settings is up to the user
 		boolean hideEmptyPages = true;
 		extras_.discardOutdated(configurable);
-		metaControls_.forEach(x -> x.enableOrDisableControl(configurable));
+		forEachControl(x -> x.enableOrDisableControl(configurable));
 		updatePageTree(configurable, hideEmptyPages);
 		relayoutVisiblePage();
+		if (uiProgress_ != null)
+			uiProgress_.step();
 		// set combo values
-		metaControls_.forEach(x -> x.setComboValues(configurable));
+		forEachControl(x -> x.setComboValues(configurable));
 
 		if (mountingpointsList_.isEnabled() && !Arrays.equals(mountingpointsList_.getItems(), configurable.getMountStringsForUI()))
 			mountingpointsList_.setItems(configurable.getMountStringsForUI());
@@ -242,8 +264,10 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		booterRadio_.setSelection(combinedAuto.isBooter());
 
 		// set control values
-		metaControls_.forEach(x -> x.setControlByConfigurable(configurable, combinedConf));
+		forEachControl(x -> x.setControlByConfigurable(configurable, combinedConf));
 		nativeCommandControl_.setControlByConfigurable(configurable, combinedConf);
+		if (uiProgress_ != null)
+			uiProgress_.step();
 		extras_.setValues(configurable); // the settings of the pages shown so far
 
 		setButton_.setEnabled(false);

@@ -94,6 +94,8 @@ public class AboutDialog extends BaseDialog<Object> {
 
 		shell_.setDefaultButton(Button_.on(group).text().key("button.ok").listen(closeShellAdapter).ctrl());
 		shell_.getDefaultButton().setFocus();
+		// only as high as the content needs (it had much empty space above and below)
+		shell_.setSize(720, Math.min(560, shell_.computeSize(720, SWT.DEFAULT).y + 10));
 	}
 
 	/** smaller and gray, for the lines that only introduce or credit */

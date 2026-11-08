@@ -207,6 +207,7 @@ public abstract class TemplateProfileBase extends GenerationAwareConfigurable {
 		boolean changed = false;
 		for (org.dbgl.model.conf.mount.Mount m: configuration_.getAutoexec().getMountingpoints()) {
 			if ((m instanceof org.dbgl.model.conf.mount.ImageMount im) && !wanted.equalsIgnoreCase(im.getCommand())) {
+				// all image kinds, also hard disk images for booting (drive 2/3, -size, -t hdd, -fs none): tested with Staging 0.83
 				im.setCommand(wanted);
 				changed = true;
 			}
@@ -340,9 +341,13 @@ public abstract class TemplateProfileBase extends GenerationAwareConfigurable {
 				String value = StringUtils.defaultString(configuration_.getValue(section, item)).trim().toLowerCase();
 				if ((options == null) || options.isFreeForm() || value.isEmpty())
 					continue;
-				if (isShaderItem(item) && isKnownOrFileShader(value))
-					continue; // DOSBox lists only its built-in shaders; others are files in its shader folders
 				List<String> allowed = options.getValues();
+				if (isShaderItem(item)) {
+					// DOSBox lists only its built-in shaders; others are files in its shader folders: those must be there
+					if (!allowed.contains(value) && !isKnownOrFileShader(configuration_.getValue(section, item).trim())) // as written: paths
+						result.add(new String[] {section, item, configuration_.getValue(section, item), String.join(", ", allowed), "shader"});
+					continue;
+				}
 				boolean switchSetting = SWITCH_VALUES.containsAll(allowed);
 				boolean valid = java.util.Arrays.stream(value.split("[,\\s]+")).allMatch(v -> allowed.contains(v) || (switchSetting && SWITCH_VALUES.contains(v)));
 				if (!valid)
@@ -357,21 +362,54 @@ public abstract class TemplateProfileBase extends GenerationAwareConfigurable {
 	}
 
 	/**
-	 * A shader DOSBox finds in its shader folders (e.g. "scaler/advinterp2x", "crt/crt-hyllian:vga-4k") or a path to a shader
-	 * file: valid, even though the documentation of the setting only lists the built-in ones.
+	 * A shader DOSBox finds in its shader folders (e.g. "scaler/advinterp2x", "crt/crt-hyllian:vga-4k"), or a shader file that
+	 * exists: valid, even though the documentation of the setting only lists the built-in ones. When DBGL cannot look into the
+	 * shader folders of this DOSBox version (none found, or a kind of DOSBox it does not know them of), any shader is taken
+	 * as valid, so that no warning is given that may be wrong.
 	 */
 	boolean isKnownOrFileShader(String value) {
 		String v = value.trim();
-		if (v.contains("/") || v.contains("\\") || v.contains(":") || v.matches("(?i).*\\.(glsl|slang|preset|fx)$"))
-			return true;
 		try {
 			for (String s: glshaderValues())
 				if (s.equalsIgnoreCase(v))
 					return true;
 		} catch (RuntimeException e) {
-			// no list of installed shaders at hand
+			// no list of shaders at hand
 		}
-		return false;
+		boolean file = v.matches("(?i).*\\.(glsl|slang|fx)$") || new File(v).isAbsolute();
+		if (file) {
+			File f = new File(v);
+			java.util.List<File> candidates = new ArrayList<>();
+			candidates.add(f);
+			if (!f.isAbsolute() && (dosboxVersion_ != null)) {
+				File exeDir = dosboxVersion_.getCanonicalExecutable().getParentFile();
+				if (exeDir != null)
+					candidates.add(new File(exeDir, v));
+				if (dosboxVersion_.getCwd() != null)
+					candidates.add(new File(dosboxVersion_.getCwd(), v));
+			}
+			if (candidates.stream().anyMatch(File::isFile))
+				return true;
+			String name = v.replaceAll("(?i)\\.(glsl|slang|fx)$", "").replace('\\', '/');
+			java.util.List<String> found = installedShaders();
+			return found.stream().anyMatch(s -> s.equalsIgnoreCase(name) || name.toLowerCase().endsWith("/" + s.toLowerCase()));
+		}
+		return installedShaders().isEmpty(); // a name: only known missing if DBGL found the shader folders
+	}
+
+	/** the shaders DBGL finds in the shader folders of this DOSBox version (empty if none or not known) */
+	java.util.List<String> installedShaders() {
+		if ((dosboxVersion_ == null) || (gen_ == null))
+			return java.util.List.of();
+		try {
+			if (familyIdx(gen_) == familyIdx(Generation.x_20241001))
+				return org.dbgl.util.DosboxVersionDetector.listDosboxXShadersCached(dosboxVersion_.getCanonicalExecutable(), dosboxVersion_.getCwd());
+			if (familyIdx(gen_) == familyIdx(Generation.staging_0830))
+				return org.dbgl.util.DosboxVersionDetector.listShadersCached(dosboxVersion_.getCanonicalExecutable(), dosboxVersion_.getCwd(), gen_ == Generation.staging_0830);
+		} catch (RuntimeException e) {
+			// not known
+		}
+		return java.util.List.of();
 	}
 
 	/** for DOSBox Staging, also the shaders the executable finds in its resource folders (--list-shaders) */
@@ -409,6 +447,14 @@ public abstract class TemplateProfileBase extends GenerationAwareConfigurable {
 	 *
 	 * @return true if the machine was changed
 	 */
+	/**
+	 * a PC-98 image (.hdi, .nhd, .fdi, .d88) with a DOSBox that is not DOSBox-X: only DOSBox-X reads these formats (DOSBox
+	 * Staging, for example, asks for the geometry of the .hdi and then cannot boot it)
+	 */
+	public boolean needsDosboxXForPc98() {
+		return (dosboxVersion_ != null) && !StringUtils.defaultString(dosboxVersion_.getFamily()).toLowerCase().contains("dosbox-x") && usesPc98HdImage();
+	}
+
 	public boolean ensurePc98MachineForHdi() {
 		if ((dosboxVersion_ == null) || (gen_ == null) || (familyIdx(gen_) != familyIdx(Generation.x_20241001)) || !usesPc98HdImage())
 			return false;

@@ -4,6 +4,53 @@ DBGL Extended Edition - Änderungen seit 0.100 beta 17
 Grundlage: DBGL 0.100 beta 17 von Ronald Blankendaal (https://dbgl.org), Quellcode. Neueste Version zuerst.
 
 
+0.101 alpha 44 (2026-11-08)
+---------------------------
+Fehler behoben
+- GOG/Steam-Konfigurationen: "imgmount d: ..." (mit Doppelpunkt) ließ das
+  CD-Laufwerk wegfallen; "cycles=max 105%" wurde beim Umstellen auf Staging
+  zu einem ungültigen Wert.
+- Booten eines Festplatten-Abbilds mit Nummer (imgmount 2 ...) mit
+  "boot -l C", statt die Datei ein zweites Mal ohne -size einzubinden.
+- Fenster mit nur einem OK: der Knopf ist wieder normal breit.
+- "DISPLAY: Unknown video mode" (Staging beim Start) gilt nicht mehr als
+  Warnung.
+
+Neu
+- "GOG- und Steam-Spiele importieren..." (Menü Profile), mit Empfehlung für
+  DOSBox-X, wo nötig (CD am IDE-Bus, Festplatten-Booter, PC-98-Abbilder).
+- "Doppelte Profile suchen..." führt Profile zusammen, die dasselbe Spiel
+  starten.
+- Statistik stark erweitert: Spielsitzungen (ab jetzt aufgezeichnet,
+  Datenbank 0.102), längste Sitzungen, Spielzeit nach Kalenderjahr und
+  -monat, Aufteilung nach DOSBox-Version, Genre, Entwickler und
+  Erscheinungsjahr; Berichtsdatum, "Bericht speichern...", "Gelöschte
+  Profile bereinigen...".
+- Symbolleiste: Filter, Online-Infos, Profile prüfen, Zufallsspiel,
+  Statistik, Einstellungen und Über; die Ansichtsknöpfe zeigen, was
+  eingestellt ist.
+- DOSBox-Ausgabe als Log, je Profil einschaltbar (Ordner "logs").
+- PC-98-Abbilder (.hdi usw.) ohne DOSBox-X: Warnung vor dem Start, in "Mit
+  Problemen" und in "Profile prüfen".
+- Defekte Links und fehlende Shader werden in "Profile prüfen" gemeldet.
+- ScreenScraper als Quelle vorbereitet (erscheint mit Entwickler-Zugang).
+
+Verbessert
+- Ladebalken statt kurzer Hänger: Kacheln/Boxen, Profil umstellen und
+  speichern, Bilder aus Online-Quellen (mit Grund, wenn ein Bild fehlt,
+  z. B. HTTP 403 bei MobyGames), Assistent.
+- Fenster öffnen mittig, das DOSBox-Statusfenster oben links; selbst
+  verschobene Fenster öffnen wieder dort.
+- DOSBox Staging 0.83: alle Abbilder als MOUNT, auch Festplatten-Booter.
+- MobyGames ist nicht mehr voreingestellt (jetzt TheGamesDB) und steht
+  zuletzt; der Hinweis sagt, dass sein Schlüssel kostenpflichtig ist.
+- Einstellungen: "Automatische Updates" oben; Menüs Profile und Hilfe neu
+  geordnet; Über-Fenster kompakter.
+- Handbücher und Extras: Auswahlliste folgt der Maus, Spalte mit belegten
+  und freien Link-Feldern.
+- Tests mit gespeicherten Antworten von MobyGames und IGDB; GitHub baut und
+  testet unter Linux und Windows.
+
 0.101 alpha 43 (2026-11-07)
 ---------------------------
 Fehler behoben
@@ -35,8 +82,8 @@ Fehler behoben
 - Ansicht-Symbol zeigte nach dem Start immer "kleine Kacheln".
 
 Neu
-- MobyGames über die offizielle API (kostenloser Schlüssel in den
-  Einstellungen), da MobyGames seine Webseiten für Programme sperrt.
+- MobyGames über die offizielle API (Schlüssel in den Einstellungen;
+  bei MobyGames kostenpflichtig), da MobyGames seine Webseiten für Programme sperrt.
 - Neue Quellen für Spielinfos: IGDB und SteamGridDB.
 - "Werte ersetzen..." für alle markierten Profile, mit Vorschau und
   Auswahllisten der möglichen Werte.

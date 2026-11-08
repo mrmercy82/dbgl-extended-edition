@@ -1,0 +1,3 @@
+{"game_id":1,"platform_id":2,"platform_name":"DOS","first_release_date":"1990-10",
+ "releases":[{"countries":["United States"],"release_date":"1990-10","companies":[{"company_id":1,"company_name":"Lucasfilm Games LLC","role":"Developed by"},{"company_id":1,"company_name":"Lucasfilm Games LLC","role":"Published by"}]},
+  {"countries":["Germany"],"release_date":"1991","companies":[{"company_id":9,"company_name":"Softgold","role":"Published by"},{"company_id":1,"company_name":"Lucasfilm Games LLC","role":"Developed by"}]}]}

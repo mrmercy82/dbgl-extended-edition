@@ -73,7 +73,7 @@ public class DosboxStatusWindow {
 	private static final Pattern WARNING_PATRN = Pattern.compile("\\b(warning|warn|deprecated|invalid|not found|unknown)\\b", Pattern.CASE_INSENSITIVE);
 	// notices of the emulator about hardware details it does not emulate (yet); not problems of the configuration
 	private static final Pattern HARMLESS_PATRN = Pattern.compile(
-		"Write [0-9a-f]+ to rom at|unknown SCSI BIOS call|unknown call AX=|NVRAM write .* not implemented|GDC: .*Unknown command|PIC:ICW4|PEGC warning|port [0-9a-f]+h unknown command|MMIO attempt to write FONT ROM|PC-98 memcpy:|Segment limit violation|Limit check",
+		"Write [0-9a-f]+ to rom at|unknown SCSI BIOS call|unknown call AX=|NVRAM write .* not implemented|GDC: .*Unknown command|PIC:ICW4|PEGC warning|port [0-9a-f]+h unknown command|MMIO attempt to write FONT ROM|PC-98 memcpy:|Segment limit violation|Limit check|DISPLAY: Unknown video mode",
 		Pattern.CASE_INSENSITIVE);
 	// numbers and addresses differ between otherwise equal lines
 	private static final Pattern NUMBERS_PATRN = Pattern.compile("(?i)0x[0-9a-f]+|\\b[0-9a-f]*[0-9][0-9a-f]*\\b");
@@ -226,18 +226,25 @@ public class DosboxStatusWindow {
 		shell_.addListener(SWT.Move, e -> rememberBounds());
 		shell_.addListener(SWT.Resize, e -> rememberBounds());
 		shell_.open(); // in front of DBGL; the DOSBox window appears on top of it moments later
+		shownAt_ = System.currentTimeMillis();
 		if (SettingsService.getInstance().getBooleanValue("gui", "statuswindow_maximized"))
 			shell_.setMaximized(true);
 	}
 
-	/** use the position and size of the last status window, if that is still on one of the screens, else center it */
+	/** when the window was shown: moves right after that come from the system, not from the user */
+	private long shownAt_ = Long.MAX_VALUE;
+
+	/**
+	 * use the size of the last status window and the place the user moved it to, if that is still on one of the screens, else
+	 * the top left of the screen (DOSBox itself usually opens in the middle)
+	 */
 	private void restoreBounds() {
 		SettingsService settings = SettingsService.getInstance();
 		int width = Math.max(300, settings.getIntValue("gui", "statuswindow_width"));
 		int height = Math.max(150, settings.getIntValue("gui", "statuswindow_height"));
 		shell_.setSize(width, height);
-		if (settings.hasValue("gui", "statuswindow_x") && settings.hasValue("gui", "statuswindow_y")) {
-			Rectangle saved = new Rectangle(settings.getIntValue("gui", "statuswindow_x"), settings.getIntValue("gui", "statuswindow_y"), width, height);
+		if (settings.hasValue("gui", "statuswindow_left") && settings.hasValue("gui", "statuswindow_top")) {
+			Rectangle saved = new Rectangle(settings.getIntValue("gui", "statuswindow_left"), settings.getIntValue("gui", "statuswindow_top"), width, height);
 			// at least the title bar area must be visible on a screen, the monitor setup may have changed
 			Rectangle titleBar = new Rectangle(saved.x + 40, saved.y, Math.max(1, saved.width - 80), 20);
 			if (Stream.of(display_.getMonitors()).anyMatch(m -> m.getClientArea().intersects(titleBar))) {
@@ -246,8 +253,7 @@ public class DosboxStatusWindow {
 			}
 		}
 		Rectangle area = display_.getPrimaryMonitor().getClientArea();
-		Point size = shell_.getSize();
-		shell_.setLocation(area.x + Math.max(0, (area.width - size.x) / 2), area.y + Math.max(0, (area.height - size.y) / 3));
+		shell_.setLocation(area.x + 20, area.y + 20);
 	}
 
 	private void rememberBounds() {
@@ -259,8 +265,10 @@ public class DosboxStatusWindow {
 		if (maximized)
 			return;
 		Rectangle r = shell_.getBounds();
-		settings.setIntValue("gui", "statuswindow_x", r.x);
-		settings.setIntValue("gui", "statuswindow_y", r.y);
+		if (System.currentTimeMillis() - shownAt_ > 1000) { // only a place the user chose
+			settings.setIntValue("gui", "statuswindow_left", r.x);
+			settings.setIntValue("gui", "statuswindow_top", r.y);
+		}
 		settings.setIntValue("gui", "statuswindow_width", r.width);
 		settings.setIntValue("gui", "statuswindow_height", r.height);
 	}

@@ -923,6 +923,16 @@ public class GenerationAwareConfigurable extends Configurable {
 		}
 	}
 	
+	/**
+	 * A part of "cycles" as Staging takes it: the groups of CYCLES_PATRN start with the blank before them, may say "fixed",
+	 * and a percentage ("max 105%" of DOSBox SVN-Daum and others) is not a number of cycles; then the other value counts.
+	 * Before, "max 105%" became cpu_cycles_protected=" 105%", which Staging does not take.
+	 */
+	static String cleanCycles(String part, String otherwise) {
+		String s = StringUtils.trimToEmpty(part).replaceFirst("(?i)^fixed\\s+", "");
+		return (s.isEmpty() || s.endsWith("%")) ? otherwise: s;
+	}
+
 	private static void cyclesToStaging(Configuration configuration) {
 		if (configuration.hasValue("cpu", "cycles")) {
 			String cycles = configuration.getValue("cpu", "cycles");
@@ -940,10 +950,10 @@ public class GenerationAwareConfigurable extends Configurable {
 				if (auto != null) {
 					String real = cyclesMatcher.group(3);
 					if (real != null) {
-						cc = real;
+						cc = cleanCycles(real, "3000");
 
 						String prot = cyclesMatcher.group(5);
-						ccp = prot != null ? prot: "max";
+						ccp = prot != null ? cleanCycles(prot, "max"): "max";
 					} else {
 						cc = "3000";
 						ccp = "max";
@@ -956,7 +966,7 @@ public class GenerationAwareConfigurable extends Configurable {
 					cc = "max";
 					
 					String prot = cyclesMatcher.group(8);
-					ccp = prot != null ? prot: "max";
+					ccp = prot != null ? cleanCycles(prot, "max"): "max";
 					
 					if (limit != null) {
 						cc += " limit " + limit;

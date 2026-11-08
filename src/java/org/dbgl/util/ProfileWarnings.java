@@ -117,6 +117,8 @@ public final class ProfileWarnings {
 						problems.add('[' + v[0] + "] " + v[1] + '=' + v[2]);
 					for (String path: copy.listMissingPaths())
 						problems.add(path);
+					if (copy.needsDosboxXForPc98())
+						problems.add(org.dbgl.service.TextService.getInstance().get("dialog.profile.pc98needsdosboxx.short"));
 				}
 				List<String> result = List.copyOf(problems);
 				CACHE.put(profile.getId(), new Cached(stamp, result));

@@ -1,0 +1,7 @@
+{"games":[{"game_id":1,"title":"The Secret of Monkey Island","moby_url":"https://www.mobygames.com/game/616/the-secret-of-monkey-island/","moby_score":8.6,
+ "description":"<p>Guybrush Threepwood wants to be a <i>pirate</i> &amp; more.</p>",
+ "genres":[{"genre_category":"Basic Genres","genre_id":2,"genre_name":"Adventure"},{"genre_category":"Perspective","genre_id":7,"genre_name":"3rd-person"}],
+ "platforms":[{"platform_id":2,"platform_name":"DOS","first_release_date":"1990-10"},{"platform_id":19,"platform_name":"Amiga","first_release_date":"1991"},{"platform_id":3,"platform_name":"Windows","first_release_date":"2009-07-15"}],
+ "sample_cover":{"image":"https://cdn.mobygames.com/covers/1.jpg"}},
+ {"game_id":2,"title":"Monkey Island 2: LeChuck's Revenge","moby_url":"https://www.mobygames.com/game/289/","moby_score":null,"description":null,"genres":[],
+ "platforms":[{"platform_id":2,"platform_name":"DOS","first_release_date":"1991-12"}]}]}
