@@ -4,6 +4,50 @@ DBGL Extended Edition - Changes since 0.100 beta 17
 Based on DBGL 0.100 beta 17 by Ronald Blankendaal (https://dbgl.org), source code. Newest version first.
 
 
+0.101 alpha 45 (2026-11-08)
+---------------------------
+Fixed
+- Links over 256 characters (e.g. archive.org, cloud drives) and pasted
+  overlong titles made saving fail. Links now hold 2048 characters
+  (database 0.103), the other fields accept only as much as the database
+  keeps. DBGL 0.100 beta 17 can still open the database.
+- Play time: negative or huge values (clock changed) are no longer counted,
+  a session counts at most 30 days; merging duplicates lost play time.
+- Profiles like "CON" or "AUX.txt": on Windows the log folder could not be
+  created. Very long image descriptions gave file names that were too
+  long.
+- Pouët: with a single hit on several platforms, all entries had the last
+  platform.
+- The window symbol of the changelog was missing on Windows.
+
+New
+- "Get covers for profiles without images..." (Profiles menu and right
+  click): for many profiles at once, from all online sources, with a
+  preview to tick.
+- One-click update of the Extended Edition: download, SHA-256 check,
+  automatic backup, restart (usable from alpha 46 on).
+- "Check profiles": DOSBox-X advice (CD on the IDE bus, PC-98, hard disk
+  booters) and a "Switch to DOSBox-X..." button.
+- Statistics also as HTML with bar charts or as a CSV table.
+- Random game with a choice at the arrow: all, never started, favorites,
+  more or less played half; what does not fit is grayed out.
+- Play time, sessions and the last session below the notes and in the
+  profile editor.
+- Right click, View: "Last DOSBox log".
+- ScreenScraper is enabled as a source.
+- Help menu: "Visit the Vogons forum".
+
+Improved
+- Every window has the symbol of its menu item; Settings with the gear.
+- About: Ronald Blankendaal and the Extended Edition on lines of their own,
+  database version above OK.
+- Settings, Online information archives: an info text with a link for
+  every source.
+- The Filter and About symbols sit as low as the others.
+- "Check profiles": all buttons in one row.
+- Tests: Pouët with saved pages; the online test reports network errors
+  instead of passing them.
+
 0.101 alpha 44 (2026-11-08)
 ---------------------------
 Fixed

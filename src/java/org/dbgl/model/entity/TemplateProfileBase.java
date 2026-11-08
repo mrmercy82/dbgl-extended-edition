@@ -455,6 +455,18 @@ public abstract class TemplateProfileBase extends GenerationAwareConfigurable {
 		return (dosboxVersion_ != null) && !StringUtils.defaultString(dosboxVersion_.getFamily()).toLowerCase().contains("dosbox-x") && usesPc98HdImage();
 	}
 
+	/**
+	 * Why this profile should rather use DOSBox-X ("ide": a CD on the IDE bus, "pc98": a PC-98 image, "boot": boots a hard
+	 * disk image), or null: also null if it uses DOSBox-X already
+	 */
+	public String dosboxXReason() {
+		if ((dosboxVersion_ == null) || StringUtils.defaultString(dosboxVersion_.getFamily()).toLowerCase().contains("dosbox-x"))
+			return null;
+		if (usesPc98HdImage())
+			return "pc98";
+		return org.dbgl.util.StoreGameImport.dosboxXReason(getConfigurationString());
+	}
+
 	public boolean ensurePc98MachineForHdi() {
 		if ((dosboxVersion_ == null) || (gen_ == null) || (familyIdx(gen_) != familyIdx(Generation.x_20241001)) || !usesPc98HdImage())
 			return false;

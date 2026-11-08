@@ -397,8 +397,8 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 				apiSecrets[i] = Chain.on(consultGroup).lbl(l -> l.key("dialog.settings.igdb.clientsecret")).txt(
 						t -> t.horSpan(2).val(settings_.getValue(engine.getSimpleName(), org.dbgl.util.searchengine.IgdbSearchEngine.CLIENT_SECRET))).text();
 			}
-			if (engine instanceof org.dbgl.util.searchengine.IgdbSearchEngine || engine instanceof org.dbgl.util.searchengine.ScreenScraperSearchEngine || engine instanceof org.dbgl.util.searchengine.SteamGridDbSearchEngine || engine instanceof MobyGamesSearchEngine) {
-				// where to get the key: a link, and what this source gives
+			{
+				// where to get the key: a link, and what this source gives (for every source since alpha 45)
 				org.eclipse.swt.widgets.Link how = new org.eclipse.swt.widgets.Link(consultGroup, SWT.WRAP);
 				GridData howData = new GridData(SWT.FILL, SWT.BEGINNING, true, false, 3, 1);
 				howData.widthHint = 480;

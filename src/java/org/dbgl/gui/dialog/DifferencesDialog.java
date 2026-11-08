@@ -61,6 +61,22 @@ public class DifferencesDialog extends SizeControlledButtonDialog<Object> {
 	 *
 	 * @param action does it (it may ask first) and gives the new text, or null when nothing changed
 	 */
+	/** the small symbol in the title bar (otherwise that of the log) */
+	public DifferencesDialog withImage(String img) {
+		windowImage_ = img;
+		return this;
+	}
+
+	/** other formats to save in (e.g. "html", "csv"): chosen by the ending of the file name in the save dialog */
+	private final java.util.Map<String, java.util.function.Supplier<String>> exports_ = new java.util.LinkedHashMap<>();
+	private final java.util.Map<String, String> exportNames_ = new java.util.LinkedHashMap<>();
+
+	public DifferencesDialog withExport(String extension, String name, java.util.function.Supplier<String> content) {
+		exports_.put(extension, content);
+		exportNames_.put(extension, name);
+		return this;
+	}
+
 	public DifferencesDialog withAction(String key, java.util.function.Function<Shell, String> action) {
 		actionKey_ = key;
 		action_ = action;
@@ -107,18 +123,48 @@ public class DifferencesDialog extends SizeControlledButtonDialog<Object> {
 		}
 	}
 
+	/** with other formats: first a small menu (text, web page, CSV) below the button, then the save dialog for that format */
 	private void saveReport() {
+		if (exports_.isEmpty()) {
+			saveAs(null);
+			return;
+		}
+		org.eclipse.swt.widgets.Menu menu = new org.eclipse.swt.widgets.Menu(shell_, SWT.POP_UP);
+		org.eclipse.swt.widgets.MenuItem plain = new org.eclipse.swt.widgets.MenuItem(menu, SWT.PUSH);
+		plain.setText(org.dbgl.service.TextService.getInstance().get("dialog.statistics.save.text") + " (*." + ownExtension() + ")");
+		plain.addListener(SWT.Selection, e -> saveAs(null));
+		exportNames_.forEach((x, n) -> {
+			org.eclipse.swt.widgets.MenuItem item = new org.eclipse.swt.widgets.MenuItem(menu, SWT.PUSH);
+			item.setText(n + " (*." + x + ")");
+			item.addListener(SWT.Selection, e -> saveAs(x));
+		});
+		org.eclipse.swt.graphics.Point at = shell_.getDisplay().getCursorLocation();
+		menu.setLocation(at.x, at.y);
+		menu.setVisible(true);
+	}
+
+	private String ownExtension() {
+		return saveName_.contains(".") ? saveName_.substring(saveName_.lastIndexOf('.') + 1): "txt";
+	}
+
+	/** save as text (export null) or in one of the other formats; the file gets the ending of its format */
+	private void saveAs(String export) {
+		String ext = export == null ? ownExtension(): export;
+		String base = saveName_.contains(".") ? saveName_.substring(0, saveName_.lastIndexOf('.')): saveName_;
 		org.eclipse.swt.widgets.FileDialog dialog = new org.eclipse.swt.widgets.FileDialog(shell_, SWT.SAVE);
-		dialog.setFilterExtensions(new String[] {"*.txt", "*.*"});
-		dialog.setFileName(saveName_);
+		dialog.setFilterExtensions(new String[] {"*." + ext, "*.*"});
+		dialog.setFileName(base + "." + ext);
 		dialog.setOverwrite(true);
 		String file = dialog.open();
-		if (file != null) {
-			try {
-				java.nio.file.Files.writeString(new java.io.File(file).toPath(), content_, java.nio.charset.StandardCharsets.UTF_8);
-			} catch (java.io.IOException e) {
-				org.dbgl.gui.controls.Mess_.on(shell_).exception(e).warning();
-			}
+		if (file == null)
+			return;
+		if (!file.toLowerCase().endsWith("." + ext))
+			file += "." + ext;
+		try {
+			String content = export == null ? content_: exports_.get(export).get();
+			java.nio.file.Files.writeString(new java.io.File(file).toPath(), content, java.nio.charset.StandardCharsets.UTF_8);
+		} catch (RuntimeException | java.io.IOException e) {
+			org.dbgl.gui.controls.Mess_.on(shell_).exception(e).warning();
 		}
 	}
 }

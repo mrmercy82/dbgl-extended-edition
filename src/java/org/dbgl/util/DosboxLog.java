@@ -80,7 +80,25 @@ public final class DosboxLog {
 		if ((dirs != null) && (dirs.length > 0))
 			return dirs[0];
 		String safe = StringUtils.defaultIfBlank(StringUtils.strip(StringUtils.defaultString(title).replaceAll("[\\\\/:*?\"<>|\\p{Cntrl}]", "_"), " ."), "profile");
-		return new File(logsDir(), StringUtils.left(safe, 60) + " (" + profileId + ")");
+		// names Windows keeps for devices (CON, AUX.txt, ...) cannot be folders there
+		if (safe.matches("(?i)(CON|PRN|AUX|NUL|COM[0-9]|LPT[0-9])(\\..*)?"))
+			safe = "_" + safe;
+		return new File(logsDir(), StringUtils.strip(StringUtils.left(safe, 60), " .") + " (" + profileId + ")");
+	}
+
+	/** the newest log of a profile, or null */
+	public static File latest(int profileId) {
+		File dir = folderOf(profileId, null);
+		File[] logs = dir.listFiles(f -> f.isFile() && f.getName().endsWith(".log"));
+		if ((logs == null) || (logs.length == 0))
+			return null;
+		return Arrays.stream(logs).max(Comparator.comparing(File::getName)).orElse(null); // the names are times
+	}
+
+	/** the text of a log, at most the last 'max' characters (a long session can write much) */
+	public static String read(File log, int max) throws IOException {
+		String text = new String(Files.readAllBytes(log.toPath()), StandardCharsets.UTF_8);
+		return text.length() > max ? "...\n" + text.substring(text.length() - max): text;
 	}
 
 	/** a new log for this start, or null if the profile does not save its DOSBox output or the file cannot be made */

@@ -108,6 +108,8 @@ public abstract class BaseDialog<T> extends Dialog {
 			shell_.setBackground(DarkTheme.dialogBackground);
 		}
 		shell_.setText(getDialogTitle());
+		if (shellStyle_ != SWT.PRIMARY_MODAL)
+			setWindowImage(shell_, windowImage_ != null ? windowImage_: WINDOW_IMAGES.get(getClass().getSimpleName()));
 		org.dbgl.gui.LongToolTips.install(shell_.getDisplay()); // tooltips stay while the mouse is over the control
 
 		onShellInit();
@@ -152,6 +154,59 @@ public abstract class BaseDialog<T> extends Dialog {
 		x = Math.max(area.x, Math.min(x, area.x + area.width - size.x));
 		y = Math.max(area.y, Math.min(y, area.y + area.height - size.y));
 		shell.setLocation(x, y);
+	}
+
+	/** the small symbol in the title bar of a window: that of the menu item that opens it */
+	private static final java.util.Map<String, String> WINDOW_IMAGES = java.util.Map.ofEntries(java.util.Map.entry("SettingsDialog", ImageService.IMG_TB_SETTINGS),
+		java.util.Map.entry("LogDialog", ImageService.IMG_LOG), java.util.Map.entry("AboutDialog", ImageService.IMG_ABOUT),
+		java.util.Map.entry("DifferencesDialog", ImageService.IMG_LOG), java.util.Map.entry("ImportDialog", ImageService.IMG_IMPORT),
+		java.util.Map.entry("ImportDirDialog", ImageService.IMG_IMPORT), java.util.Map.entry("StoreImportDialog", ImageService.IMG_IMPORT),
+		java.util.Map.entry("DFendImportDialog", ImageService.IMG_DFEND), java.util.Map.entry("ExportDialog", ImageService.IMG_TABLEEXPORT),
+		java.util.Map.entry("ExportListDialog", ImageService.IMG_TABLEEXPORT), java.util.Map.entry("MigrateDialog", ImageService.IMG_MIGRATE),
+		java.util.Map.entry("SwitchDosboxVersionDialog", ImageService.IMG_MIGRATE), java.util.Map.entry("DuplicatesDialog", ImageService.IMG_DUPLICATE),
+		java.util.Map.entry("CheckProfilesDialog", ImageService.IMG_CHECKPROFILES), java.util.Map.entry("EditFilterDialog", ImageService.IMG_FILTER),
+		java.util.Map.entry("ProfileHistoryDialog", ImageService.IMG_REFRESH), java.util.Map.entry("EditSingleProfileDialog", ImageService.IMG_EDIT),
+		java.util.Map.entry("EditMultiProfileDialog", ImageService.IMG_EDIT), java.util.Map.entry("UpdateMultiProfileDialog", ImageService.IMG_EDIT),
+		java.util.Map.entry("EditDosboxVersionDialog", ImageService.IMG_EDIT), java.util.Map.entry("EditTemplateDialog", ImageService.IMG_EDIT),
+		java.util.Map.entry("ReplaceValuesDialog", ImageService.IMG_EDIT), java.util.Map.entry("ExtrasDialog", ImageService.IMG_ZOOM),
+		java.util.Map.entry("DeleteProfilesDialog", ImageService.IMG_DELETE), java.util.Map.entry("AddGameWizardDialog", ImageService.IMG_TB_ADDGAMEWIZARD),
+		java.util.Map.entry("ShareConfDialog", ImageService.IMG_SHARE), java.util.Map.entry("LoadSharedConfDialog", ImageService.IMG_SHARE),
+		java.util.Map.entry("BrowseSearchEngineDialog", ImageService.IMG_GLOBE), java.util.Map.entry("CoverBatchDialog", ImageService.IMG_GLOBE));
+
+	/** the symbol of this window instead of the one found by its kind (e.g. for a report) */
+	protected String windowImage_;
+
+	/** a small symbol in the title bar; without one, that of DBGL */
+	public static void setWindowImage(Shell shell, String img) {
+		try {
+			if (img != null) {
+				Image image = ImageService.getResourceImage(shell.getDisplay(), img);
+				org.eclipse.swt.graphics.ImageData data = image.getImageData();
+				// without transparency (e.g. log.png, plain RGB), Windows shows an empty symbol in the title bar: make it opaque
+				if ((data.alphaData == null) && (data.transparentPixel == -1) && (data.getTransparencyType() == SWT.TRANSPARENCY_NONE)) {
+					data.alphaData = new byte[data.width * data.height];
+					java.util.Arrays.fill(data.alphaData, (byte)255);
+					Image opaque = new Image(shell.getDisplay(), data);
+					shell.addDisposeListener(e -> opaque.dispose());
+					image = opaque;
+				}
+				shell.setImage(image);
+			} else
+				shell.setImages(ImageService.getResourceImages(shell.getDisplay(), new String[] {"ico/016.png", "ico/032.png"}));
+		} catch (RuntimeException e) {
+			// without a symbol then
+		}
+	}
+
+	/** the symbol of the window a small window (progress, message) belongs to */
+	public static void inheritWindowImage(Shell shell, Shell parent) {
+		Image[] images = parent != null && !parent.isDisposed() ? parent.getImages(): null;
+		if (images != null && images.length > 0)
+			shell.setImages(images);
+		else if (parent != null && !parent.isDisposed() && parent.getImage() != null)
+			shell.setImage(parent.getImage());
+		else
+			setWindowImage(shell, null);
 	}
 
 	protected void onShellInit() {

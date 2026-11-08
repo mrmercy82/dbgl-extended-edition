@@ -82,6 +82,10 @@ public class ProfileRepository extends LoggingRepository<Profile> {
 	private static final String LIST_SESSIONS_QRY = "SELECT GAME_ID, STARTED, SECONDS FROM PLAYSESSIONS";
 	private static final String DEL_SESSIONS_QRY = "DELETE FROM PLAYSESSIONS WHERE GAME_ID = ?";
 	private static final String MOVE_SESSIONS_QRY = "UPDATE PLAYSESSIONS SET GAME_ID = ? WHERE GAME_ID = ?";
+	/** the play time of one profile added to another, as it is in the database (not as an older copy of the profile says) */
+	private static final String MOVE_PLAYTIME_QRY = "UPDATE GAMES SET STATS_PLAYTIME = (STATS_PLAYTIME + (SELECT COALESCE(G.STATS_PLAYTIME, 0) FROM GAMES G WHERE G.ID = ?)) WHERE ID = ?";
+	/** longest session counted: a DOSBox left running for weeks, or a clock set forward, must not ruin the play time */
+	public static final long MAX_SESSION_SECONDS = 30L * 24 * 60 * 60;
 	private static final String REMOVED_SESSIONS_WHERE = " FROM PLAYSESSIONS WHERE GAME_ID NOT IN (SELECT ID FROM GAMES)";
 	private static final String REMOVED_LOG_WHERE = " FROM LOG WHERE ENTITY_TYPE = " + LogEntry.EntityType.PROFILE.ordinal() + " AND ENTITY_ID NOT IN (SELECT ID FROM GAMES)";
 
@@ -359,6 +363,9 @@ public class ProfileRepository extends LoggingRepository<Profile> {
 
 	/** add to the time the profile was played, in seconds, and keep this time as a play session (started at 'startedMillis') */
 	public void addPlayTime(int profileId, long startedMillis, long seconds) throws SQLException {
+		if (seconds <= 0)
+			return; // nothing played (or the clock was set back)
+		seconds = Math.min(seconds, MAX_SESSION_SECONDS);
 		try (Transaction transaction = dbService_.startTransaction()) {
 			try (PreparedStatement stmt = transaction.prepareStatement(ADD_PLAYTIME_QRY)) {
 				stmt.setLong(1, seconds);
@@ -383,6 +390,27 @@ public class ProfileRepository extends LoggingRepository<Profile> {
 				result.add(new PlaySession(rs.getInt(1), new java.util.Date(rs.getTimestamp(2).getTime()), rs.getInt(3)));
 		}
 		return result;
+	}
+
+	/** how often a profile was played (with sessions, since alpha 44), and its last session (null: none) */
+	public record SessionSummary(int count, PlaySession last) {
+	}
+
+	public SessionSummary sessionSummary(int profileId) throws SQLException {
+		try (Connection con = dbService_.getConnection();
+				PreparedStatement count = con.prepareStatement("SELECT COUNT(*) FROM PLAYSESSIONS WHERE GAME_ID = ?");
+				PreparedStatement last = con.prepareStatement("SELECT STARTED, SECONDS FROM PLAYSESSIONS WHERE GAME_ID = ? ORDER BY STARTED DESC LIMIT 1")) {
+			count.setInt(1, profileId);
+			last.setInt(1, profileId);
+			int n;
+			try (ResultSet rs = count.executeQuery()) {
+				rs.next();
+				n = rs.getInt(1);
+			}
+			try (ResultSet rs = last.executeQuery()) {
+				return new SessionSummary(n, rs.next() ? new PlaySession(profileId, new java.util.Date(rs.getTimestamp(1).getTime()), rs.getInt(2)): null);
+			}
+		}
 	}
 
 	/** what is left of removed profiles: play sessions, and entries in the log */
@@ -412,10 +440,9 @@ public class ProfileRepository extends LoggingRepository<Profile> {
 
 	/** when duplicates are merged: the play time and the play sessions of 'from' go to 'to' */
 	public void movePlayTime(Profile from, Profile to) throws SQLException {
-		int seconds = from.getProfileStats() == null ? 0: from.getProfileStats().getPlayTime();
 		try (Transaction transaction = dbService_.startTransaction()) {
-			try (PreparedStatement stmt = transaction.prepareStatement(ADD_PLAYTIME_QRY)) {
-				stmt.setLong(1, seconds);
+			try (PreparedStatement stmt = transaction.prepareStatement(MOVE_PLAYTIME_QRY)) {
+				stmt.setInt(1, from.getId());
 				stmt.setInt(2, to.getId());
 				stmt.executeUpdate();
 			}

@@ -92,6 +92,14 @@ public class SwitchDosboxVersionDialog extends SizeControlledButtonDialog<Boolea
 		selected_ = selected == null ? null: selected.stream().map(Profile::getId).collect(java.util.stream.Collectors.toSet());
 	}
 
+	/** the DOSBox version to switch to, chosen beforehand (e.g. DOSBox-X for the profiles that need it), or -1 */
+	private int targetId_ = -1;
+
+	public SwitchDosboxVersionDialog withTarget(int dbversionId) {
+		targetId_ = dbversionId;
+		return this;
+	}
+
 	@Override
 	protected String getDialogTitle() {
 		return text_.get((selected_ == null) || (selected_.size() > 1) ? "dialog.switchdosbox.title": "dialog.switchdosbox.title.single");
@@ -138,6 +146,9 @@ public class SwitchDosboxVersionDialog extends SizeControlledButtonDialog<Boolea
 			to_.select(dbversions_.size() - 1);
 			if ((selected_ != null) && (to_.getSelectionIndex() == best) && (dbversions_.size() > 1))
 				to_.select(dbversions_.size() - 2);
+			for (int i = 0; i < dbversions_.size(); i++)
+				if (dbversions_.get(i).getId() == targetId_)
+					to_.select(i);
 		}
 		from_.setEnabled(selected_ == null);
 		SelectionAdapter update = new SelectionAdapter() {

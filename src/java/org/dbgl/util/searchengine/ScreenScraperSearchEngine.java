@@ -37,8 +37,8 @@ import org.json.JSONObject;
 /**
  * ScreenScraper (https://www.screenscraper.fr), through its API v2: GET requests to https://api.screenscraper.fr/api2/ with
  * the developer access of the program (devid, devpassword, softname) and the account of the user (ssid, sspassword).
- * ScreenScraper gives the developer access to the author of a program on request; until DBGL has one, this source is not
- * offered (see available()). One search (jeuRecherche.php) already brings the whole game with its media, so details and
+ * ScreenScraper gives the developer access to the author of a program on request (DBGL has one since alpha 45; without it this source is not
+ * offered, see available()). One search (jeuRecherche.php) already brings the whole game with its media, so details and
  * images need no further request: the daily quota of the user is spent sparingly.
  */
 public class ScreenScraperSearchEngine extends WebSearchEngine {
@@ -46,8 +46,18 @@ public class ScreenScraperSearchEngine extends WebSearchEngine {
 	static final String API = "https://api.screenscraper.fr/api2/";
 	static final String SITE = "https://www.screenscraper.fr/gameinfos.php?gameid=";
 	static final String SOFTNAME = "DBGL-Extended-Edition";
-	/** the developer access of DBGL, from ScreenScraper; empty until it is given (then this source is not offered) */
-	static final String DEV_ID = "", DEV_PASSWORD = "";
+	/**
+	 * the developer access of DBGL, from ScreenScraper (since alpha 45). Only scrambled, so that it is not found as plain text in
+	 * the source: no protection, as in every open program that uses ScreenScraper
+	 */
+	static final String DEV_ID = reveal("KTAqKV8mPHxw"), DEV_PASSWORD = reveal("AyAvH0stCygydz0=");
+
+	public static String reveal(String scrambled) {
+		byte[] b = java.util.Base64.getDecoder().decode(scrambled), k = "DBGL-EE".getBytes(java.nio.charset.StandardCharsets.US_ASCII);
+		for (int i = 0; i < b.length; i++)
+			b[i] ^= k[i % k.length];
+		return new String(b, java.nio.charset.StandardCharsets.UTF_8);
+	}
 	public static final String USER = "ssid", PASSWORD = "sspassword";
 	/** ScreenScraper's system ids: PC Dos 135, PC Win3.xx 136, PC Windows 138 */
 	static final int SYSTEM_DOS = 135;

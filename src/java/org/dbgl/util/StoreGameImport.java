@@ -204,17 +204,26 @@ public final class StoreGameImport {
 	 */
 	public static String needsDosboxX(Found f) {
 		try {
-			List<String> lines = prepare(f).conf().lines().dropWhile(l -> !l.trim().equalsIgnoreCase("[autoexec]")).map(l -> l.trim().toLowerCase(Locale.ROOT)).toList();
-			if (lines.stream().anyMatch(l -> l.matches("(img)?mount\\s.*\\s-ide\\s.*") || l.matches("(img)?mount\\s.*\\s-ide$")))
-				return "ide";
-			if (lines.stream().anyMatch(l -> l.matches("((img)?mount|boot)\\s.*\\.(hdi|nhd|fdi|d88)\\b.*")))
-				return "pc98"; // PC-98 images: only DOSBox-X
-			boolean hdd = lines.stream().anyMatch(l -> l.matches("imgmount\\s+[0-9]\\s.*") || l.matches("imgmount\\s.*-t\\s+hdd.*"));
-			if (hdd && lines.stream().anyMatch(l -> l.startsWith("boot")))
-				return "boot";
+			return dosboxXReason(prepare(f).conf());
 		} catch (IOException e) {
 			// no advice
 		}
+		return null;
+	}
+
+	/**
+	 * Why a configuration (its [autoexec]) wants DOSBox-X, or null: "ide" (a CD on the IDE bus, e.g. for Windows 95), "pc98" (a
+	 * PC-98 image) or "boot" (boots a hard disk image). Also for the profiles (since alpha 45).
+	 */
+	public static String dosboxXReason(String conf) {
+		List<String> lines = conf.lines().dropWhile(l -> !l.trim().equalsIgnoreCase("[autoexec]")).map(l -> l.trim().toLowerCase(Locale.ROOT)).toList();
+		if (lines.stream().anyMatch(l -> l.matches("(img)?mount\\s.*\\s-ide\\s.*") || l.matches("(img)?mount\\s.*\\s-ide$")))
+			return "ide";
+		if (lines.stream().anyMatch(l -> l.matches("((img)?mount|boot)\\s.*\\.(hdi|nhd|fdi|d88)\\b.*")))
+			return "pc98"; // PC-98 images: only DOSBox-X
+		boolean hdd = lines.stream().anyMatch(l -> l.matches("(img)?mount\\s+[0-9]\\s.*") || l.matches("(img)?mount\\s.*-t\\s+hdd.*"));
+		if (hdd && lines.stream().anyMatch(l -> l.startsWith("boot")))
+			return "boot";
 		return null;
 	}
 

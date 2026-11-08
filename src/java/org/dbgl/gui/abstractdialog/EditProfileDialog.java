@@ -155,13 +155,34 @@ public abstract class EditProfileDialog<T> extends EditConfigurableDialog<T> {
 		notes_ = Chain.on(composite).lbl(l -> l.key("dialog.profile.notes")).txt(t -> t.horSpan(5).multi().wrap()).profile(Profile::getNotes, Profile::setNotes).build(metaControls_).init(configurable).getText();
 		notes_.setFont(stringToFont(display_, settings_.getValues("gui", "notesfont"), notes_.getFont()));
 		notes_.addDisposeListener(e -> notes_.getFont().dispose());
+		// below the notes: play time, sessions and the last one (of a profile that exists already)
+		if ((configurable instanceof Profile prof) && (prof.getId() >= 0) && (prof.getProfileStats() != null)) {
+			new org.eclipse.swt.widgets.Label(composite, SWT.NONE);
+			org.eclipse.swt.widgets.Label playInfo = new org.eclipse.swt.widgets.Label(composite, SWT.WRAP);
+			playInfo.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 5, 1));
+			playInfo.setText(org.dbgl.util.ProfileReports.playInfo(prof, text_));
+		}
 		
+		limitTextFields(composite);
 		if (focusOnTitle) {
 			title_.selectAll();
 			title_.setFocus();
 		}
 
 		return composite;
+	}
+
+	/** at most as long as the database keeps (256, links 2048), so that saving does not fail with a long text (e.g. pasted) */
+	protected void limitTextFields(Composite composite) {
+		java.util.Set<Text> links = link_ == null ? java.util.Set.of(): new java.util.HashSet<>(java.util.Arrays.asList(link_));
+		for (org.eclipse.swt.widgets.Control c: composite.getChildren()) {
+			if ((c instanceof Text t) && ((t.getStyle() & SWT.MULTI) == 0))
+				t.setTextLimit(links.contains(t) ? 2048: 256);
+			else if (c instanceof org.eclipse.swt.widgets.Combo combo)
+				combo.setTextLimit(256);
+			else if (c instanceof Composite inner)
+				limitTextFields(inner);
+		}
 	}
 	
 	protected Composite createCustomInfoPage(TemplateProfileBase configurable, Composite parent) {
@@ -191,6 +212,7 @@ public abstract class EditProfileDialog<T> extends EditConfigurableDialog<T> {
 		Chain.on(composite).lbl(l -> l.txt(settings_.getValue("gui", "custom10"))).spn(s -> s).profile(1, Profile::getCustomInt,
 				Profile::setCustomInt).build(metaControls_).init(configurable);
 		
+		limitTextFields(composite);
 		return composite;
 	}
 

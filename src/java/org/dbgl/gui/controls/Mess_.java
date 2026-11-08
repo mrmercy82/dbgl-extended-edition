@@ -159,6 +159,7 @@ public class Mess_ {
 			org.eclipse.swt.widgets.Display display = shell_.getDisplay();
 			Shell dlg = new Shell(shell_, SWT.DIALOG_TRIM | SWT.APPLICATION_MODAL | (log != null ? SWT.RESIZE: SWT.NONE));
 			dlg.setText(title_);
+			org.dbgl.gui.abstractdialog.BaseDialog.inheritWindowImage(dlg, shell_);
 			dlg.setLayout(new org.eclipse.swt.layout.GridLayout(2, false));
 			org.eclipse.swt.widgets.Label icon = new org.eclipse.swt.widgets.Label(dlg, SWT.NONE);
 			icon.setImage(display.getSystemImage(SWT.ICON_WARNING));

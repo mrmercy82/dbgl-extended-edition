@@ -1,5 +1,7 @@
 /*
  *  Copyright (C) 2006-2025  Ronald Blankendaal
+ *  Modified for the DBGL Extended Edition by mrmercy82 (with the help of AI)
+ *  since 2026-11-01. Changes and their dates: CHANGELOG-en.txt, CHANGELOG-de.txt.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -83,21 +85,37 @@ public class PouetSearchEngine extends WebSearchEngine {
 			Document doc = Jsoup.connect(url).get();
 			
 			if (pageIdx == 0) {
-				try {
-					pages = Integer.valueOf(doc.select("select[name=page] > option:last-child").text());
-				} catch (NumberFormatException e) {
-					pages = 0;
-				}
+				pages = pageCount(doc);
 			}
-			if (pages > 0) {
-				allEntries.addAll(extractEntries(doc));
-			} else if (doc.selectFirst("div#prodpagecontainer") != null) {
-				allEntries.addAll(extractSingleEntry(doc));
-			}
+			allEntries.addAll(parseResultPage(doc, pages));
 			pageIdx++;
 		}
 
 		return filterEntries(platforms, allEntries);
+	}
+
+	/** how many pages of results the search has; 0: none, or Pouët went straight to the one prod found */
+	public static int pageCount(Document doc) {
+		try {
+			return Integer.valueOf(doc.select("select[name=page] > option:last-child").text());
+		} catch (NumberFormatException e) {
+			return 0;
+		}
+	}
+
+	/** the prods on one page of results, or the one prod Pouët showed instead (tested with saved pages, without internet) */
+	public static List<WebProfile> parseResultPage(Document doc, int pages) {
+		if (pages > 0)
+			return extractEntries(doc);
+		if (doc.selectFirst("div#prodpagecontainer") != null && doc.selectFirst("table#pouetbox_prodmain") != null)
+			return extractSingleEntry(doc);
+		return new ArrayList<>();
+	}
+
+	/** the address of the screenshot on the page of a prod, or null */
+	public static String screenshotUrl(Document doc) {
+		Element img = doc.selectFirst("table#pouetbox_prodmain td#screenshot > img");
+		return img == null ? null: img.attr("abs:src").isEmpty() ? img.attr("src"): img.attr("abs:src");
 	}
 
 	private static List<WebProfile> extractEntries(Document doc) {
@@ -127,19 +145,21 @@ public class PouetSearchEngine extends WebSearchEngine {
 	private static List<WebProfile> extractSingleEntry(Document doc) {
 		Element prod = doc.selectFirst("table#pouetbox_prodmain");
 		List<WebProfile> allEntries = new ArrayList<>();
-		WebProfile gameEntry = new WebProfile();
-		gameEntry.setTitle(prod.select("tr#prodheader span#prod-title").text());
-		gameEntry.setUrl(doc.selectFirst("head > link[rel=canonical]").attr("href"));
-		gameEntry.setPublisherName("");
-		gameEntry.setDeveloperName(prod.select("tr#prodheader span#title > a:eq(1)").text());
-		gameEntry.setYear(StringUtils.right(prod.select("table#stattable tr:eq(2) td:last-child").text(), 4));
-		gameEntry.setGenre(StringUtils.join(prod.select("table#stattable tr:eq(1) td:last-child a span").eachText(), ", "));
-		try {
-			gameEntry.setRank((int)((Double.parseDouble(prod.select("ul#avgstats li:first-child").text()) + 1.0) * 50.0));
-		} catch (NumberFormatException e) {}
-		gameEntry.setNotes("");
+		Element canonical = doc.selectFirst("head > link[rel=canonical]");
 		List<String> platforms = prod.select("table#stattable tr:eq(0) td:last-child ul li").eachText();
+		// one entry per platform (before, all of them were the same object and had the last platform)
 		platforms.forEach(x -> {
+			WebProfile gameEntry = new WebProfile();
+			gameEntry.setTitle(prod.select("tr#prodheader span#prod-title").text());
+			gameEntry.setUrl(canonical != null ? canonical.attr("href"): "");
+			gameEntry.setPublisherName("");
+			gameEntry.setDeveloperName(prod.select("tr#prodheader span#title > a:eq(1)").text());
+			gameEntry.setYear(StringUtils.right(prod.select("table#stattable tr:eq(2) td:last-child").text(), 4));
+			gameEntry.setGenre(StringUtils.join(prod.select("table#stattable tr:eq(1) td:last-child a span").eachText(), ", "));
+			try {
+				gameEntry.setRank((int)((Double.parseDouble(prod.select("ul#avgstats li:first-child").text()) + 1.0) * 50.0));
+			} catch (NumberFormatException e) {}
+			gameEntry.setNotes("");
 			gameEntry.setPlatform(x);
 			allEntries.add(gameEntry);
 		});
@@ -154,11 +174,10 @@ public class PouetSearchEngine extends WebSearchEngine {
 	@Override
 	public SearchEngineImageInformation[] getEntryImages(WebProfile entry, int coverArtMax, int screenshotsMax, boolean forceAllRegionsCoverArt) throws IOException {
 		Document doc = Jsoup.connect(entry.getUrl()).get();
-		Element img = doc.selectFirst("table#pouetbox_prodmain td#screenshot > img");
-		if (img == null) {
+		String imgUrl = screenshotUrl(doc);
+		if (imgUrl == null) {
 			entry.setWebImages(new SearchEngineImageInformation[0]);
 		} else {
-			String imgUrl = img.attr("src");
 			String imgDescription = getSimpleName();
 			if (imgUrl.toLowerCase().endsWith(".gif")) {
 				try (InputStream is = getHttpURLConnection(imgUrl).getInputStream()) {

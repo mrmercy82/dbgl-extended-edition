@@ -82,6 +82,10 @@ public class ImageService {
 	public static final String IMG_FILTER = "filter.png";
 	public static final String IMG_EDITFILTER = "editfilter.png";
 	public static final String IMG_ABOUT = "about.png";
+	// the same, on 16x16 like the other toolbar symbols (14x14 sat higher there)
+	public static final String IMG_TB_FILTER = "tb_filter.png";
+	public static final String IMG_TB_EDITFILTER = "tb_editfilter.png";
+	public static final String IMG_TB_ABOUT = "tb_about.png";
 	public static final String IMG_GRAB = "grab.png";
 	public static final String IMG_MOBYGAMES = "moby.png";
 	public static final String IMG_METROPOLIS = "metropolis.png";

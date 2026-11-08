@@ -357,6 +357,7 @@ public class SettingsService {
 		settings_.setValue("gui", "autosortonupdate", false);
 		settings_.setValue("gui", "screenshotsfilename", true);
 		settings_.setValue("gui", "buttondisplay", 0);
+		settings_.setValue("gui", "randomgame", "all"); // random game from: all, neverstarted, favorites
 		settings_.setValue("gui", "custom1", "Custom1");
 		settings_.setValue("gui", "custom2", "Custom2");
 		settings_.setValue("gui", "custom3", "Custom3");

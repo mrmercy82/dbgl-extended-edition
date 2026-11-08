@@ -124,6 +124,7 @@ public final class BusyTask {
 	private static Shell open(Shell parent, String message, boolean[] cancelled, int total) {
 		Shell busy = new Shell(parent, SWT.DIALOG_TRIM | SWT.APPLICATION_MODAL);
 		busy.setText(parent.getText());
+		org.dbgl.gui.abstractdialog.BaseDialog.inheritWindowImage(busy, parent);
 		busy.setLayout(new GridLayout(1, false));
 		Label label = new Label(busy, SWT.NONE);
 		label.setText(message);

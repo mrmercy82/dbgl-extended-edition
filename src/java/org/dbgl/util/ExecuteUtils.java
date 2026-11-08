@@ -92,8 +92,9 @@ public class ExecuteUtils {
 				for (NativeCommand cmd: templateOrProfile_.getNativeCommands()) {
 					if (cmd.isDosboxCommand()) {
 						long start = System.currentTimeMillis();
+						long startNanos = System.nanoTime(); // the duration not changed when the clock is set while playing
 						doRunDosbox(dosboxVersion_, new String[] {"-conf", conf_.getPath()}, false, dosboxVersion_.getCwd(), true);
-						registerPlayTime(playTimeProfileId_, start, System.currentTimeMillis() - start);
+						registerPlayTime(playTimeProfileId_, start, (System.nanoTime() - startNanos) / 1_000_000L);
 					} else {
 						execute(cmd.getCanonicalCommandAndParameters(), cmd.getCanonicalCwd(), cmd.isWaitFor());
 					}

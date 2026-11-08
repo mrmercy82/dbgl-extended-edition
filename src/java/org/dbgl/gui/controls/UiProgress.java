@@ -64,6 +64,7 @@ public final class UiProgress implements AutoCloseable {
 		Display display = parent_.getDisplay();
 		shell_ = new Shell(parent_, SWT.TITLE | SWT.BORDER | SWT.APPLICATION_MODAL);
 		shell_.setText(parent_.getText());
+		org.dbgl.gui.abstractdialog.BaseDialog.inheritWindowImage(shell_, parent_);
 		shell_.setLayout(new GridLayout(1, false));
 		Label label = new Label(shell_, SWT.NONE);
 		label.setText(message_);

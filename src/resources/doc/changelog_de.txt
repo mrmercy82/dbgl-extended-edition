@@ -4,6 +4,52 @@ DBGL Extended Edition - Änderungen seit 0.100 beta 17
 Grundlage: DBGL 0.100 beta 17 von Ronald Blankendaal (https://dbgl.org), Quellcode. Neueste Version zuerst.
 
 
+0.101 alpha 45 (2026-11-08)
+---------------------------
+Fehler behoben
+- Links über 256 Zeichen (z. B. archive.org, Cloud-Speicher) und eingefügte
+  überlange Titel ließen das Speichern scheitern. Links fassen jetzt 2048
+  Zeichen (Datenbank 0.103), die übrigen Felder nehmen nur so viel an, wie
+  die Datenbank hält. DBGL 0.100 beta 17 kann die Datenbank weiter öffnen.
+- Spielzeit: negative oder riesige Werte (Uhr verstellt) werden nicht mehr
+  gezählt, eine Sitzung höchstens 30 Tage; beim Zusammenführen von
+  Duplikaten ging Spielzeit verloren.
+- Profile wie "CON" oder "AUX.txt": unter Windows ließ sich der Log-Ordner
+  nicht anlegen. Sehr lange Bildbeschreibungen ergaben zu lange
+  Dateinamen.
+- Pouët: bei einem Einzeltreffer mit mehreren Plattformen hatten alle
+  Einträge die letzte Plattform.
+- Fenstersymbol des Changelogs fehlte unter Windows.
+
+Neu
+- "Cover für Profile ohne Bilder holen..." (Menü Profile und Rechtsklick):
+  für viele Profile auf einmal, aus allen Online-Quellen, mit Vorschau zum
+  Anhaken.
+- Update der Extended Edition mit einem Klick: Download, Prüfung der
+  SHA-256-Summe, automatische Sicherung, Neustart (ab alpha 46 nutzbar).
+- "Profile prüfen": Empfehlung für DOSBox-X (CD am IDE-Bus, PC-98,
+  Festplatten-Booter) und Knopf "Auf DOSBox-X umstellen...".
+- Statistik auch als HTML mit Balkendiagramm oder als CSV-Tabelle.
+- Zufallsspiel mit Auswahl am Pfeil: alle, nie gestartete, Favoriten,
+  meist- oder am wenigsten gespielte Hälfte; Unpassendes ist ausgegraut.
+- Spielzeit, Sitzungen und letzte Sitzung unter den Notizen und im
+  Profileditor.
+- Rechtsklick, Anzeigen: "Letztes DOSBox-Log".
+- ScreenScraper ist als Quelle freigeschaltet.
+- Hilfe-Menü: "Vogons-Forum besuchen".
+
+Verbessert
+- Jedes Fenster hat das Symbol seines Menüpunkts; Einstellungen mit
+  Zahnrad.
+- Über-Fenster: Ronald Blankendaal und die Extended Edition in eigenen
+  Zeilen, Version der Datenbank über OK.
+- Einstellungen, Online-Informationsarchive: Infotext mit Link für jede
+  Quelle.
+- Symbole von Filter und Über sitzen so tief wie die übrigen.
+- "Profile prüfen": alle Knöpfe in einer Zeile.
+- Tests: Pouët mit gespeicherten Seiten; der Online-Test meldet
+  Netzfehler, statt sie zu übergehen.
+
 0.101 alpha 44 (2026-11-08)
 ---------------------------
 Fehler behoben

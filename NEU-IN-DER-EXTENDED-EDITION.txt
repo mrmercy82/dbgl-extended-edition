@@ -8,12 +8,28 @@ ist eine unabhängige Weiterführung, an der er nicht beteiligt ist. Sie ergänz
 vor allem die Unterstützung aktueller DOSBox-Versionen; das Fundament und fast
 alles andere sind sein Werk: Knapp drei Viertel des Programmcodes sind
 unverändert aus seiner 0.100 beta 17 (von seinen rund 42.000 Zeilen wurden
-weniger als 300 geändert oder entfernt, etwa 16.000 kamen hinzu).
+rund 300 geändert oder entfernt, etwa 17.000 kamen hinzu).
 
 Profile, Datenbank und Einstellungen bleiben beim Umstieg erhalten.
 
 Extended Edition (Quellcode, Downloads, Fehler melden):
 https://github.com/mrmercy82/dbgl-extended-edition
+
+
+DAS NEUESTE IN 0.101 ALPHA 45
+-----------------------------
+  - Cover für viele Profile auf einmal holen, aus allen Online-Quellen, mit
+    Vorschau zum Anhaken; ScreenScraper ist freigeschaltet.
+  - Update der Extended Edition mit einem Klick (Download, Prüfsumme,
+    Sicherung, Neustart; nutzbar ab alpha 46).
+  - "Profile prüfen" empfiehlt DOSBox-X, wo nötig, und stellt mit einem
+    Knopf um.
+  - Statistik auch als HTML mit Balkendiagramm oder als CSV.
+  - Zufallsspiel nach Auswahl (nie gestartet, Favoriten, meist oder wenig
+    gespielt); Spielzeit und Sitzungen bei jedem Profil; letztes
+    DOSBox-Log im Kontextmenü.
+  - Lange Links (bis 2048 Zeichen) werden gespeichert (Datenbank 0.103,
+    weiter lesbar für DBGL 0.100 beta 17).
 
 
 DAS NEUESTE IN 0.101 ALPHA 44

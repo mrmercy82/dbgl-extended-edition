@@ -23,6 +23,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.io.File;
 import java.io.IOException;
@@ -590,6 +591,83 @@ public class Dbgl0102Tests {
 		String withFinal = json.replace("v0.100-final", "v0.101");
 		assertEquals("0.101", org.dbgl.util.EditionUpdateChecker.newest(withFinal, "0.101alpha30", false).version());
 		assertEquals("0.101", org.dbgl.util.EditionUpdateChecker.newest(withFinal, "0.101alpha30", true).version());
+	}
+
+	/** alpha 45: one-click update (files of a release, sums, safe unpacking), statistics as web page and CSV, DOSBox-X advice */
+	@Test
+	public void testAlpha45() throws Exception {
+		String json = "[{\"tag_name\":\"v0.101-alpha46\",\"draft\":false,\"prerelease\":true,\"html_url\":\"u46\",\"assets\":["
+				+ "{\"name\":\"DBGL-Extended-Edition-0.101alpha46.zip\",\"browser_download_url\":\"https://x/full.zip\"},"
+				+ "{\"name\":\"dbgl-0.101alpha46-update.zip\",\"browser_download_url\":\"https://x/dbgl-0.101alpha46-update.zip\"},"
+				+ "{\"name\":\"SHA256SUMS.txt\",\"browser_download_url\":\"https://x/SHA256SUMS.txt\"}]},"
+				+ "{\"tag_name\":\"v0.101-alpha45\",\"draft\":false,\"prerelease\":true,\"html_url\":\"u45\"}]";
+		org.dbgl.util.EditionUpdateChecker.Release r = org.dbgl.util.EditionUpdateChecker.newest(json, "0.101alpha45", true);
+		assertEquals("0.101 alpha 46", r.version());
+		assertTrue(r.installable());
+		assertEquals("https://x/dbgl-0.101alpha46-update.zip", r.updateZip());
+		assertEquals("https://x/SHA256SUMS.txt", r.sums());
+		assertFalse(org.dbgl.util.EditionUpdateChecker.newest(json.replace("SHA256SUMS.txt", "other.txt"), "0.101alpha45", true).installable());
+
+		String hash = "ab".repeat(32);
+		String sums = "cd".repeat(32) + "  dbgl.jar\n" + hash + "  dbgl-0.101alpha46-update.zip\n";
+		assertEquals(hash, org.dbgl.util.EditionUpdater.sumOf(sums, "dbgl-0.101alpha46-update.zip"));
+		assertNull(org.dbgl.util.EditionUpdater.sumOf(sums, "missing.zip"));
+
+		File dir = Files.createTempDirectory("dbgl-upd").toFile();
+		try {
+			File zip = new File(dir, "u.zip");
+			try (java.util.zip.ZipOutputStream out = new java.util.zip.ZipOutputStream(Files.newOutputStream(zip.toPath()))) {
+				out.putNextEntry(new java.util.zip.ZipEntry("dbgl.jar"));
+				out.write("jar".getBytes(StandardCharsets.UTF_8));
+				out.putNextEntry(new java.util.zip.ZipEntry("plugins/i18n/MessagesBundle.properties"));
+				out.write("a=b".getBytes(StandardCharsets.UTF_8));
+			}
+			assertEquals(List.of("dbgl.jar", "plugins/i18n/MessagesBundle.properties"), org.dbgl.util.EditionUpdater.unzip(zip, new File(dir, "files")));
+			assertEquals(64, org.dbgl.util.EditionUpdater.sha256(zip).length());
+			File evil = new File(dir, "evil.zip");
+			try (java.util.zip.ZipOutputStream out = new java.util.zip.ZipOutputStream(Files.newOutputStream(evil.toPath()))) {
+				out.putNextEntry(new java.util.zip.ZipEntry("../outside.txt"));
+				out.write(1);
+			}
+			try {
+				org.dbgl.util.EditionUpdater.unzip(evil, new File(dir, "files2"));
+				fail("an entry outside of the folder must be refused");
+			} catch (IOException e) {
+				assertFalse(new File(dir, "outside.txt").exists());
+			}
+		} finally {
+			org.apache.commons.io.FileUtils.deleteQuietly(dir);
+		}
+
+		// from the stress test: file names that are too long, or that Windows keeps for devices
+		assertEquals(100, org.dbgl.util.FilesUtils.toSafeFilenameForWebImages("x".repeat(400)).length());
+		assertTrue(org.dbgl.util.DosboxLog.folderOf(999901, "AUX.txt").getName().startsWith("_AUX.txt"));
+		assertTrue(org.dbgl.util.DosboxLog.folderOf(999902, "CON").getName().startsWith("_CON"));
+		assertEquals("Doom (999903)", org.dbgl.util.DosboxLog.folderOf(999903, "Doom").getName());
+
+		// DOSBox-X advice from the [autoexec], for profiles too
+		assertEquals("ide", org.dbgl.util.StoreGameImport.dosboxXReason("[autoexec]\nimgmount d cd.iso -t iso -ide 2m\n"));
+		assertEquals("pc98", org.dbgl.util.StoreGameImport.dosboxXReason("[autoexec]\nimgmount c game.hdi\nboot -l c\n"));
+		assertEquals("boot", org.dbgl.util.StoreGameImport.dosboxXReason("[autoexec]\nmount 2 win95.img -t hdd -fs none\nboot -l c\n"));
+		assertNull(org.dbgl.util.StoreGameImport.dosboxXReason("[autoexec]\nmount c .\nboot disk1.img\n"));
+
+		// statistics as a web page (with bars, nothing from the internet) and as CSV
+		org.dbgl.model.aggregate.DosboxVersion v083 = DosboxVersionFactory.create("DOSBox Staging 0.83.0", SettingsService.STAGING_DOSBOX_FAM.title_, "0.83.0", false, true, false, null,
+			"staging083", "", "", "staging083/dosbox.conf");
+		org.dbgl.model.aggregate.Profile a = org.dbgl.model.factory.ProfileFactory.create(v083, null);
+		a.setTitle("Tom & <Jerry>");
+		org.dbgl.model.aggregate.Profile b = org.dbgl.model.factory.ProfileFactory.create(v083, null);
+		b.setTitle("Doom; \"II\"");
+		List<org.dbgl.model.aggregate.Profile> profiles = List.of(a, b);
+		java.util.Date now = new java.util.Date();
+		String html = org.dbgl.util.ProfileReports.statisticsHtml(profiles, List.of(), GenericTextService.getInstance(), java.util.Locale.ENGLISH, now);
+		assertTrue(html.startsWith("<!DOCTYPE html>"));
+		assertTrue(html, html.contains("Tom &amp; &lt;Jerry&gt;") && !html.contains("<Jerry>") && !html.contains("http://") && html.trim().endsWith("</html>"));
+		String text = org.dbgl.util.ProfileReports.statistics(profiles, List.of(), GenericTextService.getInstance(), java.util.Locale.ENGLISH, now);
+		assertTrue(text.contains("Tom & <Jerry>"));
+		String csv = org.dbgl.util.ProfileReports.statisticsCsv(profiles, List.of(), GenericTextService.getInstance(), java.util.Locale.GERMAN, now);
+		assertTrue(csv.startsWith("\uFEFF"));
+		assertTrue(csv, csv.contains(";\"Doom; \"\"II\"\"\"\r\n")); // ; in German (the comma is the decimal sign), the title quoted
 	}
 
 	/**
@@ -1218,7 +1296,8 @@ public class Dbgl0102Tests {
 		assertEquals(List.of(135), org.dbgl.util.searchengine.ScreenScraperSearchEngine.systemIds(new String[0]));
 		assertEquals(Integer.valueOf(430), org.dbgl.util.searchengine.ScreenScraperSearchEngine.statusIn("ScreenScraper refused the request (HTTP 430)."));
 		assertNull(org.dbgl.util.searchengine.ScreenScraperSearchEngine.statusIn("no connection"));
-		assertFalse(org.dbgl.util.searchengine.ScreenScraperSearchEngine.getInstance().available()); // until DBGL has a developer access
+		assertTrue(org.dbgl.util.searchengine.ScreenScraperSearchEngine.getInstance().available()); // DBGL has a developer access since alpha 45
+		assertEquals("DBGL-EE", org.dbgl.util.searchengine.ScreenScraperSearchEngine.reveal(java.util.Base64.getEncoder().encodeToString(new byte[7]))); // xor with the key
 	}
 
 	/** a GOG game as GOG installs it, and a Steam game with one dosbox.conf */

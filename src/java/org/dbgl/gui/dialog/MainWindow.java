@@ -161,6 +161,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 	private CTabFolder filterFolder_;
 	private ProfilesList profileTable_;
 	private Text notesField_;
+	private Label playInfo_; // play time, sessions and the last one, below the notes
 	private Link[] link_;
 	private SashForm sashInfoForm_;
 	private ScrolledComposite scrolledCompositeForThumbs_;
@@ -351,7 +352,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				warnings.append(p.resetAndLoadConfiguration());
 			if (StringUtils.isNotBlank(warnings))
 				System.err.println(warnings);
-			new DifferencesDialog(shell_, text_.get("dialog.compareprofiles.title"), org.dbgl.util.ProfileReports.compare(selected.get(0), selected.get(1), text_)).open();
+			new DifferencesDialog(shell_, text_.get("dialog.compareprofiles.title"), org.dbgl.util.ProfileReports.compare(selected.get(0), selected.get(1), text_)).withImage(ImageService.IMG_ZOOM).open();
 		} catch (IOException e) {
 			Mess_.on(shell_).exception(e).warning();
 		}
@@ -502,30 +503,122 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		}
 	}
 
-	/** pick a game of the list (as filtered) by chance: start it, or roll again */
+	/** which games the random game is picked from: all, never started ones, favorites */
+	private static final String[] RANDOM_MODES = {"all", "neverstarted", "favorites", "mostplayed", "leastplayed"};
+
+	private String randomMode() {
+		String mode = settings_.getValue("gui", "randomgame");
+		return java.util.Arrays.asList(RANDOM_MODES).contains(mode) ? mode: RANDOM_MODES[0];
+	}
+
+	/** 'Random game' with an arrow next to it: from which games */
+	private void createRandomToolItem(ToolBar toolBar) {
+		ToolItem item = new ToolItem(toolBar, SWT.DROP_DOWN);
+		int displaySelection = settings_.getIntValue("gui", "buttondisplay");
+		if (displaySelection != 1)
+			item.setImage(ImageService.getResourceImage(toolBar.getDisplay(), ImageService.IMG_RANDOM));
+		if (displaySelection != 2)
+			item.setText(text_.get("dialog.main.tb.random"));
+		Menu modeMenu = new Menu(shell_, SWT.POP_UP);
+		Runnable tooltip = () -> item.setToolTipText(text_.get("dialog.main.random.tooltip2", new Object[] {text_.get("dialog.main.random.mode." + randomMode())}));
+		for (String mode: RANDOM_MODES) {
+			MenuItem menuItem = new MenuItem(modeMenu, SWT.RADIO);
+			menuItem.setData(mode);
+			menuItem.setText(text_.get("dialog.main.random.mode." + mode));
+			menuItem.setSelection(mode.equals(randomMode()));
+			menuItem.addListener(SWT.Selection, e -> {
+				if (menuItem.getSelection()) {
+					settings_.setValue("gui", "randomgame", mode);
+					tooltip.run();
+				}
+			});
+		}
+		tooltip.run();
+		// what the list (as filtered) does not have is grayed out, e.g. no favorites, nothing played yet
+		modeMenu.addListener(SWT.Show, e -> {
+			for (MenuItem m: modeMenu.getItems())
+				m.setEnabled(!randomCandidates((String)m.getData()).isEmpty());
+		});
+		item.addListener(SWT.Selection, e -> {
+			if (e.detail == SWT.ARROW) {
+				Rectangle rect = item.getBounds();
+				Point pt = toolBar.toDisplay(new Point(rect.x, rect.y + rect.height));
+				modeMenu.setLocation(pt.x, pt.y);
+				modeMenu.setVisible(true);
+			} else {
+				doRandomGame();
+			}
+		});
+	}
+
+	/** pick a game of the list (as filtered, and as set at the arrow: all, never started, favorites) by chance: start it, or roll again */
 	private void doRandomGame() {
 		if (profilesList_.isEmpty()) {
 			Mess_.on(shell_).key("dialog.main.random.none").display();
 			return;
 		}
+		String mode = randomMode();
+		List<Integer> candidates = randomCandidates(mode);
+		if (candidates.isEmpty()) {
+			Mess_.on(shell_).key("dialog.main.random.nonemode", new Object[] {text_.get("dialog.main.random.mode." + mode)}).display();
+			return;
+		}
 		java.util.Random random = new java.util.Random();
 		int last = -1;
 		while (!shell_.isDisposed()) {
-			int index = random.nextInt(profilesList_.size());
-			if ((index == last) && (profilesList_.size() > 1))
-				index = (index + 1 + random.nextInt(profilesList_.size() - 1)) % profilesList_.size();
-			last = index;
+			int pick = random.nextInt(candidates.size());
+			if ((pick == last) && (candidates.size() > 1))
+				pick = (pick + 1 + random.nextInt(candidates.size() - 1)) % candidates.size();
+			last = pick;
+			int index = candidates.get(pick);
 			profileTable_.setSelection(index);
 			displayProfileInformation(false);
 			org.eclipse.swt.widgets.MessageBox box = new org.eclipse.swt.widgets.MessageBox(shell_, SWT.ICON_QUESTION | SWT.YES | SWT.NO | SWT.CANCEL);
 			box.setText(text_.get("dialog.main.random.title"));
-			box.setMessage(text_.get("dialog.main.random.question", new Object[] {profilesList_.get(index).getTitle()}));
+			box.setMessage(text_.get("dialog.main.random.question2", new Object[] {profilesList_.get(index).getTitle(), text_.get("dialog.main.random.mode." + mode), candidates.size()}));
 			box.setButtonLabels(java.util.Map.of(SWT.YES, text_.get("dialog.main.random.start"), SWT.NO, text_.get("dialog.main.random.again"), SWT.CANCEL, text_.get("button.cancel")));
 			int answer = box.open();
 			if (answer == SWT.YES)
 				doRunProfile(ProfileRunMode.NORMAL, false);
 			if (answer != SWT.NO)
 				return;
+		}
+	}
+
+	/** the games of the list a random game is picked from (indexes in the list); empty: none fits */
+	private List<Integer> randomCandidates(String mode) {
+		List<Integer> candidates = new ArrayList<>();
+		for (int i = 0; i < profilesList_.size(); i++) {
+			Profile p = profilesList_.get(i);
+			if ("all".equals(mode) || ("neverstarted".equals(mode) && p.getStats().getRuns() == 0) || ("favorites".equals(mode) && Boolean.TRUE.equals(p.isFavorite())))
+				candidates.add(i);
+		}
+		// most / least played: the list by play time (then starts) in two halves of the same size (with an odd number, the middle one in both)
+		if ("mostplayed".equals(mode) || "leastplayed".equals(mode)) {
+			java.util.function.ToLongFunction<Integer> played = i -> {
+				Profile p = profilesList_.get(i);
+				long seconds = p.getProfileStats() == null ? 0: p.getProfileStats().getPlayTime();
+				return seconds * 100_000L + p.getStats().getRuns();
+			};
+			List<Integer> sorted = new ArrayList<>();
+			for (int i = 0; i < profilesList_.size(); i++)
+				sorted.add(i);
+			sorted.sort(java.util.Comparator.comparingLong(played).reversed());
+			int half = (sorted.size() + 1) / 2;
+			// halves only make sense when something was played at all
+			if (sorted.stream().anyMatch(i -> played.applyAsLong(i) > 0) && (sorted.size() > 1))
+				candidates.addAll("mostplayed".equals(mode) ? sorted.subList(0, half): sorted.subList(sorted.size() - half, sorted.size()));
+		}
+		return candidates;
+	}
+
+	/** the statistics as a web page (or a CSV table), with the play sessions as they are now */
+	private String statisticsAs(boolean html, List<Profile> all, java.util.Locale locale, java.util.Date now) {
+		try {
+			List<ProfileRepository.PlaySession> sessions = new ProfileRepository().listPlaySessions();
+			return html ? org.dbgl.util.ProfileReports.statisticsHtml(all, sessions, text_, locale, now): org.dbgl.util.ProfileReports.statisticsCsv(all, sessions, text_, locale, now);
+		} catch (SQLException e) {
+			throw new IllegalStateException(e);
 		}
 	}
 
@@ -536,7 +629,10 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			java.util.Locale locale = new java.util.Locale(settings_.getValue("locale", "language"), settings_.getValue("locale", "country"));
 			String report = org.dbgl.util.ProfileReports.statistics(all, new ProfileRepository().listPlaySessions(), text_, locale, now);
 			new DifferencesDialog(shell_, text_.get("dialog.statistics.title"), report, "dbgl-statistics-" + new java.text.SimpleDateFormat("yyyy-MM-dd").format(now) + ".txt",
-					"statisticsdialog").withAction("dialog.statistics.cleanremoved", s -> cleanRemovedProfileData(s, all, locale)).open();
+					"statisticsdialog").withImage(ImageService.IMG_STATISTICS).withAction("dialog.statistics.cleanremoved", s -> cleanRemovedProfileData(s, all, locale))
+					// also as a web page with bars, or as a table for a spreadsheet (the type in the save dialog)
+					.withExport("html", text_.get("dialog.statistics.save.html3"), () -> statisticsAs(true, all, locale, now))
+					.withExport("csv", text_.get("dialog.statistics.save.csv"), () -> statisticsAs(false, all, locale, now)).open();
 		} catch (SQLException e) {
 			Mess_.on(shell_).exception(e).warning();
 		}
@@ -648,9 +744,46 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 
 	private void offerEditionRelease(org.dbgl.util.EditionUpdateChecker.Release r) {
 		String pre = r.prerelease() ? text_.get("dialog.main.editionupdate.prerelease"): "";
+		// with one click: download, check, back up, install, start again (when the release has the files for it)
+		if (r.installable() && org.dbgl.util.EditionUpdater.canUpdate()) {
+			org.eclipse.swt.widgets.MessageBox box = new org.eclipse.swt.widgets.MessageBox(shell_, SWT.ICON_QUESTION | SWT.YES | SWT.NO | SWT.CANCEL);
+			box.setText(text_.get("dialog.main.menu.editionupdate").replace("&", "").replace("...", ""));
+			box.setMessage(text_.get("dialog.main.editionupdate.oneclick",
+				new Object[] {Constants.EDITION_NAME, r.version(), org.dbgl.util.EditionUpdateChecker.readable(Constants.PROGRAM_VERSION), pre}));
+			box.setButtonLabels(java.util.Map.of(SWT.YES, text_.get("dialog.main.editionupdate.install"), SWT.NO, text_.get("dialog.main.editionupdate.page"), SWT.CANCEL,
+				text_.get("button.cancel")));
+			int answer = box.open();
+			if (answer == SWT.YES)
+				installEditionUpdate(r);
+			else if (answer == SWT.NO)
+				SystemUtils.openForBrowsing(r.url(), shell_);
+			return;
+		}
 		if (Mess_.on(shell_).key("dialog.main.confirm.editionupdate",
 			new Object[] {Constants.EDITION_NAME, r.version(), org.dbgl.util.EditionUpdateChecker.readable(Constants.PROGRAM_VERSION), pre}).confirm())
 			SystemUtils.openForBrowsing(r.url(), shell_);
+	}
+
+	/** download and check the update, make the backups, then end DBGL: a helper copies the new files and starts DBGL again */
+	private void installEditionUpdate(org.dbgl.util.EditionUpdateChecker.Release r) {
+		java.util.concurrent.atomic.AtomicInteger progress = new java.util.concurrent.atomic.AtomicInteger();
+		org.dbgl.util.EditionUpdater.Prepared prepared;
+		try {
+			prepared = org.dbgl.gui.controls.BusyTask.run(shell_, text_.get("dialog.main.editionupdate.downloading", new Object[] {r.version()}), progress, 1000,
+				() -> org.dbgl.util.EditionUpdater.prepare(r.updateZip(), r.sums(), Constants.PROGRAM_VERSION, r.version(), progress));
+		} catch (org.dbgl.gui.controls.BusyTask.Cancelled e) {
+			return;
+		} catch (Exception e) {
+			Mess_.on(shell_).key("dialog.main.editionupdate.failed", new Object[] {String.valueOf(e.getMessage() == null ? e: e.getMessage())}).exception(e).warning();
+			return;
+		}
+		if (!Mess_.on(shell_).key("dialog.main.editionupdate.ready", new Object[] {r.version(), prepared.dataBackup().getPath(), prepared.programBackup().getPath()}).confirm())
+			return;
+		if (!org.dbgl.util.EditionUpdater.launchInstaller(prepared)) {
+			Mess_.on(shell_).key("dialog.main.editionupdate.failed", new Object[] {"installer"}).warning();
+			return;
+		}
+		shell_.close();
 	}
 
 	/** @return true if the configuration file of the DOSBox version says it was written by this very version */
@@ -1109,7 +1242,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			MenuItem_.on(systemMenu).pos(prefsIndex + 4).key("dialog.main.menu.restore").listen(restoreAdapter).build();
 		} else {
 			Menu fileMenu = createMenu(appMenuBar, "dialog.main.menu.file");
-			MenuItem_.on(fileMenu).key("dialog.main.menu.adjustsettings").image(ImageService.IMG_SETTINGS).listen(settingsAdapter).build();
+			MenuItem_.on(fileMenu).key("dialog.main.menu.adjustsettings").image(ImageService.IMG_TB_SETTINGS).listen(settingsAdapter).build();
 			MenuItem_.on(fileMenu).key("dialog.main.menu.log").image(ImageService.IMG_LOG).listen(logAdapter).build();
 			MenuItem_.on(fileMenu).key("dialog.main.menu.databasecleanup").image(ImageService.IMG_CLEAN).listen(cleanupAdapter).build();
 			MenuItem_.on(fileMenu).build();
@@ -1196,6 +1329,12 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			@Override
 			public void widgetSelected(SelectionEvent event) {
 				doCheckProfiles();
+			}
+		}).build();
+		MenuItem_.on(profilesMenu).key("dialog.main.menu.coverbatch").image(ImageService.IMG_GLOBE).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				doCoverBatch();
 			}
 		}).build();
 		MenuItem undoBulkItem = MenuItem_.on(profilesMenu).key("dialog.main.menu.undobulk").image(ImageService.IMG_UNDO).listen(new SelectionAdapter() {
@@ -1288,6 +1427,13 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			}
 		}).build();
 		MenuItem_.on(helpMenu).build();
+		// the thread of the Extended Edition in the Vogons forum: news, feedback, bug reports
+		MenuItem_.on(helpMenu).key("dialog.main.menu.vogons").image(ImageService.IMG_GLOBE).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				SystemUtils.openForBrowsing("https://www.vogons.org/viewtopic.php?t=113077", shell_);
+			}
+		}).build();
 		MenuItem_.on(helpMenu).key("dialog.main.menu.newfeatures").image(ImageService.IMG_WHATSNEW).listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
@@ -1308,12 +1454,16 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 
 	/** a text shipped inside DBGL (doc/&lt;name&gt;_de.txt or _en.txt): German for the German interface, else English */
 	private void showDocument(String name, String titleKey) {
+		showDocument(name, titleKey, "changelog".equals(name) ? ImageService.IMG_LOG: ImageService.IMG_WHATSNEW);
+	}
+
+	private void showDocument(String name, String titleKey, String img) {
 		String lang = "de".equals(settings_.getValue("locale", "language")) ? "de": "en";
 		try (java.io.InputStream in = MainWindow.class.getClassLoader().getResourceAsStream("doc/" + name + "_" + lang + ".txt")) {
 			if (in == null)
 				throw new IOException("doc/" + name + "_" + lang + ".txt");
 			String content = new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8).replace("\r\n", "\n").replace("\n", org.eclipse.swt.widgets.Text.DELIMITER);
-			new DifferencesDialog(shell_, text_.get(titleKey).replace("...", "").replace("\u2026", "").replace("&", ""), content).open();
+			new DifferencesDialog(shell_, text_.get(titleKey).replace("...", "").replace("\u2026", "").replace("&", ""), content).withImage(img).open();
 		} catch (IOException e) {
 			Mess_.on(shell_).exception(e).warning();
 		}
@@ -1359,13 +1509,13 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		});
 		// quick access to what is otherwise in the menus: filters, game information from the internet, checking, a random game
 		createSeparatorToolItem(toolBar, TOOLBAR_SEPARATOR);
-		createLabelledToolItem(toolBar, "dialog.main.tb.addfilter", ImageService.IMG_FILTER, "dialog.main.menu.addfilter", new SelectionAdapter() {
+		createLabelledToolItem(toolBar, "dialog.main.tb.addfilter", ImageService.IMG_TB_FILTER, "dialog.main.menu.addfilter", new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
 				doAddFilter();
 			}
 		});
-		createLabelledToolItem(toolBar, "dialog.main.tb.editfilter", ImageService.IMG_EDITFILTER, "dialog.main.menu.editfilter", new SelectionAdapter() {
+		createLabelledToolItem(toolBar, "dialog.main.tb.editfilter", ImageService.IMG_TB_EDITFILTER, "dialog.main.menu.editfilter", new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
 				doEditFilter();
@@ -1385,12 +1535,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			}
 		});
 		createSeparatorToolItem(toolBar, TOOLBAR_SEPARATOR);
-		createLabelledToolItem(toolBar, "dialog.main.tb.random", ImageService.IMG_RANDOM, "dialog.main.random.tooltip", new SelectionAdapter() {
-			@Override
-			public void widgetSelected(SelectionEvent event) {
-				doRandomGame();
-			}
-		});
+		createRandomToolItem(toolBar);
 		createSeparatorToolItem(toolBar, TOOLBAR_SEPARATOR);
 
 		initColumnIds();
@@ -1493,7 +1638,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				}
 			});
 		createSeparatorToolItem(toolBarRight, TOOLBAR_SEPARATOR);
-		createLabelledToolItem(toolBarRight, "dialog.main.tb.about", ImageService.IMG_ABOUT, "dialog.main.menu.about2", new SelectionAdapter() {
+		createLabelledToolItem(toolBarRight, "dialog.main.tb.about", ImageService.IMG_TB_ABOUT, "dialog.main.menu.about2", new SelectionAdapter() {
 				@Override
 				public void widgetSelected(SelectionEvent event) {
 					new AboutDialog(shell_).open();
@@ -1561,6 +1706,8 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		link_ = new Link[Profile.NR_OF_LINK_DESTINATIONS];
 		for (int i = 0; i < link_.length; i++)
 			link_[i] = createLink(linksComposite, StringUtils.EMPTY, browseAdapter);
+		playInfo_ = new Label(informationGroup, SWT.WRAP);
+		playInfo_.setLayoutData(new GridData(SWT.FILL, SWT.BEGINNING, true, false));
 
 		thumbHeight_ = settings_.getIntValue("gui", "screenshotsheight");
 		scrolledCompositeForThumbs_ = createScrolledComposite(composite, SWT.H_SCROLL);
@@ -1748,6 +1895,12 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				doFindExtras();
 			}
 		}).build();
+		MenuItem_.on(menu).key("dialog.main.menu.coverbatch").image(ImageService.IMG_GLOBE).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				doCoverBatch();
+			}
+		}).build();
 		MenuItem_.on(menu).key("dialog.main.profile.duplicate").image(ImageService.IMG_DUPLICATE).listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
@@ -1836,6 +1989,16 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 							SystemUtils.openForEditing(prof.getConfigurationCanonicalFile(), getParent());
 						}
 					}).build();
+					// the output of the last start, when the profile saves it (DOSBox page of the profile)
+					File lastLog = org.dbgl.util.DosboxLog.latest(prof.getId());
+					if (lastLog != null) {
+						MenuItem_.on(profileViewSubMenu).key("dialog.main.profile.view.lastlog").image(ImageService.IMG_LOG).listen(new SelectionAdapter() {
+							@Override
+							public void widgetSelected(SelectionEvent evnt) {
+								doShowLastLog(prof, lastLog);
+							}
+						}).build();
+					}
 					if (Stream.of(prof.getLinks()).anyMatch(l -> StringUtils.isNotBlank(l.getDestination())))
 						MenuItem_.on(profileViewSubMenu).build();
 					for (org.dbgl.model.Link lnk: prof.getLinks()) {
@@ -2195,6 +2358,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			if (notesVisible) {
 				notesField_.setText(StringUtils.EMPTY);
 				displayLinks(new org.dbgl.model.Link[] {});
+				playInfo_.setText(StringUtils.EMPTY);
 			}
 			setupToolItem_.setEnabled(false);
 		} else {
@@ -2209,11 +2373,36 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				if (!Strings.CS.equals(prof.getNotes(), notesField_.getText()))
 					notesField_.setText(prof.getNotes());
 				displayLinks(prof.getLinks());
+				displayPlayInfo(prof);
 			}
 			setupToolItem_.setEnabled(prof.hasSetup());
 		}
 		if (forceRefresh)
 			profileTable_.redraw();
+	}
+
+	/** the last log of the DOSBox output of a profile, shown in DBGL (to save it elsewhere, or to open its folder) */
+	private void doShowLastLog(Profile prof, File log) {
+		try {
+			String content = org.dbgl.util.DosboxLog.read(log, 2_000_000).replace("\r\n", "\n").replace("\n", org.eclipse.swt.widgets.Text.DELIMITER);
+			String name = log.getName().replace(".log", "");
+			new DifferencesDialog(shell_, text_.get("dialog.main.profile.view.lastlog.title", new Object[] {prof.getTitle(), name}), content, "dosbox-" + name + ".log", "lastlogdialog")
+					.withImage(ImageService.IMG_LOG).withAction("dialog.profile.dosboxlog.open", s -> {
+						SystemUtils.openForBrowsing(log.getParentFile().getPath(), s);
+						return null;
+					}).open();
+		} catch (IOException e) {
+			Mess_.on(shell_).exception(e).warning();
+		}
+	}
+
+	/** below the notes: how long the game was played, in how many sessions, and when last */
+	private void displayPlayInfo(Profile prof) {
+		String text = org.dbgl.util.ProfileReports.playInfo(prof, text_);
+		if (!text.equals(playInfo_.getText())) {
+			playInfo_.setText(text);
+			playInfo_.getParent().layout();
+		}
 	}
 
 	private void displayLinks(org.dbgl.model.Link[] profileLinks) {
@@ -2912,6 +3101,32 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 	}
 
 	/** link manuals, walkthroughs, maps and soundtracks found in the game folders of the selected profiles (see ExtrasDialog) */
+	/** covers for the selected profiles (or, with one or none selected, all in the list) that have no image yet */
+	private void doCoverBatch() {
+		boolean selection = profileTable_.getSelectionCount() > 1;
+		int[] indices = selection ? profileTable_.getSelectionIndices(): java.util.stream.IntStream.range(0, profilesList_.size()).toArray();
+		List<Profile> without = new ArrayList<>();
+		for (int i: indices) {
+			ThumbInfo info = (ThumbInfo)profileTable_.getItem(i).getData();
+			if ((info == null) || (info.getAllThumbs().length == 0))
+				without.add(profilesList_.get(i));
+		}
+		if (without.isEmpty()) {
+			Mess_.on(shell_).key("dialog.coverbatch.none").display();
+			return;
+		}
+		Integer saved = new CoverBatchDialog(shell_, without).open();
+		if ((saved != null) && (saved > 0)) {
+			for (int i: indices) {
+				ThumbInfo info = (ThumbInfo)profileTable_.getItem(i).getData();
+				if (info != null)
+					info.resetCachedInfo();
+			}
+			displayProfileInformation(true);
+			Mess_.on(shell_).key("dialog.coverbatch.saved", new Object[] {saved}).display();
+		}
+	}
+
 	private void doFindExtras() {
 		if (profileTable_.getSelectionIndex() == -1)
 			return;

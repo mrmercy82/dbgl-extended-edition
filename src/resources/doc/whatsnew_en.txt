@@ -7,13 +7,29 @@ https://www.vogons.org/viewtopic.php?p=1380082#p1380082). The Extended Edition
 is an independent continuation he is not involved in. It mainly adds support
 for current DOSBox versions; the foundation and almost everything else are his
 work: nearly three quarters of the program code are unchanged from his 0.100
-beta 17 (of his roughly 42,000 lines, fewer than 300 were changed or removed;
-about 16,000 were added).
+beta 17 (of his roughly 42,000 lines, about 300 were changed or removed;
+about 17,000 were added).
 
 Profiles, database and settings are kept when switching.
 
 Extended Edition (source code, downloads, reporting problems):
 https://github.com/mrmercy82/dbgl-extended-edition
+
+
+NEWEST IN 0.101 ALPHA 45
+------------------------
+  - Get covers for many profiles at once, from all online sources, with a
+    preview to tick; ScreenScraper is enabled.
+  - One-click update of the Extended Edition (download, checksum, backup,
+    restart; usable from alpha 46 on).
+  - "Check profiles" recommends DOSBox-X where needed and switches with one
+    button.
+  - Statistics also as HTML with bar charts or as CSV.
+  - Random game by choice (never started, favorites, most or least played);
+    play time and sessions for every profile; last DOSBox log in the
+    context menu.
+  - Long links (up to 2048 characters) are saved (database 0.103, still
+    readable by DBGL 0.100 beta 17).
 
 
 NEWEST IN 0.101 ALPHA 44

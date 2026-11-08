@@ -1,5 +1,7 @@
 /*
  *  Copyright (C) 2006-2025  Ronald Blankendaal
+ *  Modified for the DBGL Extended Edition by mrmercy82 (with the help of AI)
+ *  since 2026-11-01. Changes and their dates: CHANGELOG-en.txt, CHANGELOG-de.txt.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -41,7 +43,8 @@ public class PouetTest {
 			List<WebProfile> entries3 = PouetSearchEngine.getInstance().getEntries("noresultsplease", new String[] {"ms-dos", "ms-dos/gus"});
 			assertEquals(0, entries3.size());
 		} catch (IOException e) {
-			e.printStackTrace();
+			// not reachable: a failure, no longer a silent pass
+			throw new AssertionError("Pouet not reachable: " + e, e);
 		}
 	}
 
@@ -73,7 +76,8 @@ public class PouetTest {
 			assertEquals(2, images.length);
 
 		} catch (IOException e) {
-			e.printStackTrace();
+			// not reachable: a failure, no longer a silent pass
+			throw new AssertionError("Pouet not reachable: " + e, e);
 		}
 	}
 
@@ -102,7 +106,8 @@ public class PouetTest {
 			assertEquals(1, images.length);
 
 		} catch (IOException e) {
-			e.printStackTrace();
+			// not reachable: a failure, no longer a silent pass
+			throw new AssertionError("Pouet not reachable: " + e, e);
 		}
 	}
 }

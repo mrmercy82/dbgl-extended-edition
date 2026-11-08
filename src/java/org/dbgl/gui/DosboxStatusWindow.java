@@ -164,6 +164,12 @@ public class DosboxStatusWindow {
 	private void create() {
 		shell_ = new Shell(display_, SWT.SHELL_TRIM);
 		shell_.setText(TITLE);
+		// a window of its own in the taskbar: the DBGL symbol
+		try {
+			shell_.setImages(org.dbgl.service.ImageService.getResourceImages(display_, new String[] {"ico/016.png", "ico/024.png", "ico/032.png", "ico/048.png", "ico/064.png"}));
+		} catch (RuntimeException e) {
+			// without a symbol then
+		}
 		GridLayout layout = new GridLayout(5, false);
 		layout.marginWidth = 4;
 		layout.marginHeight = 4;

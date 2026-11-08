@@ -429,7 +429,8 @@ public class FilesUtils {
 	}
 
 	public static String toSafeFilenameForWebImages(String filename) {
-		return toSafeFilename(filename.replace(" ", "_"));
+		// at most 100 characters: a long description of an image must not make a file name too long (255)
+		return StringUtils.left(toSafeFilename(filename.replace(" ", "_")), 100);
 	}
 
 	public static String toArchivePath(File archiveEntry, boolean isDirectory) {

@@ -69,18 +69,18 @@ public class AboutDialog extends BaseDialog<Object> {
 		Label basedOn = new Label(group, SWT.NONE);
 		basedOn.setText(text_.get("dialog.about.basedon"));
 		smallGray(basedOn);
-		Chain.on(group).lbl(l -> l.style(SWT.WRAP).layoutData(new GridData_(380).build()).key("dialog.about.createdby", new Object[] {Constants.PROGRAM_NAME_FULL, Constants.BASE_VERSION}))
+		Chain.on(group).lbl(l -> l.style(SWT.WRAP).layoutData(new GridData_(380).build()).key("dialog.about.createdby2", new Object[] {Constants.PROGRAM_NAME_FULL, Constants.BASE_VERSION}))
 				.lbl(l -> l.style(SWT.WRAP).layoutData(new GridData_(380).build()).key("dialog.about.thanks")).build();
 		createLink(group, "<a href=\"" + Constants.ORIGINAL_URL + "\">" + text_.get("dialog.about.website.original") + "</a>", browseAdapter);
 
 		// this edition, clearly apart: an independent continuation the original author is not involved in
 		Label separator = new Label(group, SWT.SEPARATOR | SWT.HORIZONTAL);
 		separator.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
-		Chain.on(group).lbl(l -> l.style(SWT.WRAP).layoutData(new GridData_(380).build()).key("dialog.about.editioninfo",
-			new Object[] {Constants.EDITION_NAME, org.dbgl.util.EditionUpdateChecker.readable(Constants.PROGRAM_VERSION), Constants.BASE_VERSION})).build();
+		Chain.on(group).lbl(l -> l.style(SWT.WRAP).layoutData(new GridData_(380).build()).key("dialog.about.editioninfo2",
+			new Object[] {"DBGL " + Constants.EDITION_NAME, org.dbgl.util.EditionUpdateChecker.readable(Constants.PROGRAM_VERSION), Constants.BASE_VERSION.replace(" ", "\u00A0")})).build(); // the version not broken over two lines
 		Label editionBy = new Label(group, SWT.WRAP);
 		editionBy.setLayoutData(new GridData_(380).build());
-		editionBy.setText(text_.get("dialog.about.editionby", new Object[] {Constants.EDITION_NAME}));
+		editionBy.setText(text_.get("dialog.about.editionby2", new Object[] {"DBGL " + Constants.EDITION_NAME}));
 		smallGray(editionBy);
 		createLink(group, "<a href=\"" + Constants.EDITION_URL + "\">" + text_.get("dialog.about.website.edition", new Object[] {Constants.EDITION_NAME}) + "</a>", browseAdapter);
 
@@ -90,12 +90,15 @@ public class AboutDialog extends BaseDialog<Object> {
 		Chain.on(group).lbl(l -> l.style(SWT.WRAP).layoutData(new GridData_(380).build()).key("dialog.about.info",
 			new Object[] {SystemUtils.JVM_ARCH, SystemUtils.JVM_VERSION, SystemUtils.OS_NAME, SystemUtils.OS_VERSION, SystemUtils.OS_ARCH, HsqlDatabaseProperties.PRODUCT_NAME,
 					HsqlDatabaseProperties.THIS_FULL_VERSION, String.valueOf(SWT.getVersion()), SWT.getPlatform()})).build();
+		// the version of the DBGL database (e.g. v0.103), right above OK
+		Label dbVersion = new Label(group, SWT.NONE);
+		dbVersion.setText(text_.get("dialog.about.dbversion", new Object[] {org.dbgl.service.DatabaseService.getInstance().getVersionString()}));
 
 
 		shell_.setDefaultButton(Button_.on(group).text().key("button.ok").listen(closeShellAdapter).ctrl());
 		shell_.getDefaultButton().setFocus();
 		// only as high as the content needs (it had much empty space above and below)
-		shell_.setSize(720, Math.min(560, shell_.computeSize(720, SWT.DEFAULT).y + 10));
+		shell_.setSize(720, Math.min(620, shell_.computeSize(720, SWT.DEFAULT).y + 10));
 	}
 
 	/** smaller and gray, for the lines that only introduce or credit */

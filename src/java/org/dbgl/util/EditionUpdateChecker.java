@@ -42,7 +42,15 @@ import org.json.JSONObject;
 public final class EditionUpdateChecker {
 
 	/** a release of the Extended Edition: the version from its tag (e.g. "0.101 alpha 31"), its page, and whether it is a pre-release */
-	public record Release(String version, String url, boolean prerelease) {
+	public record Release(String version, String url, boolean prerelease, String updateZip, String sums) {
+		public Release(String version, String url, boolean prerelease) {
+			this(version, url, prerelease, null, null);
+		}
+
+		/** whether it can be installed with one click: it has an update zip and the SHA-256 sums */
+		public boolean installable() {
+			return (updateZip != null) && (sums != null);
+		}
 	}
 
 	/** what a check found: the newest release that is newer than this version, or none; or an error */
@@ -112,10 +120,22 @@ public final class EditionUpdateChecker {
 			String tag = r.optString("tag_name", "");
 			if (r.optBoolean("draft", false) || (pre && !prereleases) || (key(tag) == null))
 				continue;
-			if ((compare(tag, current) > 0) && ((best == null) || (compare(tag, best.version()) > 0)))
-				best = new Release(tag, r.optString("html_url", Constants.EDITION_URL + "/releases"), pre);
+			if ((compare(tag, current) > 0) && ((best == null) || (compare(tag, best.version()) > 0))) {
+				// the files of the release: the update zip (dbgl-0.101alphaNN-update.zip) and SHA256SUMS.txt
+				String zip = null, sums = null;
+				JSONArray assets = r.optJSONArray("assets");
+				for (int a = 0; (assets != null) && (a < assets.length()); a++) {
+					String name = assets.getJSONObject(a).optString("name", "");
+					String url = assets.getJSONObject(a).optString("browser_download_url", null);
+					if (name.matches("(?i)dbgl-.*-update\\.zip"))
+						zip = url;
+					else if (name.equalsIgnoreCase("SHA256SUMS.txt"))
+						sums = url;
+				}
+				best = new Release(tag, r.optString("html_url", Constants.EDITION_URL + "/releases"), pre, zip, sums);
+			}
 		}
-		return best == null ? null: new Release(readable(best.version()), best.url(), best.prerelease());
+		return best == null ? null: new Release(readable(best.version()), best.url(), best.prerelease(), best.updateZip(), best.sums());
 	}
 
 	/** ask GitHub; takes a few seconds at most, so not on the user interface thread */

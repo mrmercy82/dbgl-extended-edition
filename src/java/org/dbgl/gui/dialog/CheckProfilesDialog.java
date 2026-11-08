@@ -63,6 +63,8 @@ public class CheckProfilesDialog extends SizeControlledButtonDialog<Boolean> {
 	private final java.util.Map<Profile, List<String>> missing_ = new java.util.LinkedHashMap<>();
 	/** per profile: the numbers of the links whose file is not there */
 	private final java.util.Map<Profile, List<Integer>> missingLinks_ = new java.util.LinkedHashMap<>();
+	/** the profiles that should rather use DOSBox-X, and why (IDE bus, PC-98 image, booting a hard disk image) */
+	private final java.util.Map<Profile, String> dosboxX_ = new java.util.LinkedHashMap<>();
 
 	public CheckProfilesDialog(Shell parent) {
 		this(parent, null);
@@ -114,12 +116,20 @@ public class CheckProfilesDialog extends SizeControlledButtonDialog<Boolean> {
 				relocateMissing();
 			}
 		}).ctrl();
+		Button_.on(otherButtons_).text().key("dialog.checkprofiles.todosboxx").tooltip("dialog.checkprofiles.todosboxx.tooltip").listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				switchToDosboxX();
+			}
+		}).ctrl();
 		Button_.on(otherButtons_).text().key("dialog.switchdosbox.savereport").listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
 				saveReport();
 			}
 		}).ctrl();
+		// all buttons in one row, 'save report' at the far right
+		((GridLayout)otherButtons_.getLayout()).numColumns = otherButtons_.getChildren().length;
 		check();
 	}
 
@@ -130,6 +140,7 @@ public class CheckProfilesDialog extends SizeControlledButtonDialog<Boolean> {
 		invalidProfiles_ = 0;
 		missing_.clear();
 		missingLinks_.clear();
+		dosboxX_.clear();
 		int withProblems = 0;
 		try {
 			for (Profile prof: profiles_) {
@@ -155,6 +166,13 @@ public class CheckProfilesDialog extends SizeControlledButtonDialog<Boolean> {
 					// the same as the warning symbol in the list says (ProfileWarnings): a PC-98 image needs DOSBox-X
 					if (prof.needsDosboxXForPc98())
 						lines.append("   ").append(text_.get("dialog.profile.pc98needsdosboxx.short")).append(Text.DELIMITER);
+					// also a CD on the IDE bus, or booting a hard disk image (e.g. Windows 95): better with DOSBox-X
+					String reason = prof.dosboxXReason();
+					if (reason != null) {
+						dosboxX_.put(prof, reason);
+						if (!"pc98".equals(reason))
+							lines.append("   ").append(text_.get("dialog.checkprofiles.dosboxx", new Object[] {text_.get("dialog.storeimport.reason." + reason)})).append(Text.DELIMITER);
+					}
 					if (StringUtils.isNotBlank(warnings))
 						lines.append("   ! ").append(warnings.trim().replace("\n", Text.DELIMITER + "   ! ")).append(Text.DELIMITER);
 					if (!invalid.isEmpty()) {
@@ -175,7 +193,28 @@ public class CheckProfilesDialog extends SizeControlledButtonDialog<Boolean> {
 		if (withProblems == 0)
 			report.append(text_.get("dialog.checkprofiles.ok")).append(Text.DELIMITER).append(Text.DELIMITER);
 		report.append(text_.get("dialog.checkprofiles.summary", new Object[] {profiles_.size(), withProblems}));
+		if (!dosboxX_.isEmpty())
+			report.append(Text.DELIMITER).append(text_.get("dialog.checkprofiles.dosboxx.summary", new Object[] {dosboxX_.size()}));
 		report_.setText(report.toString());
+	}
+
+	/** the profiles that should use DOSBox-X: to the switch dialog, with DOSBox-X chosen already (the newest, or the default one) */
+	private void switchToDosboxX() {
+		if (dosboxX_.isEmpty()) {
+			Mess_.on(shell_).key("dialog.checkprofiles.dosboxx.none").display();
+			return;
+		}
+		List<DosboxVersion> xs = dbversions_.stream().filter(d -> StringUtils.defaultString(d.getFamily()).toLowerCase().contains("dosbox-x")).toList();
+		if (xs.isEmpty()) {
+			Mess_.on(shell_).key("dialog.checkprofiles.dosboxx.missing").warning();
+			return;
+		}
+		DosboxVersion target = xs.stream().filter(DosboxVersion::isDefault).findFirst().orElse(xs.get(xs.size() - 1));
+		if (Boolean.TRUE.equals(new SwitchDosboxVersionDialog(shell_, new java.util.ArrayList<>(dosboxX_.keySet())).withTarget(target.getId()).open())) {
+			result_ = true;
+			prepare();
+			check();
+		}
 	}
 
 	private void fix() {

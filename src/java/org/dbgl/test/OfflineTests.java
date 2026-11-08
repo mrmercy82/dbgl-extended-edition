@@ -28,6 +28,6 @@ import org.junit.runners.Suite.SuiteClasses;
  * and on Windows (see .github/workflows/build.yml).
  */
 @RunWith(Suite.class)
-@SuiteClasses({Staging083Tests.class, Dbgl0102Tests.class})
+@SuiteClasses({Staging083Tests.class, Dbgl0102Tests.class, PouetOfflineTest.class})
 public class OfflineTests {
 }

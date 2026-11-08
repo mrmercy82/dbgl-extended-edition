@@ -99,6 +99,7 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 		focusOnTitle_ = focusOnTitle;
 
 		editing_ = profile_ != null;
+		windowImage_ = editing_ ? ImageService.IMG_TB_EDIT: ImageService.IMG_TB_NEW; // the symbols of the toolbar
 	}
 
 	private String initialSearch_;
