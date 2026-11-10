@@ -148,7 +148,7 @@ public class ExportDialog extends JobWizardDialog<Object> {
 			}
 			for (GamePackEntry entry2: gamePack_.getEntries()) {
 				if (entry != entry2 && FilesUtils.areRelated(entry.getCanonicalGameDir(), entry2.getCanonicalGameDir())) {
-					mess.key("dialog.export.error.gamedirsconflict",
+					mess.key("dialog.export.error.gamedirsconfict", // (so spelled in the language files)
 						new Object[] {entry.getCanonicalGameDir(), entry.getProfile().getTitle(), entry2.getCanonicalGameDir(), entry2.getProfile().getTitle()}).bind(profilesTable_);
 				}
 			}

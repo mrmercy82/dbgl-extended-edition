@@ -60,7 +60,11 @@ import org.dbgl.util.iso.ISO9660FileSystem;
 
 public class FilesUtils {
 
-	private static final String[] CDIMAGES = {".iso", ".cue", ".bin"};
+	/**
+	 * GOG ships CD images as .gog or .game (an ISO or BIN) with a .ins or .inst cue sheet; DOSBox reads them by their content,
+	 * not their name
+	 */
+	private static final String[] CDIMAGES = {".iso", ".cue", ".bin", ".gog", ".ins", ".game", ".inst"};
 	private static final String[] EXECUTABLES = {".exe", ".com", ".bat"};
 	private static final String[] EXECUTABLES_UPPERCASE = {"EXE", "COM", "BAT"};
 	private static final String[] ARCHIVES = {".zip", ".7z"};
@@ -79,7 +83,7 @@ public class FilesUtils {
 	public static final String DBGLZIP_FILTER = "*.dbgl.zip;*.DBGL.ZIP";
 	public static final String BTR_FILTER = "*.cp2;*.CP2;*.dcf;*.DCF;*.img;*.IMG;*.jrc;*.JRC;*.td0;*.TD0;*.fdd;*.FDD;*.fdi;*.FDI;*.d88;*.D88;*.hdi;*.HDI;*.nhd;*.NHD;*.hdm;*.HDM";
 	public static final String HDI_FILTER = "*.hdi;*.HDI;*.nhd;*.NHD";
-	public static final String CDI_FILTER = "*.iso;*.ISO;*.cue;*.CUE";
+	public static final String CDI_FILTER = "*.iso;*.ISO;*.cue;*.CUE;*.gog;*.GOG;*.ins;*.INS;*.game;*.GAME;*.inst;*.INST";
 	public static final String FATI_FILTER = "*.ima;*.IMA;*.img;*.IMG;*.fdi;*.FDI;*.d88;*.D88";
 	public static final String ALL_FILTER = "*";
 
@@ -159,7 +163,7 @@ public class FilesUtils {
 	}
 
 	public static boolean isCueSheet(String filename) {
-		return filename.toLowerCase().endsWith(CDIMAGES[1]);
+		return filename.toLowerCase().endsWith(CDIMAGES[1]) || filename.toLowerCase().endsWith(".ins") || filename.toLowerCase().endsWith(".inst"); // .ins, .inst: GOG's cue sheets
 	}
 
 	public static boolean isConfFile(String filename) {

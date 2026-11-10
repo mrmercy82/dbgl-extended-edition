@@ -2,9 +2,9 @@
 
 An unofficial, independent continuation of **DBGL – DOSBox Game Launcher 0.100 beta 17** by **Ronald Blankendaal** ([dbgl.org](https://dbgl.org), [announcement of 0.100 beta 17 on Vogons](https://www.vogons.org/viewtopic.php?p=1380082#p1380082)).
 
-Ronald Blankendaal developed DBGL up to version 0.100 beta 17 and is **not involved** in this edition. The foundation and almost everything in it are his work of nearly twenty years: nearly three quarters of the program code are unchanged from his 0.100 beta 17 (of his roughly 42,000 lines, about 300 were changed or removed; the Extended Edition added about 17,000). The Extended Edition mainly adds support for current DOSBox versions (DOSBox Staging 0.83, DOSBox-X up to 2026) and tools for large profile collections. It was started by mrmercy82 with the help of AI.
+Ronald Blankendaal developed DBGL up to version 0.100 beta 17 and is **not involved** in this edition. The foundation and almost everything in it are his work of nearly twenty years: nearly 60 percent of the program code is unchanged from his 0.100 beta 17 (of his roughly 42,000 lines, about 360 were changed or removed; the Extended Edition added about 29,000). The Extended Edition mainly adds support for current DOSBox versions (DOSBox Staging 0.83, DOSBox-X up to 2026) and tools for large profile collections. It was started by mrmercy82 with the help of AI.
 
-*Deutsch:* Eine inoffizielle, unabhängige Weiterführung von DBGL 0.100 beta 17 von Ronald Blankendaal, der an dieser Ausgabe nicht beteiligt ist. Knapp drei Viertel des Programmcodes sind unverändert sein Werk. Sie ergänzt vor allem die Unterstützung aktueller DOSBox-Versionen. Siehe `src/resources/doc/whatsnew_de.txt`.
+*Deutsch:* Eine inoffizielle, unabhängige Weiterführung von DBGL 0.100 beta 17 von Ronald Blankendaal, der an dieser Ausgabe nicht beteiligt ist. Knapp 60 Prozent des Programmcodes sind unverändert sein Werk. Sie ergänzt vor allem die Unterstützung aktueller DOSBox-Versionen. Siehe `src/resources/doc/whatsnew_de.txt`.
 
 ## Links
 

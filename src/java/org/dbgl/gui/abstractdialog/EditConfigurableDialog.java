@@ -241,7 +241,38 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 			uiProgress_.step();
 	}
 
+	/** notes on pages that depend on the DOSBox version (e.g. which MIDI ROMs it finds): set anew when it changes */
+	private final List<java.util.function.Consumer<TemplateProfileBase>> versionNotes_ = new ArrayList<>();
+
+	/** a note below the controls of a page, set for the selected DOSBox version (hidden when it says nothing) */
+	private void versionNote(Composite parent, int span, TemplateProfileBase configurable, java.util.function.Function<TemplateProfileBase, String> text) {
+		org.eclipse.swt.widgets.Label note = new org.eclipse.swt.widgets.Label(parent, SWT.WRAP);
+		GridData gd = new GridData(SWT.FILL, SWT.BEGINNING, true, false, span, 1);
+		gd.widthHint = 400;
+		note.setLayoutData(gd);
+		java.util.function.Consumer<TemplateProfileBase> update = c -> {
+			if (note.isDisposed())
+				return;
+			String t;
+			try {
+				t = c == null || c.getDosboxVersion() == null ? null: text.apply(c);
+			} catch (RuntimeException e) {
+				t = null; // a note only: never in the way of editing the profile
+			}
+			note.setText(StringUtils.defaultString(t));
+			boolean show = StringUtils.isNotEmpty(t);
+			if (note.getVisible() != show || gd.exclude == show) {
+				note.setVisible(show);
+				gd.exclude = !show;
+				parent.layout(true);
+			}
+		};
+		update.accept(configurable);
+		versionNotes_.add(update);
+	}
+
 	protected void updateControlsByConfigurable(TemplateProfileBase configurable) {
+		versionNotes_.forEach(n -> n.accept(configurable));
 		showUnknownLines(configurable);
 		Configuration combinedConf = configurable.getCombinedConfiguration();
 		Autoexec combinedAuto = combinedConf.getAutoexec();
@@ -1540,11 +1571,116 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 			.section("soundcanvas").item("soundcanvas_rom_dir").build(metaControls_).init(configurable);
 		Chain.on(midiExpGroup).lbl(l -> l.key("dialog.template.soundcanvasfilter")).cmb(c -> c.editable().tooltip("dialog.template.soundcanvasfilter.tooltip").items(new String[] {"on", "off"}))
 			.section("soundcanvas").item("soundcanvas_filter").build(metaControls_).init(configurable);
+		// which ROMs the DOSBox version finds (DOSBox Staging, DOSBox-X): an MT-32 or Sound Canvas without them stays silent
+		romGroup(composite, configurable);
 		addAdditionalOptions(composite, 2, configurable,
 			field("dialog.template.x.rolandgssysex", 'b', "midi", null, "roland gs sysex", null));
 		return composite;
 	}
 	
+	/**
+	 * A frame "ROMs" as the one of the experimental options: per device that needs them (MT-32/CM-32L, Sound Canvas) the models
+	 * and versions the DOSBox version finds, aligned below each other; only where the DOSBox version emulates the device.
+	 */
+	private void romGroup(Composite composite, TemplateProfileBase configurable) {
+		infoGroup(composite, 2, "dialog.template.roms", configurable, new String[] {"MT-32/CM-32L:", "Sound Canvas:"}, // the names of the devices, in all languages
+			(c, r) -> romValue(c, r == 0), null);
+	}
+
+	/**
+	 * A frame with rows "name: value" (the values aligned below each other) that depend on the DOSBox version, set anew when
+	 * it changes; a row with the value null is left out, the frame if all are; at the same distance to the frames around it as
+	 * those have to each other.
+	 */
+	private void infoGroup(Composite composite, int span, String key, TemplateProfileBase configurable, String[] names, java.util.function.BiFunction<TemplateProfileBase, Integer, String> values,
+			java.util.function.Function<TemplateProfileBase, String> tooltip) {
+		GridData groupData = new GridData(SWT.FILL, SWT.FILL, true, false, span, 1);
+		groupData.verticalIndent = 20;
+		Group group = Group_.on(composite).layoutData(groupData).layout(new GridLayout(2, false)).key(key).build();
+		org.eclipse.swt.widgets.Label[][] rows = new org.eclipse.swt.widgets.Label[names.length][2];
+		for (int r = 0; r < names.length; r++) {
+			rows[r][0] = new org.eclipse.swt.widgets.Label(group, SWT.NONE);
+			rows[r][0].setText(names[r]);
+			rows[r][0].setLayoutData(new GridData(SWT.BEGINNING, SWT.BEGINNING, false, false));
+			rows[r][1] = new org.eclipse.swt.widgets.Label(group, SWT.WRAP);
+			GridData vd = new GridData(SWT.FILL, SWT.BEGINNING, true, false, names[r].isEmpty() ? 2: 1, 1); // no name: the value alone
+			vd.widthHint = 380;
+			rows[r][1].setLayoutData(vd);
+		}
+		java.util.function.Consumer<TemplateProfileBase> update = c -> {
+			if (group.isDisposed())
+				return;
+			boolean any = false;
+			for (int r = 0; r < names.length; r++) {
+				String value;
+				try {
+					value = (c == null) || (c.getDosboxVersion() == null) ? null: values.apply(c, r);
+				} catch (RuntimeException e) {
+					value = null; // a note only: never in the way of editing the profile
+				}
+				boolean show = value != null;
+				any |= show;
+				rows[r][1].setText(StringUtils.defaultString(value));
+				for (int i = 0; i < 2; i++) {
+					boolean here = show && ((i == 1) || !names[r].isEmpty());
+					rows[r][i].setVisible(here);
+					((GridData)rows[r][i].getLayoutData()).exclude = !here;
+				}
+			}
+			if (tooltip != null) { // the explanation, on the frame and its rows
+				String tip;
+				try {
+					tip = c == null ? null: tooltip.apply(c);
+				} catch (RuntimeException e) {
+					tip = null;
+				}
+				group.setToolTipText(tip);
+				for (org.eclipse.swt.widgets.Label[] row: rows)
+					for (org.eclipse.swt.widgets.Label l: row)
+						l.setToolTipText(tip);
+			}
+			group.setVisible(any);
+			groupData.exclude = !any;
+			composite.layout(true, true);
+		};
+		update.accept(configurable);
+		versionNotes_.add(update);
+	}
+
+	/**
+	 * The folder ULTRASND with the patch files of the Gravis Ultrasound beside DOSBox (its program or configuration), and
+	 * where the games look for it (ultradir, inside DOS): DOSBox does not use the one beside it by itself.
+	 */
+	private String gusValue(TemplateProfileBase c, int row) {
+		org.dbgl.util.MidiRoms.Found found = org.dbgl.util.MidiRoms.ultrasnd(c.getDosboxVersion());
+		if (found.dir() == null)
+			return text_.get("dialog.template.roms.none");
+		if (!found.models().isEmpty()) // the version of the patch library (ULTRASND.INI)
+			return text_.get("dialog.template.gus.foundversion", new Object[] {found.dir().getPath(), found.files(), found.models().get(0)});
+		return text_.get("dialog.template.gus.found", new Object[] {found.dir().getPath(), found.files()});
+	}
+
+	/** "CM-32L, MT-32 (v1.07)" and the folder, or that there are none; null where the DOSBox version has no such emulation */
+	private String romValue(TemplateProfileBase c, boolean mt32) {
+		GenerationAwareConfigurable.Generation gen = c.getGeneration();
+		if (gen == null)
+			return null;
+		int family = GenerationAwareConfigurable.familyIdx(gen);
+		boolean staging = family == GenerationAwareConfigurable.familyIdx(GenerationAwareConfigurable.Generation.staging_0830);
+		boolean x = family == GenerationAwareConfigurable.familyIdx(GenerationAwareConfigurable.Generation.x_20241001);
+		if (mt32 ? !(staging || x): (gen != GenerationAwareConfigurable.Generation.staging_0830))
+			return null;
+		Configuration combined = c.getCombinedConfigurationForReading();
+		org.dbgl.util.MidiRoms.Found found = mt32 ? org.dbgl.util.MidiRoms.mt32(c.getDosboxVersion(), combined, x): org.dbgl.util.MidiRoms.soundCanvas(c.getDosboxVersion(), combined);
+		if (found.dir() == null)
+			return text_.get("dialog.template.roms.none");
+		String models = found.models().isEmpty() ? text_.get("dialog.template.roms.unnamed"): String.join("\n", found.models()); // a model a line
+		String result = models + "\n" + text_.get("dialog.template.roms.in", new Object[] {found.dir().getPath(), found.files()});
+		if (!mt32 && !org.dbgl.util.MidiRoms.soundCanvasPlugin(c.getDosboxVersion()))
+			result += "\n" + text_.get("dialog.template.roms.noplugin");
+		return result;
+	}
+
 	protected Composite createFluidsynthPage(TemplateProfileBase configurable, Composite parent) {
 		Composite composite = createPage("dialog.template.tab.midi", "dialog.template.tab.fluidsynth", parent, 1);
 		Group fluidExpGroup = Group_.on(composite).layoutData(new GridData(SWT.FILL, SWT.FILL, true, false)).layout(new GridLayout(3, false)).key(
@@ -1778,6 +1914,9 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 			.section("gus").item("dma1", "gusdma").build(metaControls_).init(configurable);
 		Chain.on(composite).lbl(l -> l.key("dialog.template.gusdma2")).cmb(c -> c.tooltip("dialog.template.gusdma1.tooltip").items("profile", "dma2")).section("gus").item("dma2").build(metaControls_).init(configurable);
 		Chain.on(composite).lbl(l -> l.key("dialog.template.ultradir")).txt(t -> t.horSpan(3).tooltip("dialog.template.ultradir.tooltip")).section("gus").item("ultradir").build(metaControls_).init(configurable).getText();
+		// the patch files of the GUS (folder ULTRASND): beside DOSBox, and where the games look for them
+		infoGroup(composite, 4, "dialog.template.gus.patches", configurable, new String[] {""}, this::gusValue, c -> text_.get(
+			"dialog.template.gus.ingame", new Object[] {StringUtils.defaultIfBlank(StringUtils.trim(c.getCombinedConfigurationForReading().getValue("gus", "ultradir")), "C:\\ULTRASND")}));
 		
 		GridData gd = new GridData(SWT.FILL, SWT.BEGINNING, true, false, 4, 1);
 		gd.verticalIndent = 20;
@@ -1961,6 +2100,19 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 					return value == null ? new String[0]: new String[] {value};
 				}
 			}).build(metaControls_).init(configurable);
+		// DOSBox Staging and DOSBox-X take a second value for the vertical axis (DOSBox 0.74: one value only)
+		new org.eclipse.swt.widgets.Label(composite, SWT.NONE);
+		versionNote(composite, 1, configurable, c -> {
+			GenerationAwareConfigurable.Generation gen = c.getGeneration();
+			if (gen == null)
+				return null;
+			int family = GenerationAwareConfigurable.familyIdx(gen);
+			if (family == GenerationAwareConfigurable.familyIdx(GenerationAwareConfigurable.Generation.staging_0830))
+				return text_.get("dialog.template.sensitivity.xy.staging");
+			if (family == GenerationAwareConfigurable.familyIdx(GenerationAwareConfigurable.Generation.x_20241001))
+				return text_.get("dialog.template.sensitivity.xy.x");
+			return null;
+		});
 		
 		GridData gd = new GridData(SWT.FILL, SWT.BEGINNING, true, false, 2, 1);
 		gd.verticalIndent = 20;
@@ -2222,6 +2374,11 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		textData.heightHint = 70;
 		unknownLinesText_.setLayoutData(textData);
 		unknownLinesText_.setToolTipText(text_.get("dialog.template.unknownlines.tooltip"));
+		// a font of the same width for every character: the lines start at the same place after "Before the start:" and the others
+		org.eclipse.swt.graphics.Font mono = new org.eclipse.swt.graphics.Font(composite.getDisplay(),
+			org.dbgl.util.SystemUtils.IS_WINDOWS ? "Consolas": (org.dbgl.util.SystemUtils.IS_OSX ? "Menlo": "Monospace"), 9, SWT.NORMAL);
+		unknownLinesText_.setFont(mono);
+		unknownLinesText_.addDisposeListener(e -> mono.dispose());
 		new org.eclipse.swt.widgets.Label(composite, SWT.NONE);
 		Button take = new Button(composite, SWT.PUSH);
 		take.setText(text_.get("dialog.template.unknownlines.take"));
@@ -2237,9 +2394,11 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		if ((unknownLinesText_ == null) || unknownLinesText_.isDisposed())
 			return;
 		StringBuilder sb = new StringBuilder();
-		for (Autoexec.UnknownLine l: configurable.getConfiguration().getAutoexec().getPlainLines())
-			sb.append(l.afterExit() ? text_.get("dialog.unknownlines.afterexit"): text_.get("dialog.template.customcommand" + (l.section() + 1))).append(": ").append(l.text())
-					.append(Text.DELIMITER);
+		List<Autoexec.UnknownLine> lines = configurable.getConfiguration().getAutoexec().getPlainLines();
+		java.util.function.Function<Autoexec.UnknownLine, String> where = l -> (l.afterExit() ? text_.get("dialog.unknownlines.afterexit"): text_.get("dialog.template.customcommand" + (l.section() + 1))) + ":";
+		int width = lines.stream().mapToInt(l -> where.apply(l).length()).max().orElse(0);
+		for (Autoexec.UnknownLine l: lines) // the lines one below the other, after the place they are in
+			sb.append(org.apache.commons.lang3.StringUtils.rightPad(where.apply(l), width)).append(' ').append(l.text()).append(Text.DELIMITER);
 		unknownLinesText_.setText(sb.length() == 0 ? text_.get("dialog.template.unknownlines.none"): sb.toString().trim());
 	}
 

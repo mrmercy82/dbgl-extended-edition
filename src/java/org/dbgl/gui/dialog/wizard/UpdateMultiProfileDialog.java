@@ -107,6 +107,9 @@ public class UpdateMultiProfileDialog extends JobWizardDialog<Boolean> {
 	@Override
 	protected boolean onNext(int step) {
 		if (step == 1) {
+			// files in Windows-1252 (umlauts) where the system uses UTF-8: kept so, or converted, as the user wants
+			if (org.dbgl.gui.controls.CharsetQuestion.ask(shell_, profs_) == org.dbgl.gui.controls.CharsetQuestion.Answer.CANCEL)
+				return false;
 			// the edited profiles: their files are still the old state (the copies in orgProfs_ have no file and no ID); the
 			// DOSBox versions to go back to come from orgProfs_. Remembering them failed and stopped every multi-edit before.
 			org.dbgl.util.BulkUndo.remember(text_.get("dialog.bulkundo.multiedit"), profs_, orgProfs_);

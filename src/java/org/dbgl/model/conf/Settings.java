@@ -94,6 +94,42 @@ public class Settings {
 		}
 	}
 
+	/**
+	 * Load a file of another program (e.g. a D-Fend Reloaded .prof): UTF-8 if it is valid UTF-8, otherwise Windows-1252 (ANSI), as
+	 * such programs wrote them on Windows; a umlaut must not be garbled (since alpha 46)
+	 */
+	public String loadDetectingCharset(ITextService text) throws IOException {
+		File file = fileLocation_.getCanonicalFile();
+		if (file == null || !file.isFile() || !file.canRead())
+			throw new IOException(text.get("general.error.openfile", new Object[] {String.valueOf(file)}));
+		return loadData(text, new java.io.StringReader(readDetectingCharset(file)), file, null, null, null, null);
+	}
+
+	/**
+	 * A file saved with a byte order mark (e.g. by Notepad, as UTF-8): its first section was not read, and saving wrote the
+	 * file without it (an empty profile). Read as UTF-8 the mark is U+FEFF, read with the ANSI code page of Windows "ï»¿".
+	 */
+	static String withoutByteOrderMark(String firstLine) {
+		if (firstLine.startsWith("\uFEFF"))
+			return firstLine.substring(1);
+		if (firstLine.startsWith("\u00EF\u00BB\u00BF"))
+			return firstLine.substring(3);
+		return firstLine;
+	}
+
+	/** the text of a file: UTF-8 if it is valid UTF-8 (without a BOM), otherwise Windows-1252 */
+	public static String readDetectingCharset(File file) throws IOException {
+		byte[] bytes = java.nio.file.Files.readAllBytes(file.toPath());
+		String content;
+		try {
+			content = java.nio.charset.StandardCharsets.UTF_8.newDecoder().onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
+					.onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT).decode(java.nio.ByteBuffer.wrap(bytes)).toString();
+		} catch (java.nio.charset.CharacterCodingException e) {
+			content = new String(bytes, java.nio.charset.Charset.forName("windows-1252"));
+		}
+		return content.startsWith("\uFEFF") ? content.substring(1): content;
+	}
+
 	protected String loadData(ITextService text, Reader reader, File file, String specialSection, List<String> specialSectionLines, String[] customSection, List<String> customSectionLines)
 			throws IOException {
 		StringBuilder warningsLog = new StringBuilder();
@@ -105,6 +141,8 @@ public class Settings {
 			boolean customSectionInProgress = false;
 
 			for (int lineNumber = 1; (orgLine = configData.readLine()) != null; lineNumber++) {
+				if (lineNumber == 1)
+					orgLine = withoutByteOrderMark(orgLine);
 				String textLine = orgLine.trim();
 
 				if (ArrayUtils.isNotEmpty(customSection) && textLine.startsWith(customSection[0])) {
@@ -116,16 +154,16 @@ public class Settings {
 				} else if ((textLine.length() > 0) && (textLine.charAt(0) != '#')) {
 					if (textLine.charAt(0) == '[') { // a new section starts here
 						int start = textLine.indexOf(('['));
-						int end = textLine.lastIndexOf(']');
+						int end = textLine.indexOf(']'); // the first, as DOSBox: "[sdl] ; see [docs]" is [sdl] (alpha 46)
 						if (end == -1) {
-							warningsLog.append(text.get("general.error.parseconf", new Object[] {file.getPath(), lineNumber, textLine}));
+							warningsLog.append(text.get("general.error.parseconf", new Object[] {file == null ? "" : file.getPath(), lineNumber, textLine}));
 						} else {
-							currSectionTitle = textLine.substring(start + 1, end);
+							currSectionTitle = sectionTitle(textLine.substring(start + 1, end));
 						}
 					} else { // an item starts here
 						if (currSectionTitle == null) { // value before section
 							if (!lastItemHadMissingSection) {
-								warningsLog.append(text.get("general.error.sectionmissing", new Object[] {file.getPath(), lineNumber, textLine}));
+								warningsLog.append(text.get("general.error.sectionmissing", new Object[] {file == null ? "" : file.getPath(), lineNumber, textLine}));
 							}
 							lastItemHadMissingSection = true;
 						} else if (currSectionTitle.equals(specialSection)) {
@@ -133,7 +171,7 @@ public class Settings {
 						} else { // normal config item
 							int end = textLine.indexOf('=');
 							if (end == -1) {
-								warningsLog.append(text.get("general.error.parseconf", new Object[] {file.getPath(), lineNumber, textLine}));
+								warningsLog.append(text.get("general.error.parseconf", new Object[] {file == null ? "" : file.getPath(), lineNumber, textLine}));
 							} else {
 								String name = textLine.substring(0, end).trim();
 								String value = textLine.substring(end + 1).trim();
@@ -147,6 +185,11 @@ public class Settings {
 		}
 
 		return warningsLog.toString();
+	}
+
+	/** the name a section is kept under; as written in the file (see Configuration: DOSBox reads them in any case) */
+	protected String sectionTitle(String written) {
+		return written;
 	}
 
 	public void save() throws IOException {

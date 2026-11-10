@@ -40,7 +40,6 @@ import org.eclipse.swt.graphics.Font;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Shell;
-import org.eclipse.swt.widgets.Text;
 
 
 /** shows the earlier states of a profile's configuration, what differs from now, and brings one back */
@@ -49,7 +48,7 @@ public class ProfileHistoryDialog extends SizeControlledButtonDialog<Boolean> {
 	private final Profile profile_;
 	private List<File> versions_;
 	private org.eclipse.swt.widgets.List list_;
-	private Text diff_;
+	private org.eclipse.swt.custom.StyledText diff_;
 	private Font font_;
 
 	public ProfileHistoryDialog(Shell parent, Profile profile) {
@@ -64,7 +63,10 @@ public class ProfileHistoryDialog extends SizeControlledButtonDialog<Boolean> {
 
 	@Override
 	protected boolean prepare() {
-		versions_ = ProfileHistory.list(profile_.getId());
+		versions_ = new java.util.ArrayList<>(ProfileHistory.list(profile_.getId()));
+		File original = ProfileHistory.original(profile_.getId());
+		if (original != null)
+			versions_.add(original); // last: the oldest
 		if (versions_.isEmpty()) {
 			Mess_.on(getParent()).key("dialog.profilehistory.none").display();
 			return false;
@@ -79,8 +81,11 @@ public class ProfileHistoryDialog extends SizeControlledButtonDialog<Boolean> {
 		sash.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
 		list_ = new org.eclipse.swt.widgets.List(sash, SWT.BORDER | SWT.SINGLE | SWT.V_SCROLL);
 		DateFormat df = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.MEDIUM);
-		versions_.forEach(f -> list_.add(df.format(ProfileHistory.dateOf(f))));
-		diff_ = new Text(sash, SWT.MULTI | SWT.READ_ONLY | SWT.V_SCROLL | SWT.H_SCROLL | SWT.BORDER);
+		versions_.forEach(f -> list_.add(f.getName().equals(ProfileHistory.ORIGINAL)
+				? text_.get("dialog.profilehistory.original", new Object[] {df.format(new java.util.Date(f.lastModified()))})
+				: df.format(ProfileHistory.dateOf(f))));
+		// as the preview of "Check profiles" and switching the DOSBox version: each section in a line, below it its values in color
+		diff_ = new org.eclipse.swt.custom.StyledText(sash, SWT.MULTI | SWT.READ_ONLY | SWT.V_SCROLL | SWT.H_SCROLL | SWT.BORDER);
 		font_ = new Font(shell_.getDisplay(), SystemUtils.IS_WINDOWS ? "Consolas": (SystemUtils.IS_OSX ? "Menlo": "Monospace"), 9, SWT.NORMAL);
 		diff_.setFont(font_);
 		shell_.addDisposeListener(e -> font_.dispose());
@@ -105,14 +110,26 @@ public class ProfileHistoryDialog extends SizeControlledButtonDialog<Boolean> {
 			String old = Files.readString(versions_.get(i).toPath(), StandardCharsets.UTF_8);
 			byte[] now = ProfileHistory.read(profile_);
 			String current = now == null ? "": new String(now, StandardCharsets.UTF_8);
-			List<String> lines = SwitchDosboxVersionDialog.diff(current, old);
-			StringBuilder sb = new StringBuilder(text_.get("dialog.profilehistory.legend")).append(Text.DELIMITER).append(Text.DELIMITER);
-			if (lines.isEmpty())
-				sb.append(text_.get("dialog.profilehistory.same"));
-			lines.forEach(l -> sb.append(l).append(Text.DELIMITER));
+			List<String> lines = SwitchDosboxVersionDialog.grouped(current, old);
+			org.eclipse.swt.widgets.Display d = shell_.getDisplay();
+			List<org.eclipse.swt.custom.StyleRange> styles = new java.util.ArrayList<>();
+			StringBuilder sb = new StringBuilder();
+			java.util.function.BiConsumer<String, org.eclipse.swt.graphics.Color> add = (line, color) -> {
+				if (color != null)
+					styles.add(new org.eclipse.swt.custom.StyleRange(sb.length(), line.length(), color, null));
+				sb.append(line).append('\n');
+			};
+			add.accept(text_.get("dialog.profilehistory.legend"), d.getSystemColor(SWT.COLOR_DARK_GRAY));
+			add.accept("", null);
+			if (lines.stream().noneMatch(l -> l.startsWith("- ") || l.startsWith("+ ")))
+				add.accept(text_.get("dialog.profilehistory.same"), null);
+			else
+				for (String l: lines)
+					add.accept(l, l.startsWith("- ") ? d.getSystemColor(SWT.COLOR_DARK_RED): l.startsWith("+ ") ? d.getSystemColor(SWT.COLOR_DARK_GREEN): d.getSystemColor(SWT.COLOR_DARK_GRAY));
 			diff_.setText(sb.toString());
+			diff_.setStyleRanges(styles.toArray(new org.eclipse.swt.custom.StyleRange[0]));
 		} catch (IOException e) {
-			diff_.setText(e.getMessage());
+			diff_.setText(String.valueOf(e.getMessage()));
 		}
 	}
 
@@ -125,7 +142,7 @@ public class ProfileHistoryDialog extends SizeControlledButtonDialog<Boolean> {
 			Files.copy(versions_.get(i).toPath(), profile_.getConfigurationCanonicalFile().toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
 			ProfileHistory.recordIfChanged(profile_, before); // the state before restoring can be brought back too
 			String warnings = profile_.resetAndLoadConfiguration();
-			new ProfileRepository().update(profile_);
+			new ProfileRepository().updateKeepingConfigurationFile(profile_); // the file byte for byte as it was then
 			if ((warnings != null) && !warnings.isBlank())
 				Mess_.on(shell_).txt(warnings).warning();
 			result_ = true;

@@ -63,6 +63,11 @@ public class GenerationAwareConfigurable extends Configurable {
 	protected DosboxVersion dosboxVersion_;
 	protected Generation gen_;
 	
+	/** the kind and age of DOSBox this configuration is for (null if not known) */
+	public Generation getGeneration() {
+		return gen_;
+	}
+
 	public DosboxVersion getDosboxVersion() {
 		return dosboxVersion_;
 	}
@@ -157,6 +162,11 @@ public class GenerationAwareConfigurable extends Configurable {
 	}
 	
 	public Generation determineGenByConf() {
+		// DOSBox-X and Staging first: their configurations also have everything 0.73 has (e.g. written by DFendX)
+		if (isDosboxXConf())
+			return Generation.x_20241001;
+		if (isStagingConf())
+			return isStaging083Conf() ? Generation.staging_0830: Generation.staging_0820;
 		if (isDosboxVersion073OrAbove())
 			return Generation.official_073;
 		if (isDosboxVersion070or071or072())
@@ -168,6 +178,28 @@ public class GenerationAwareConfigurable extends Configurable {
 		return null;
 	}
 	
+	private boolean hasSection(String title) {
+		return java.util.Arrays.stream(configuration_.getSectionNames()).anyMatch(s -> Strings.CI.equals(s, title));
+	}
+
+	/** sections only DOSBox-X has (since alpha 45; [ide, primary] alone is no sign, DOSBox Daum has it too) */
+	public boolean isDosboxXConf() {
+		return hasSection("pc98") || hasSection("dosv") || hasSection("ttf") || hasSection("4dos") || hasSection("ethernet, slirp") || hasSection("sblaster2")
+				|| Strings.CI.startsWith(configuration_.getValue("dosbox", "machine"), "pc98");
+	}
+
+	/** sections and settings only DOSBox Staging has */
+	public boolean isStagingConf() {
+		return !isDosboxXConf() && (hasSection("capture") || hasSection("composite") || hasSection("mouse") || hasSection("reelmagic") || hasSection("mt32")
+				|| hasSection("fluidsynth") || hasSection("soundcanvas") || hasSection("disknoise") || hasSection("webserver") || isStaging083Conf());
+	}
+
+	/** what Staging 0.83 renamed or added */
+	public boolean isStaging083Conf() {
+		return hasSection("soundcanvas") || hasSection("disknoise") || hasSection("webserver") || configuration_.hasValue("sdl", "window_size")
+				|| configuration_.hasValue("render", "shader") || configuration_.hasValue("dos", "keyboard_layout");
+	}
+
 	public boolean isDosboxVersion073OrAbove() {
 		return configuration_.hasValue("cpu", "cputype") && configuration_.hasValue("midi", "mididevice") && configuration_.hasValue("midi", "midiconfig") && configuration_.hasValue("sblaster", "sbmixer") && configuration_.hasValue("sblaster", "oplemu")
 				&& configuration_.hasValue("gus", "gusirq") && configuration_.hasValue("gus", "gusdma");

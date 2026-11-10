@@ -4,6 +4,81 @@ DBGL Extended Edition - Änderungen seit 0.100 beta 17
 Grundlage: DBGL 0.100 beta 17 von Ronald Blankendaal (https://dbgl.org), Quellcode. Neueste Version zuerst.
 
 
+0.101 alpha 46 (2026-11-10)
+---------------------------
+Fehler behoben
+- Das Speichern eines Profils funktioniert jetzt deutlich zuverlässiger.
+- Nach der Korrektur einer DOSBox-Version (z. B. 0.82.2 auf 0.83.0) prüfte
+  die Profilliste weiter mit der alten Version: Warnzeichen wie "nur von
+  0.83 unterstützt" blieben stehen.
+- Warnzeichen in der Profilliste verschwanden nach "Problem beheben" oder
+  einer Änderung, manchmal bis zum Neustart.
+- "Fehlende Dateien finden" ging nicht, wenn sich der Pfad des
+  Startprogramms aus der Konfiguration der DOSBox-Version und cd-Zeilen
+  ergibt.
+- Images ohne Dateiendung bleiben für Staging 0.83 bei imgmount; Werte wie
+  "cycles=fixed 3000" gelten als gültig; Namen von Einstellungen mit
+  Leerzeichen werden erkannt.
+- Schreibgeschützte Profil-Konfigurationsdateien: DBGL meldet das, statt
+  scheinbar zu speichern; unveränderte Dateien werden nicht neu
+  geschrieben.
+
+Neu
+- "Profile prüfen" stark erweitert: Syntaxfehler, doppelte Einstellungen,
+  Werte außerhalb des erlaubten Bereichs, Einstellungen im falschen
+  Abschnitt, Befehle, die die DOSBox-Version nicht kennt, Reihenfolge von
+  Laufwerken und mount-Zeilen, fehlende Programme in Batch-Dateien,
+  Groß-/Kleinschreibung, Ordner mit Umlauten, Kodierung. Jeweils mit einer
+  Lösung zur Auswahl und einer Vorschau, bevor etwas geändert wird.
+- Neue Hinweise: cd-Zeilen vor dem Laufwerkswechsel (sie wirken auf Z:),
+  Anführungszeichen ohne Gegenstück, Lure of the Temptress mit CM-32L,
+  Caesar mit Cohort II, fehlender ULTRASND-Ordner mit Anleitung.
+  "cputype=386_slow" wird für Staging auf "386" gesetzt statt gelöscht.
+- "Profile prüfen": Fortschrittsbalken, Sortierung nach Profiltitel oder
+  Profil-ID; im Kontextmenü "Einstellung im Profil-Editor anzeigen",
+  "Fehlende Dateien finden", "ULTRASND-Ordner anzeigen".
+- Profilliste: rotes Warnzeichen, wenn die Profil-Konfigurationsdatei
+  fehlt; ein Zettel für Profile mit nur Hinweisen (in den Einstellungen,
+  anfangs aus).
+- "Frühere Fassung wiederherstellen..." (Rechtsklick): die letzten 10
+  Fassungen jedes Profils und das Original vor der ersten Änderung durch
+  DBGL, farbig verglichen; geht auch, wenn die Datei fehlt; ausgegraut,
+  solange es keine frühere Fassung gibt.
+- "Rückgängig" für die letzte Änderung vieler Profile auf einmal
+  (Voreinstellung, Umstellen, Lösungen aus "Profile prüfen", Bearbeiten
+  mehrerer Profile, Verschieben).
+- "Alle Profile einer DOSBox-Version umstellen..." mit Übersicht; beim
+  Zurückwechseln bietet DBGL an, Einstellungen wiederherzustellen, die
+  beim ersten Wechsel verloren gingen.
+- Beim Start erkennt DBGL eine falsch eingetragene DOSBox-Version, bietet
+  die Korrektur an und meldet danach, was geändert wurde.
+- Vor einem Update der Extended Edition: Sicherung nach Wahl, auch der
+  DOSBox-Ordner, Spiele und Aufnahmen.
+- Kodierung: Profile in Windows-1252 (ältere DBGL unter Windows) werden
+  erkannt; vor dem Speichern fragt DBGL, ob sie in UTF-8 umgewandelt
+  werden sollen.
+- D-Fend Reloaded: Profile ohne exportierte .conf werden aus der .prof
+  erstellt; was nicht übernommen wurde, steht im Bericht.
+- Profil-Editor: Rahmen "ROMs" (MT-32/CM-32L und Sound Canvas mit Modellen
+  und Versionen) und "GUS-Patch-Dateien (ULTRASND)" mit Version; Hinweis,
+  dass sich die Mausempfindlichkeit für x und y getrennt angeben lässt
+  (Staging, DOSBox-X).
+- GOG-Images mit .game und .inst lassen sich wie .iso und .cue auswählen.
+- Statusfenster: "Nur Warnungen und Fehler".
+- Reagiert DBGL länger als 10 Sekunden nicht, schreibt es
+  freeze-<Datum>.txt in seinen Ordner, für einen Fehlerbericht.
+
+Verbessert
+- Menüeinträge mit Symbolen in der Profilliste und in "Profile prüfen";
+  "DOSBox-Konfigurationsdatei..." und "Vorlagen-Konfigurationsdatei..."
+  statt "Profil-Konfigurationsdatei..." bei DOSBox-Versionen und Vorlagen.
+- "Profil-Konfigurationsdatei", wo die Datei des Profils gemeint ist;
+  "[autoexec] Abschnitt" ohne "DOSBox" davor.
+- Alle neuen Texte in 19 Sprachen; alte Übersetzungsfehler aus 0.100 beta
+  17 behoben (fehlende Platzhalter, verschluckte Apostrophe).
+- Tests: Tausende zufällig erzeugte Profile, ein Korpus echter Profile und
+  ein zweiter Testlauf mit anderer Standardkodierung.
+
 0.101 alpha 45 (2026-11-08)
 ---------------------------
 Fehler behoben

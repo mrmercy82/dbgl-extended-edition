@@ -253,6 +253,16 @@ public class ProfileRepository extends LoggingRepository<Profile> {
 	}
 
 	public void update(Profile profile) throws SQLException {
+		// a read-only configuration file: said so, before anything is changed (before alpha 46 the message was a failed query)
+		java.io.File conf = profile.getConfigurationCanonicalFile();
+		if ((conf != null) && conf.isFile() && !conf.canWrite()) {
+			// only what DBGL keeps in its database changed (favourite, title, notes...): that is saved, the file stays as it is
+			if (configurationUnchanged(profile)) {
+				updateKeepingConfigurationFile(profile);
+				return;
+			}
+			throw new SQLException(TextService.getInstance().get("general.error.confreadonly", new Object[] {conf.getPath()}));
+		}
 		try (Transaction transaction = dbService_.startTransaction()) {
 			doUpdate(transaction, profile);
 			actionOnEntity(transaction, DEL_NTVCMD_QRY, "remove profile native commands", profile);
@@ -263,6 +273,40 @@ public class ProfileRepository extends LoggingRepository<Profile> {
 			org.dbgl.util.ProfileHistory.recordIfChanged(profile, before); // earlier states can be brought back
 			transaction.commit();
 		} catch (SQLException | IOException e) {
+			e.printStackTrace();
+			throw new SQLException(TextService.getInstance().get("database.error.query", new Object[] {"update profile"}));
+		}
+	}
+
+	/** the file would be written as DBGL writes it after reading it again: the user changed nothing in it */
+	private boolean configurationUnchanged(Profile profile) {
+		try {
+			List<Profile> again = list(StringUtils.EMPTY, "GAM.ID = " + profile.getId(), new DosboxVersionRepository().listAll());
+			if (again.isEmpty())
+				return false;
+			Profile fresh = again.get(0);
+			if (fresh.getDosboxVersion().getId() != profile.getDosboxVersion().getId())
+				return false; // switched to another DOSBox version
+			fresh.setDosboxVersion(profile.getDosboxVersion()); // with its settings read already
+			fresh.resetAndLoadConfiguration();
+			return java.util.Arrays.equals(fresh.configurationBytesToSave(), profile.configurationBytesToSave());
+		} catch (IOException | SQLException e) {
+			return false;
+		}
+	}
+
+	/**
+	 * Like {@link #update(Profile)}, but the configuration file is left as it is (e.g. its earlier content just put back by
+	 * an undo: saving it would write it again in DBGL's own way, not byte for byte as it was).
+	 */
+	public void updateKeepingConfigurationFile(Profile profile) throws SQLException {
+		try (Transaction transaction = dbService_.startTransaction()) {
+			doUpdate(transaction, profile);
+			actionOnEntity(transaction, DEL_NTVCMD_QRY, "remove profile native commands", profile);
+			addNativeCommands(transaction, profile);
+			log(transaction, LogEntry.Event.EDIT, LogEntry.EntityType.PROFILE, profile);
+			transaction.commit();
+		} catch (SQLException e) {
 			e.printStackTrace();
 			throw new SQLException(TextService.getInstance().get("database.error.query", new Object[] {"update profile"}));
 		}
@@ -345,6 +389,7 @@ public class ProfileRepository extends LoggingRepository<Profile> {
 			log(transaction, LogEntry.Event.DUPLICATE, LogEntry.EntityType.PROFILE, profile);
 			Profile duplicate = ProfileFactory.createCopy(profile);
 			duplicate.loadConfigurationData(TextService.getInstance(), profile.getConfigurationString(), profile.getConfigurationCanonicalFile());
+			duplicate.getConfiguration().setCharset(profile.getConfiguration().getCharset()); // the copy in the same charset as the file
 			doAdd(transaction, duplicate, false);
 			doUpdate(transaction, duplicate); // set correct captures and configuration file paths into the database
 			log(transaction, LogEntry.Event.ADD, LogEntry.EntityType.PROFILE, duplicate);

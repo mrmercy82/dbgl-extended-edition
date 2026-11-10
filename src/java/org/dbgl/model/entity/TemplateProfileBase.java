@@ -179,16 +179,35 @@ public abstract class TemplateProfileBase extends GenerationAwareConfigurable {
 		return configuration_.loadDataWithAutoexec(text, data, file, getDosboxNettoMountingPoints(), cwd);
 	}
 
+	/** the configuration replaced by the given text, as when it is read from its file (nothing from before is kept) */
+	public String replaceConfigurationData(ITextService text, String data, File file) throws IOException {
+		StringBuilder warningsLog = new StringBuilder(configuration_.replaceDataWithAutoexec(text, data, file, getDosboxNettoMountingPoints()));
+		org.dbgl.util.UnknownAutoexecLines.keepOnRead(configuration_.getAutoexec());
+		if (!keepsAllSettings())
+			configuration_.removeDuplicateValuesIn(dosboxVersion_.getConfiguration());
+		return warningsLog.toString();
+	}
+
 	public void saveConfiguration() throws IOException {
 		saveConfiguration(false);
 	}
 
 	public void saveConfiguration(boolean prepareOnly) throws IOException {
+		prepareSaving();
+		configuration_.save(prepareOnly, getNettoMountingPoints());
+	}
+
+	/** the configuration file as saving would write it now (nothing written) */
+	public byte[] configurationBytesToSave() throws IOException {
+		prepareSaving();
+		return configuration_.bytesToSave(false, getNettoMountingPoints());
+	}
+
+	private void prepareSaving() {
 		removeEmptyValuesOverridingDosboxDefaults();
 		adaptImageMountsToDosbox();
 		if (keepsAllSettings())
 			completeWithDosboxSettings();
-		configuration_.save(prepareOnly, getNettoMountingPoints());
 	}
 
 	/**
@@ -208,11 +227,26 @@ public abstract class TemplateProfileBase extends GenerationAwareConfigurable {
 		for (org.dbgl.model.conf.mount.Mount m: configuration_.getAutoexec().getMountingpoints()) {
 			if ((m instanceof org.dbgl.model.conf.mount.ImageMount im) && !wanted.equalsIgnoreCase(im.getCommand())) {
 				// all image kinds, also hard disk images for booting (drive 2/3, -size, -t hdd, -fs none): tested with Staging 0.83
+				String before = im.getCommand();
 				im.setCommand(wanted);
+				// images DBGL would not know again as images in a MOUNT line ("mount A disk1 disk2 -t floppy": no image extension):
+				// they stay IMGMOUNT (an alias in Staging 0.83), else they were read as a folder after saving (found in alpha 46)
+				if ("mount".equals(wanted) && !readBackAsImage(im)) {
+					im.setCommand(before);
+					continue;
+				}
 				changed = true;
 			}
 		}
 		return changed;
+	}
+
+	private static boolean readBackAsImage(org.dbgl.model.conf.mount.ImageMount im) {
+		try {
+			return org.dbgl.model.factory.MountFactory.create(im.toString(false)) instanceof org.dbgl.model.conf.mount.ImageMount;
+		} catch (Exception e) {
+			return false;
+		}
 	}
 
 	/** DOSBox Staging 0.83 and newer mount images with MOUNT as well */
@@ -311,8 +345,8 @@ public abstract class TemplateProfileBase extends GenerationAwareConfigurable {
 		}
 		Autoexec autoexec = configuration_.getAutoexec();
 		List<String> files = new ArrayList<>();
-		if (StringUtils.isNotBlank(autoexec.getMain()))
-			files.add(autoexec.getMain());
+		if (StringUtils.isNotBlank(autoexec.getMainWhereDosboxLooks())) // where DOSBox looks for it
+			files.add(autoexec.getMainWhereDosboxLooks());
 		for (int i = 0; i < Autoexec.BOOTER_IMAGES; i++)
 			if (StringUtils.isNotBlank(autoexec.getImg(i)) && !autoexec.getImg(i).equals("file"))
 				files.add(autoexec.getImg(i));
@@ -349,12 +383,26 @@ public abstract class TemplateProfileBase extends GenerationAwareConfigurable {
 					continue;
 				}
 				boolean switchSetting = SWITCH_VALUES.containsAll(allowed);
-				boolean valid = java.util.Arrays.stream(value.split("[,\\s]+")).allMatch(v -> allowed.contains(v) || (switchSetting && SWITCH_VALUES.contains(v)));
+				String[] words = value.split("[,\\s]+");
+				boolean valid = java.util.Arrays.stream(words).allMatch(v -> allowed.contains(v) || (switchSetting && SWITCH_VALUES.contains(v)))
+					|| isTypeWithParameters(words, allowed);
 				if (!valid)
 					result.add(new String[] {section, item, configuration_.getValue(section, item), String.join(", ", allowed)});
 			}
 		}
 		return result;
+	}
+
+	/**
+	 * Only the first word is one of the documented values in "cycles=fixed 3000", "cycles=max 80%", "scaler=hq2x forced" or
+	 * "serial1=modem listenport:5000": the words after it are its parameters. "cycles=3000" is a fixed number (DOSBox takes it
+	 * as "fixed 3000"). Before alpha 46 these were told as invalid, and the solution offered removed them.
+	 */
+	static boolean isTypeWithParameters(String[] words, List<String> allowed) {
+		if (words.length == 0)
+			return false;
+		boolean number = words[0].matches("\\d+") && allowed.contains("fixed");
+		return (allowed.contains(words[0]) && (words.length > 1)) || number;
 	}
 
 	static boolean isShaderItem(String item) {
@@ -568,9 +616,22 @@ public abstract class TemplateProfileBase extends GenerationAwareConfigurable {
 		return warningsLog;
 	}
 
-	private List<Mount> getDosboxNettoMountingPoints() {
+	/**
+	 * DOSBox Staging's "autoexec_section = overwrite" (in the configuration of the DOSBox version, or the profile's): only the last
+	 * [autoexec] counts, the profile's; the one of the DOSBox version is skipped, with its mounts
+	 */
+	public boolean dosboxAutoexecOverwritten() {
+		if ((dosboxVersion_ == null) || !dosboxVersion_.getConfiguration().hasValue("dosbox", "autoexec_section"))
+			return false; // a DOSBox version without the setting: the sections are joined
+		String value = configuration_.hasValue("dosbox", "autoexec_section") ? configuration_.getValue("dosbox", "autoexec_section")
+				: dosboxVersion_.getConfiguration().getValue("dosbox", "autoexec_section");
+		return "overwrite".equalsIgnoreCase(StringUtils.trim(value));
+	}
+
+	/** the drives the configuration of the DOSBox version mounts itself (its [autoexec]): they come before the profile's */
+	public List<Mount> getDosboxNettoMountingPoints() {
 		List<Mount> result = new ArrayList<>();
-		if (dosboxVersion_ != null) {
+		if ((dosboxVersion_ != null) && !dosboxAutoexecOverwritten()) {
 			for (Mount mount: dosboxVersion_.getConfiguration().getAutoexec().getMountingpoints()) {
 				if (result.stream().anyMatch(x -> (x.getDrive() == mount.getDrive()) && !(mount instanceof OverlayMount))) {
 					if (mount.isUnmounted())
@@ -588,8 +649,14 @@ public abstract class TemplateProfileBase extends GenerationAwareConfigurable {
 		List<Mount> result = new ArrayList<>(getDosboxNettoMountingPoints());
 		for (Mount mount: configuration_.getAutoexec().getMountingpoints()) {
 			if (result.stream().anyMatch(x -> (x.getDrive() == mount.getDrive()) && !(mount instanceof OverlayMount))) {
-				if (mount.isUnmounted())
+				if (mount.isUnmounted()) {
 					result.removeIf(x -> x.getDrive() == mount.getDrive());
+				} else {
+					// the mount before for this drive fails (its folder or image is not there): DOSBox takes this one
+					java.util.Optional<Mount> before = result.stream().filter(x -> (x.getDrive() == mount.getDrive()) && !(x instanceof OverlayMount) && !x.isUnmounted()).findFirst();
+					if (before.isPresent() && !org.dbgl.model.conf.Autoexec.canMount(before.get()) && org.dbgl.model.conf.Autoexec.canMount(mount))
+						result.set(result.indexOf(before.get()), mount);
+				}
 			} else {
 				if (!mount.isUnmounted())
 					result.add(mount);

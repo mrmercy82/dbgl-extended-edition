@@ -104,12 +104,26 @@ public class ProfilesList {
 
 		/** a warning sign for profiles with invalid values or missing folders or files */
 		public void setWarning(boolean warning) {
+			setMarker(warning, false);
+		}
+
+		/** the warning sign; else, for a profile with hints only (if they are shown), a note */
+		public void setMarker(boolean warning, boolean hint) {
+			setMarker(warning, false, hint);
+		}
+
+		/** as {@link #setMarker(boolean, boolean)}; severe: the red sign (e.g. the configuration file of the profile is gone) */
+		public void setMarker(boolean warning, boolean severe, boolean hint) {
 			if (tItem_ != null) {
-				if ((tItem_.getImage(0) != null) != warning)
-					tItem_.setImage(0, warning ? warning_: null);
-			} else if ((gItem_.getData(AbstractGalleryItemRenderer.OVERLAY_TOP_RIGHT) != null) != warning) {
-				gItem_.setData(AbstractGalleryItemRenderer.OVERLAY_TOP_RIGHT, warning ? warningLarge_: null);
-				gItem_.getParent().redraw();
+				Image want = warning ? (severe ? error_: warning_): hint ? hint_: null;
+				if (tItem_.getImage(0) != want)
+					tItem_.setImage(0, want);
+			} else {
+				Image want = warning ? (severe ? errorLarge_: warningLarge_): hint ? hintLarge_: null;
+				if (gItem_.getData(AbstractGalleryItemRenderer.OVERLAY_TOP_RIGHT) != want) {
+					gItem_.setData(AbstractGalleryItemRenderer.OVERLAY_TOP_RIGHT, want);
+					gItem_.getParent().redraw();
+				}
 			}
 		}
 
@@ -139,7 +153,7 @@ public class ProfilesList {
 	private final GalleryItem group_;
 	private final Color bgColor_;
 	private final Table table_;
-	private final Image topdog_, warning_, warningLarge_;
+	private final Image topdog_, warning_, warningLarge_, error_, errorLarge_, hint_, hintLarge_;
 
 	private int lastSearchEventTime_;
 
@@ -162,6 +176,10 @@ public class ProfilesList {
 		topdog_ = ImageService.getResourceImage(composite.getShell().getDisplay(), ImageService.IMG_TOPDOG);
 		warning_ = ImageService.getResourceImage(composite.getShell().getDisplay(), ImageService.IMG_WARNING);
 		warningLarge_ = ImageService.getResourceImage(composite.getShell().getDisplay(), ImageService.IMG_WARNING_LARGE);
+		error_ = ImageService.getResourceImage(composite.getShell().getDisplay(), ImageService.IMG_ERROR);
+		errorLarge_ = ImageService.getResourceImage(composite.getShell().getDisplay(), ImageService.IMG_ERROR_LARGE);
+		hint_ = ImageService.getResourceImage(composite.getShell().getDisplay(), ImageService.IMG_HINT);
+		hintLarge_ = ImageService.getResourceImage(composite.getShell().getDisplay(), ImageService.IMG_HINT_LARGE);
 
 		if (type == ProfilesListType.TABLE) {
 			table_ = Table_.on(composite).header().multi().build();

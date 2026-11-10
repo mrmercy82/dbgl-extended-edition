@@ -292,6 +292,8 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		checkAllProfilesInBackground();
 
 		display_.asyncExec(this::autoBackupIfDue);
+		// if the window ever stops answering: what DBGL was doing, written to freeze-<date>.txt for a report
+		org.dbgl.util.FreezeWatch.start(display_, org.dbgl.service.FileLocationService.getInstance().getDataDir());
 
 		// messages of DOSBox about a setting open the profile dialog at that setting
 		org.dbgl.gui.DosboxStatusWindow.setSettingLinkHandler((profileId, setting) -> display_.asyncExec(() -> doEditProfileSetting(profileId, setting)));
@@ -394,15 +396,18 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		if (index == -1)
 			return;
 		Profile prof = profilesList_.get(index);
-		try {
-			String warnings = prof.resetAndLoadConfiguration();
-			if (StringUtils.isNotBlank(warnings))
-				System.err.println(warnings);
-		} catch (IOException e) {
-			Mess_.on(shell_).exception(e).warning();
-			return;
+		if (!org.dbgl.util.ProfileWarnings.confMissing(prof)) { // its file gone: an earlier version is just what can bring it back
+			try {
+				String warnings = prof.resetAndLoadConfiguration();
+				if (StringUtils.isNotBlank(warnings))
+					System.err.println(warnings);
+			} catch (IOException e) {
+				Mess_.on(shell_).exception(e).warning();
+				return;
+			}
 		}
 		if (Boolean.TRUE.equals(new ProfileHistoryDialog(shell_, prof).open())) {
+			org.dbgl.util.ProfileWarnings.forget(prof.getId());
 			updateProfilesList(getSelectedProfileIds());
 			displayProfileInformation(false);
 		}
@@ -673,8 +678,22 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		}
 	}
 
+	/** warning signs in the list, or notes for profiles with hints (each can be turned on in the settings) */
+	private boolean markersOn() {
+		return settings_.getBooleanValue("gui", "profilewarnings") || settings_.getBooleanValue("gui", "profilehints");
+	}
+
+	/** the warning sign, or the note of hints (only if turned on), as known for the profile now */
+	private void setMarker(ProfilesList.ProfilesListItem item, Profile prof) {
+		// not checked since it changed: as the last check found it, until it was checked again (then set anew)
+		List<String> problems = org.dbgl.util.ProfileWarnings.lastKnown(prof), hints = org.dbgl.util.ProfileWarnings.lastKnownHints(prof);
+		boolean warning = settings_.getBooleanValue("gui", "profilewarnings") && (problems != null) && !problems.isEmpty();
+		boolean hint = settings_.getBooleanValue("gui", "profilehints") && (hints != null) && !hints.isEmpty();
+		item.setMarker(warning, warning && org.dbgl.util.ProfileWarnings.confMissing(prof), hint);
+	}
+
 	private void checkAllProfilesInBackground() {
-		if (!settings_.getBooleanValue("gui", "profilewarnings"))
+		if (!markersOn())
 			return;
 		List<DosboxVersion> versions = new ArrayList<>(dbversionsList_);
 		Thread checker = new Thread(() -> {
@@ -682,8 +701,8 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				for (Profile prof: new ProfileRepository().list("", null, versions)) {
 					if (display_.isDisposed())
 						return;
-					if (!org.dbgl.util.ProfileWarnings.check(prof).isEmpty())
-						showWarningSign(prof);
+					org.dbgl.util.ProfileWarnings.check(prof);
+					showWarningSign(prof); // also to take a sign away the list still showed from the last check
 				}
 			} catch (SQLException e) {
 				// the list or tab will check them when needed
@@ -748,24 +767,40 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		if (r.installable() && org.dbgl.util.EditionUpdater.canUpdate()) {
 			org.eclipse.swt.widgets.MessageBox box = new org.eclipse.swt.widgets.MessageBox(shell_, SWT.ICON_QUESTION | SWT.YES | SWT.NO | SWT.CANCEL);
 			box.setText(text_.get("dialog.main.menu.editionupdate").replace("&", "").replace("...", ""));
-			box.setMessage(text_.get("dialog.main.editionupdate.oneclick",
+			box.setMessage(text_.get("dialog.main.editionupdate.oneclick2",
 				new Object[] {Constants.EDITION_NAME, r.version(), org.dbgl.util.EditionUpdateChecker.readable(Constants.PROGRAM_VERSION), pre}));
-			box.setButtonLabels(java.util.Map.of(SWT.YES, text_.get("dialog.main.editionupdate.install"), SWT.NO, text_.get("dialog.main.editionupdate.page"), SWT.CANCEL,
+			box.setButtonLabels(java.util.Map.of(SWT.YES, text_.get("dialog.main.editionupdate.install"), SWT.NO, text_.get("dialog.main.editionupdate.manual"), SWT.CANCEL,
 				text_.get("button.cancel")));
 			int answer = box.open();
 			if (answer == SWT.YES)
 				installEditionUpdate(r);
 			else if (answer == SWT.NO)
-				SystemUtils.openForBrowsing(r.url(), shell_);
+				downloadEditionUpdateManually(r);
 			return;
 		}
 		if (Mess_.on(shell_).key("dialog.main.confirm.editionupdate",
 			new Object[] {Constants.EDITION_NAME, r.version(), org.dbgl.util.EditionUpdateChecker.readable(Constants.PROGRAM_VERSION), pre}).confirm())
-			SystemUtils.openForBrowsing(r.url(), shell_);
+			downloadEditionUpdateManually(r);
+	}
+
+	/** the user downloads and installs the update: first, if wanted, everything backed up (see installEditionUpdate), then the download page */
+	private void downloadEditionUpdateManually(org.dbgl.util.EditionUpdateChecker.Release r) {
+		File programDir = org.dbgl.util.EditionUpdater.runningJar() != null ? org.dbgl.util.EditionUpdater.runningJar().getParentFile(): null;
+		if (org.dbgl.gui.controls.UpdateBackupQuestion.ask(shell_, new ArrayList<>(dbversionsList_), programDir, Constants.PROGRAM_VERSION,
+			true) == org.dbgl.gui.controls.UpdateBackupQuestion.Answer.CANCEL)
+			return;
+		SystemUtils.openForBrowsing(r.url(), shell_);
 	}
 
 	/** download and check the update, make the backups, then end DBGL: a helper copies the new files and starts DBGL again */
 	private void installEditionUpdate(org.dbgl.util.EditionUpdateChecker.Release r) {
+		// first, if the user wants it: everything backed up, also the DOSBox versions, the program folder and the games
+		File programDir = org.dbgl.util.EditionUpdater.runningJar() != null ? org.dbgl.util.EditionUpdater.runningJar().getParentFile(): null;
+		org.dbgl.gui.controls.UpdateBackupQuestion.Answer backup = org.dbgl.gui.controls.UpdateBackupQuestion.ask(shell_, new ArrayList<>(dbversionsList_), programDir,
+			Constants.PROGRAM_VERSION, false);
+		if (backup == org.dbgl.gui.controls.UpdateBackupQuestion.Answer.CANCEL)
+			return;
+		File fullBackup = backup == org.dbgl.gui.controls.UpdateBackupQuestion.Answer.BACKED_UP ? org.dbgl.gui.controls.UpdateBackupQuestion.lastFile(): null;
 		java.util.concurrent.atomic.AtomicInteger progress = new java.util.concurrent.atomic.AtomicInteger();
 		org.dbgl.util.EditionUpdater.Prepared prepared;
 		try {
@@ -777,7 +812,8 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			Mess_.on(shell_).key("dialog.main.editionupdate.failed", new Object[] {String.valueOf(e.getMessage() == null ? e: e.getMessage())}).exception(e).warning();
 			return;
 		}
-		if (!Mess_.on(shell_).key("dialog.main.editionupdate.ready", new Object[] {r.version(), prepared.dataBackup().getPath(), prepared.programBackup().getPath()}).confirm())
+		String backups = prepared.programBackup().getPath() + (fullBackup != null ? "\n" + fullBackup.getPath(): "");
+		if (!Mess_.on(shell_).key("dialog.main.editionupdate.ready", new Object[] {r.version(), prepared.dataBackup().getPath(), backups}).confirm())
 			return;
 		if (!org.dbgl.util.EditionUpdater.launchInstaller(prepared)) {
 			Mess_.on(shell_).key("dialog.main.editionupdate.failed", new Object[] {"installer"}).warning();
@@ -1126,6 +1162,12 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 					}
 				}
 				updateDosboxVersionList(mismatching.get(0));
+				// the profiles with the corrected versions, and their warning signs checked again for what the new version can
+				org.dbgl.util.ProfileWarnings.forgetAll();
+				updateProfilesList(getSelectedProfileIds());
+				displayProfileInformation(false);
+				checkAllProfilesInBackground();
+				Mess_.on(shell_).key("dialog.main.notice.versioncorrected", new Object[] {list.toString().trim()}).display();
 			});
 		}, "DOSBox version check");
 		checker.setDaemon(true);
@@ -1370,7 +1412,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				doDownloadDosbox();
 			}
 		}).build();
-		MenuItem_.on(dbversionsMenu).key("dialog.main.menu.switchdosboxversion").image(ImageService.IMG_MIGRATE).listen(new SelectionAdapter() {
+		MenuItem_.on(dbversionsMenu).key("dialog.main.menu.switchdosboxversion2").image(ImageService.IMG_MIGRATE).listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
 				if (Boolean.TRUE.equals(new SwitchDosboxVersionDialog(shell_).open())) {
@@ -1492,6 +1534,31 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		ToolBar toolBar = createToolBar(toolbarComposite);
 		createImageToolItem(toolBar, "dialog.main.addprofile", ImageService.IMG_TB_NEW, addProfAdapter);
 		createImageToolItem(toolBar, "dialog.main.editprofile", ImageService.IMG_TB_EDIT, editProfAdapter);
+		// undo the last change of several profiles at once; its tooltip says which one it is
+		ToolItem undoItem = createImageToolItem(toolBar, "dialog.main.undobulk", ImageService.IMG_TB_UNDO, new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				if (org.dbgl.util.BulkUndo.last() == null)
+					Mess_.on(shell_).key("dialog.main.undobulk.none").display();
+				else
+					doUndoBulkChange();
+			}
+		});
+		// greyed out when there is nothing to undo (also after a change made in another dialog or thread)
+		Runnable refreshUndoItem = () -> {
+			if (!undoItem.isDisposed())
+				undoItem.setEnabled(org.dbgl.util.BulkUndo.last() != null);
+		};
+		refreshUndoItem.run();
+		org.dbgl.util.BulkUndo.onChange(() -> {
+			if (!shell_.isDisposed() && !shell_.getDisplay().isDisposed())
+				shell_.getDisplay().asyncExec(refreshUndoItem);
+		});
+		toolBar.addListener(SWT.MouseEnter, e -> {
+			org.dbgl.util.BulkUndo.Info last = org.dbgl.util.BulkUndo.last();
+			undoItem.setToolTipText(last == null ? text_.get("dialog.main.undobulk.none"): text_.get("dialog.main.undobulk.tooltip", new Object[] {last.label(),
+				java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT).format(last.when()), last.profiles()}));
+		});
 		createImageToolItem(toolBar, "dialog.main.removeprofile", ImageService.IMG_TB_DELETE, removeProfAdapter);
 		// groups of buttons, all with the same space between them
 		createSeparatorToolItem(toolBar, TOOLBAR_SEPARATOR);
@@ -1783,25 +1850,12 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 
 		Menu menu = new Menu(profileTable_.getControl());
 		MenuItem_.on(menu).build();
-		MenuItem_.on(menu).key("dialog.main.profile.switchdosboxversion").image(ImageService.IMG_MIGRATE).listen(new SelectionAdapter() {
+		MenuItem_.on(menu).key("dialog.main.profile.compare").image(ImageService.IMG_ZOOM).listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
-				if ((profileTable_.getSelectionIndex() != -1) && Boolean.TRUE.equals(new SwitchDosboxVersionDialog(shell_, getSelectedProfiles()).open())) {
-					updateProfilesList(getSelectedProfileIds());
-					displayProfileInformation(false);
-				}
+				doCompareProfiles();
 			}
 		}).build();
-		MenuItem presetsItem = MenuItem_.on(menu).key("dialog.main.profile.applypreset").build();
-		Menu presetsMenu = new Menu(presetsItem);
-		presetsItem.setMenu(presetsMenu);
-		presetsMenu.addMenuListener(new MenuAdapter() {
-			@Override
-			public void menuShown(MenuEvent event) {
-				Stream.of(presetsMenu.getItems()).forEach(MenuItem::dispose); // own presets may have been added
-				org.dbgl.gui.abstractdialog.PresetsMenu.addPresetItems(presetsMenu, MainWindow.this::doApplyPreset);
-			}
-		});
 		MenuItem_.on(menu).key("dialog.main.profile.checkprofile").image(ImageService.IMG_ZOOM).listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
@@ -1824,22 +1878,59 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				fixProblemsItem.setEnabled(getSelectedProfiles().stream().map(org.dbgl.util.ProfileWarnings::known).anyMatch(p -> (p != null) && !p.isEmpty()));
 			}
 		});
-		MenuItem_.on(menu).key("dialog.main.profile.compare").image(ImageService.IMG_ZOOM).listen(new SelectionAdapter() {
+		MenuItem_.on(menu).build();
+		MenuItem presetsItem = MenuItem_.on(menu).key("dialog.main.profile.applypreset").image(ImageService.IMG_SETTINGS).build();
+		Menu presetsMenu = new Menu(presetsItem);
+		presetsItem.setMenu(presetsMenu);
+		presetsMenu.addMenuListener(new MenuAdapter() {
 			@Override
-			public void widgetSelected(SelectionEvent event) {
-				doCompareProfiles();
+			public void menuShown(MenuEvent event) {
+				Stream.of(presetsMenu.getItems()).forEach(MenuItem::dispose); // own presets may have been added
+				org.dbgl.gui.abstractdialog.PresetsMenu.addPresetItems(presetsMenu, MainWindow.this::doApplyPreset);
 			}
-		}).build();
-		MenuItem_.on(menu).key("dialog.main.profile.restoreversion").image(ImageService.IMG_REFRESH).listen(new SelectionAdapter() {
+		});
+		MenuItem_.on(menu).build();
+		MenuItem_.on(menu).key("dialog.main.profile.switchdosboxversion").image(ImageService.IMG_MIGRATE).listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
-				doRestoreProfileVersion();
+				if ((profileTable_.getSelectionIndex() != -1) && Boolean.TRUE.equals(new SwitchDosboxVersionDialog(shell_, getSelectedProfiles()).open())) {
+					updateProfilesList(getSelectedProfileIds());
+					displayProfileInformation(false);
+				}
 			}
 		}).build();
 		MenuItem_.on(menu).key("dialog.main.profile.importconf").image(ImageService.IMG_IMPORT).listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
 				doImportConf(profileTable_.getSelectionIndex(), null);
+			}
+		}).build();
+		MenuItem restoreVersionItem = MenuItem_.on(menu).key("dialog.main.profile.restoreversion").image(ImageService.IMG_REFRESH).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				doRestoreProfileVersion();
+			}
+		}).build();
+		menu.addMenuListener(new MenuAdapter() {
+			@Override
+			public void menuShown(MenuEvent event) {
+				// greyed out while DBGL keeps no earlier version of the profile (nor its original)
+				int index = profileTable_.getSelectionIndex();
+				int id = (index >= 0) && (index < profilesList_.size()) ? profilesList_.get(index).getId(): -1;
+				restoreVersionItem.setEnabled((id != -1) && (!org.dbgl.util.ProfileHistory.list(id).isEmpty() || (org.dbgl.util.ProfileHistory.original(id) != null)));
+			}
+		});
+		MenuItem_.on(menu).build();
+		MenuItem_.on(menu).key("dialog.main.profile.findextras").image(ImageService.IMG_ZOOM).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				doFindExtras();
+			}
+		}).build();
+		MenuItem_.on(menu).key("dialog.main.menu.coverbatch").image(ImageService.IMG_GLOBE).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				doCoverBatch();
 			}
 		}).build();
 		MenuItem_.on(menu).build();
@@ -1889,18 +1980,6 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				doReplaceValues();
 			}
 		}).build();
-		MenuItem_.on(menu).key("dialog.main.profile.findextras").image(ImageService.IMG_ZOOM).listen(new SelectionAdapter() {
-			@Override
-			public void widgetSelected(SelectionEvent event) {
-				doFindExtras();
-			}
-		}).build();
-		MenuItem_.on(menu).key("dialog.main.menu.coverbatch").image(ImageService.IMG_GLOBE).listen(new SelectionAdapter() {
-			@Override
-			public void widgetSelected(SelectionEvent event) {
-				doCoverBatch();
-			}
-		}).build();
 		MenuItem_.on(menu).key("dialog.main.profile.duplicate").image(ImageService.IMG_DUPLICATE).listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
@@ -1944,8 +2023,8 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 					}
 
 					if (dbversionsList_.size() > 1)
-						MenuItem_.on(menu).pos(0).key("dialog.main.profile.startmanuallywith").build().setMenu(createDosboxVersionsSubmenu(menu, ProfileRunMode.NORMAL, true));
-					MenuItem_.on(menu).pos(0).key("dialog.main.profile.startmanually").listen(new SelectionAdapter() {
+						MenuItem_.on(menu).pos(0).key("dialog.main.profile.startmanuallywith").image(ImageService.IMG_RUN).build().setMenu(createDosboxVersionsSubmenu(menu, ProfileRunMode.NORMAL, true));
+					MenuItem_.on(menu).pos(0).key("dialog.main.profile.startmanually").image(ImageService.IMG_RUN).listen(new SelectionAdapter() {
 						@Override
 						public void widgetSelected(SelectionEvent evnt) {
 							doRunProfile(ProfileRunMode.NORMAL, true);
@@ -1953,8 +2032,8 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 					}).build();
 					if (prof.hasAltExe(1)) {
 						if (dbversionsList_.size() > 1)
-							MenuItem_.on(menu).pos(0).key(prof.getAltExeFilenames()[1]).build().setMenu(createDosboxVersionsSubmenu(menu, ProfileRunMode.ALT2, false));
-						MenuItem_.on(menu).pos(0).key(prof.getAltExeFilenames()[1]).listen(new SelectionAdapter() {
+							MenuItem_.on(menu).pos(0).key(prof.getAltExeFilenames()[1]).image(ImageService.IMG_RUN).build().setMenu(createDosboxVersionsSubmenu(menu, ProfileRunMode.ALT2, false));
+						MenuItem_.on(menu).pos(0).key(prof.getAltExeFilenames()[1]).image(ImageService.IMG_RUN).listen(new SelectionAdapter() {
 							@Override
 							public void widgetSelected(SelectionEvent evnt) {
 								doRunProfile(ProfileRunMode.ALT2, false);
@@ -1963,8 +2042,8 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 					}
 					if (prof.hasAltExe(0)) {
 						if (dbversionsList_.size() > 1)
-							MenuItem_.on(menu).pos(0).key(prof.getAltExeFilenames()[0]).build().setMenu(createDosboxVersionsSubmenu(menu, ProfileRunMode.ALT1, false));
-						MenuItem_.on(menu).pos(0).key(prof.getAltExeFilenames()[0]).listen(new SelectionAdapter() {
+							MenuItem_.on(menu).pos(0).key(prof.getAltExeFilenames()[0]).image(ImageService.IMG_RUN).build().setMenu(createDosboxVersionsSubmenu(menu, ProfileRunMode.ALT1, false));
+						MenuItem_.on(menu).pos(0).key(prof.getAltExeFilenames()[0]).image(ImageService.IMG_RUN).listen(new SelectionAdapter() {
 							@Override
 							public void widgetSelected(SelectionEvent evnt) {
 								doRunProfile(ProfileRunMode.ALT1, false);
@@ -1973,11 +2052,11 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 					}
 					if (prof.hasSetup()) {
 						if (dbversionsList_.size() > 1)
-							MenuItem_.on(menu).pos(0).key("dialog.main.profile.setupwith").build().setMenu(createDosboxVersionsSubmenu(menu, ProfileRunMode.SETUP, false));
+							MenuItem_.on(menu).pos(0).key("dialog.main.profile.setupwith").image(ImageService.IMG_SETUP).build().setMenu(createDosboxVersionsSubmenu(menu, ProfileRunMode.SETUP, false));
 						MenuItem_.on(menu).pos(0).key("dialog.main.profile.setup").image(ImageService.IMG_SETUP).listen(setupProfAdapter).build();
 					}
 					if (dbversionsList_.size() > 1)
-						MenuItem_.on(menu).pos(0).key("dialog.main.profile.runwith").build().setMenu(createDosboxVersionsSubmenu(menu, ProfileRunMode.NORMAL, false));
+						MenuItem_.on(menu).pos(0).key("dialog.main.profile.runwith").image(ImageService.IMG_RUN).build().setMenu(createDosboxVersionsSubmenu(menu, ProfileRunMode.NORMAL, false));
 					MenuItem_.on(menu).pos(0).key("dialog.main.profile.run").image(ImageService.IMG_RUN).listen(runProfAdapter).build();
 
 					for (MenuItem item: profileViewSubMenu.getItems())
@@ -2516,7 +2595,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			}
 		}).build();
 		Menu viewDosboxSubMenu = createMenu(menu, "dialog.main.profile.view", ImageService.IMG_ZOOM);
-		MenuItem_.on(viewDosboxSubMenu).key("dialog.main.profile.view.conf").listen(new SelectionAdapter() {
+		MenuItem_.on(viewDosboxSubMenu).key("dialog.main.dosboxversion.view.conf").image(ImageService.IMG_PROFILE_CONF).listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
 				if (dbversionTable_.getSelectionIndex() != -1) {
@@ -2626,7 +2705,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		MenuItem_.on(menu).key("dialog.main.template.run").image(ImageService.IMG_RUN).listen(runTemplAdapter).build();
 		MenuItem_.on(menu).build();
 		Menu viewTemplateSubMenu = createMenu(menu, "dialog.main.profile.view", ImageService.IMG_ZOOM);
-		MenuItem_.on(viewTemplateSubMenu).key("dialog.main.profile.view.conf").listen(new SelectionAdapter() {
+		MenuItem_.on(viewTemplateSubMenu).key("dialog.main.template.view.conf").image(ImageService.IMG_PROFILE_CONF).listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
 				if (templateTable_.getSelectionIndex() != -1) {
@@ -2792,10 +2871,9 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			}
 		}
 		newItemTableItem.setData(new ThumbInfo(prof.getCapturesString()));
-		if (settings_.getBooleanValue("gui", "profilewarnings")) {
-			List<String> problems = org.dbgl.util.ProfileWarnings.known(prof);
-			newItemTableItem.setWarning((problems != null) && !problems.isEmpty());
-			if (problems == null)
+		if (markersOn()) {
+			setMarker(newItemTableItem, prof);
+			if (org.dbgl.util.ProfileWarnings.known(prof) == null)
 				scheduleProfileWarnings();
 		} else {
 			newItemTableItem.setWarning(false);
@@ -2803,6 +2881,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 	}
 
 	private volatile int warningsGeneration_;
+	private volatile int warningsRetries_;
 	private boolean warningsScheduled_;
 
 	/**
@@ -2820,14 +2899,24 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			int generation = ++warningsGeneration_;
 			List<Profile> profiles = new ArrayList<>(profilesList_);
 			Thread checker = new Thread(() -> {
+				boolean unchecked = false;
 				for (Profile prof: profiles) {
 					if ((generation != warningsGeneration_) || display_.isDisposed())
 						return;
 					// check() answers at once when the profile was checked meanwhile (e.g. by the check of all profiles at startup);
 					// such a profile must get its warning sign too
-					if (!org.dbgl.util.ProfileWarnings.check(prof).isEmpty())
-						showWarningSign(prof);
+					org.dbgl.util.ProfileWarnings.check(prof);
+					showWarningSign(prof); // also to take a sign away the list still showed from the last check
+					unchecked |= org.dbgl.util.ProfileWarnings.known(prof) == null;
 				}
+				// a check that did not get through (e.g. a DOSBox configuration read again at that moment): tried again a little later
+				if (unchecked && (generation == warningsGeneration_) && !display_.isDisposed() && (warningsRetries_++ < 3))
+					display_.asyncExec(() -> display_.timerExec(10000, () -> {
+						if (!shell_.isDisposed())
+							scheduleProfileWarnings();
+					}));
+				else if (!unchecked)
+					warningsRetries_ = 0;
 			}, "DBGL profile warnings");
 			checker.setDaemon(true);
 			checker.setPriority(Thread.MIN_PRIORITY);
@@ -2863,14 +2952,14 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			pendingWarningSigns_.clear();
 			warningSignsScheduled_ = false;
 		}
-		if (shell_.isDisposed() || (profilesList_ == null) || !settings_.getBooleanValue("gui", "profilewarnings"))
+		if (shell_.isDisposed() || (profilesList_ == null) || !markersOn())
 			return;
 		profileTable_.setRedraw(false);
 		try {
 			for (Profile prof: profiles) {
 				int index = BaseRepository.indexOf(profilesList_, prof);
 				if ((index >= 0) && (index < profileTable_.getItemCount()))
-					profileTable_.getItem(index).setWarning(true);
+					setMarker(profileTable_.getItem(index), prof);
 			}
 		} finally {
 			profileTable_.setRedraw(true);
@@ -3039,7 +3128,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 	private void doShowProfileProblem(int index) {
 		if ((index < 0) || (index >= profilesList_.size()))
 			return;
-		List<String> problems = org.dbgl.util.ProfileWarnings.known(profilesList_.get(index));
+		List<String> problems = org.dbgl.util.ProfileWarnings.lastKnown(profilesList_.get(index));
 		String first = (problems == null) || problems.isEmpty() ? null: problems.get(0);
 		java.util.regex.Matcher m = first == null ? null: java.util.regex.Pattern.compile("^\\[[^\\]]+\\] ([^=]+)=").matcher(first);
 		if ((m != null) && m.find())
@@ -3052,9 +3141,18 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 	private String profileProblemsText(int index) {
 		if ((index < 0) || (index >= profilesList_.size()))
 			return null;
-		List<String> problems = org.dbgl.util.ProfileWarnings.known(profilesList_.get(index));
-		if ((problems == null) || problems.isEmpty())
-			return null;
+		List<String> problems = org.dbgl.util.ProfileWarnings.lastKnown(profilesList_.get(index)); // as the sign shows it
+		boolean warnings = settings_.getBooleanValue("gui", "profilewarnings");
+		if (!warnings || (problems == null) || problems.isEmpty()) { // a note: the hints
+			List<String> hints = org.dbgl.util.ProfileWarnings.lastKnownHints(profilesList_.get(index));
+			if (!settings_.getBooleanValue("gui", "profilehints") || (hints == null) || hints.isEmpty())
+				return null;
+			StringBuilder sb = new StringBuilder(text_.get("dialog.main.profilehints"));
+			hints.stream().limit(10).forEach(p -> sb.append("\n  ").append(p));
+			if (hints.size() > 10)
+				sb.append("\n  ...");
+			return sb.append("\n").append(text_.get("dialog.main.profilehints.click")).toString();
+		}
 		StringBuilder sb = new StringBuilder(text_.get("dialog.main.profileproblems"));
 		problems.stream().limit(10).forEach(p -> sb.append("\n  ").append(p));
 		if (problems.size() > 10)
@@ -3067,19 +3165,13 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		org.dbgl.util.BulkUndo.Info info = org.dbgl.util.BulkUndo.last();
 		if (info == null)
 			return;
-		String when = java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT).format(info.when());
-		// what goes back, profile by profile, so the undo can be checked before
-		String changes = org.dbgl.util.BulkUndo.preview(dbversionsList_, 2000);
-		if (!Mess_.on(shell_).key("dialog.main.confirm.undobulk3", new Object[] {info.label(), when, info.profiles()}).confirmUnwrapped(changes.isEmpty() ? "-": changes))
+		// what goes back, profile by profile, in colors as in the preview of 'Check profiles'; profiles can be left out
+		java.util.Set<Integer> restored = new BulkUndoDialog(shell_, info, dbversionsList_).open();
+		if (restored == null)
 			return;
-		try {
-			List<Integer> restored = org.dbgl.util.BulkUndo.undo(dbversionsList_);
-			updateProfilesList(new HashSet<>(restored));
-			displayProfileInformation(false);
-			Mess_.on(shell_).key("dialog.main.notice.undobulkdone", new Object[] {restored.size()}).display();
-		} catch (IOException | SQLException e) {
-			Mess_.on(shell_).exception(e).warning();
-		}
+		updateProfilesList(new HashSet<>(restored));
+		displayProfileInformation(false);
+		Mess_.on(shell_).key("dialog.main.notice.undobulkdone", new Object[] {restored.size()}).display();
 	}
 
 	/** the repair of 'Check profiles', for the selected profiles only */
@@ -3540,6 +3632,29 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		Font f = notesField_.getFont();
 		notesField_.setFont(stringToFont(display_, settings_.getValues("gui", "notesfont"), notesField_.getFont()));
 		f.dispose();
+		refreshMarkers(); // warning signs and notes turned on or off: at once, not only after a restart
+	}
+
+	/** the warning signs and notes of all profiles in the list, as the settings say now */
+	private void refreshMarkers() {
+		if ((profilesList_ == null) || (profileTable_ == null))
+			return;
+		profileTable_.setRedraw(false);
+		try {
+			boolean unknown = false;
+			for (int i = 0; (i < profilesList_.size()) && (i < profileTable_.getItemCount()); i++) {
+				if (markersOn()) {
+					setMarker(profileTable_.getItem(i), profilesList_.get(i));
+					unknown |= org.dbgl.util.ProfileWarnings.known(profilesList_.get(i)) == null;
+				} else {
+					profileTable_.getItem(i).setWarning(false);
+				}
+			}
+			if (unknown)
+				scheduleProfileWarnings();
+		} finally {
+			profileTable_.setRedraw(true);
+		}
 	}
 
 	private void doImportProfiles(boolean defaultToGamepacks) {

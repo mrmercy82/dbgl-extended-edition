@@ -88,6 +88,8 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 	private static final boolean MULTI_EDIT = false;
 
 	private Profile profile_;
+	/** settings lost by switching the DOSBox version here, written when the profile is saved (see SwitchMemory) */
+	private java.util.Properties switchMemory_;
 	private final String sendTo_;
 	private final boolean editing_;
 	private final boolean focusOnTitle_;
@@ -272,7 +274,25 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 			if (action == DosboxConfAction.SET) {
 				warningsLog.append(profile_.setToDosboxVersion(newDosboxVersion));
 			} else if (action == DosboxConfAction.SWITCH) {
+				org.dbgl.util.SwitchChoices.Snapshot before = org.dbgl.util.SwitchChoices.before(profile_);
+				org.dbgl.model.entity.GenerationAwareConfigurable.Generation from = profile_.getGeneration();
 				warningsLog.append(profile_.switchToDosboxVersion(newDosboxVersion));
+				if (editing_) {
+					// lost when switched away from this kind of DOSBox before: back again; what it loses now: remembered when saved
+					if (switchMemory_ == null)
+						switchMemory_ = org.dbgl.util.SwitchMemory.load(profile_.getId());
+					List<org.dbgl.util.SwitchChoices.Choice> restores = org.dbgl.util.SwitchMemory.restoresFrom(switchMemory_, profile_);
+					// asked first: brought back only if the user wants it (otherwise they stay remembered)
+					if (!restores.isEmpty() && !Mess_.on(shell_).key("dialog.switchdosbox.confirmrestore", new Object[] {
+						restores.stream().map(c -> "[" + c.section() + "] " + c.item() + "=" + c.oldText()).collect(java.util.stream.Collectors.joining("\n"))}).confirmUnwrapped())
+						restores = List.of();
+					for (org.dbgl.util.SwitchChoices.Choice c: restores)
+						profile_.getConfiguration().setValue(c.section(), c.item(), c.oldText());
+					if (!restores.isEmpty())
+						warningsLog.append(text_.get("dialog.switchdosbox.restoredinfo", new Object[] {
+							restores.stream().map(c -> "[" + c.section() + "] " + c.item() + "=" + c.oldText()).collect(java.util.stream.Collectors.joining(", "))})).append('\n');
+					org.dbgl.util.SwitchMemory.rememberInto(switchMemory_, profile_, before, from, org.dbgl.util.SwitchChoices.after(before, profile_));
+				}
 			} else if (action == DosboxConfAction.RELOAD) {
 				warningsLog.append(profile_.reloadDosboxVersion(newDosboxVersion));
 			} else if (action == DosboxConfAction.LOAD_TEMPLATE) {
@@ -710,6 +730,9 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 				if (!isValid()) {
 					return;
 				}
+				// a file in Windows-1252 (umlauts) where the system uses UTF-8: kept so, or converted, as the user wants
+				if (editing_ && (org.dbgl.gui.controls.CharsetQuestion.ask(shell_, java.util.List.of(profile_)) == org.dbgl.gui.controls.CharsetQuestion.Answer.CANCEL))
+					return;
 				try {
 					try (org.dbgl.gui.controls.UiProgress progress = new org.dbgl.gui.controls.UiProgress(shell_, text_.get("dialog.profile.working"), 2)) {
 						updateConfigurableByControls(profile_);
@@ -722,6 +745,8 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 					result_ = org.dbgl.gui.controls.BusyTask.runToEnd(shell_, text_.get("dialog.profile.saving"), () -> {
 						if (editing_) {
 							new ProfileRepository().update(profile_);
+							if (switchMemory_ != null)
+								org.dbgl.util.SwitchMemory.save(profile_.getId(), switchMemory_);
 							return profile_;
 						}
 						if (org.dbgl.util.ExtrasFinder.onAdd()) // manuals, walkthroughs, maps, soundtrack of the new game into free links

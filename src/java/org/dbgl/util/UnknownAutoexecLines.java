@@ -64,6 +64,21 @@ public final class UnknownAutoexecLines {
 		return !ask() && SettingsService.getInstance().getBooleanValue(SECTION, NO_MARKERS);
 	}
 
+	/** the box "with the @REM comment lines" in the dialogs: as last ticked there (the same setting as in the settings) */
+	public static boolean markersChosen() {
+		return !SettingsService.getInstance().getBooleanValue(SECTION, NO_MARKERS);
+	}
+
+	/** remembered until changed again (in a dialog or in the settings) */
+	public static void rememberMarkers(boolean markers) {
+		SettingsService.getInstance().setBooleanValue(SECTION, NO_MARKERS, !markers);
+		try {
+			SettingsService.getInstance().save();
+		} catch (java.io.IOException e) {
+			e.printStackTrace();
+		}
+	}
+
 	/** whether lines are put into the own sections with marker lines when a profile is read */
 	public static boolean markersOnRead() {
 		return !ask() && !withoutMarkers();

@@ -176,6 +176,7 @@ public class DatabaseService {
 	private boolean initializedNewDatabase_ = false;
 
 	private DatabaseService() {
+		org.dbgl.util.VersionBackup.beforeFirstStart(); // the data kept before a new version upgrades the database or changes anything
 		SettingsService settings = SettingsService.getInstance();
 		ITextService text = TextService.getInstance();
 		System.out.println(text.get("database.notice.startup"));

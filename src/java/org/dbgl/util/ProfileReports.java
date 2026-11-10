@@ -233,9 +233,13 @@ public final class ProfileReports {
 			long max = bars_.stream().mapToLong(Long::longValue).max().orElse(0);
 			boolean withBars = max > 0;
 			sb_.append("<table>\n");
+			int cols = rows_.stream().mapToInt(r -> r.length).max().orElse(1);
 			for (int i = 0; i < rows_.size(); i++) {
 				String[] r = rows_.get(i);
 				sb_.append("<tr>");
+				// a row with fewer values ("...", "-"): empty cells first, so that the name is in its column (the bars too)
+				for (int c = r.length; c < cols; c++)
+					sb_.append("<td class=\"n\"></td>");
 				for (int c = 0; c < r.length - 1; c++)
 					sb_.append("<td class=\"n\">").append(html(r[c])).append("</td>");
 				sb_.append("<td class=\"l\">").append(html(r[r.length - 1])).append("</td>");

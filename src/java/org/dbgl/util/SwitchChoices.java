@@ -36,8 +36,9 @@ import org.dbgl.model.conf.Configuration;
  */
 public final class SwitchChoices {
 
+	/** RESTORE: a setting lost when the profile was switched away from this kind of DOSBox before (see {@link SwitchMemory}) */
 	public enum Kind {
-		AUTOEXEC, SETTING
+		AUTOEXEC, SETTING, RESTORE
 	}
 
 	/**
@@ -50,9 +51,9 @@ public final class SwitchChoices {
 	 */
 	public record Choice(int profileId, Kind kind, String section, String item, String oldText, String newText, int autoexecSection, boolean afterExit) {
 
-		/** lines added by hand are kept (a line after "exit" stays there); converted settings take the new value */
+		/** lines added by hand are kept (a line after "exit" stays there); converted settings take the new value; lost ones come back */
 		public boolean defaultKeep() {
-			return kind == Kind.AUTOEXEC;
+			return (kind == Kind.AUTOEXEC) || (kind == Kind.RESTORE);
 		}
 
 		/** identifies the choice again when switching for real after the preview */

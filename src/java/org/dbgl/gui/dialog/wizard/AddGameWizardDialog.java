@@ -207,7 +207,7 @@ public class AddGameWizardDialog extends WizardDialog<Profile> {
 		installParameters_ = Chain.on(step1Group).lbl(l -> l.key("dialog.profile.mainparameters")).txt(t -> t.horSpan(2)).text();
 		btnInstallManual_ = Chain.on(step1Group).lbl(l -> l.key("dialog.addgamewizard.manualmode")).but(b -> b.horSpan(2).key("dialog.addgamewizard.manualmodeinfo")).button();
 		Label_.on(step1Group).horSpan(3).build();
-		Group mountGroup = Group_.on(step1Group).layout(new GridLayout(2, false)).layoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 3, 1)).key("dialog.template.mountingoverview").build();
+		Group mountGroup = Group_.on(step1Group).layout(new GridLayout(2, false)).layoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 3, 1)).key("dialog.template.tab.mounting").build(); // (the key "mountingoverview" was in no language file)
 		mountingpoints_ = List_.on(mountGroup).build();
 		mountingpoints_.addMouseListener(new MouseAdapter() {
 			@Override
@@ -662,8 +662,9 @@ public class AddGameWizardDialog extends WizardDialog<Profile> {
 
 			installedFiles_ = new ArrayList<>();
 			File[] files = FileLocationService.getInstance().getTmpInstallDir().listFiles();
-			for (File file: files)
-				installedFiles_.add(toImageFileLocation(file));
+			if (files != null) // the folder gone (e.g. removed by the installer): nothing installed, instead of an error
+				for (File file: files)
+					installedFiles_.add(toImageFileLocation(file));
 			if (installedFiles_.isEmpty()) {
 				Mess_.on(shell_).key("dialog.addgamewizard.error.nofilesinstalled").warning();
 				return false;

@@ -38,10 +38,17 @@ import org.dbgl.model.factory.ProfileFactory;
  */
 public final class ProfileWarnings {
 
-	private record Cached(String stamp, List<String> problems) {
+	/** hints: what "Check profiles" finds that does not keep the game from starting (see {@link #STOPS_START}) */
+	private record Cached(String stamp, List<String> problems, List<String> hints) {
 	}
 
 	private static final Map<Integer, Cached> CACHE = new ConcurrentHashMap<>();
+	/**
+	 * the result of the last check of each profile, also when it changed since or was forgotten: the list keeps showing it
+	 * until the profile was checked again (before, the warning sign was gone from the moment the profile changed or "Check
+	 * profiles" closed, and stayed gone when the check again did not get through)
+	 */
+	private static final Map<Integer, Cached> LAST = new ConcurrentHashMap<>();
 
 	private ProfileWarnings() {
 	}
@@ -53,13 +60,42 @@ public final class ProfileWarnings {
 	/** what the result depends on: both configuration files, the DOSBox version, and the mounts and commands of the profile */
 	static String stampOf(Profile profile) {
 		DosboxVersion dbversion = profile.getDosboxVersion();
-		return stampOf(profile.getConfigurationCanonicalFile()) + '|' + (dbversion == null ? "-": dbversion.getId() + "|" + stampOf(dbversion.getConfigurationCanonicalFile()));
+		return stampOf(profile.getConfigurationCanonicalFile()) + '|' + (dbversion == null ? "-": dbversion.getId() + "|" + dbversion.getFamily() + "|" + dbversion.getVersion() + "|" + stampOf(dbversion.getConfigurationCanonicalFile()))
+			+ '|' + ProfileFindings.dismissedStamp(); // hidden for good in "Check profiles": not told here either
 	}
 
 	/** @return the problems found the last time, or null if the profile was not checked since it last changed */
 	public static List<String> known(Profile profile) {
 		Cached cached = CACHE.get(profile.getId());
 		return (cached != null) && cached.stamp().equals(stampOf(profile)) ? cached.problems(): null;
+	}
+
+	/** @return the hints found the last time (see {@link Cached}), or null if the profile was not checked since it last changed */
+	public static List<String> knownHints(Profile profile) {
+		Cached cached = CACHE.get(profile.getId());
+		return (cached != null) && cached.stamp().equals(stampOf(profile)) ? cached.hints(): null;
+	}
+
+	/** @return the problems of the last check, also if the profile changed since (see {@link #LAST}); null if never checked */
+	public static List<String> lastKnown(Profile profile) {
+		Cached cached = CACHE.get(profile.getId());
+		if ((cached == null) || !cached.stamp().equals(stampOf(profile)))
+			cached = LAST.get(profile.getId());
+		return cached != null ? cached.problems(): null;
+	}
+
+	/** @return the hints of the last check, also if the profile changed since; null if never checked */
+	public static List<String> lastKnownHints(Profile profile) {
+		Cached cached = CACHE.get(profile.getId());
+		if ((cached == null) || !cached.stamp().equals(stampOf(profile)))
+			cached = LAST.get(profile.getId());
+		return cached != null ? cached.hints(): null;
+	}
+
+	/** the profile is in the database, its configuration file is not there: the red warning sign */
+	public static boolean confMissing(Profile profile) {
+		File conf = profile.getConfigurationCanonicalFile();
+		return (conf != null) && !conf.exists();
 	}
 
 	private static final Object LOCK = new Object();
@@ -75,7 +111,8 @@ public final class ProfileWarnings {
 		// one copy per DOSBox version and state of its configuration file: the documented values of a DOSBox configuration
 		// (DOSBox-X: some 3000 lines) were parsed again for every profile checked
 		java.io.File conf = dbv.getConfiguration().getFile();
-		String key = dbv.getId() + "|" + dbv.getExe().getPath() + "|" + (conf == null ? "": conf.getPath() + "|" + conf.lastModified() + "|" + conf.length());
+		// with family and version: corrected at startup (0.82.2 -> 0.83.0), the copy of the old version told what the new one can
+		String key = dbv.getId() + "|" + dbv.getFamily() + "|" + dbv.getVersion() + "|" + dbv.getExe().getPath() + "|" + (conf == null ? "": conf.getPath() + "|" + conf.lastModified() + "|" + conf.length());
 		DosboxVersion cached = COPIES.get(key);
 		if (cached != null)
 			return cached;
@@ -104,29 +141,64 @@ public final class ProfileWarnings {
 		List<String> known = known(profile);
 		if (known != null)
 			return known;
+		// in the database, but its configuration file is gone (deleted, or on a drive not there now): the red sign, at once
+		if (confMissing(profile)) {
+			List<String> result = List.of(org.dbgl.service.TextService.getInstance().get("dialog.checkprofiles.confmissing", new Object[] {profile.getConfigurationCanonicalFile().getPath()}));
+			Cached done = new Cached(stampOf(profile), result, List.of());
+			CACHE.put(profile.getId(), done);
+			LAST.put(profile.getId(), done);
+			return result;
+		}
 		boolean uiThread = org.eclipse.swt.widgets.Display.getCurrent() != null;
 		for (int attempt = 1;; attempt++) {
 			String stamp = stampOf(profile);
 			try {
-				List<String> problems = new ArrayList<>();
+				List<String> problems = new ArrayList<>(), hints = new ArrayList<>();
 				synchronized (LOCK) {
 					Profile copy = ProfileFactory.create(profile); // with the location of its configuration file, read again below
 					copy.setDosboxVersion(privateCopy(profile.getDosboxVersion()));
 					copy.resetAndLoadConfiguration();
+					java.util.Set<String> keys = ProfileFindings.dismissedKeys(), kinds = ProfileFindings.dismissedKinds();
 					for (String[] v: copy.listInvalidValues())
-						problems.add('[' + v[0] + "] " + v[1] + '=' + v[2]);
+						if (!ProfileFindings.isDismissed(profile, profile.getDosboxVersion(), "invalid", new Object[] {v[0], v[1], v[2]}, keys, kinds))
+							problems.add('[' + v[0] + "] " + v[1] + '=' + v[2]);
+					List<ProfileChecks.Problem> checks = ProfileChecks.check(copy);
+					java.util.Set<String> dead = new java.util.HashSet<>(); // fails, but a later line for the drive works: no problem
+					dead.addAll(ProfileChecks.pathsToldOtherwise(copy)); // told with the cause (no quotes, "-pr")
+					if (checks.stream().anyMatch(pr -> pr.key().startsWith("drivehidden"))) // told below, with what to do
+						dead.add(new org.dbgl.model.FileLocation(copy.getConfiguration().getAutoexec().getMain(), org.dbgl.service.FileLocationService.getInstance().dosrootRelative()).getCanonicalFile().getPath());
+					for (org.dbgl.model.conf.mount.Mount m: copy.getConfiguration().getAutoexec().deadMounts())
+						if (m instanceof org.dbgl.model.conf.mount.ImageMount im)
+							java.util.Arrays.stream(im.getCanonicalImgPaths()).forEach(f -> dead.add(f.getPath()));
+						else if (m instanceof org.dbgl.model.conf.mount.DirMount dm)
+							dead.add(dm.getCanonicalPath().getPath());
 					for (String path: copy.listMissingPaths())
-						problems.add(path);
-					if (copy.needsDosboxXForPc98())
+						if (!dead.contains(path) && !ProfileFindings.isDismissed(profile, profile.getDosboxVersion(), "missing", new Object[] {path}, keys, kinds))
+							problems.add(path);
+					if (copy.needsDosboxXForPc98() && !ProfileFindings.isDismissed(profile, profile.getDosboxVersion(), "pc98", new Object[0], keys, kinds))
 						problems.add(org.dbgl.service.TextService.getInstance().get("dialog.profile.pc98needsdosboxx.short"));
+					// what "Check profiles" finds that keeps the game from starting (not settings that just have no effect)
+					for (ProfileChecks.Problem pr: checks)
+						if (!ProfileFindings.isDismissed(profile, profile.getDosboxVersion(), pr.key(), pr.args(), keys, kinds))
+							(STOPS_START.contains(pr.key()) ? problems: hints).add(ProfileFindings.text(org.dbgl.service.TextService.getInstance(), pr.key(), pr.args()));
+					// "exit" in the [autoexec] of the configuration of the DOSBox version: DOSBox quits before the game
+					if (copy.getDosboxVersion() != null)
+						for (ProfileChecks.Problem pr: ProfileChecks.checkDosboxVersion(copy.getDosboxVersion()))
+							if (pr.key().equals("dosboxconfexit") && !ProfileFindings.isDismissed(null, profile.getDosboxVersion(), pr.key(), pr.args(), keys, kinds))
+								problems.add(ProfileFindings.text(org.dbgl.service.TextService.getInstance(), pr.key(), pr.args()));
 				}
 				List<String> result = List.copyOf(problems);
-				CACHE.put(profile.getId(), new Cached(stamp, result));
+				Cached done = new Cached(stamp, result, List.copyOf(hints));
+				CACHE.put(profile.getId(), done);
+				LAST.put(profile.getId(), done);
 				return result;
 			} catch (Exception e) {
 				System.err.println("Checking profile " + profile.getId() + " failed (attempt " + attempt + "): " + e);
-				if (uiThread || (attempt >= 3))
+				if (uiThread || (attempt >= 3)) {
+					if (!uiThread)
+						e.printStackTrace(); // where, for a report: the profile stays unchecked, its sign as it was
 					return List.of(); // not cached: checked again later
+				}
 				try {
 					Thread.sleep(500L * attempt);
 				} catch (InterruptedException ie) {
@@ -137,7 +209,17 @@ public final class ProfileWarnings {
 		}
 	}
 
+	/** the problems of {@link ProfileChecks} that also get the warning sign in the list: the game or its setup does not start */
+	static final java.util.Set<String> STOPS_START = java.util.Set.of("setupmissing", "altexemissing", "notreachable", "notaprogram", "windowsprogram", "win16program",
+		"nothingtostart", "mountfile", "mountimage", "imagefolder", "emptyimage", "archiveimage", "cuemissing", "drivenotmounted", "confreadonly", "drivehidden5", "drivehiddencd3", "mounttwocommands", "mountnoquotes", "driveunmounted", "driveunmountedown", "drivebeforemount",
+		"cdrelative", "cdrelativecustom", "startsectiondrive", "casemismatchdb3", "casemismatchprof2", "charsetmismatch", "stagingumlaut2", "xumlaut2", "stagingumlautlinux2");
+
 	public static void forget(int profileId) {
 		CACHE.remove(profileId);
+	}
+
+	/** all checked again (e.g. after something was hidden for good in "Check profiles") */
+	public static void forgetAll() {
+		CACHE.clear();
 	}
 }

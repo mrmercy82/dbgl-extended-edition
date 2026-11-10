@@ -125,6 +125,11 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 		Button detectFailedStart = Chain.on(dosboxGroup).lbl(l -> l.key("dialog.settings.detectfailedstart")).but(b -> b.select(settings_.getBooleanValue("dosbox", "detectfailedstart"))).button();
 		Button checkVersions = Chain.on(dosboxGroup).lbl(l -> l.key("dialog.settings.checkversionsatstartup")).but(b -> b.select(settings_.getBooleanValue("dosbox", "checkversionsatstartup"))).button();
 		Button checkBeforeStart = Chain.on(dosboxGroup).lbl(l -> l.key("dialog.settings.checkbeforestart")).but(b -> b.select(settings_.getBooleanValue("dosbox", "checkbeforestart"))).button();
+		// "Do not ask again" in the question about the charset of a file (CharsetQuestion): asked again when ticked here
+		Button askCharset = Chain.on(dosboxGroup).lbl(l -> l.key("dialog.settings.askcharset")).but(b -> b.tooltip("dialog.settings.askcharset2.tooltip")
+				.select(!settings_.getBooleanValue(org.dbgl.gui.controls.CharsetQuestion.SECTION, org.dbgl.gui.controls.CharsetQuestion.ITEM))).button();
+		// a note for profiles with hints only (what "Check profiles" finds that does not keep them from starting); off at first
+		Button profileHints = Chain.on(dosboxGroup).lbl(l -> l.key("dialog.settings.profilehints")).but(b -> b.tooltip("dialog.settings.profilehints.tooltip").select(settings_.getBooleanValue("gui", "profilehints"))).button();
 		Button profileWarnings = Chain.on(dosboxGroup).lbl(l -> l.key("dialog.settings.profilewarnings")).but(b -> b.tooltip("dialog.settings.profilewarnings.tooltip").select(settings_.getBooleanValue("gui", "profilewarnings"))).button();
 		Button longToolTips = Chain.on(dosboxGroup).lbl(l -> l.key("dialog.settings.longtooltips")).but(b -> b.tooltip("dialog.settings.longtooltips.tooltip").select(settings_.getBooleanValue("gui", "longtooltips"))).button();
 
@@ -132,7 +137,7 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 		boolean askUnknown = org.dbgl.util.UnknownAutoexecLines.ASK.equals(settings_.getValue(org.dbgl.util.UnknownAutoexecLines.SECTION, org.dbgl.util.UnknownAutoexecLines.MODE));
 		Combo unknownMode = Chain.on(unknownGroup).lbl(l -> l.key("dialog.settings.unknownlines.mode")).cmb(c -> c.items(new String[] {text_.get("dialog.settings.unknownlines.auto"),
 			text_.get("dialog.settings.unknownlines.ask")}).select(askUnknown ? 1: 0)).combo();
-		Button unknownNoMarkers = Chain.on(unknownGroup).lbl(l -> l.key("dialog.settings.unknownlines.nomarkers")).but(b -> b.tooltip("dialog.settings.unknownlines.nomarkers.tooltip")
+		Button unknownNoMarkers = Chain.on(unknownGroup).lbl(l -> l.key("dialog.settings.unknownlines.nomarkers")).but(b -> b.tooltip("dialog.settings.unknownlines.nomarkers.tooltip2")
 				.select(settings_.getBooleanValue(org.dbgl.util.UnknownAutoexecLines.SECTION, org.dbgl.util.UnknownAutoexecLines.NO_MARKERS))).button();
 		unknownNoMarkers.setEnabled(!askUnknown);
 		unknownMode.addListener(SWT.Selection, e -> unknownNoMarkers.setEnabled(unknownMode.getSelectionIndex() == 0));
@@ -502,7 +507,9 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 				settings_.setBooleanValue("dosbox", "checkversionsatstartup", checkVersions.getSelection());
 				settings_.setBooleanValue("dosbox", "checkforupdates", checkForUpdates.getSelection());
 				settings_.setBooleanValue("dosbox", "checkbeforestart", checkBeforeStart.getSelection());
+				settings_.setBooleanValue(org.dbgl.gui.controls.CharsetQuestion.SECTION, org.dbgl.gui.controls.CharsetQuestion.ITEM, !askCharset.getSelection());
 				settings_.setBooleanValue("gui", "profilewarnings", profileWarnings.getSelection());
+				settings_.setBooleanValue("gui", "profilehints", profileHints.getSelection());
 				settings_.setBooleanValue("gui", "longtooltips", longToolTips.getSelection());
 				settings_.setBooleanValue(org.dbgl.util.EditionUpdateChecker.SECTION, org.dbgl.util.EditionUpdateChecker.CHECK, editionCheck.getSelection());
 				settings_.setBooleanValue(org.dbgl.util.EditionUpdateChecker.SECTION, org.dbgl.util.EditionUpdateChecker.PRERELEASES, editionPre.getSelection());

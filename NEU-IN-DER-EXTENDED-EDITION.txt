@@ -6,14 +6,28 @@ DBGL wurde bis zur Version 0.100 beta 17 von Ronald Blankendaal entwickelt
 https://www.vogons.org/viewtopic.php?p=1380082#p1380082). Die Extended Edition
 ist eine unabhängige Weiterführung, an der er nicht beteiligt ist. Sie ergänzt
 vor allem die Unterstützung aktueller DOSBox-Versionen; das Fundament und fast
-alles andere sind sein Werk: Knapp drei Viertel des Programmcodes sind
-unverändert aus seiner 0.100 beta 17 (von seinen rund 42.000 Zeilen wurden
-rund 300 geändert oder entfernt, etwa 17.000 kamen hinzu).
+alles andere sind sein Werk: Knapp 60 Prozent des Programmcodes
+sind unverändert aus seiner 0.100 beta 17 (von seinen rund 42.000 Zeilen
+wurden rund 360 geändert oder entfernt, etwa 29.000 kamen hinzu).
 
 Profile, Datenbank und Einstellungen bleiben beim Umstieg erhalten.
 
 Extended Edition (Quellcode, Downloads, Fehler melden):
 https://github.com/mrmercy82/dbgl-extended-edition
+
+
+DAS NEUESTE IN 0.101 ALPHA 46
+-----------------------------
+  - Das Speichern eines Profils funktioniert deutlich zuverlässiger.
+  - "Profile prüfen" findet viel mehr (Syntaxfehler, doppelte Einstellungen,
+    Werte außerhalb des Bereichs, unbekannte Befehle, Laufwerksreihenfolge
+    u. a.), jeweils mit Lösung zur Auswahl und Vorschau; mit
+    Fortschrittsbalken und Sortierung.
+  - "Frühere Fassung wiederherstellen..." mit dem Original vor der ersten
+    Änderung durch DBGL; "Rückgängig" für Änderungen vieler Profile.
+  - Profil-Editor: welche MT-32-, Sound-Canvas-ROMs und GUS-Patch-Dateien
+    DOSBox findet.
+  - Sicherung nach Wahl vor einem Update der Extended Edition.
 
 
 DAS NEUESTE IN 0.101 ALPHA 45
@@ -97,7 +111,7 @@ Profile im Griff behalten
     reparieren, verschobene Pfade für alle Profile auf einmal anpassen.
   - Warnsymbol in der Profilliste mit Tooltip; Klick springt zur Einstellung.
     Reiter "Mit Problemen", Kontextmenü "Problem beheben...".
-  - Frühere Fassungen: die letzten fünf Konfigurationen jedes Profils.
+  - Frühere Fassungen: die letzten zehn Konfigurationen jedes Profils.
   - Profile vergleichen, Statistik (Spielzeit, meistgespielte Spiele).
 
 Viele Profile auf einmal

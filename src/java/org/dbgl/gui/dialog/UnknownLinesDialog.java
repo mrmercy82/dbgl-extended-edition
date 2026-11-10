@@ -61,7 +61,7 @@ public class UnknownLinesDialog extends SizeControlledButtonDialog<List<UnknownA
 	public static void markersWhere(org.eclipse.swt.widgets.Composite parent, int span) {
 		org.dbgl.service.ITextService text = org.dbgl.service.TextService.getInstance();
 		Label where = new Label(parent, SWT.WRAP);
-		where.setText(text.get("dialog.unknownlines.markers.where", new Object[] {text.get("dialog.main.menu.file").replace("&", ""),
+		where.setText(text.get("dialog.unknownlines.markers.where3", new Object[] {text.get("dialog.main.menu.file").replace("&", ""),
 				text.get("dialog.main.menu.adjustsettings").replace("&", "").replace("...", "").replace("…", "").trim(), text.get("dialog.settings.tab.general").replace("&", ""),
 				text.get("dialog.settings.unknownlines")}));
 		GridData data = new GridData(SWT.FILL, SWT.CENTER, true, false, span, 1);
@@ -133,7 +133,8 @@ public class UnknownLinesDialog extends SizeControlledButtonDialog<List<UnknownA
 
 		Button markers = new Button(contents_, SWT.CHECK);
 		markers.setText(text_.get("dialog.unknownlines.markers"));
-		markers.setSelection(true);
+		markers.setSelection(org.dbgl.util.UnknownAutoexecLines.markersChosen()); // as last time
+		markers.addListener(SWT.Selection, e -> org.dbgl.util.UnknownAutoexecLines.rememberMarkers(markers.getSelection()));
 		markers.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 3, 1));
 		markersWhere(contents_, 3);
 

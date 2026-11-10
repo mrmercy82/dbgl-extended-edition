@@ -21,8 +21,6 @@ package org.dbgl.model.conf;
 
 import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
@@ -52,6 +50,7 @@ public class Configuration extends Settings {
 	private String customSection_;
 	private Autoexec autoexec_;
 	private boolean allSettings_;
+	private java.nio.charset.Charset charset_; // null: the charset of the system (as FileReader and FileWriter use it)
 
 	public Configuration() {
 		super();
@@ -65,6 +64,91 @@ public class Configuration extends Settings {
 		customSection_ = configuration.getCustomSection();
 		autoexec_ = new Autoexec(configuration.getAutoexec());
 		allSettings_ = configuration.allSettings_;
+		charset_ = configuration.charset_;
+	}
+
+	/**
+	 * The charset the file was read with when it was not the one of the system: a file written on Windows with umlauts
+	 * (Windows-1252), read where the system charset is UTF-8 (macOS, Linux, Java 18 and newer on Windows). Saving writes it in
+	 * that charset again, so the umlauts stay as they were (read as UTF-8 they were lost: "?" in the file).
+	 *
+	 * @return null if the file was read with the charset of the system
+	 */
+	public java.nio.charset.Charset getCharset() {
+		return charset_;
+	}
+
+	/** @param charset null to save with the charset of the system (e.g. to convert the file to UTF-8) */
+	public void setCharset(java.nio.charset.Charset charset) {
+		charset_ = charset;
+	}
+
+	/** @return true if the file was not written in the charset of the system, see {@link #getCharset()} */
+	public boolean isLegacyCharset() {
+		return charset_ != null;
+	}
+
+	/** the text of the file in the charset of the system; if it is not valid in it, as Windows-1252 (remembered for saving) */
+	private String readText(File file) throws IOException {
+		byte[] bytes = java.nio.file.Files.readAllBytes(file.toPath());
+		charset_ = legacyCharsetOf(bytes);
+		return new String(bytes, charset_ != null ? charset_: java.nio.charset.Charset.defaultCharset());
+	}
+
+	/**
+	 * The charset of a file when it is not the one of the system, both ways:
+	 * <ul>
+	 * <li>the system uses UTF-8 (macOS, Linux, Java 18 and newer): a file that is not valid UTF-8 was written with the code page
+	 * of Windows (Windows-1252 in Western Europe, as DBGL with Java 17 and older wrote it on Windows)</li>
+	 * <li>the system uses the code page of Windows (Java 17 and older on Windows): a file with umlauts that is valid UTF-8 was
+	 * written in UTF-8 (by DBGL with a newer Java, on macOS, or by hand); read with the code page, "Ä" became "Ã„"</li>
+	 * </ul>
+	 *
+	 * @return null if the file is in the charset of the system (or has no characters outside ASCII)
+	 */
+	public static java.nio.charset.Charset legacyCharsetOf(byte[] bytes) {
+		java.nio.charset.Charset system = java.nio.charset.Charset.defaultCharset();
+		boolean utf8 = isValidUtf8(bytes);
+		if (system.equals(java.nio.charset.StandardCharsets.UTF_8)) {
+			if (utf8)
+				return null;
+			java.nio.charset.Charset legacy = windowsCodePage();
+			return legacy.equals(system) ? null: legacy;
+		}
+		boolean ascii = true;
+		for (byte b: bytes)
+			if (b < 0) {
+				ascii = false;
+				break;
+			}
+		return (!ascii && utf8) ? java.nio.charset.StandardCharsets.UTF_8: null;
+	}
+
+	private static boolean isValidUtf8(byte[] bytes) {
+		try {
+			java.nio.charset.StandardCharsets.UTF_8.newDecoder().onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
+					.onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT).decode(java.nio.ByteBuffer.wrap(bytes));
+			return true;
+		} catch (java.nio.charset.CharacterCodingException e) {
+			return false;
+		}
+	}
+
+	/**
+	 * The code page Windows uses for file names in programs without Unicode (DOSBox 0.74): on Windows the one of the system
+	 * (Windows-1252 in Western Europe, Windows-1250 in Central Europe, ...), elsewhere Windows-1252.
+	 */
+	public static java.nio.charset.Charset windowsCodePage() {
+		if (org.dbgl.util.SystemUtils.IS_WINDOWS) {
+			try {
+				java.nio.charset.Charset cs = java.nio.charset.Charset.forName(System.getProperty("sun.jnu.encoding"));
+				if (!cs.equals(java.nio.charset.StandardCharsets.UTF_8))
+					return cs;
+			} catch (RuntimeException e) {
+				// the usual one
+			}
+		}
+		return java.nio.charset.Charset.forName("windows-1252");
 	}
 
 	/** @return true if this (profile) configuration keeps all DOSBox settings, see {@link #ALL_SETTINGS_MARKER} */
@@ -105,12 +189,24 @@ public class Configuration extends Settings {
 		return loadWithAutoexec(text, dbMounts, cwd);
 	}
 
+	/**
+	 * Like {@link #loadDataWithAutoexec(ITextService, String, File, List)}, but the settings and the autoexec loaded before
+	 * are dropped first. Loading again on top added every mount a second time ("Check profiles", repair missing paths).
+	 */
+	public String replaceDataWithAutoexec(ITextService text, String data, File file, List<Mount> dbMounts) throws IOException {
+		sections_ = new SectionsCollection();
+		customSection_ = StringUtils.EMPTY;
+		autoexec_ = new Autoexec();
+		allSettings_ = false;
+		return loadDataWithAutoexec(text, data, file, dbMounts, null);
+	}
+
 	public String loadWithAutoexec(ITextService text, List<Mount> dbMounts, File cwd) throws IOException {
 		File file = fileLocation_.getCanonicalFile();
 		if (file == null || !file.isFile() || !file.canRead())
 			throw new IOException(text.get("general.error.openfile", new Object[] {String.valueOf(file)}));
 
-		try (FileReader reader = new FileReader(file)) {
+		try (StringReader reader = new StringReader(readText(file))) {
 			return loadDataWithAutoexec(text, reader, file, dbMounts, cwd);
 		}
 	}
@@ -142,16 +238,52 @@ public class Configuration extends Settings {
 		return warningsLog.toString();
 	}
 
+	/**
+	 * DOSBox finds a section in any case ("[SDL]", "[Autoexec]"): DBGL too, else the values of "[SDL]" were not shown and the
+	 * lines of "[Autoexec]" were gone after saving
+	 */
+	@Override
+	protected String sectionTitle(String written) {
+		return written.toLowerCase(java.util.Locale.ROOT);
+	}
+
 	public void load(Configuration conf) {
 		sections_.load(conf.getSections());
+	}
+
+	/** the file whose comments and unreadable lines are kept when saving (see {@link ForeignLines}); null: the file saved to */
+	private File keepForeignLinesFrom_;
+
+	public void keepForeignLinesFrom(File file) {
+		keepForeignLinesFrom_ = file;
 	}
 
 	public void save(boolean prepareOnly, List<Mount> combinedMountingPoints) throws IOException {
 		File file = fileLocation_.getCanonicalFile();
 		FileUtils.forceMkdirParent(file);
-		try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
+		byte[] bytes = bytesToSave(prepareOnly, combinedMountingPoints);
+		// the same as in the file: not written (a read-only file stays fine, and its date stays)
+		if (file.isFile() && java.util.Arrays.equals(bytes, java.nio.file.Files.readAllBytes(file.toPath())))
+			return;
+		java.nio.file.Files.write(file.toPath(), bytes);
+	}
+
+	/** the file as save would write it */
+	public byte[] bytesToSave(boolean prepareOnly, List<Mount> combinedMountingPoints) throws IOException {
+		File file = fileLocation_.getCanonicalFile();
+		StringWriter data = new StringWriter();
+		try (BufferedWriter writer = new BufferedWriter(data)) {
 			writeData(writer, prepareOnly, combinedMountingPoints);
 		}
+		java.nio.charset.Charset readAs = charset_ != null ? charset_: java.nio.charset.Charset.defaultCharset();
+		// comments ("# ...") and lines DBGL cannot read stay where they were (before alpha 46 they were gone after saving)
+		File old = keepForeignLinesFrom_ != null ? keepForeignLinesFrom_: file;
+		String content = data.toString();
+		if (old.isFile())
+			content = ForeignLines.keep(new String(java.nio.file.Files.readAllBytes(old.toPath()), readAs), content);
+		// a character the old charset does not have (e.g. typed in the editor): in the charset of the system, as before
+		java.nio.charset.Charset charset = (charset_ != null) && charset_.newEncoder().canEncode(content) ? charset_: java.nio.charset.Charset.defaultCharset();
+		return content.getBytes(charset);
 	}
 
 	private void writeData(BufferedWriter writer, boolean prepareOnly, List<Mount> combinedMountingPoints) throws IOException {

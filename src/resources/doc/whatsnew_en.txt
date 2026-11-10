@@ -6,14 +6,28 @@ DBGL was developed up to version 0.100 beta 17 by Ronald Blankendaal
 https://www.vogons.org/viewtopic.php?p=1380082#p1380082). The Extended Edition
 is an independent continuation he is not involved in. It mainly adds support
 for current DOSBox versions; the foundation and almost everything else are his
-work: nearly three quarters of the program code are unchanged from his 0.100
-beta 17 (of his roughly 42,000 lines, about 300 were changed or removed;
-about 17,000 were added).
+work: nearly 60 percent of the program code is unchanged from his
+0.100 beta 17 (of his roughly 42,000 lines, about 360 were changed or removed;
+about 29,000 were added).
 
 Profiles, database and settings are kept when switching.
 
 Extended Edition (source code, downloads, reporting problems):
 https://github.com/mrmercy82/dbgl-extended-edition
+
+
+NEWEST IN 0.101 ALPHA 46
+------------------------
+  - Saving a profile works much more reliably.
+  - "Check profiles" finds much more (syntax errors, duplicate settings,
+    values out of range, unknown commands, order of drives and more), each
+    with a solution to choose and a preview; with a progress bar and
+    sorting.
+  - "Restore an earlier version..." with the original before DBGL first
+    changed it; "Undo" for changes of many profiles.
+  - Profile editor: which MT-32 and Sound Canvas ROMs and GUS patch files
+    DOSBox finds.
+  - A backup of your choice before an update of the Extended Edition.
 
 
 NEWEST IN 0.101 ALPHA 45
@@ -97,7 +111,7 @@ Keeping profiles in shape
     fix moved paths for all profiles at once.
   - Warning sign in the profile list with tooltip; a click jumps to the
     setting. "With problems" tab, context menu "Fix problems...".
-  - Earlier versions: the last five configurations of every profile.
+  - Earlier versions: the last ten configurations of every profile.
   - Compare profiles, statistics (play time, most played games).
 
 Many profiles at once

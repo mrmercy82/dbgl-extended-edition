@@ -78,7 +78,7 @@ public class DFendImportDialog extends JobWizardDialog<Object> {
 		Composite reloadedComposite = Composite_.on(bar).layout(new GridLayout(3, false)).build();
 		dfrLocation_ = Chain.on(reloadedComposite).lbl(l -> l.key("dialog.dfendimport.reloaded.path")).txt(t -> t.val(FileLocationService.DFEND_RELOADED_PATH_STRING)).but(
 			b -> b.browse(false, Button_.BrowseType.DIR, Button_.CanonicalType.NONE, false)).text();
-		dfrConfsLocation_ = Chain.on(reloadedComposite).lbl(l -> l.key("dialog.dfendimport.reloaded.exportedconfspath")).txt(t -> t).but(
+		dfrConfsLocation_ = Chain.on(reloadedComposite).lbl(l -> l.key("dialog.dfendimport.reloaded.exportedconfspath2")).txt(t -> t).but(
 			b -> b.browse(false, Button_.BrowseType.DIR, Button_.CanonicalType.NONE, false)).text();
 		dfrCleanup_ = Chain.on(reloadedComposite).lbl(l -> l.key("dialog.dfendimport.cleanup")).but(b -> b.horSpan(2).key("dialog.dfendimport.reloaded.removesections").select(false)).button();
 
@@ -114,7 +114,7 @@ public class DFendImportDialog extends JobWizardDialog<Object> {
 					job_ = new DFendImportThread(log_, progressBar_, status_, new File(location_.getText()), cleanup_.getSelection(), defaultDbversion_);
 				else
 					// maybe also import data files in the future
-					job_ = new DFendReloadedImportThread(log_, progressBar_, status_, new File(dfrLocation_.getText()), new File(dfrConfsLocation_.getText()), dfrCleanup_.getSelection(),
+					job_ = new DFendReloadedImportThread(log_, progressBar_, status_, new File(dfrLocation_.getText()), StringUtils.isBlank(dfrConfsLocation_.getText()) ? new File(dfrLocation_.getText(), "-no exported confs-"): new File(dfrConfsLocation_.getText()), dfrCleanup_.getSelection(),
 							defaultDbversion_);
 			} catch (IOException e) {
 				Mess_.on(shell_).exception(e).warning();
@@ -144,9 +144,7 @@ public class DFendImportDialog extends JobWizardDialog<Object> {
 			if (StringUtils.isBlank(dfrLocation_.getText())) {
 				mess.key("dialog.dfendimport.reloaded.required.location").bind(dfrLocation_);
 			}
-			if (StringUtils.isBlank(dfrConfsLocation_.getText())) {
-				mess.key("dialog.dfendimport.reloaded.required.confslocation").bind(dfrConfsLocation_);
-			}
+			// the exported .conf files are optional since alpha 46: without them, the .prof files are converted
 		}
 		return mess.valid();
 	}

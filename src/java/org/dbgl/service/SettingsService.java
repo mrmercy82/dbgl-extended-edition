@@ -199,8 +199,20 @@ public class SettingsService {
 		settings_.setValue("gui", "switchdosboxdialog_height", "680");
 		settings_.setValue("gui", "unknownlinesdialog_width", "760");
 		settings_.setValue("gui", "unknownlinesdialog_height", "420");
-		settings_.setValue("gui", "checkprofilesdialog_width", "760");
-		settings_.setValue("gui", "checkprofilesdialog_height", "560");
+		settings_.setValue("gui", "checkprofilesdialog_width", "980");
+		settings_.setValue("gui", "checkprofilesdialog_height", "640");
+		settings_.setValue("gui", "checkprofilespreviewdialog_width", "760");
+		settings_.setValue("gui", "checkprofilespreviewdialog_height", "560");
+		settings_.setValue("gui", "statuswindowonlyproblems", false); // the status window of DOSBox: only errors and warnings
+		// the backup before an update (see FullBackup): what was chosen last time, the games not at first (they can be big)
+		settings_.setValue("editionupdate", "backupdosbox", true);
+		settings_.setValue("editionupdate", "backupprogram", true);
+		settings_.setValue("editionupdate", "backupcaptures", true);
+		settings_.setValue("editionupdate", "backupbackups", true);
+		settings_.setValue("editionupdate", "backupgames", false);
+		settings_.setValue("editionupdate", "backupdir", "");
+		settings_.setValue("gui", "bulkundodialog_width", "760");
+		settings_.setValue("gui", "bulkundodialog_height", "560");
 		settings_.setValue("gui", "differencesdialog_width", "600");
 		settings_.setValue("gui", "differencesdialog_height", "460");
 		settings_.setValue("gui", "textinputdialog_width", "480");
@@ -408,12 +420,20 @@ public class SettingsService {
 		settings_.setValue("dosbox", "checkversionsatstartup", true);
 		settings_.setValue("dosbox", "checkforupdates", true);
 		settings_.setValue("dosbox", "checkbeforestart", false);
+		settings_.setValue("checkprofiles", "dismissed", ""); // messages of "Check profiles" hidden for good: just these (keys, space separated)
+		settings_.setValue("checkprofiles", "dismissedkinds", ""); // ... and all of these kinds
+		settings_.setValue("checkprofiles", "previewfull", false); // the preview shows all of each file, not only what changes
+		settings_.setValue("switchdosbox", "sort", "name"); // the profiles in "Switch DOSBox version": by title or by profile ID
+		settings_.setValue("checkprofiles", "previewsort", "name"); // the games in the previews: by title ("name") or by profile ID ("id")
+		settings_.setValue("profile", "charsetkeepalways", false); // files in Windows-1252 (umlauts) kept so without asking (CharsetQuestion)
 		settings_.setValue("gui", "profilewarnings", true);
+		settings_.setValue("gui", "profilehints", false); // a note in the list for profiles with hints only
 		settings_.setValue("gui", "longtooltips", true);
 		settings_.setValue("edition", "checkforupdates", false);
 		settings_.setValue("edition", "prereleases", true);
 		settings_.setValue("edition", "updatechecked", "");
 		settings_.setValue("edition", "updatenoticeshown", "");
+		settings_.setValue("edition", "lastversion", ""); // the version that ran last: before another one runs, the data is kept (VersionBackup)
 		settings_.setValue("autoexec", "unknownlines", "ask"); // the user decides, until set otherwise
 		settings_.setValue("autoexec", "nomarkers", false);
 		settings_.setValue("profiles", "allsettings", false); // see FullConfProfiles: only on request, it has drawbacks

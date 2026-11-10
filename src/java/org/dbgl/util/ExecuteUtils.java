@@ -235,6 +235,7 @@ public class ExecuteUtils {
 	public static void doRunTemplate(Template template, Display display) throws IOException {
 		Template preparedTemplate = TemplateFactory.createCopy(template);
 		preparedTemplate.loadConfigurationData(TextService.getInstance(), template.getConfigurationString(), template.getConfigurationCanonicalFile());
+		preparedTemplate.getConfiguration().setCharset(template.getConfiguration().getCharset());
 		preparedTemplate.getConfiguration().setFileLocation(FileLocationService.getInstance().getTmpConfLocation());
 		preparedTemplate.saveConfiguration(true);
 		new ConfigurableExecutor(preparedTemplate, preparedTemplate.getDosboxVersion(), preparedTemplate.getConfigurationCanonicalFile(), display).start();
@@ -252,9 +253,46 @@ public class ExecuteUtils {
 		Profile prof = (Profile)configurable;
 		Profile tryProfile = ProfileFactory.createCopy(prof);
 		tryProfile.loadConfigurationData(TextService.getInstance(), prof.getConfigurationString(), prof.getConfigurationCanonicalFile());
+		tryProfile.getConfiguration().setCharset(prof.getConfiguration().getCharset());
 		tryProfile.getConfiguration().setFileLocation(FileLocationService.getInstance().getTmpConfLocation());
 		tryProfile.saveConfiguration(false);
 		new ConfigurableExecutor(tryProfile, prof.getDosboxVersion(), tryProfile.getConfigurationCanonicalFile(), display, -1).start();
+	}
+
+	/**
+	 * Names in the [autoexec] DOS can't use, which DOSBox gets as short names from a temporary copy. Not when the long names
+	 * work as they are (DOSBox-X with long file names on), and not when a "-pr" mount takes its path from the folder of the
+	 * configuration file and the copy is in another folder (the game would not be found at all).
+	 */
+	static boolean needsShortNamesForStart(Profile prof) {
+		if (!prof.getConfiguration().getAutoexec().hasLongNamesWithSpaces())
+			return false;
+		GenerationAwareConfigurable.Generation gen = prof.getGeneration();
+		boolean dosboxX = (gen != null) && (GenerationAwareConfigurable.familyIdx(gen) == GenerationAwareConfigurable.familyIdx(GenerationAwareConfigurable.Generation.x_20241001));
+		if (dosboxX && (prof.getDosboxVersion() != null) && dosboxXLongNames(prof.getCombinedConfigurationForReading()))
+			return false;
+		if (ProfileChecks.hasPrMount(prof)) {
+			try {
+				File own = prof.getConfigurationCanonicalFile().getParentFile();
+				File tmp = FileLocationService.getInstance().getTmpConfLocation().getCanonicalFile().getParentFile();
+				return own != null && own.getCanonicalFile().equals(tmp.getCanonicalFile());
+			} catch (IOException e) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/** DOSBox-X: [dos] lfn=true or autostart, or auto with a DOS version of 7 or newer */
+	static boolean dosboxXLongNames(org.dbgl.model.conf.Configuration combined) {
+		String lfn = StringUtils.defaultString(combined.getValue("dos", "lfn")).trim().toLowerCase();
+		if (lfn.equals("true") || lfn.equals("autostart") || lfn.equals("1") || lfn.equals("on"))
+			return true;
+		if (lfn.equals("auto")) {
+			String ver = StringUtils.defaultString(combined.getValue("dos", "ver")).trim();
+			return ver.matches("([7-9]|[1-9][0-9]+)(\\..*)?");
+		}
+		return false;
 	}
 
 	public static void doRunProfile(ProfileRunMode mode, Profile prof, boolean prepareOnly, Display display) throws IOException {
@@ -286,16 +324,16 @@ public class ExecuteUtils {
 		boolean pc98Changed = prof.ensurePc98MachineForHdi(); // DOSBox-X crashes when booting an .HDI in IBM PC mode
 		// "mount D game.cue" works in Staging 0.83+ only; DOSBox-X quits with "PHYSFS couldn't mount ... unsupported"
 		boolean mountsChanged = prof.adaptImageMountsToDosbox();
-		if ((mode == ProfileRunMode.NORMAL) && !prepareOnly && (pc98Changed || mountsChanged || prof.getConfiguration().getAutoexec().hasLongNamesWithSpaces())) {
-			// written by an older DBGL version with names like "cd \M&M 3" and "MM 3.EXE", which DOS can't use; write it again
-			// with the short names DOSBox gives them (M&M3~1, MM3~1.EXE)
-			prof.saveConfiguration(false);
-		}
+		// names DOS can't use: written by an older DBGL version ("cd \M&M 3", "MM 3.EXE") or too long ("cd \DEATHGATE"); DOSBox
+		// gets them with the short names it gives them (M&M3~1, MM3~1.EXE, DEATHG~1). Since alpha 46 only in a temporary copy for
+		// this start: the file of the profile is not changed without the user knowing it ("Check profiles" offers it)
+		boolean runFromCopy = (mode == ProfileRunMode.NORMAL) && !prepareOnly && (pc98Changed || mountsChanged || needsShortNamesForStart(prof));
 
-		if (mode != ProfileRunMode.NORMAL || prepareOnly) {
+		if (mode != ProfileRunMode.NORMAL || prepareOnly || runFromCopy) {
 			preparedProfile = ProfileFactory.createCopy(prof);
 			preparedProfile.loadConfigurationData(TextService.getInstance(), prof.getConfigurationString(),
 				mode == ProfileRunMode.INSTALLER ? new File(StringUtils.EMPTY): prof.getConfigurationCanonicalFile());
+			preparedProfile.getConfiguration().setCharset(prof.getConfiguration().getCharset()); // the same charset as the file
 			switch (mode) {
 				case SETUP:
 					preparedProfile.setAutoexecSettings(preparedProfile.getSetupString(), preparedProfile.getSetupParams());

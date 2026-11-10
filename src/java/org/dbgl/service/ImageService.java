@@ -56,6 +56,9 @@ public class ImageService {
 	public static final String IMG_TB_NEW = "tb_new.png";
 	public static final String IMG_TB_EDIT = "tb_edit.png";
 	public static final String IMG_TB_DELETE = "tb_delete.png";
+	public static final String IMG_TB_UNDO = "tb_undo.png";
+	public static final String IMG_HINT = "hint.png";
+	public static final String IMG_HINT_LARGE = "hint_large.png";
 	public static final String IMG_TB_RUN = "tb_run.png";
 	public static final String IMG_TB_SETUP = "tb_setup.png";
 	public static final String IMG_TB_ADDGAMEWIZARD = "tb_wizard.png";
@@ -100,6 +103,8 @@ public class ImageService {
 	public static final String IMG_TOPDOG = "topdog.png";
 	public static final String IMG_WARNING = "warning.png";
 	public static final String IMG_WARNING_LARGE = "warning_large.png";
+	public static final String IMG_ERROR = "error.png";
+	public static final String IMG_ERROR_LARGE = "error_large.png";
 	public static final String IMG_TILES_LARGE = "tiles_large.png";
 	public static final String IMG_TILES_MEDIUM = "tiles_medium.png";
 	public static final String IMG_TILES_SMALL = "tiles_small.png";

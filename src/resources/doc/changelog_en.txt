@@ -4,6 +4,74 @@ DBGL Extended Edition - Changes since 0.100 beta 17
 Based on DBGL 0.100 beta 17 by Ronald Blankendaal (https://dbgl.org), source code. Newest version first.
 
 
+0.101 alpha 46 (2026-11-10)
+---------------------------
+Fixed
+- Saving a profile now works much more reliably.
+- After a DOSBox version was corrected (e.g. 0.82.2 to 0.83.0) the profile
+  list kept checking with the old version: warning signs such as "only
+  supported by 0.83" stayed.
+- Warning signs in the profile list disappeared after "Fix problem" or a
+  change, sometimes until restart.
+- "Find missing files" did not work when the path of the main program
+  comes from the configuration of the DOSBox version and cd lines.
+- Images without an extension stay imgmount for Staging 0.83; values such
+  as "cycles=fixed 3000" are valid; names of settings with spaces are
+  recognised.
+- Read-only profile configuration files: DBGL tells so instead of
+  seemingly saving; unchanged files are not written again.
+
+New
+- "Check profiles" much extended: syntax errors, duplicate settings, values
+  out of range, settings in the wrong section, commands the DOSBox version
+  does not know, order of drives and mount lines, programs missing in
+  batch files, upper/lower case, folders with umlauts, encoding. Each with
+  a solution to choose and a preview before anything is changed.
+- New hints: cd lines before the drive change (they act on Z:), unpaired
+  quotation marks, Lure of the Temptress with CM-32L, Caesar with Cohort
+  II, missing ULTRASND folder with instructions. "cputype=386_slow" is set
+  to "386" for Staging instead of being removed.
+- "Check profiles": progress bar, sorting by profile title or profile ID;
+  in the context menu "Show setting in the profile editor", "Find missing
+  files", "Show ULTRASND folder".
+- Profile list: red warning sign when the profile configuration file is
+  missing; a note for profiles with hints only (in the settings, off at
+  first).
+- "Restore an earlier version..." (right-click): the last 10 versions of
+  each profile and the original before DBGL first changed it, compared in
+  colour; also works when the file is missing; greyed out while there is
+  no earlier version.
+- "Undo" for the last change of many profiles at once (preset, switching,
+  solutions of "Check profiles", editing several profiles, moving).
+- "Switch all profiles of a DOSBox version..." with an overview; when
+  switching back DBGL offers to restore settings lost at the first switch.
+- At startup DBGL detects a wrongly entered DOSBox version, offers to
+  correct it and tells afterwards what was changed.
+- Before an update of the Extended Edition: a backup of your choice, also
+  of the DOSBox folders, games and captures.
+- Encoding: profiles in Windows-1252 (older DBGL on Windows) are
+  recognised; before saving DBGL asks whether to convert them to UTF-8.
+- D-Fend Reloaded: profiles without an exported .conf are created from the
+  .prof; what was not taken over is in the report.
+- Profile editor: frames "ROMs" (MT-32/CM-32L and Sound Canvas with models
+  and versions) and "GUS patch files (ULTRASND)" with version; a note that
+  mouse sensitivity can be given separately for x and y (Staging,
+  DOSBox-X).
+- GOG images with .game and .inst can be chosen like .iso and .cue.
+- Status window: "Only warnings and errors".
+- If DBGL does not respond for more than 10 seconds, it writes
+  freeze-<date>.txt into its folder, for a bug report.
+
+Improved
+- Menu entries with symbols in the profile list and in "Check profiles";
+  "DOSBox configuration file..." and "Template configuration file..." for
+  DOSBox versions and templates.
+- "[autoexec] section" without "DOSBox" in front.
+- All new texts in 19 languages; old translation errors from 0.100 beta 17
+  fixed (missing placeholders, swallowed apostrophes).
+- Tests: thousands of randomly generated profiles, a corpus of real
+  profiles and a second test run with another default encoding.
+
 0.101 alpha 45 (2026-11-08)
 ---------------------------
 Fixed

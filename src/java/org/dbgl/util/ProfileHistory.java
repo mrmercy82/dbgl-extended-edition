@@ -34,11 +34,13 @@ import org.dbgl.service.FileLocationService;
 
 /**
  * Earlier states of the configuration file of each profile. Whenever DBGL saves a profile and its configuration changed, the
- * previous file is kept in profiles/history/&lt;profile id&gt;/, the newest {@value #KEEP} of them.
+ * previous file is kept in profiles/history/&lt;profile id&gt;/, the newest {@value #KEEP} of them. Besides, the state before
+ * DBGL changed the file the first time is kept as {@value #ORIGINAL} and never pushed out (alpha 46).
  */
 public final class ProfileHistory {
 
-	public static final int KEEP = 5;
+	public static final int KEEP = 10;
+	public static final String ORIGINAL = "original.conf";
 	private static final String STAMP = "yyyyMMdd-HHmmss-SSS";
 
 	private ProfileHistory() {
@@ -68,7 +70,20 @@ public final class ProfileHistory {
 		try {
 			File dir = dirOf(profile.getId());
 			dir.mkdirs();
-			Files.write(new File(dir, new SimpleDateFormat(STAMP).format(new Date()) + ".conf").toPath(), before);
+			keepOriginal(profile.getId(), before);
+			File now = new File(dir, new SimpleDateFormat(STAMP).format(new Date()) + ".conf");
+			// a version with exactly this content is kept already (e.g. after applying and undoing a change): it is moved to
+			// now instead of keeping it twice, so that trying something out does not push the older versions out
+			File same = null;
+			for (File f: list(profile.getId()))
+				if ((f.length() == before.length) && Arrays.equals(Files.readAllBytes(f.toPath()), before)) {
+					same = f;
+					break;
+				}
+			if (same != null)
+				Files.move(same.toPath(), now.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+			else
+				Files.write(now.toPath(), before);
 			List<File> versions = list(profile.getId());
 			for (int i = KEEP; i < versions.size(); i++)
 				Files.deleteIfExists(versions.get(i).toPath());
@@ -77,9 +92,32 @@ public final class ProfileHistory {
 		}
 	}
 
+	/**
+	 * the first state DBGL changed: the oldest kept version if there are some already (kept before alpha 46), else the state
+	 * before this change
+	 */
+	private static void keepOriginal(int profileId, byte[] before) throws IOException {
+		File original = original(profileId);
+		if (original != null)
+			return;
+		List<File> versions = list(profileId);
+		byte[] oldest = versions.isEmpty() ? before: Files.readAllBytes(versions.get(versions.size() - 1).toPath());
+		File file = new File(dirOf(profileId), ORIGINAL);
+		Files.write(file.toPath(), oldest);
+		if (!versions.isEmpty())
+			file.setLastModified(dateOf(versions.get(versions.size() - 1)).getTime());
+	}
+
+	/** @return the state before DBGL changed the file the first time, or null */
+	public static File original(int profileId) {
+		File file = new File(dirOf(profileId), ORIGINAL);
+		return file.isFile() ? file: null;
+	}
+
 	/** @return the kept versions, newest first */
 	public static List<File> list(int profileId) {
-		File[] files = dirOf(profileId).listFiles((d, n) -> n.endsWith(".conf"));
+		// only the versions (named by their date): not e.g. switched.conf in the same folder (see SwitchMemory)
+		File[] files = dirOf(profileId).listFiles((d, n) -> n.endsWith(".conf") && n.matches("\\d{8}-\\d{6}-\\d{3}\\.conf"));
 		List<File> result = new ArrayList<>(files == null ? List.of(): Arrays.asList(files));
 		result.sort(Comparator.comparing(File::getName).reversed());
 		return result;

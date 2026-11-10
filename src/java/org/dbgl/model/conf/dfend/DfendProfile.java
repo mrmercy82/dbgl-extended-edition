@@ -1,5 +1,7 @@
 /*
  *  Copyright (C) 2006-2025  Ronald Blankendaal
+ *  Modified for the DBGL Extended Edition by mrmercy82 (with the help of AI)
+ *  since 2026-11-01. Changes and their dates: CHANGELOG-en.txt, CHANGELOG-de.txt.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -43,6 +45,10 @@ class DFendProfile {
 	}
 
 	public String load(ITextService text) throws IOException {
-		return conf_.reloadWithAutoexec(text, new ArrayList<>());
+		// D-Fend wrote the .conf files in ANSI (Windows-1252): read so that umlauts in paths survive (since alpha 46)
+		java.io.File file = conf_.getCanonicalFile();
+		if (file == null || !file.isFile())
+			return conf_.reloadWithAutoexec(text, new ArrayList<>());
+		return conf_.loadDataWithAutoexec(text, org.dbgl.model.conf.Settings.readDetectingCharset(file), file, new ArrayList<>());
 	}
 }

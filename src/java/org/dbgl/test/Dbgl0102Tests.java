@@ -442,6 +442,555 @@ public class Dbgl0102Tests {
 	}
 
 	/**
+	 * The configuration of the DOSBox version mounts C, the profile mounts C too (another folder, with the game): DOSBox keeps
+	 * its own C, so DBGL did not find the game through the drives that count and dropped the lines starting it on every save.
+	 * They are kept now, written through the profile's own mount, as they were.
+	 */
+	@Test
+	public void testProfileDriveAlsoInDosboxConf() throws IOException {
+		File dosboxC = java.nio.file.Files.createTempDirectory("dbgldosboxc").toFile(), gameDir = java.nio.file.Files.createTempDirectory("dbglgame").toFile();
+		java.nio.file.Files.writeString(new File(gameDir, "GAME.EXE").toPath(), "MZ");
+		Configuration dosbox = new Configuration();
+		dosbox.loadDataWithAutoexec(GenericTextService.getInstance(), "[autoexec]\nmount C \"" + dosboxC.getPath() + "\"\n", null, null);
+		List<org.dbgl.model.conf.mount.Mount> dbMounts = dosbox.getAutoexec().getMountingpoints();
+		Configuration c = new Configuration();
+		c.loadDataWithAutoexec(GenericTextService.getInstance(), "[autoexec]\nmount C \"" + gameDir.getPath() + "\"\nC:\ncd \\\nGAME.EXE\nexit\n", null, dbMounts);
+		assertTrue(c.getAutoexec().getMain(), c.getAutoexec().getMain().endsWith("GAME.EXE"));
+		String written = c.toString(dbMounts); // as saved: through the drives that count, the DOSBox version's C
+		assertTrue(written, written.contains("GAME.EXE"));
+		assertTrue(written, written.contains("C:"));
+		// read with that DOSBox version, written for one without its "mount C" (switched): the game stays (alpha 46, profile 54
+		// lost its start lines so); where DOSBox looks is still told
+		assertEquals(new File(gameDir, "GAME.EXE").getPath(), c.getAutoexec().getMain());
+		assertEquals(new File(dosboxC, "GAME.EXE").getPath(), c.getAutoexec().getMainWhereDosboxLooks());
+		String switched = c.toString(List.of());
+		assertTrue(switched, switched.contains("GAME.EXE") && switched.contains("C:"));
+		org.apache.commons.io.FileUtils.deleteDirectory(dosboxC);
+		org.apache.commons.io.FileUtils.deleteDirectory(gameDir);
+	}
+
+	/**
+	 * Comments and lines DBGL cannot read (alpha 46): before, saving a profile dropped them without a word. They stay where they
+	 * were; DBGL's own marker and custom section are not kept twice; a section that is gone comes back with just them.
+	 */
+	@Test
+	public void testForeignLinesKeptOnSave() {
+		String before = "# Kopf\n[sdl]\n# zum Vollbild\nfullscreen true\noutput=opengl\n[cpu]\ncycles=max\n[autoexec]\n# erst einbinden\nmount C .\nC:\nGAME.EXE\n# Ende\n";
+		String after = "[sdl]\noutput=opengl\n\n[autoexec]\nmount C \".\"\nC:\nGAME.EXE\n";
+		String kept = org.dbgl.model.conf.ForeignLines.keep(before, after);
+		assertEquals("# Kopf\n[sdl]\n# zum Vollbild\nfullscreen true\noutput=opengl\n\n[autoexec]\n# erst einbinden\nmount C \".\"\nC:\nGAME.EXE\n# Ende\n", kept);
+		assertEquals(kept, org.dbgl.model.conf.ForeignLines.keep(kept, kept)); // nothing twice
+		String own = org.dbgl.model.conf.Configuration.ALL_SETTINGS_MARKER + "\n\n[sdl]\nfullscreen=true\n";
+		assertEquals("[sdl]\nfullscreen=true\n", org.dbgl.model.conf.ForeignLines.keep(own, "[sdl]\nfullscreen=true\n")); // the marker is DBGL's
+		assertEquals("[render]\naspect=true\n[sdl]\n# nur ein Kommentar\n\n", org.dbgl.model.conf.ForeignLines.keep("[sdl]\n# nur ein Kommentar\nfullscreen=false\n", "[render]\naspect=true\n"));
+		assertEquals(after, org.dbgl.model.conf.ForeignLines.keep("\uFEFF[sdl]\noutput=opengl\n", after)); // a byte order mark is no line of its own
+	}
+
+	/**
+	 * Found with configurations from the internet (alpha 46): DOSBox reads "[SDL]" and "[Autoexec]" as [sdl] and [autoexec].
+	 * DBGL did not: the value of "[SDL]" was not shown, and the lines of "[Autoexec]" were gone after saving.
+	 */
+	@Test
+	public void testSectionNamesInAnyCase() throws IOException {
+		Configuration c = new Configuration();
+		c.loadDataWithAutoexec(GenericTextService.getInstance(), "[SDL]\nFullScreen=True\n[Autoexec]\nmount C \".\"\nC:\nGAME.EXE\n", null, null);
+		assertEquals("True", c.getValue("sdl", "fullscreen"));
+		assertEquals(1, c.getAutoexec().getMountingpoints().size());
+		String written = c.toString(List.of());
+		assertTrue(written, written.contains("[autoexec]") && written.contains("GAME.EXE"));
+	}
+
+	/**
+	 * Found by the round trip test (alpha 46): a game on a drive mounted only by the configuration of the DOSBox version
+	 * ("mount Y" there, "Y:", "cd \", "GAME.EXE" in the profile). Switched to a DOSBox version without that drive, the lines
+	 * that start it were left out without a word, and switching back did not bring the game back.
+	 */
+	@Test
+	public void testStartLinesKeptWithoutTheDriveOfTheDosboxConf() throws IOException {
+		File gameDir = java.nio.file.Files.createTempDirectory("dbglgame").toFile();
+		java.nio.file.Files.writeString(new File(gameDir, "GAME.EXE").toPath(), "MZ");
+		Configuration dosbox = new Configuration();
+		dosbox.loadDataWithAutoexec(GenericTextService.getInstance(), "[autoexec]\nmount Y \"" + gameDir.getPath() + "\"\n", null, null);
+		List<org.dbgl.model.conf.mount.Mount> withY = dosbox.getAutoexec().getMountingpoints();
+		Configuration c = new Configuration();
+		c.loadDataWithAutoexec(GenericTextService.getInstance(), "[autoexec]\nY:\ncd \\\nGAME.EXE\nexit\n", null, withY);
+		assertEquals(new File(gameDir, "GAME.EXE").getPath(), c.getAutoexec().getMain());
+		String switched = c.toString(List.of()); // written for a DOSBox version without "mount Y"
+		assertTrue(switched, switched.contains("Y:") && switched.contains("GAME.EXE"));
+		Configuration without = new Configuration();
+		without.loadDataWithAutoexec(GenericTextService.getInstance(), switched, null, List.of());
+		for (org.dbgl.model.conf.Autoexec.UnknownLine l: without.getAutoexec().getUnknownLines())
+			without.getAutoexec().placeLine(l, true); // also when kept with marker lines: the start lines stay where they were
+		String again = without.toString(List.of());
+		assertFalse(again, again.contains("@REM"));
+		Configuration back = new Configuration();
+		back.loadDataWithAutoexec(GenericTextService.getInstance(), again, null, withY); // and switched back
+		assertEquals(new File(gameDir, "GAME.EXE").getPath(), back.getAutoexec().getMain());
+		org.apache.commons.io.FileUtils.deleteDirectory(gameDir);
+	}
+
+	/**
+	 * Found by the cross test of "Check profiles" (alpha 46), all three in the reading of a configuration:
+	 * a byte order mark (Notepad) hid the first section, and saving wrote an empty profile; the game was looked for in the
+	 * last mount of its drive (also an overlay), DOSBox uses the first; lines to start a game on a drive that is not mounted
+	 * were dropped on the next save.
+	 */
+	@Test
+	public void testReadingFoundByCrossTest() throws IOException {
+		File game = java.nio.file.Files.createTempDirectory("dbglgame").toFile(), other = java.nio.file.Files.createTempDirectory("dbglother").toFile();
+		java.nio.file.Files.writeString(new File(game, "GAME.EXE").toPath(), "MZ");
+		String g = "mount C \"" + game.getPath() + "\"";
+
+		File conf = new File(game, "bom.conf");
+		java.nio.file.Files.write(conf.toPath(), ("\uFEFF[sdl]\r\nfullscreen=true\r\n[autoexec]\r\n" + g + "\r\nC:\r\nGAME.EXE\r\n").getBytes(java.nio.charset.StandardCharsets.UTF_8));
+		Configuration c = new Configuration();
+		c.setFileLocation(new org.dbgl.model.FileLocation(conf.getPath()));
+		String warnings = c.loadWithAutoexec(GenericTextService.getInstance(), null, null);
+		assertEquals(warnings, "true", c.getValue("sdl", "fullscreen"));
+		assertEquals(new File(game, "GAME.EXE").getPath(), c.getAutoexec().getMain());
+		java.nio.file.Files.write(conf.toPath(), ("\u00EF\u00BB\u00BF[autoexec]\n" + g + "\nC:\nGAME.EXE\n").getBytes(java.nio.charset.StandardCharsets.ISO_8859_1)); // as Windows-1252 reads it
+		c = new Configuration();
+		c.setFileLocation(new org.dbgl.model.FileLocation(conf.getPath()));
+		c.loadWithAutoexec(GenericTextService.getInstance(), null, null);
+		assertTrue(c.getAutoexec().getMain().endsWith("GAME.EXE"));
+
+		for (String second: new String[] {"mount C \"" + other.getPath() + "\" -t overlay", "mount C \"" + other.getPath() + "\""}) {
+			c = new Configuration();
+			c.loadDataWithAutoexec(GenericTextService.getInstance(), "[autoexec]\n" + g + "\n" + second + "\nC:\nGAME.EXE\n", null, null);
+			assertEquals(second, new File(game, "GAME.EXE").getPath(), c.getAutoexec().getMain());
+		}
+		c = new Configuration(); // unmounted first: the second one counts
+		c.loadDataWithAutoexec(GenericTextService.getInstance(), "[autoexec]\nmount C \"" + other.getPath() + "\"\nmount -u C\n" + g + "\nC:\nGAME.EXE\n", null, null);
+		assertEquals(new File(game, "GAME.EXE").getPath(), c.getAutoexec().getMain());
+
+		c = new Configuration();
+		c.loadDataWithAutoexec(GenericTextService.getInstance(), "[autoexec]\n" + g + "\nY:\ncd \\GAMES\nOTHER.EXE -x\nexit\n", null, null);
+		org.dbgl.util.UnknownAutoexecLines.keepOnRead(c.getAutoexec());
+		String written = c.toString(null);
+		assertTrue(written, written.contains("Y:") && written.contains("cd \\GAMES") && written.contains("OTHER.EXE -x"));
+		org.apache.commons.io.FileUtils.deleteDirectory(game);
+		org.apache.commons.io.FileUtils.deleteDirectory(other);
+	}
+
+	/** GOG's CD images: game.gog (an ISO or BIN) with game.ins (a cue sheet), mounted as images and checked like .iso and .cue */
+	@Test
+	public void testGogImages() throws IOException {
+		assertTrue(org.dbgl.util.FilesUtils.isCdImageFile("Game.GOG"));
+		assertTrue(org.dbgl.util.FilesUtils.isCdImageFile("game.ins"));
+		assertTrue(org.dbgl.util.FilesUtils.isCueSheet("GAME.INS"));
+		assertFalse(org.dbgl.util.FilesUtils.isCueSheet("game.gog"));
+		assertTrue(org.dbgl.util.FilesUtils.isDiskImage("game.gog"));
+		assertTrue(org.dbgl.util.FilesUtils.isDiskImage("GAME.GAME")); // alpha 46: GOG's .game (an ISO) and .inst
+		assertTrue(org.dbgl.util.FilesUtils.isCueSheet("game.inst"));
+		assertTrue(org.dbgl.util.FilesUtils.isCdImageFile("Lure.game"));
+		File dir = java.nio.file.Files.createTempDirectory("dbglgog").toFile();
+		File gog = new File(dir, "game.gog"), ins = new File(dir, "game.ins");
+		java.nio.file.Files.writeString(gog.toPath(), "x");
+		java.nio.file.Files.writeString(ins.toPath(), "FILE \"game.gog\" BINARY\r\n  TRACK 01 MODE1/2352\r\nFILE \"track02.ogg\" OGG\r\n");
+		Configuration c = new Configuration();
+		c.loadDataWithAutoexec(GenericTextService.getInstance(), "[autoexec]\nmount D \"" + gog.getPath() + "\" -t cdrom\nimgmount E \"" + ins.getPath() + "\" -t iso\n", null, null);
+		List<org.dbgl.model.conf.mount.Mount> mounts = c.getAutoexec().getMountingpoints();
+		assertEquals(2, mounts.size());
+		assertTrue(mounts.get(0).toString(), mounts.get(0) instanceof org.dbgl.model.conf.mount.ImageMount); // not a folder mount
+		assertTrue(mounts.get(1).toString(), mounts.get(1) instanceof org.dbgl.model.conf.mount.ImageMount);
+		assertEquals(List.of("track02.ogg"), org.dbgl.util.ProfileChecks.missingCueFiles(ins));
+
+		// an image by its options, whatever its name (GOG's "gog.game"); -size alone is also there for a folder
+		File game = new File(dir, "gog.game");
+		java.nio.file.Files.writeString(game.toPath(), "x");
+		c = new Configuration();
+		c.loadDataWithAutoexec(GenericTextService.getInstance(), "[autoexec]\nmount D \"" + game.getPath() + "\" -t iso -fs iso\nmount E \"" + game.getPath() + "\" -t cdrom\nmount C \"" + dir.getPath() + "\" -size 512,127,16383,4000\nmount F \"" + dir.getPath() + "\" -t cdrom\n", null, null);
+		mounts = c.getAutoexec().getMountingpoints();
+		assertTrue(mounts.get(0).toString(), mounts.get(0) instanceof org.dbgl.model.conf.mount.ImageMount);
+		assertTrue(mounts.get(1).toString(), mounts.get(1) instanceof org.dbgl.model.conf.mount.ImageMount);
+		assertFalse(mounts.get(2).toString(), mounts.get(2) instanceof org.dbgl.model.conf.mount.ImageMount);
+		assertFalse(mounts.get(3).toString(), mounts.get(3) instanceof org.dbgl.model.conf.mount.ImageMount);
+		assertTrue(c.toString(null), c.toString(null).contains("mount D \"" + game.getPath() + "\" -t iso -fs iso")); // written again as it was
+		org.apache.commons.io.FileUtils.deleteDirectory(dir);
+	}
+
+	/**
+	 * " - " in the name of an image ("Werewolf vs. Comanche 2.0 - Comanche 2.0 (deutsch).iso"): "mount D ... -t cdrom" was read
+	 * as a folder (the path was cut at " -"), and a "boot" line with such an image was not read at all and dropped on saving.
+	 */
+	@Test
+	public void testDashInImageNames() throws IOException {
+		File dir = java.nio.file.Files.createTempDirectory("dbgldash").toFile();
+		File iso = new File(dir, "Werewolf vs. Comanche 2.0 - Comanche 2.0 (deutsch).iso"), img = new File(dir, "Game - Disk 1.img"), folder = new File(dir, "Ordner - mit Strich");
+		java.nio.file.Files.writeString(iso.toPath(), "x");
+		java.nio.file.Files.writeString(img.toPath(), "x");
+		folder.mkdir();
+		Configuration c = new Configuration();
+		c.loadDataWithAutoexec(GenericTextService.getInstance(), "[autoexec]\nmount D \"" + iso.getPath() + "\" -t cdrom\nmount C \"" + folder.getPath() + "\"\n", null, null);
+		List<org.dbgl.model.conf.mount.Mount> mounts = c.getAutoexec().getMountingpoints();
+		assertTrue(mounts.get(0).toString(), mounts.get(0) instanceof org.dbgl.model.conf.mount.ImageMount);
+		assertEquals(iso.getName(), ((org.dbgl.model.conf.mount.ImageMount)mounts.get(0)).getCanonicalImgPaths()[0].getName());
+		assertFalse(mounts.get(1).toString(), mounts.get(1) instanceof org.dbgl.model.conf.mount.ImageMount);
+		c = new Configuration();
+		c.loadDataWithAutoexec(GenericTextService.getInstance(), "[autoexec]\nboot \"" + img.getPath() + "\" -l a\n", null, null);
+		assertTrue(c.getAutoexec().isBooter());
+		assertEquals(img.getPath(), c.getAutoexec().getImg(0));
+		assertTrue(c.toString(null), c.toString(null).contains("boot \"" + img.getPath() + "\""));
+		org.apache.commons.io.FileUtils.deleteDirectory(dir);
+	}
+
+	/**
+	 * A mount that fails (its image is not there) leaves the drive free: the next line for it is the one that works. It was
+	 * told as "DOSBox skips this line" (the working one), and the game looked for on the failing one.
+	 */
+	@Test
+	public void testFailingMountLeavesDriveFree() throws IOException {
+		File dir = java.nio.file.Files.createTempDirectory("dbglfail").toFile();
+		File iso = new File(dir, "GAME.ISO"), game = new File(dir, "game");
+		java.nio.file.Files.writeString(iso.toPath(), "x");
+		game.mkdir();
+		java.nio.file.Files.writeString(new File(game, "GAME.EXE").toPath(), "MZ");
+		String gone = new File(dir, "gone.iso").getPath(), here = iso.getPath();
+		Configuration c = new Configuration();
+		c.loadDataWithAutoexec(GenericTextService.getInstance(), "[autoexec]\nmount C \"" + new File(dir, "nothere").getPath() + "\"\nmount C \"" + game.getPath() + "\"\nmount D \"" + gone
+			+ "\" -t cdrom\nmount D \"" + here + "\" -t cdrom\nmount D \"" + here + "\" -t cdrom\nC:\nGAME.EXE\n", null, null);
+		org.dbgl.model.conf.Autoexec a = c.getAutoexec();
+		assertEquals(new File(game, "GAME.EXE").getPath(), a.getMain()); // the C that works
+		assertEquals(0, a.mountsOfDrivesMountedAlready().size()); // nothing "skipped" that works
+		assertEquals(1, a.repeatedMounts().size()); // the second line with GAME.ISO
+		assertEquals(2, a.deadMounts().size()); // "nothere" and gone.iso: later lines for C and D work
+		assertEquals(3, a.removeRepeatedMounts());
+		assertEquals(2, a.getMountingpoints().size());
+		org.apache.commons.io.FileUtils.deleteDirectory(dir);
+	}
+
+	/**
+	 * Cases like Death Gate: "cd \\DEATHGATE" (DOS does not find a name longer than 8.3, written again with DOSBox's short name),
+	 * a path with spaces without quotes (DOSBox reads several paths), "-pr" (relative to the configuration file read last).
+	 */
+	@Test
+	public void testDeathGateLikeCases() throws IOException {
+		File dir = java.nio.file.Files.createTempDirectory("dbgldg").toFile();
+		File games = new File(dir, "SPIELE"), longDir = new File(games, "DEATHGATE"), shortDir = new File(games, "DGATE"), spaces = new File(dir, "Spiele DOS"), cds = new File(dir, "CD Images");
+		longDir.mkdirs();
+		shortDir.mkdirs();
+		spaces.mkdirs();
+		cds.mkdirs();
+		java.nio.file.Files.writeString(new File(longDir, "GAME.EXE").toPath(), "MZ");
+		java.nio.file.Files.writeString(new File(shortDir, "DGATE.EXE").toPath(), "MZ");
+		java.nio.file.Files.writeString(new File(cds, "dgate.iso").toPath(), "x");
+
+		Configuration c = new Configuration();
+		c.loadDataWithAutoexec(GenericTextService.getInstance(), "[autoexec]\nmount C \"" + games.getPath() + "\"\nC:\ncd \\DEATHGATE\nGAME.EXE\n", null, null);
+		org.dbgl.model.conf.Autoexec a = c.getAutoexec();
+		assertTrue(a.hasLongNamesWithSpaces());
+		assertEquals("DEATHGATE → DEATHG~1", org.dbgl.util.ProfileChecks.longDosNames(new File(a.getMain()), a.getMountingpoints()));
+		assertTrue(c.toString(null), c.toString(null).contains("cd \\DEATHG~1"));
+		c = new Configuration();
+		c.loadDataWithAutoexec(GenericTextService.getInstance(), "[autoexec]\nmount C \"" + games.getPath() + "\"\nC:\ncd \\DGATE\nDGATE.EXE\n", null, null);
+		assertFalse(c.getAutoexec().hasLongNamesWithSpaces());
+
+		assertEquals("mount C \"" + spaces.getPath() + "\"", org.dbgl.util.ProfileChecks.withQuotes("mount C " + spaces.getPath()));
+		assertEquals("imgmount D \"" + new File(cds, "dgate.iso").getPath() + "\" -t iso", org.dbgl.util.ProfileChecks.withQuotes("imgmount D " + new File(cds, "dgate.iso").getPath() + " -t iso"));
+		assertNull(org.dbgl.util.ProfileChecks.withQuotes("mount C " + new File(dir, "Gibt es nicht").getPath()));
+		assertNull(org.dbgl.util.ProfileChecks.withQuotes("mount C \"" + spaces.getPath() + "\""));
+
+		c = new Configuration();
+		c.loadDataWithAutoexec(GenericTextService.getInstance(), "[autoexec]\nmount c SPIELE -pr\nmount d \"" + games.getPath() + "\" -pr\nmount e SPIELE\n", null, null);
+		List<org.dbgl.model.conf.mount.Mount> mounts = c.getAutoexec().getMountingpoints();
+		assertTrue(mounts.get(0).toString(), org.dbgl.util.ProfileChecks.relativeToConf(mounts.get(0)));
+		assertFalse(mounts.get(1).toString(), org.dbgl.util.ProfileChecks.relativeToConf(mounts.get(1))); // absolute: -pr does nothing
+		assertFalse(mounts.get(2).toString(), org.dbgl.util.ProfileChecks.relativeToConf(mounts.get(2)));
+		org.apache.commons.io.FileUtils.deleteDirectory(dir);
+	}
+
+	/**
+	 * The lines of [autoexec] as DOSBox runs them (with DBGL's own section markers), programs a DOSBox configuration starts before
+	 * every game, and programs a batch file starts that are not in its folder.
+	 */
+	@Test
+	public void testAutoexecRunLikeDosbox() throws IOException {
+		File dir = java.nio.file.Files.createTempDirectory("dbglrun").toFile();
+		File conf = new File(dir, "x.conf");
+		java.nio.file.Files.writeString(conf.toPath(), "\uFEFF[sdl]\r\nfullscreen=false\r\n[autoexec]\r\n@echo off\r\nrem a remark\r\n@REM START\r\nC:\r\n@REM /START\r\nmount C .\r\n[next]\r\nx=1\r\n",
+			java.nio.charset.StandardCharsets.UTF_8);
+		assertEquals(List.of("echo off", "REM START", "C:", "REM /START", "mount C ."), org.dbgl.util.ProfileChecks.autoexecLines(conf));
+
+		assertTrue(org.dbgl.util.ProfileChecks.isProgramCall("C:\\TOOLS\\MENU.EXE"));
+		assertTrue(org.dbgl.util.ProfileChecks.isProgramCall("ctmouse"));
+		assertTrue(org.dbgl.util.ProfileChecks.isProgramCall("call C:\\DOS\\START.BAT"));
+		assertTrue(org.dbgl.util.ProfileChecks.isProgramCall("lh c:\\dos\\mouse"));
+		for (String not: new String[] {"echo off", "keyb gr", "set BLASTER=A220", "path=Z:\\", "cls", "mount c .", "imgmount d x.iso -t iso", "Z:\\MIXER.COM", "config -set x", "C:", "REM START"})
+			assertFalse(not, org.dbgl.util.ProfileChecks.isProgramCall(not));
+
+		java.nio.file.Files.writeString(new File(dir, "GAME.EXE").toPath(), "MZ");
+		java.nio.file.Files.writeString(new File(dir, "Lange Datei.exe").toPath(), "MZ");
+		File bat = new File(dir, "START.BAT");
+		java.nio.file.Files.writeString(bat.toPath(), "@echo off\r\nrem x\r\nGAME.EXE -fast\r\ngame.exe\r\nLANGED~1.EXE\r\nMISSING.EXE\r\nmem\r\nif exist X.EXE X.EXE\r\ncd SUB\r\nOTHER.EXE\r\n");
+		List<String[]> missing = org.dbgl.util.ProfileChecks.batMissing(bat);
+		assertEquals(1, missing.size()); // OTHER.EXE comes after "cd": another folder, not checked
+		assertEquals("MISSING.EXE", missing.get(0)[0]);
+		org.apache.commons.io.FileUtils.deleteDirectory(dir);
+	}
+
+	/**
+	 * "Check profiles", the preview: settings compared as "[section] item=value" (a setting moved to another section is one
+	 * gone, one new), [autoexec] line by line; the key to hide one message for good stays the same while its line does.
+	 */
+	/**
+	 * A file written on Windows with umlauts (Windows-1252), read where the system uses UTF-8: saved in Windows-1252 again (read
+	 * as UTF-8 before, "Ä" became U+FFFD and was saved as EF BF BD); a UTF-8 file and an ASCII file stay as they are.
+	 */
+	@Test
+	public void testCharsetKeptOnSave() throws IOException {
+		org.junit.Assume.assumeTrue(java.nio.charset.Charset.defaultCharset().equals(StandardCharsets.UTF_8));
+		File dir = java.nio.file.Files.createTempDirectory("dbglcharset").toFile();
+		String text = "[sdl]\r\nfullscreen=true\r\n[dosbox]\r\ncaptures=Aufnahmen \u00C4\r\n";
+		java.nio.charset.Charset cp1252 = java.nio.charset.Charset.forName("windows-1252");
+		Object[][] cases = {{cp1252, cp1252}, {StandardCharsets.UTF_8, null}, {StandardCharsets.US_ASCII, null}};
+		for (Object[] cs: cases) {
+			String content = cs[0] == StandardCharsets.US_ASCII ? text.replace("\u00C4", "A"): text;
+			File conf = new File(dir, "test.conf");
+			byte[] bytes = content.getBytes((java.nio.charset.Charset)cs[0]);
+			java.nio.file.Files.write(conf.toPath(), bytes);
+			Configuration c = new Configuration();
+			c.setFileLocation(new org.dbgl.model.FileLocation(conf.getPath()));
+			c.loadWithAutoexec(GenericTextService.getInstance(), null, null);
+			assertEquals(cs[1], c.getCharset());
+			assertEquals(content.contains("\u00C4") ? "Aufnahmen \u00C4": "Aufnahmen A", c.getValue("dosbox", "captures"));
+			Configuration copy = new Configuration(c);
+			assertEquals(cs[1], copy.getCharset()); // a copy (e.g. the temporary file for starting) is written the same way
+			c.save(false, null);
+			String saved = new String(java.nio.file.Files.readAllBytes(conf.toPath()), (java.nio.charset.Charset)cs[0]);
+			assertTrue(saved, saved.contains("captures=" + (content.contains("\u00C4") ? "Aufnahmen \u00C4": "Aufnahmen A")));
+			assertFalse(new String(java.nio.file.Files.readAllBytes(conf.toPath()), StandardCharsets.ISO_8859_1).contains("\u00EF\u00BF\u00BD"));
+		}
+		// converted on request: UTF-8
+		File conf = new File(dir, "test.conf");
+		java.nio.file.Files.write(conf.toPath(), text.getBytes(cp1252));
+		Configuration c = new Configuration();
+		c.setFileLocation(new org.dbgl.model.FileLocation(conf.getPath()));
+		c.loadWithAutoexec(GenericTextService.getInstance(), null, null);
+		c.setCharset(null);
+		c.save(false, null);
+		assertTrue(java.nio.file.Files.readString(conf.toPath(), StandardCharsets.UTF_8).contains("captures=Aufnahmen \u00C4"));
+		// a character Windows-1252 does not have: the whole file in UTF-8, nothing lost
+		java.nio.file.Files.write(conf.toPath(), text.getBytes(cp1252));
+		c = new Configuration();
+		c.setFileLocation(new org.dbgl.model.FileLocation(conf.getPath()));
+		c.loadWithAutoexec(GenericTextService.getInstance(), null, null);
+		c.setValue("dosbox", "captures", "\u00C4 \u0141");
+		c.save(false, null);
+		assertTrue(java.nio.file.Files.readString(conf.toPath(), StandardCharsets.UTF_8).contains("captures=\u00C4 \u0141"));
+
+		// only the lines concerned: a value set in the charset of the file
+		org.dbgl.util.ProfileFindings.ConfText t = org.dbgl.util.ProfileFindings.ConfText.of(new String(text.getBytes(cp1252), StandardCharsets.ISO_8859_1), cp1252);
+		t.set("sdl", "output", "\u00D6");
+		org.junit.Assert.assertArrayEquals(("[sdl]\r\nfullscreen=true\r\noutput=\u00D6\r\n[dosbox]\r\ncaptures=Aufnahmen \u00C4\r\n").getBytes(cp1252), t.text().getBytes(StandardCharsets.ISO_8859_1));
+		t = org.dbgl.util.ProfileFindings.ConfText.of(new String(text.getBytes(StandardCharsets.UTF_8), StandardCharsets.ISO_8859_1), StandardCharsets.UTF_8);
+		t.set("sdl", "output", "\u00D6");
+		assertEquals("[sdl]\r\nfullscreen=true\r\noutput=\u00D6\r\n[dosbox]\r\ncaptures=Aufnahmen \u00C4\r\n", new String(t.text().getBytes(StandardCharsets.ISO_8859_1), StandardCharsets.UTF_8));
+
+		// the comment lines writing as a whole drops: told in the preview
+		List<org.dbgl.util.ProfileFindings.DiffLine> d = org.dbgl.util.ProfileFindings.diff("# mine\n[sdl]\n# fast\nfullscreen=true\n", "[sdl]\nfullscreen=true\n");
+		assertEquals(List.of("-# mine", " [sdl]", "-# fast"), d.stream().map(l -> l.kind() + l.text()).toList());
+	}
+
+	@Test
+	public void testFindingsDiffAndDismissKey() {
+		String before = "[sblaster]\r\noplemu=fast\r\nsbtype=sb16\r\n[dos]\r\nmemsize=16\r\n\r\n[autoexec]\r\nmount C \"x\"\r\nC:\r\ncd \\DEATHGATE\r\nGAME.EXE\r\n";
+		String after = "[sblaster]\r\nsbtype=sb16\r\n[dosbox]\r\nmemsize=16\r\n\r\n[autoexec]\r\nmount C \"x\"\r\nC:\r\ncd \\DEATHG~1\r\nGAME.EXE\r\n";
+		List<org.dbgl.util.ProfileFindings.DiffLine> d = org.dbgl.util.ProfileFindings.diff(before, after);
+		// [sblaster] stays (sbtype), [dos] is gone, [dosbox] is new
+		// [autoexec]: with up to two lines around a change, so that it can be told where it is
+		assertEquals(List.of(" [sblaster]", "-oplemu=fast", "-[dos]", "-memsize=16", "+[dosbox]", "+memsize=16", " [autoexec]", " mount C \"x\"", " C:", "-cd \\DEATHGATE", "+cd \\DEATHG~1",
+			" GAME.EXE"), d.stream().map(l -> l.kind() + l.text()).toList());
+		// far apart: the lines between left out, told once
+		List<String> a = List.of("E:", "1", "2", "3", "4", "5", "6", "7"), b = List.of("1", "2", "3", "4", "5", "6", "E:", "7");
+		assertEquals(List.of("-E:", " 1", " 2", " " + org.dbgl.util.ProfileFindings.GAP, " 5", " 6", "+E:", " 7"),
+			org.dbgl.util.ProfileFindings.diffLines(a, b).stream().map(l -> l.kind() + l.text()).toList());
+		assertTrue(org.dbgl.util.ProfileFindings.diff(before, before).isEmpty());
+		// all of the file: the lines that stay too, in their place
+		assertEquals(List.of(" [sblaster]", "-oplemu=fast", " sbtype=sb16", "-[dos]", "-memsize=16", "+[dosbox]", "+memsize=16", " [autoexec]", " mount C \"x\"", " C:", "-cd \\DEATHGATE",
+			"+cd \\DEATHG~1", " GAME.EXE"), org.dbgl.util.ProfileFindings.diff(before, after, null, true).stream().map(l -> l.kind() + l.text()).toList());
+		assertTrue(org.dbgl.util.ProfileFindings.diff(before, before.replace("\r\n\r\n", "\r\n")).isEmpty()); // empty lines do not count
+
+		// only the lines concerned: a section left empty goes, the rest stays as it was (line ends too)
+		org.dbgl.util.ProfileFindings.ConfText t = org.dbgl.util.ProfileFindings.ConfText.of(before);
+		t.remove("sblaster", "oplemu");
+		t.remove("dos", "memsize");
+		t.set("dosbox", "memsize", "16");
+		assertEquals("[sblaster]\r\nsbtype=sb16\r\n\r\n[dosbox]\r\nmemsize=16\r\n\r\n[autoexec]\r\nmount C \"x\"\r\nC:\r\ncd \\DEATHGATE\r\nGAME.EXE\r\n", t.text());
+		org.junit.Assert.assertArrayEquals(new String[] {"sblaster", "oplemu"}, org.dbgl.util.ProfileFindings.setting("[sblaster] oplemu"));
+		assertNull(org.dbgl.util.ProfileFindings.setting("oplemu"));
+		org.junit.Assert.assertArrayEquals(new String[] {"dos", "minimum mcb free"}, org.dbgl.util.ProfileFindings.setting("[dos] minimum mcb free"));
+		org.junit.Assert.assertArrayEquals(new String[] {"ide, secondary", "enable"}, org.dbgl.util.ProfileFindings.setting("[ide, secondary] enable = true"));
+
+		String k1 = org.dbgl.util.ProfileFindings.dismissKey(null, null, "dosboxconfprogram", new Object[] {"C:\\TOOLS\\MENU.EXE"});
+		assertEquals(k1, org.dbgl.util.ProfileFindings.dismissKey(null, null, "dosboxconfprogram", new Object[] {"C:\\TOOLS\\MENU.EXE"}));
+		org.junit.Assert.assertNotEquals(k1, org.dbgl.util.ProfileFindings.dismissKey(null, null, "dosboxconfprogram", new Object[] {"C:\\TOOLS\\MENU.EXE /fast"}));
+		org.junit.Assert.assertNotEquals(k1, org.dbgl.util.ProfileFindings.dismissKey(null, null, "batmissing", new Object[] {"C:\\TOOLS\\MENU.EXE"}));
+		java.util.Set<String> keys = java.util.Set.of(k1), none = java.util.Set.of();
+		assertTrue(org.dbgl.util.ProfileFindings.isDismissed(null, null, "dosboxconfprogram", new Object[] {"C:\\TOOLS\\MENU.EXE"}, keys, none));
+		assertTrue(org.dbgl.util.ProfileFindings.isDismissed(null, null, "batmissing", new Object[] {"X"}, none, java.util.Set.of("batmissing")));
+		assertFalse(org.dbgl.util.ProfileFindings.isDismissed(null, null, "batmissing", new Object[] {"X"}, keys, none));
+	}
+
+	/** the "cd" told when the game is on the profile's drive that DOSBox skips: "\DGATE" only for names DOS takes as they are */
+	@Test
+	public void testCdForHiddenDrive() {
+		assertEquals("\\", org.dbgl.util.ProfileChecks.dosDir(""));
+		assertEquals("\\GAMES\\DGATE", org.dbgl.util.ProfileChecks.dosDir("GAMES/DGATE/"));
+		assertTrue(org.dbgl.util.ProfileChecks.isDosName("DGATE"));
+		assertTrue(org.dbgl.util.ProfileChecks.isDosName("GAMES/C&C"));
+		assertFalse(org.dbgl.util.ProfileChecks.isDosName("Death Gate"));
+		assertFalse(org.dbgl.util.ProfileChecks.isDosName("DEATHGATE1"));
+		String base = File.separator + "spiele" + File.separator + "SPIELE";
+		assertEquals("DGATE", org.dbgl.util.ProfileChecks.subPathIgnoringCase(base, base + File.separator + "DGATE"));
+		assertNull(org.dbgl.util.ProfileChecks.subPathIgnoringCase(base, base + "X" + File.separator + "DGATE"));
+		assertNull(org.dbgl.util.ProfileChecks.subPathIgnoringCase(base, base));
+	}
+
+	/** "Check profiles": Windows programs told from DOS programs by their header, files a cue sheet names that are missing */
+	@Test
+	public void testProfileChecksFiles() throws IOException {
+		File dir = java.nio.file.Files.createTempDirectory("dbglchecks").toFile();
+		java.util.function.BiFunction<String, byte[], File> exe = (name, sig) -> {
+			byte[] b = new byte[0x100];
+			b[0] = 'M';
+			b[1] = 'Z';
+			if (sig != null) {
+				b[0x3C] = (byte)0x80;
+				System.arraycopy(sig, 0, b, 0x80, Math.min(sig.length, 0x40));
+				if (sig.length > 0x40) // a DOS extender's name in the DOS part
+					System.arraycopy(sig, 0x40, b, 0x40, sig.length - 0x40);
+			}
+			File f = new File(dir, name);
+			try {
+				java.nio.file.Files.write(f.toPath(), b);
+			} catch (IOException e) {
+				throw new RuntimeException(e);
+			}
+			return f;
+		};
+		assertNull(org.dbgl.util.ProfileChecks.programKind(exe.apply("DOS.EXE", null)));
+		assertNull(org.dbgl.util.ProfileChecks.programKind(exe.apply("DOS4GW.EXE", new byte[] {'L', 'E', 0, 0}))); // DOS extender
+		assertEquals("pe", org.dbgl.util.ProfileChecks.programKind(exe.apply("WIN.EXE", new byte[] {'P', 'E', 0, 0})));
+		byte[] ne = new byte[0x40];
+		ne[0] = 'N';
+		ne[1] = 'E';
+		ne[0x36] = 2; // for Windows
+		assertEquals("ne", org.dbgl.util.ProfileChecks.programKind(exe.apply("WIN16.EXE", ne)));
+		byte[] neDos = ne.clone();
+		neDos[0x36] = 1; // OS/2 or none: a 16 bit DOS extender (Phar Lap 286, Borland RTM)
+		assertNull(org.dbgl.util.ProfileChecks.programKind(exe.apply("PHAR.EXE", neDos)));
+		byte[] dos16m = java.util.Arrays.copyOf(ne, 0x40 + 8); // Windows by its header, but DOS/16M in its DOS part (e.g. Ultima VIII)
+		System.arraycopy("DOS/16M ".getBytes(), 0, dos16m, 0x40, 8);
+		assertNull(org.dbgl.util.ProfileChecks.programKind(exe.apply("U8.EXE", dos16m)));
+		byte[] wdosx = java.util.Arrays.copyOf(new byte[] {'P', 'E', 0, 0}, 0x40 + 5);
+		System.arraycopy("WDOSX".getBytes(), 0, wdosx, 0x40, 5);
+		assertNull(org.dbgl.util.ProfileChecks.programKind(exe.apply("WDOSX.EXE", wdosx)));
+
+		// "dual mode" (setup programs of Westwood, Cryo): a Windows header, but the DOS part is a whole DOS program
+		java.util.function.BiFunction<String, String, File> dual = (name, stubText) -> {
+			byte[] b = new byte[48 * 1024];
+			b[0] = 'M';
+			b[1] = 'Z';
+			b[4] = 80; // 80 pages of 512 bytes: 40 KB DOS program
+			b[8] = 2; // header of 2 paragraphs
+			System.arraycopy(stubText.getBytes(), 0, b, 0x40, stubText.length());
+			int at = 41 * 1024;
+			b[0x3C] = (byte)(at & 0xFF);
+			b[0x3D] = (byte)(at >> 8);
+			b[at] = 'N';
+			b[at + 1] = 'E';
+			b[at + 0x36] = 2;
+			File f = new File(dir, name);
+			try {
+				java.nio.file.Files.write(f.toPath(), b);
+			} catch (IOException e) {
+				throw new RuntimeException(e);
+			}
+			return f;
+		};
+		assertNull(org.dbgl.util.ProfileChecks.programKind(dual.apply("SETUP.EXE", "Westwood setup program")));
+		assertEquals("ne", org.dbgl.util.ProfileChecks.programKind(dual.apply("WINONLY.EXE", "This program requires Microsoft Windows.")));
+
+		// a small DOS part that starts the DOS version next to it (Lost Eden's INSTALL.EXE: 666 bytes, runs INSTDOS.EXE)
+		byte[] starter = new byte[0x500];
+		starter[0] = 'M';
+		starter[1] = 'Z';
+		starter[2] = (byte)154; // last page: 154 bytes
+		starter[4] = 3; // 3 pages
+		starter[8] = 32; // header of 32 paragraphs (512 bytes): 666 bytes of DOS program
+		System.arraycopy("INSTDOS.EXE WINPATH=\0Cannot execute INSTDOS.EXE!".getBytes(), 0, starter, 0x300, 47);
+		starter[0x3C] = 0x00;
+		starter[0x3D] = 0x04; // NE header at 0x400
+		starter[0x400] = 'N';
+		starter[0x401] = 'E';
+		starter[0x436] = 2;
+		File starterFile = new File(dir, "INSTALL.EXE");
+		java.nio.file.Files.write(starterFile.toPath(), starter);
+		assertNull(org.dbgl.util.ProfileChecks.programKind(starterFile));
+		System.arraycopy("This program requires Microsoft Windows.$".getBytes(), 0, starter, 0x300, 41); // the same size, Windows only
+		java.nio.file.Files.write(starterFile.toPath(), starter);
+		assertEquals("ne", org.dbgl.util.ProfileChecks.programKind(starterFile));
+		File txt = new File(dir, "README.TXT");
+		java.nio.file.Files.writeString(txt.toPath(), "PE".repeat(100));
+		assertNull(org.dbgl.util.ProfileChecks.programKind(txt));
+
+		File cue = new File(dir, "game.cue");
+		java.nio.file.Files.writeString(cue.toPath(), "FILE \"GAME.BIN\" BINARY\r\n  TRACK 01 MODE1/2352\r\nFILE track02.wav WAVE\r\nFILE \"sub\\Track 03.ogg\" OGG\r\n");
+		java.nio.file.Files.writeString(new File(dir, "game.bin").toPath(), "x"); // other case: DOSBox finds it too
+		assertEquals(List.of("track02.wav", "sub\\Track 03.ogg"), org.dbgl.util.ProfileChecks.missingCueFiles(cue));
+		new File(dir, "sub").mkdir();
+		java.nio.file.Files.writeString(new File(dir, "sub/Track 03.ogg").toPath(), "x");
+		java.nio.file.Files.writeString(new File(dir, "TRACK02.WAV").toPath(), "x");
+		assertEquals(List.of(), org.dbgl.util.ProfileChecks.missingCueFiles(cue));
+		org.apache.commons.io.FileUtils.deleteDirectory(dir);
+	}
+
+	/**
+	 * "Check profiles", repair missing paths, read the changed configuration on top of the loaded one: every mount came twice,
+	 * and once more on every repair. Now it replaces the configuration, and mount lines repeated by that are removed.
+	 */
+	@Test
+	public void testRelocationDoesNotRepeatMounts() throws IOException {
+		java.util.function.Function<List<String>, String> conf = l -> "[capture]\ncapture_dir=..\\captures\\151\n\n[autoexec]\n" + String.join("\n", l) + "\n";
+		String cMount = "mount C \"games\\DGATE\"", oldCd = "mount D \"iso\\death_~1.iso\" -t cdrom", newCd = "mount D \"games\\DGATE\\iso\\DEATH_GATE.ISO\" -t cdrom";
+		List<String> start = List.of(cMount, oldCd, "C:", "cd \\", "DGATE.EXE", "exit");
+		java.util.Map<String, String> moves = java.util.Map.of("iso\\death_~1.iso", "games\\DGATE\\iso\\DEATH_GATE.ISO");
+		File dosroot = new File(".").getAbsoluteFile();
+
+		Configuration c = new Configuration();
+		c.loadDataWithAutoexec(GenericTextService.getInstance(), conf.apply(start), null, null);
+		for (int i = 0; i < 3; i++) { // repaired three times
+			String updated = org.dbgl.util.PathRelocation.replaceInConfiguration(c.toString(null), moves, dosroot);
+			c.replaceDataWithAutoexec(GenericTextService.getInstance(), updated, null, null);
+			c.getAutoexec().removeRepeatedMounts();
+		}
+		String written = c.toString(null);
+		assertEquals(written, 2, c.getAutoexec().getMountingpoints().size());
+		assertEquals(written, 1, written.split("DEATH_GATE.ISO", -1).length - 1);
+		assertFalse(written, written.contains("death_~1"));
+		assertEquals(written, 1, written.split("DGATE.EXE", -1).length - 1);
+		assertTrue(written, written.contains("capture_dir"));
+
+		// a profile already spoiled that way: repaired once more, it is clean again
+		List<String> spoiled = List.of(cMount, oldCd, cMount, newCd, cMount, newCd, cMount, newCd, "C:", "cd \\", "DGATE.EXE", "exit");
+		Configuration s = new Configuration();
+		s.loadDataWithAutoexec(GenericTextService.getInstance(), conf.apply(spoiled), null, null);
+		// "Check profiles" reports them: C 3 and the new D 2 more times (removable), the new D skipped by DOSBox as the old D comes first
+		assertEquals(5, s.getAutoexec().repeatedMounts().size());
+		// none of the images is there in this test: no line takes drive D, so DOSBox skips none (a failing mount leaves the
+		// drive free, see testFailingMountLeavesDriveFree)
+		assertEquals(0, s.getAutoexec().mountsOfDrivesMountedAlready().size());
+		// unmounted in between: mounting again is fine
+		org.dbgl.model.conf.Autoexec u = new org.dbgl.model.conf.Autoexec();
+		u.load(List.of(cMount, oldCd, "mount -u D", oldCd, "mount -u D", newCd), null, null);
+		assertEquals(u.getMountingpoints().toString(), 0, u.repeatedMounts().size() + u.mountsOfDrivesMountedAlready().size());
+		String updated = org.dbgl.util.PathRelocation.replaceInConfiguration(s.toString(null), moves, dosroot);
+		s.replaceDataWithAutoexec(GenericTextService.getInstance(), updated, null, null);
+		s.getAutoexec().removeRepeatedMounts();
+		assertEquals(s.toString(null), 2, s.getAutoexec().getMountingpoints().size());
+	}
+
+	/**
 	 * Writing the configuration of a DOSBox again (after an update) replaced the whole file, and with it a "mount C ..." in its
 	 * [autoexec] that all profiles relied on: every profile lost its drive C and its game. The [autoexec] and the user's values
 	 * are taken over now; new settings and comments come from the new file.
@@ -639,6 +1188,29 @@ public class Dbgl0102Tests {
 			org.apache.commons.io.FileUtils.deleteQuietly(dir);
 		}
 
+		// D-Fend Reloaded import: which DOSBox wrote the .conf (DFendX can write them for DOSBox-X and Staging)
+		java.util.Map<String, org.dbgl.model.entity.GenerationAwareConfigurable.Generation> gens = new java.util.LinkedHashMap<>();
+		org.dbgl.model.aggregate.DosboxVersion vGen = DosboxVersionFactory.create("DOSBox Staging 0.83.0", SettingsService.STAGING_DOSBOX_FAM.title_, "0.83.0", false, true, false, null, "staging083", "", "", "staging083/dosbox.conf");
+		gens.put("dosbox-x-2026.10.01.conf", org.dbgl.model.entity.GenerationAwareConfigurable.Generation.x_20241001);
+		gens.put("dosbox-staging-0.83.0.conf", org.dbgl.model.entity.GenerationAwareConfigurable.Generation.staging_0830);
+		gens.put("dosbox-staging-0.82.2.conf", org.dbgl.model.entity.GenerationAwareConfigurable.Generation.staging_0820);
+		gens.put("dosbox-daum-2015.01.25.conf", org.dbgl.model.entity.GenerationAwareConfigurable.Generation.official_073);
+		gens.put("dosbox-ece-r4482.conf", org.dbgl.model.entity.GenerationAwareConfigurable.Generation.official_073);
+		for (java.util.Map.Entry<String, org.dbgl.model.entity.GenerationAwareConfigurable.Generation> g: gens.entrySet()) {
+			File f = new File(DATA_DIR, g.getKey());
+			org.dbgl.model.aggregate.Profile p = org.dbgl.model.factory.ProfileFactory.create(vGen, null);
+			p.loadConfigurationData(GenericTextService.getInstance(), Files.readString(f.toPath(), StandardCharsets.ISO_8859_1), f);
+			assertEquals(g.getKey(), g.getValue(), p.determineGenByConf());
+		}
+		String[][] partial = {{"[sdl]\nfullscreen=false\n[dosbox]\nmachine=pc98\nmemsize=16\n[cpu]\ncputype=auto\n[autoexec]\nmount c .\n", "x_20241001"},
+				{"[sdl]\nfullscreen=false\n[capture]\ncapture_dir=capture\n[cpu]\ncputype=auto\n[autoexec]\nmount c .\n", "staging_0820"},
+				{"[sdl]\nwindow_size=default\n[cpu]\ncputype=auto\n[autoexec]\nmount c .\n", "staging_0830"}};
+		for (String[] c: partial) {
+			org.dbgl.model.aggregate.Profile p = org.dbgl.model.factory.ProfileFactory.create(vGen, null);
+			p.loadConfigurationData(GenericTextService.getInstance(), c[0], new File("dfendx.conf"));
+			assertEquals(c[0], c[1], String.valueOf(p.determineGenByConf()));
+		}
+
 		// from the stress test: file names that are too long, or that Windows keeps for devices
 		assertEquals(100, org.dbgl.util.FilesUtils.toSafeFilenameForWebImages("x".repeat(400)).length());
 		assertTrue(org.dbgl.util.DosboxLog.folderOf(999901, "AUX.txt").getName().startsWith("_AUX.txt"));
@@ -668,6 +1240,105 @@ public class Dbgl0102Tests {
 		String csv = org.dbgl.util.ProfileReports.statisticsCsv(profiles, List.of(), GenericTextService.getInstance(), java.util.Locale.GERMAN, now);
 		assertTrue(csv.startsWith("\uFEFF"));
 		assertTrue(csv, csv.contains(";\"Doom; \"\"II\"\"\"\r\n")); // ; in German (the comma is the decimal sign), the title quoted
+	}
+
+	/** alpha 46: D-Fend Reloaded profiles (.prof, real templates of D-Fend Reloaded) converted without an exported .conf */
+	@Test
+	public void testDFendProf() throws Exception {
+		File dir = new File(DATA_DIR, "dfend");
+		File dfend = new File("C:\\Games\\D-Fend Reloaded");
+
+		org.dbgl.model.conf.Settings game = new org.dbgl.model.conf.Settings();
+		game.setFileLocation(new org.dbgl.model.FileLocation(new File(dir, "game.prof").getPath()));
+		game.loadDetectingCharset(GenericTextService.getInstance());
+		assertEquals("Ärger im Weltall", game.getValue("ExtraInfo", "name")); // written in ANSI (Windows-1252) like D-Fend does
+		org.dbgl.model.conf.dfend.DFendProfConverter.Result r = org.dbgl.model.conf.dfend.DFendProfConverter.convert(game, dfend);
+		String c = r.conf();
+		assertTrue(c, c.contains("[cpu]\ncore=dynamic\ncputype=auto\ncycles=45000\ncycleup=500\ncycledown=20\n"));
+		assertTrue(c, c.contains("[dosbox]\nmachine=svga_s3\nmemsize=63\n"));
+		assertTrue(c, c.contains("[midi]\nmpu401=intelligent\nmididevice=default\n"));
+		assertTrue(c, c.contains("[gus]\ngus=true\ngusrate=22050\ngusbase=240\ngusirq=5\ngusdma=1\nultradir=C:\\ULTRASND\n"));
+		assertTrue(c, c.contains("sbmixer=true") && c.contains("[dos]\nxms=true\nems=true\numb=true\n") && c.contains("fullscreen=true") && c.contains("aspect=false"));
+		assertFalse(c, c.contains("keyboardlayout=default") || c.contains("DOSBoxlanguage") || c.contains("Volume"));
+		String root = new File(dfend, "VirtualHD").getPath();
+		assertTrue(c, c.contains("mount C \"" + root + "\"\n"));
+		assertTrue(c, c.contains("imgmount D \"" + new File(new File(dfend, "VirtualHD"), "CD" + File.separator + "game.iso").getPath() + "\" -t iso\n"));
+		assertTrue(c, c.contains("@REM PRE-LAUNCH\nset BLASTER=A220 I7 D1 T6\n@REM /PRE-LAUNCH\nC:\ncd \\SPACE\nSPACE.EXE -nosound\nexit\n"));
+		assertTrue(r.notes().toString(), r.notes().isEmpty());
+
+		// the whole way: a DBGL profile on DOSBox Staging 0.83, from 0.74 settings
+		org.dbgl.model.aggregate.DosboxVersion v083 = DosboxVersionFactory.create("DOSBox Staging 0.83.0", SettingsService.STAGING_DOSBOX_FAM.title_, "0.83.0", false, true, false, null,
+			new File(DATA_DIR).getAbsolutePath(), "", "", new File(DATA_DIR, "dosbox-staging-0.83.0.conf").getAbsolutePath());
+		org.dbgl.model.aggregate.Profile p = org.dbgl.model.factory.ProfileFactory.create(v083, null);
+		p.loadConfigurationData(GenericTextService.getInstance(), c, new File("game.conf"));
+		p.alterToDosboxVersionGeneration(org.dbgl.model.entity.GenerationAwareConfigurable.Generation.official_073, v083);
+		assertEquals("SPACE.EXE", new File(p.getConfiguration().getAutoexec().getGameMain()).getName().toUpperCase());
+		assertTrue(p.getConfigurationString(), p.getConfigurationString().contains("set BLASTER=A220 I7 D1 T6")); // D-Fend's own autoexec lines are kept
+
+		// the templates: CGA without sound, and a booter (BootImage noted, not guessed)
+		org.dbgl.model.conf.Settings cga = new org.dbgl.model.conf.Settings();
+		cga.setFileLocation(new org.dbgl.model.FileLocation(new File(dir, "template-early-cga.prof").getPath()));
+		cga.loadDetectingCharset(GenericTextService.getInstance());
+		String cc = org.dbgl.model.conf.dfend.DFendProfConverter.convert(cga, dfend).conf();
+		assertTrue(cc, cc.contains("machine=cga") && cc.contains("cycles=500") && cc.contains("sbtype=none") && cc.contains("mpu401=none") && cc.contains("joysticktype=2axis")
+				&& cc.contains("xms=false"));
+		org.dbgl.model.conf.Settings boot = new org.dbgl.model.conf.Settings();
+		boot.setFileLocation(new org.dbgl.model.FileLocation(new File(dir, "template-boot.prof").getPath()));
+		boot.loadDetectingCharset(GenericTextService.getInstance());
+		assertTrue(org.dbgl.model.conf.dfend.DFendProfConverter.convert(boot, dfend).notes().contains("BootImage=2 (no image)"));
+		String bootConf = org.dbgl.model.conf.dfend.DFendProfConverter.convert(boot, dfend).conf();
+		assertTrue(bootConf, bootConf.contains("boot -l c\n") && !bootConf.contains("exit"));
+
+		// real example profiles of D-Fend Reloaded
+		java.util.function.Function<String, org.dbgl.model.conf.dfend.DFendProfConverter.Result> conv = name -> {
+			try {
+				org.dbgl.model.conf.Settings s = new org.dbgl.model.conf.Settings();
+				s.setFileLocation(new org.dbgl.model.FileLocation(new File(dir, name).getPath()));
+				s.loadDetectingCharset(GenericTextService.getInstance());
+				return org.dbgl.model.conf.dfend.DFendProfConverter.convert(s, dfend);
+			} catch (IOException e) {
+				throw new IllegalStateException(e);
+			}
+		};
+		String hd = new File(dfend, "VirtualHD").getPath();
+		// FreeDOS: two hard disk images with geometry on drive numbers 2 and 3, a floppy image on 0, booted from 2 (C:)
+		org.dbgl.model.conf.dfend.DFendProfConverter.Result freedos = conv.apply("freedos.prof");
+		String fd = freedos.conf();
+		String fdboot = new File(hd, "FDBOOT").getPath();
+		assertTrue(fd, fd.contains("imgmount 2 \"" + new File(fdboot, "c.img").getPath() + "\" -t hdd -size 512,63,16,30\n"));
+		assertTrue(fd, fd.contains("imgmount 3 \"" + new File(fdboot, "d.img").getPath() + "\" -t hdd -size 512,63,16,30\n"));
+		assertTrue(fd, fd.contains("imgmount 0 \"" + new File(fdboot, "A.IMG").getPath() + "\" -t floppy\n"));
+		assertTrue(fd, fd.endsWith("boot -l c\n"));
+		assertTrue(freedos.notes().toString(), freedos.notes().isEmpty());
+		// 4DOS: its own PATH, a drive label; NDN: PATH with C:\NDN and C: in the autoexec
+		String fourdos = conv.apply("4dos.prof").conf();
+		assertTrue(fourdos, fourdos.contains("mount C \"" + hd + "\" -label test\n") && fourdos.contains("@REM PRE-LAUNCH\nset PATH=C:\\4DOS\n@REM /PRE-LAUNCH\n")
+				&& fourdos.contains("cd \\4DOS\n4DOS.COM\nexit\n") && fourdos.contains("cyclesdown") == false && fourdos.contains("cycledown=500"));
+		String ndn = conv.apply("ndn.prof").conf();
+		assertTrue(ndn, ndn.contains("set PATH=Z:\\;C:\\NDN\nC:\n@REM /PRE-LAUNCH\nC:\ncd \\NDN\nNDN.COM\nexit\n") && ndn.contains("usescancodes=true"));
+		// VGA Copy: written in ANSI with an umlaut, parameters, both D-Fend names of the cycle steps
+		org.dbgl.model.conf.Settings vga = new org.dbgl.model.conf.Settings();
+		vga.setFileLocation(new org.dbgl.model.FileLocation(new File(dir, "vgacopy.prof").getPath()));
+		vga.loadDetectingCharset(GenericTextService.getInstance());
+		assertEquals("Thomas Mönkemeier", vga.getValue("ExtraInfo", "developer"));
+		String vgac = org.dbgl.model.conf.dfend.DFendProfConverter.convert(vga, dfend).conf();
+		assertTrue(vgac, vgac.contains("vgacopy.exe /B\n") && vgac.contains("memsize=16") && (vgac.split("cycleup=", -1).length == 2));
+		// OpenGEM and DB-Info: a .BAT as the program, and no 'exit' when D-Fend keeps DOSBox open
+		assertTrue(conv.apply("opengem.prof").conf().contains("cd \\GEMAPPS\nGEM.BAT\nexit\n"));
+		String dbinfo = conv.apply("dbinfo.prof").conf();
+		assertTrue(dbinfo, dbinfo.contains("cd \\DB-INFO\ndb-info.bat\n") && !dbinfo.contains("exit"));
+		// two CD images on D: (one line each in D-Fend) become one imgmount to swap them; the program on E:, a folder outside of D-Fend
+		org.dbgl.model.conf.dfend.DFendProfConverter.Result cds = conv.apply("cdimages.prof");
+		String isoDir = new File("D:\\Spiele\\DOS\\SPIELE\\C&C\\iso".replace('\\', File.separatorChar)).getPath();
+		assertTrue(cds.conf(), cds.conf().contains("imgmount D \"" + new File(isoDir, "GDI.iso").getPath() + "\" \"" + new File(isoDir, "NOD.iso").getPath() + "\" -t iso\n"));
+		assertEquals(cds.conf(), 1, cds.conf().split("imgmount D", -1).length - 1);
+		assertTrue(cds.conf(), cds.conf().contains("mount E \"" + new File("D:\\Spiele\\DOS\\SPIELE\\AODCD".replace('\\', File.separatorChar)).getPath() + "\"\n")
+				&& cds.conf().contains("E:\ncd \\\nAODCD.EXE\nexit\n"));
+		assertTrue(cds.notes().toString(), cds.notes().isEmpty());
+		// DOSBox DOS: no program, a batch file in the autoexec (labels, goto, if exist), DOSBox stays open
+		String dd = conv.apply("dosboxdos.prof").conf();
+		assertTrue(dd, dd.contains("@REM PRE-LAUNCH\nC:\necho.\nIf exist C:\\FREEDOS\\COMMAND.COM goto AddFreeDos\n") && dd.contains(":Next6\n@REM /PRE-LAUNCH\n")
+				&& !dd.contains("exit"));
 	}
 
 	/**
@@ -709,6 +1380,154 @@ public class Dbgl0102Tests {
 		assertEquals("output", invalid.get(0)[1]);
 		assertEquals("overlay", invalid.get(0)[2]);
 	}
+	/**
+	 * Found with configurations from the internet (alpha 46): a command before the game on another drive or in another folder
+	 * ran in the game's folder after saving; "C:" of a profile without a game was gone; "[sdl] ; Video" lost its comment.
+	 */
+	@Test
+	public void testLinesRunWhereTheyRan() throws IOException {
+		String[][] cases = {
+			{"[autoexec]\nmount c /games\nmount m /mdf\nm:\nCALL SC55.BAT\nc:\ncd game\ngame.exe\n", "M:\ncd \\\nCALL SC55.BAT\nC:\ncd \\game\n"},
+			{"[autoexec]\nmount c /games\nc:\ncd util\nmouse.com\ncd \\game\ngame.exe\n", "cd \\util\nmouse.com\ncd \\game\n"},
+			{"[autoexec]\nmount c /games\nc:\ncd game\n", "c:\ncd game\n"},
+			{"[sdl] ; Video\nfullscreen=true\n[autoexec]\nmount c /games\n", "[sdl] ; Video\n"}};
+		for (String[] c: cases) {
+			String text = c[0];
+			for (int round = 0; round < 3; round++) {
+				Configuration conf = new Configuration();
+				conf.loadDataWithAutoexec(GenericTextService.getInstance(), text, null, null);
+				org.dbgl.util.UnknownAutoexecLines.keepOnRead(conf.getAutoexec()); // as a profile does after reading
+				String written = ForeignLinesAccess.keep(text, conf.toString(List.of()));
+				assertTrue(written, written.replace("\r\n", "\n").contains(c[1]));
+				if (round > 0)
+					assertEquals(text, written);
+				text = written;
+			}
+		}
+	}
+
+	private static String saved(String text) throws IOException {
+		Configuration conf = new Configuration();
+		conf.loadDataWithAutoexec(GenericTextService.getInstance(), text, null, null);
+		org.dbgl.util.UnknownAutoexecLines.keepOnRead(conf.getAutoexec());
+		return ForeignLinesAccess.keep(text, conf.toString(List.of())).replace("\r\n", "\n");
+	}
+
+	/** found by the independent review (alpha 46): each case lost or changed something on saving */
+	@Test
+	public void testFoundByReview() throws IOException {
+		// the way back after a line that ran elsewhere follows a game changed later
+		Configuration conf = new Configuration();
+		conf.loadDataWithAutoexec(GenericTextService.getInstance(), "[autoexec]\nmount c .\nmount m util\nm:\ncall sc55.bat\nc:\ncd game\ngame.exe\n", null, null);
+		org.dbgl.util.UnknownAutoexecLines.keepOnRead(conf.getAutoexec());
+		conf.getAutoexec().setMain(new File("GAME2", "START.EXE").getPath());
+		String w = conf.toString(List.of()).replace("\r\n", "\n");
+		assertTrue(w, w.contains("call sc55.bat\nC:\ncd \\GAME2\n") && !w.contains("cd \\game\n"));
+		// repeated comments all stay
+		String text = "[sdl]\n# ----\nfullscreen=false\n[cpu]\n# ----\ncycles=max\n[autoexec]\n# ----\nmount c .\n";
+		assertEquals(3, saved(text).split("# ----", -1).length - 1);
+		// "@pause" after boot without "exit" stays
+		assertTrue(saved("[autoexec]\nmount a game\nboot a:\\disk1.img\n@pause\n").contains("pause"));
+		// lines after "exit" stay when "exit" is unticked
+		conf = new Configuration();
+		conf.loadDataWithAutoexec(GenericTextService.getInstance(), "[autoexec]\nmount c .\nc:\ngame.exe\nexit\necho after\n", null, null);
+		org.dbgl.util.UnknownAutoexecLines.keepOnRead(conf.getAutoexec());
+		conf.getAutoexec().setExit(false);
+		assertTrue(conf.toString(List.of()).contains("echo after"));
+		// a fix acts on the setting that counts: the last one
+		org.dbgl.util.ProfileFindings.ConfText t = org.dbgl.util.ProfileFindings.ConfText.of("[sdl]\noutput=opengl\nfullscreen=true\noutput=bogus\n");
+		t.remove("sdl", "output");
+		assertEquals("opengl", t.get("sdl", "output"));
+		// "]" in the comment after a header
+		Configuration c2 = new Configuration();
+		c2.loadDataWithAutoexec(GenericTextService.getInstance(), "[SDL] ; see [docs]\nfullscreen=true\n[autoexec]\n", null, null);
+		assertEquals("true", c2.getValue("sdl", "fullscreen"));
+		// back on a drive: in its folder; "cd \\" after the game is not where the game is
+		assertTrue(saved("[autoexec]\nmount c .\nmount m util\nc:\ncd \\game\nm:\n@rem x\nc:\ngame.exe\n").contains("cd \\game\n"));
+		String after = saved("[autoexec]\nmount c .\nc:\ncd game\ngame.exe\ncd \\\nexit\n");
+		assertTrue(after, after.contains("cd \\game\ngame.exe\ncd \\\n"));
+		// a line of the user that starts like a marker of DBGL
+		assertTrue(saved("[autoexec]\n@REM STARTUP of my game\nmount c .\nc:\ngame.exe\n").contains("game.exe"));
+		// "boot C:\\x.img" without a drive C: the path as written
+		assertTrue(saved("[autoexec]\nboot C:\\Users\\me\\boot.img\n").contains("boot C:\\Users\\me\\boot.img"));
+	}
+
+	/** found with a real collection (alpha 46): the parameters of an earlier program went to the game */
+	@Test
+	public void testParametersOfTheGameOnly() throws IOException {
+		Configuration conf = new Configuration();
+		conf.loadDataWithAutoexec(GenericTextService.getInstance(), "[autoexec]\nmount c .\nC:\\SB16\\DEVICE.COM C:\\WINDOWS\\IFSHLP.SYS\nC:\\WINDOWS\\SMARTDRV.EXE\n", null, null);
+		assertEquals("", conf.getAutoexec().getParameters());
+	}
+
+	/** ForeignLines as Configuration.save uses it */
+	private static final class ForeignLinesAccess {
+		static String keep(String before, String after) {
+			return org.dbgl.model.conf.ForeignLines.keep(before, after);
+		}
+	}
+
+	/**
+	 * Found with the shared configurations of DBConfWS (alpha 46): lines DBGL cannot give a DOS path for were lost or grew
+	 * with each saving. They are written as they were read.
+	 */
+	@Test
+	public void testStartAndBootLinesKeptAsRead() throws IOException {
+		String[] cases = {
+			"[autoexec]\nimgmount D \"D:\\3DFX\\bat\\Toshinden.img\" -t iso\nmount D \".\"\nD:\ncd \\\nbat.exe\nexit\n", "bat.exe",
+			"[autoexec]\nmount C \"~/.dosbox/drive_c\"\nC:\ncd \\CC\nC&C.EXE\nexit\n", "cd \\CC\n",
+			"[autoexec]\nmount A \"C:\\Users\\x\\Downloads\"\nboot A:\\Caveland.img\nexit\n", "boot A:\\Caveland.img"};
+		for (int i = 0; i < cases.length; i += 2) {
+			String text = cases[i];
+			for (int round = 0; round < 3; round++) {
+				Configuration c = new Configuration();
+				c.loadDataWithAutoexec(GenericTextService.getInstance(), text, null, null);
+				String written = c.toString(List.of());
+				assertTrue(written, written.contains(cases[i + 1]));
+				if (round > 0)
+					assertEquals(text, written); // the same with each saving
+				text = written;
+			}
+		}
+	}
+
+	/**
+	 * Found with configurations from the internet (alpha 46): "imgmount A disk1 disk2 -t floppy" (no image extension) was
+	 * written as MOUNT for Staging 0.83 and then read as a folder. It stays IMGMOUNT; images with an extension become MOUNT.
+	 */
+	@Test
+	public void testImagesWithoutExtensionStayImgmountForStaging083() throws IOException {
+		org.dbgl.model.aggregate.DosboxVersion v083 = DosboxVersionFactory.create("DOSBox Staging 0.83.0", SettingsService.STAGING_DOSBOX_FAM.title_, "0.83.0", false, true, false, null,
+			"staging083", "", "", "staging083/dosbox.conf");
+		File dosboxConfFile = new File(DATA_DIR, "dosbox-staging-0.83.0.conf");
+		v083.loadConfigurationData(GenericTextService.getInstance(), Files.readString(dosboxConfFile.toPath(), StandardCharsets.UTF_8), dosboxConfFile);
+		org.dbgl.model.aggregate.Profile profile = org.dbgl.model.factory.ProfileFactory.create(v083, null);
+		profile.getConfiguration().loadDataWithAutoexec(GenericTextService.getInstance(), "[autoexec]\nimgmount A disk1 disk2 -t floppy\nimgmount D game.iso -t iso\n", null, null);
+		profile.adaptImageMountsToDosbox();
+		List<org.dbgl.model.conf.mount.Mount> mounts = profile.getConfiguration().getAutoexec().getMountingpoints();
+		assertEquals("imgmount", ((org.dbgl.model.conf.mount.ImageMount)mounts.get(0)).getCommand());
+		assertEquals("mount", ((org.dbgl.model.conf.mount.ImageMount)mounts.get(1)).getCommand());
+	}
+
+	/** found with configurations from the internet (alpha 46): told as invalid, and the solution removed them */
+	@Test
+	public void testValuesWithParametersAreValid() throws IOException {
+		org.dbgl.model.aggregate.DosboxVersion v074 = DosboxVersionFactory.create("DOSBox 0.74-3", "DOSBox", "0.74-3", false, true, false, null, "official074", "", "",
+			"official074/dosbox.conf");
+		File dosboxConfFile = new File(System.getProperty("dbgl.officialconf"));
+		v074.loadConfigurationData(GenericTextService.getInstance(), Files.readString(dosboxConfFile.toPath(), StandardCharsets.ISO_8859_1), dosboxConfFile);
+		org.dbgl.model.aggregate.Profile profile = org.dbgl.model.factory.ProfileFactory.create(v074, null);
+		Configuration c = profile.getConfiguration();
+		for (String cycles: new String[] {"fixed 3000", "3000", "max 80%", "auto 3000 90% limit 50000", "max limit 60000"}) {
+			c.setValue("cpu", "cycles", cycles);
+			c.setValue("render", "scaler", "hq2x forced");
+			c.setValue("serial", "serial1", "modem listenport:5000");
+			assertEquals(cycles, 0, profile.listInvalidValues().size());
+		}
+		c.setValue("cpu", "cycles", "fast");
+		assertEquals(1, profile.listInvalidValues().size());
+	}
+
 	@Test
 	public void testSettingPlacement() {
 		String[][] cases = {
@@ -1471,5 +2290,51 @@ public class Dbgl0102Tests {
 		org.dbgl.util.DuplicateProfiles.merge(keep, List.of(other)); // twice: nothing doubled
 		assertEquals(1, java.util.Arrays.stream(keep.getLinks()).filter(l -> l != null && "https://www.mobygames.com/game/1069/doom/".equals(l.getDestination())).count());
 		assertEquals(1, keep.getNotes().split("GOG:").length - 1);
+	}
+
+	/** alpha 46: a value of DOSBox 0.74 that DOSBox Staging knows under a shorter name is set to it, not removed (cputype=386_slow) */
+	@Test
+	public void testNearValueInsteadOfRemoving() {
+		String staging = "auto, 386, 386_fast, 386_prefetch, 486, pentium, pentium_mmx";
+		assertEquals("386", org.dbgl.util.ProfileFindings.nearValue("386_slow", staging));
+		assertEquals("486", org.dbgl.util.ProfileFindings.nearValue("486_SLOW", staging));
+		assertEquals("pentium", org.dbgl.util.ProfileFindings.nearValue("pentium_slow", staging));
+		assertNull(org.dbgl.util.ProfileFindings.nearValue("286", staging)); // nothing near: removed as before
+		assertNull(org.dbgl.util.ProfileFindings.nearValue("386_slow", "auto, 486")); // the shorter one not there either
+	}
+
+	/** alpha 46: "cd" lines before the drive change act on Z:; moved behind it, also once their quote was removed */
+	@Test
+	public void testCdLinesMovedBehindTheDriveChange() {
+		String conf = "[cpu]\ncycles=5000\n\n[autoexec]\n@echo off\ncd \\DSA\ncd DSA1\"\nmount D \"x.cue\" -t cdrom\nC:\ncls\ncall SCHICK.BAT\nexit\n";
+		org.dbgl.util.ProfileFindings.ConfText t = org.dbgl.util.ProfileFindings.ConfText.of(conf);
+		t.moveBehind(List.of("cd \\DSA", "cd DSA1\""), "C:");
+		assertEquals("[cpu]\ncycles=5000\n\n[autoexec]\n@echo off\nmount D \"x.cue\" -t cdrom\nC:\ncd \\DSA\ncd DSA1\"\ncls\ncall SCHICK.BAT\nexit\n", t.text());
+		t = org.dbgl.util.ProfileFindings.ConfText.of(conf);
+		assertTrue(t.replaceLine("cd DSA1\"", "cd DSA1"));
+		t.moveBehind(List.of("cd \\DSA", "cd DSA1\""), "C:");
+		assertEquals("[cpu]\ncycles=5000\n\n[autoexec]\n@echo off\nmount D \"x.cue\" -t cdrom\nC:\ncd \\DSA\ncd DSA1\ncls\ncall SCHICK.BAT\nexit\n", t.text());
+		t = org.dbgl.util.ProfileFindings.ConfText.of(conf); // the drive change not there: nothing moved
+		t.moveBehind(List.of("cd \\DSA"), "E:");
+		assertEquals(conf, t.text());
+	}
+
+	/** alpha 46: Caesar starts Cohort II if it is installed in its folder: a hint, not a missing program */
+	@Test
+	public void testCaesarStartsCohortIfThere() {
+		assertTrue(org.dbgl.util.ProfileChecks.isCompanion(new File("/games/CAESAR/CAESAR.BAT"), "COHORT2.EXE"));
+		assertTrue(org.dbgl.util.ProfileChecks.isCompanion(new File("/games/Caesar I/START.BAT"), "cohort"));
+		assertFalse(org.dbgl.util.ProfileChecks.isCompanion(new File("/games/CAESAR/CAESAR.BAT"), "CAESAR.EXE"));
+		assertFalse(org.dbgl.util.ProfileChecks.isCompanion(new File("/games/OTHER/GO.BAT"), "COHORT2.EXE"));
+	}
+
+	/** alpha 46: the version of the GUS patch library from the head of its ULTRASND.INI */
+	@Test
+	public void testGusPatchVersion() throws IOException {
+		File dir = java.nio.file.Files.createTempDirectory("dbglgus").toFile();
+		java.nio.file.Files.writeString(new File(dir, "ULTRASND.INI").toPath(), "#==============================\r\n# Ver:     2.1\r\n# Title:   ULTRASOUND Patch Library for Windows\r\n[Ultrasound]\r\nPatchDir=C:\\ULTRASND\\MIDI\\\r\n");
+		assertEquals("2.1", org.dbgl.util.MidiRoms.patchVersion(dir));
+		java.nio.file.Files.writeString(new File(dir, "ULTRASND.INI").toPath(), "[Ultrasound]\r\n# Ver: 9.9\r\n");
+		assertNull(org.dbgl.util.MidiRoms.patchVersion(dir)); // not in its head: no version
 	}
 }

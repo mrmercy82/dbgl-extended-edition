@@ -90,6 +90,20 @@ public final class BulkUndo {
 		} catch (IOException | RuntimeException e) {
 			e.printStackTrace();
 		}
+		changed();
+	}
+
+	private static volatile Runnable onChange_;
+
+	/** told when a change is remembered or undone (e.g. the undo button of the toolbar greyed out when there is none); from any thread */
+	public static void onChange(Runnable listener) {
+		onChange_ = listener;
+	}
+
+	private static void changed() {
+		Runnable listener = onChange_;
+		if (listener != null)
+			listener.run();
 	}
 
 	/** @return the last remembered change, or null */
@@ -124,8 +138,50 @@ public final class BulkUndo {
 	 * @return the ids of the restored profiles
 	 */
 	public static List<Integer> undo(List<DosboxVersion> dbversions) throws IOException, java.sql.SQLException {
+		return undo(dbversions, null);
+	}
+
+	/** one profile of the remembered change: its configuration file now and as it was, and its DOSBox version now and then */
+	public record Change(Profile profile, String now, String then, DosboxVersion nowVersion, DosboxVersion thenVersion) {
+	}
+
+	/** the profiles of the remembered change (still there), with both states of their files, read in their own charsets */
+	public static List<Change> changes(List<DosboxVersion> dbversions) {
+		List<Change> result = new ArrayList<>();
+		try {
+			Map<Integer, Integer> entries = new LinkedHashMap<>();
+			if (read(entries) == null)
+				return result;
+			String ids = entries.keySet().stream().map(String::valueOf).collect(Collectors.joining(","));
+			for (Profile p: new ProfileRepository().list("", "GAM.ID IN (" + ids + ")", dbversions)) {
+				File saved = new File(dir(), p.getId() + ".conf");
+				File current = p.getConfigurationCanonicalFile();
+				if (!saved.isFile())
+					continue;
+				String now = (current != null) && current.isFile() ? new String(Files.readAllBytes(current.toPath()), ConfCharset.of(current)): "";
+				String then = new String(Files.readAllBytes(saved.toPath()), ConfCharset.of(saved));
+				DosboxVersion before = BaseRepository.findById(dbversions, entries.get(p.getId()));
+				result.add(new Change(p, now, then, p.getDosboxVersion(), before != null ? before: p.getDosboxVersion()));
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return result;
+	}
+
+	/**
+	 * @param only the profiles to bring back (null: all); the others stay remembered, to be brought back later
+	 * @return the ids of the restored profiles
+	 */
+	public static List<Integer> undo(List<DosboxVersion> dbversions, java.util.Set<Integer> only) throws IOException, java.sql.SQLException {
 		Map<Integer, Integer> entries = new LinkedHashMap<>();
-		if (read(entries) == null)
+		String[] meta = read(entries);
+		if (meta == null)
+			return List.of();
+		Map<Integer, Integer> kept = new LinkedHashMap<>(entries);
+		if (only != null)
+			entries.keySet().retainAll(only);
+		if (entries.isEmpty())
 			return List.of();
 		ProfileRepository repo = new ProfileRepository();
 		String ids = entries.keySet().stream().map(String::valueOf).collect(Collectors.joining(","));
@@ -135,15 +191,34 @@ public final class BulkUndo {
 			if (!saved.isFile())
 				continue;
 			DosboxVersion dbv = BaseRepository.findById(dbversions, entries.get(p.getId()));
+			byte[] now = ProfileHistory.read(p), then = Files.readAllBytes(saved.toPath());
+			boolean sameVersion = (dbv == null) || ((p.getDosboxVersion() != null) && (p.getDosboxVersion().getId() == dbv.getId()));
+			if (java.util.Arrays.equals(now, then) && sameVersion) { // not changed (or changed back): nothing to write
+				restored.add(p.getId());
+				continue;
+			}
 			if (dbv != null)
 				p.setDosboxVersion(dbv);
-			Files.copy(saved.toPath(), p.getConfigurationCanonicalFile().toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+			// byte for byte as it was (saving the profile would write it again in DBGL's own way); the state before the undo
+			// is kept in the history of the profile, so the undo can be undone there
+			Files.write(p.getConfigurationCanonicalFile().toPath(), then);
 			p.resetAndLoadConfiguration();
-			repo.update(p);
+			repo.updateKeepingConfigurationFile(p);
+			ProfileHistory.recordIfChanged(p, now);
 			ProfileWarnings.forget(p.getId());
 			restored.add(p.getId());
 		}
-		clear();
+		kept.keySet().removeAll(entries.keySet());
+		if (kept.isEmpty()) {
+			clear();
+		} else { // the others stay: their files and their lines in change.txt
+			for (Integer id: entries.keySet())
+				Files.deleteIfExists(new File(dir(), id + ".conf").toPath());
+			StringBuilder m = new StringBuilder(meta[0]).append('\n').append(meta[1]).append('\n');
+			kept.forEach((id, v) -> m.append(id).append('=').append(v).append('\n'));
+			Files.writeString(new File(dir(), META).toPath(), m.toString(), StandardCharsets.UTF_8);
+			changed();
+		}
 		return restored;
 	}
 
@@ -249,5 +324,6 @@ public final class BulkUndo {
 		if (files != null)
 			for (File f: files)
 				f.delete();
+		changed();
 	}
 }

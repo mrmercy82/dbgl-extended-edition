@@ -52,7 +52,8 @@ public class MountFactory {
 	}
 
 	/** a path of a "mount" command, until the first option */
-	private static final Pattern MOUNT_PATHS_PATRN = Pattern.compile("^\\s*mount\\s+[a-y0-3]\\s+(.*?)(?:\\s+-.*)?$", Pattern.CASE_INSENSITIVE);
+	/** the drive, then the paths and options: an option starts with "-" outside quotes ("a - b.iso" is one path) */
+	private static final Pattern MOUNT_PATHS_PATRN = Pattern.compile("^\\s*mount\\s+[a-y0-3]\\s+(.*)$", Pattern.CASE_INSENSITIVE);
 	private static final Pattern PATH_TOKEN_PATRN = Pattern.compile("\"([^\"]+)\"|(\\S+)");
 
 	/**
@@ -63,16 +64,28 @@ public class MountFactory {
 		Matcher m = MOUNT_PATHS_PATRN.matcher(mount);
 		if (!m.matches())
 			return false;
+		// options only images have ("-t iso", "-fs", "-ide"; "-size" is also there for folders, "-t hdd" in DOSBox-X): an image whatever its name, e.g. GOG's
+		// "gog.game"; and a file that is there with "-t cdrom" or "-t floppy" (DOSBox Staging 0.83 takes any file as an image)
+		boolean imageOptions = IMAGE_OPTIONS_PATRN.matcher(mount).find();
+		boolean driveOptions = DRIVE_TYPE_PATRN.matcher(mount).find();
 		Matcher t = PATH_TOKEN_PATRN.matcher(m.group(1));
 		int count = 0;
 		while (t.find()) {
+			if ((t.group(2) != null) && t.group(2).startsWith("-"))
+				break; // the options
 			String path = t.group(1) != null ? t.group(1): t.group(2);
-			if (!FilesUtils.isDiskImage(path))
+			File f = new File(FilenameUtils.separatorsToSystem(path));
+			if (f.isDirectory())
+				return false;
+			if (!FilesUtils.isDiskImage(path) && !imageOptions && !(driveOptions && f.isAbsolute() && f.isFile()))
 				return false;
 			count++;
 		}
 		return count > 0;
 	}
+
+	private static final Pattern IMAGE_OPTIONS_PATRN = Pattern.compile("\\s-(?:t\\s+iso\\b|fs\\s|ide\\b)", Pattern.CASE_INSENSITIVE);
+	private static final Pattern DRIVE_TYPE_PATRN = Pattern.compile("\\s-t\\s+(?:cdrom|floppy)\\b", Pattern.CASE_INSENSITIVE);
 
 	/**
 	 * Read a mount command. Parameters DBGL has no field for are kept as {@link Mount#getExtraOptions()}, and the line is

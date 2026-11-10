@@ -1,5 +1,7 @@
 /*
  *  Copyright (C) 2006-2025  Ronald Blankendaal
+ *  Modified for the DBGL Extended Edition by mrmercy82 (with the help of AI)
+ *  since 2026-11-01. Changes and their dates: CHANGELOG-en.txt, CHANGELOG-de.txt.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -47,7 +49,7 @@ public class DFendReloadedConfiguration {
 
 	public String loadDat(File profsPath, File confsPath) throws IOException {
 		StringBuilder warningsLog = new StringBuilder();
-		warningsLog.append(datConfiguration_.load(TextService.getInstance()));
+		warningsLog.append(datConfiguration_.loadDetectingCharset(TextService.getInstance()));
 		for (File profFile: FileUtils.listFiles(profsPath, new String[] {"prof"}, false)) {
 			File confFile = new File(confsPath, FilenameUtils.removeExtension(profFile.getName()) + FilesUtils.CONF_EXT);
 			Configuration prof = new Configuration();
@@ -62,9 +64,21 @@ public class DFendReloadedConfiguration {
 
 	public String loadProfile(File profFile) throws IOException {
 		StringBuilder warningsLog = new StringBuilder();
-		warningsLog.append(profiles_.get(profFile).getProf().load(TextService.getInstance()));
-		warningsLog.append(profiles_.get(profFile).load(TextService.getInstance()));
+		warningsLog.append(profiles_.get(profFile).getProf().loadDetectingCharset(TextService.getInstance()));
+		// without an exported .conf, the configuration is made from the .prof itself (since alpha 46)
+		if (hasConf(profFile))
+			warningsLog.append(profiles_.get(profFile).load(TextService.getInstance()));
 		return warningsLog.toString();
+	}
+
+	/** whether D-Fend exported a .conf for this profile */
+	public boolean hasConf(File profFile) {
+		File conf = profiles_.get(profFile).getConf().getCanonicalFile();
+		return (conf != null) && conf.isFile();
+	}
+
+	public Settings getProf(File profFile) {
+		return profiles_.get(profFile).getProf();
 	}
 
 	public List<File> getConfFiles() {

@@ -1,5 +1,7 @@
 /*
  *  Copyright (C) 2006-2025  Ronald Blankendaal
+ *  Modified for the DBGL Extended Edition by mrmercy82 (with the help of AI)
+ *  since 2026-11-07. Changes and their dates: CHANGELOG-en.txt, CHANGELOG-de.txt.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -183,6 +185,7 @@ public class TemplateRepository extends LoggingRepository<Template> {
 			log(transaction, LogEntry.Event.DUPLICATE, LogEntry.EntityType.TEMPLATE, template);
 			Template duplicate = TemplateFactory.createCopy(template);
 			duplicate.loadConfigurationData(TextService.getInstance(), template.getConfigurationString(), template.getConfigurationCanonicalFile());
+			duplicate.getConfiguration().setCharset(template.getConfiguration().getCharset()); // the copy in the same charset as the file
 			doAdd(transaction, duplicate);
 			log(transaction, LogEntry.Event.ADD, LogEntry.EntityType.TEMPLATE, duplicate);
 			duplicate.saveConfiguration();

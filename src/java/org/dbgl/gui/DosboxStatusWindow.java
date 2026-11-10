@@ -110,6 +110,12 @@ public class DosboxStatusWindow {
 	/** asked to show a setting of a profile (profile id, name of the setting), e.g. by the main window */
 	private static volatile java.util.function.BiConsumer<Integer, String> settingLinkHandler_;
 	private volatile int profileId_ = -1;
+	/** every line as shown (or hidden by "only warnings and errors"): to show them again when the box is changed */
+	private record Shown(String line, Color color, String setting, int[] repeats, boolean always) {
+	}
+
+	private final java.util.List<Shown> shown_ = new ArrayList<>();
+	private Button onlyProblems_;
 	private final java.util.List<int[]> linkRanges_ = new ArrayList<>();
 	private final java.util.List<String> linkSettings_ = new ArrayList<>();
 
@@ -170,13 +176,13 @@ public class DosboxStatusWindow {
 		} catch (RuntimeException e) {
 			// without a symbol then
 		}
-		GridLayout layout = new GridLayout(5, false);
+		GridLayout layout = new GridLayout(6, false);
 		layout.marginWidth = 4;
 		layout.marginHeight = 4;
 		shell_.setLayout(layout);
 
 		text_ = new StyledText(shell_, SWT.MULTI | SWT.READ_ONLY | SWT.V_SCROLL | SWT.H_SCROLL | SWT.BORDER);
-		text_.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 5, 1));
+		text_.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 6, 1));
 		// messages about a setting of the profile open the profile dialog there
 		text_.addListener(SWT.MouseUp, e -> {
 			String setting = (e.button == 1) && (text_.getSelectionCount() == 0) ? linkAt(e.x, e.y): null;
@@ -203,6 +209,14 @@ public class DosboxStatusWindow {
 		keepOpen_.setText(text("dialog.statuswindow.keepopen"));
 		keepOpen_.setSelection(SettingsService.getInstance().getBooleanValue("gui", "statuswindowkeepopen"));
 		keepOpen_.addListener(SWT.Selection, e -> SettingsService.getInstance().setBooleanValue("gui", "statuswindowkeepopen", keepOpen_.getSelection()));
+		// only what went wrong: errors and warnings (and when DOSBox started and ended); copying and saving keep all of it
+		onlyProblems_ = new Button(shell_, SWT.CHECK);
+		onlyProblems_.setText(text("dialog.statuswindow.onlyproblems"));
+		onlyProblems_.setSelection(SettingsService.getInstance().getBooleanValue("gui", "statuswindowonlyproblems"));
+		onlyProblems_.addListener(SWT.Selection, e -> {
+			SettingsService.getInstance().setBooleanValue("gui", "statuswindowonlyproblems", onlyProblems_.getSelection());
+			showAgain();
+		});
 		Label filler = new Label(shell_, SWT.NONE);
 		filler.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
 		Button copy = new Button(shell_, SWT.PUSH);
@@ -281,7 +295,54 @@ public class DosboxStatusWindow {
 
 	private void appendLine(String line, Color color) {
 		rawLog_.append(line).append(System.lineSeparator());
+		Shown s = new Shown(line, color, null, new int[1], true);
+		shown_.add(s);
 		appendVisibleLine(line, color);
+	}
+
+	private boolean visible(Shown s) {
+		return s.always() || (onlyProblems_ == null) || onlyProblems_.isDisposed() || !onlyProblems_.getSelection() || (s.color() == errorColor_) || (s.color() == warningColor_);
+	}
+
+	/** one line of DOSBox in the text: in its color, as a link if it names a setting */
+	private void showLine(Shown s) {
+		int start = text_.getCharCount();
+		appendVisibleLine(s.line(), s.color());
+		if (s.setting() != null) {
+			StyleRange range = new StyleRange();
+			range.start = start;
+			range.length = s.line().length();
+			range.foreground = s.color();
+			range.underline = true;
+			range.underlineStyle = SWT.UNDERLINE_LINK;
+			text_.setStyleRange(range);
+			linkRanges_.add(new int[] {start, start + s.line().length()});
+			linkSettings_.add(s.setting());
+		}
+	}
+
+	/** all lines again, as the box "only warnings and errors" says now */
+	private void showAgain() {
+		if (isGone())
+			return;
+		text_.setText("");
+		linkRanges_.clear();
+		linkSettings_.clear();
+		summaryStart_ = -1;
+		for (int i = 0; i < shown_.size(); i++) {
+			Shown s = shown_.get(i);
+			if (!visible(s))
+				continue;
+			if (s.always())
+				appendVisibleLine(s.line(), s.color());
+			else
+				showLine(s);
+			if (s.repeats()[0] > 0) {
+				if (i == shown_.size() - 1)
+					summaryStart_ = text_.getCharCount(); // more of it may follow
+				appendVisibleLine("    " + TextService.getInstance().get("dialog.statuswindow.repeated", new Object[] {s.repeats()[0]}), harmlessColor_);
+			}
+		}
 	}
 
 	private void appendVisibleLine(String line, Color color) {
@@ -344,6 +405,11 @@ public class DosboxStatusWindow {
 		if (key.equals(lastKey_)) {
 			rawLog_.append(line).append(System.lineSeparator());
 			repeatCount_++;
+			Shown last = shown_.isEmpty() ? null: shown_.get(shown_.size() - 1);
+			if (last != null)
+				last.repeats()[0] = repeatCount_;
+			if ((last != null) && !visible(last))
+				return;
 			String summary = "    " + TextService.getInstance().get("dialog.statuswindow.repeated", new Object[] {repeatCount_});
 			if (summaryStart_ == -1) {
 				summaryStart_ = text_.getCharCount();
@@ -372,20 +438,12 @@ public class DosboxStatusWindow {
 			color = warningColor_;
 			warnings_++;
 		}
-		int start = text_.getCharCount();
-		appendLine(line, color);
+		rawLog_.append(line).append(System.lineSeparator());
 		String setting = (profileId_ >= 0) && (settingLinkHandler_ != null) ? settingIn(line): null;
-		if (setting != null) {
-			StyleRange range = new StyleRange();
-			range.start = start;
-			range.length = line.length();
-			range.foreground = color;
-			range.underline = true;
-			range.underlineStyle = SWT.UNDERLINE_LINK;
-			text_.setStyleRange(range);
-			linkRanges_.add(new int[] {start, start + line.length()});
-			linkSettings_.add(setting);
-		}
+		Shown s = new Shown(line, color, setting, new int[1], false);
+		shown_.add(s);
+		if (visible(s))
+			showLine(s);
 		if ((color == errorColor_) || (color == warningColor_))
 			updateTitle(null);
 	}

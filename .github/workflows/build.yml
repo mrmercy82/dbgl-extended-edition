@@ -1,5 +1,6 @@
 # Builds dbgl.jar with the build.xml of this repository on every push and pull request, and runs the tests that need no
-# internet (org.dbgl.test.OfflineTests) on Linux and on Windows.
+# internet (org.dbgl.test.OfflineTests) on Linux and on Windows, a second time with the old charset of the system (on Windows
+# cp1252). Among them KeepEverythingTests: odd and random configuration files, nothing may get lost by saving.
 # The jar of the Linux run is attached to the run as an artifact ("dbgl-jar").
 name: Build
 
@@ -42,6 +43,15 @@ jobs:
           mkdir -p testrun
           cd testrun
           $RUN java -Ddbgl.testdata="$W/src/java/org/dbgl/test/data" -Ddbgl.officialconf="$W/src/dist/winshared/DOSBox-0.74-3/dosbox.conf" -cp "$CP" org.junit.runner.JUnitCore org.dbgl.test.OfflineTests
+      - name: Run the tests again with the old charset of the system (on Windows cp1252, as DBGL with older Java had it)
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then SEP=";"; LIBS="src/dist/shared/lib/* src/dist/winshared/lib/*"; RUN=""; else SEP=":"; LIBS="src/dist/shared/lib/* src/dist/linuxshared/lib/*"; RUN="xvfb-run -a"; fi
+          W="$GITHUB_WORKSPACE"
+          CP="$W/build_ant"
+          for j in $LIBS libtest/*; do CP="$CP$SEP$W/$j"; done
+          mkdir -p testrun2
+          cd testrun2
+          $RUN java -Dfile.encoding=COMPAT -Ddbgl.testdata="$W/src/java/org/dbgl/test/data" -Ddbgl.officialconf="$W/src/dist/winshared/DOSBox-0.74-3/dosbox.conf" -cp "$CP" org.junit.runner.JUnitCore org.dbgl.test.OfflineTests
       - uses: actions/upload-artifact@v4
         if: runner.os == 'Linux'
         with:
