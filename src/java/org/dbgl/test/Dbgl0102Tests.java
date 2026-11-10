@@ -1482,7 +1482,7 @@ public class Dbgl0102Tests {
 			for (int round = 0; round < 3; round++) {
 				Configuration c = new Configuration();
 				c.loadDataWithAutoexec(GenericTextService.getInstance(), text, null, null);
-				String written = c.toString(List.of());
+				String written = c.toString(List.of()).replace("\r\n", "\n"); // on Windows written with CRLF
 				assertTrue(written, written.contains(cases[i + 1]));
 				if (round > 0)
 					assertEquals(text, written); // the same with each saving
