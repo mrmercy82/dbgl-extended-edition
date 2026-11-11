@@ -155,6 +155,7 @@ public abstract class TemplateProfileBase extends GenerationAwareConfigurable {
 		if (configuration_.getFileLocation() != null) {
 			warningsLog.append(configuration_.reloadWithAutoexec(TextService.getInstance(), getDosboxNettoMountingPoints(), cwd));
 			org.dbgl.util.UnknownAutoexecLines.keepOnRead(configuration_.getAutoexec()); // lines DBGL does not know are not lost
+			loadedWithDosbox_ = dosboxVersion_ != null ? dosboxVersion_.getId(): -1;
 			if (!keepsAllSettings())
 				configuration_.removeDuplicateValuesIn(dosboxVersion_.getConfiguration());
 		}
@@ -194,13 +195,23 @@ public abstract class TemplateProfileBase extends GenerationAwareConfigurable {
 
 	public void saveConfiguration(boolean prepareOnly) throws IOException {
 		prepareSaving();
+		configuration_.setDbMountsOfNextRead(getDosboxNettoMountingPoints()); // see Configuration.textToSave
+		configuration_.setSameDosboxAsRead(sameDosboxAsRead());
 		configuration_.save(prepareOnly, getNettoMountingPoints());
 	}
 
 	/** the configuration file as saving would write it now (nothing written) */
 	public byte[] configurationBytesToSave() throws IOException {
 		prepareSaving();
+		configuration_.setDbMountsOfNextRead(getDosboxNettoMountingPoints());
+		configuration_.setSameDosboxAsRead(sameDosboxAsRead());
 		return configuration_.bytesToSave(false, getNettoMountingPoints());
+	}
+
+	private int loadedWithDosbox_ = -1; // the DOSBox version the configuration was read for last (alpha 47)
+
+	private boolean sameDosboxAsRead() {
+		return (dosboxVersion_ != null) && (dosboxVersion_.getId() == loadedWithDosbox_);
 	}
 
 	private void prepareSaving() {

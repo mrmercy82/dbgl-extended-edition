@@ -64,6 +64,8 @@ import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Combo;
 import org.eclipse.swt.widgets.Composite;
+import org.eclipse.swt.widgets.Control;
+import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Group;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Text;
@@ -98,6 +100,67 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 
 	protected EditConfigurableDialog(Shell parent, String dialogName) {
 		super(parent, dialogName);
+	}
+
+	@Override
+	protected void onShellInit() {
+		super.onShellInit();
+		// taking down the many fields of the dialog takes a second or two, during which DBGL did not answer: now the window is
+		// gone at once and DBGL goes on, the fields are taken down afterwards, a part at a time between other events (alpha 47)
+		shell_.addListener(SWT.Close, e -> {
+			if (!e.doit || closedAhead_)
+				return;
+			e.doit = false;
+			closedAhead_ = true;
+			shell_.setVisible(false);
+			disposeInParts(shell_);
+		});
+	}
+
+	/** the controls of a window disposed in parts of some 100 each, one part per pass of the event loop, then the window */
+	private static void disposeInParts(Shell shell) {
+		java.util.Deque<Control> parts = new java.util.ArrayDeque<>();
+		collectParts(shell, parts);
+		Display display = shell.getDisplay();
+		Runnable[] next = new Runnable[1];
+		next[0] = () -> {
+			try {
+				if (shell.isDisposed())
+					return;
+				Control part = parts.pollFirst();
+				if (part == null) {
+					shell.dispose();
+					return;
+				}
+				if (!part.isDisposed())
+					part.dispose();
+				display.timerExec(5, next[0]);
+			} catch (RuntimeException ex) {
+				ex.printStackTrace();
+				if (!shell.isDisposed())
+					shell.dispose();
+			}
+		};
+		display.timerExec(5, next[0]);
+	}
+
+	private static int collectParts(Composite composite, java.util.Deque<Control> parts) {
+		int total = 0;
+		for (Control c: composite.getChildren()) {
+			int n = (c instanceof Composite cc) ? count(cc): 1;
+			if ((n > 100) && (c instanceof Composite cc))
+				collectParts(cc, parts); // too big as one part: its children first, then itself
+			parts.addLast(c);
+			total += n;
+		}
+		return total;
+	}
+
+	private static int count(Composite composite) {
+		int n = 1;
+		for (Control c: composite.getChildren())
+			n += (c instanceof Composite cc) ? count(cc): 1;
+		return n;
 	}
 
 	protected abstract void doPerformDosboxConfAction(DosboxConfAction action, DosboxVersion newDosboxVersion);
@@ -489,6 +552,46 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		updateConfigurableByMoreSettings(configurable);
 
 		configurable.setBooter(booterRadio_.getSelection());
+	}
+
+	/** the [autoexec] as DBGL writes it for a profile or template */
+	protected static String autoexecText(TemplateProfileBase configurable) {
+		return configurable.getConfiguration().getAutoexec().toString(false, configurable.getNettoMountingPoints());
+	}
+
+	/**
+	 * Alpha 47: whether nothing done in this dialog changes what DBGL writes into [autoexec], so the [autoexec] of the file can
+	 * stay as it is written. True only if the profile is still as it was when the dialog opened as far as [autoexec] goes (no
+	 * mount added, no other DOSBox version), no field for [autoexec] was changed, and the changed fields for settings do not
+	 * change [autoexec] either: the fields not changed, written into the profile read again from its file, give the same
+	 * [autoexec] as all fields written into the profile now.
+	 *
+	 * @param now the profile, all fields written into it
+	 * @param atOpen its [autoexec] when the dialog opened (as read from the file)
+	 * @param dosboxAtOpen the id of its DOSBox version then
+	 * @param before the [autoexec] of now before the fields were written into it
+	 */
+	protected boolean autoexecUnchanged(org.dbgl.model.aggregate.Profile now, String atOpen, int dosboxAtOpen, String before) {
+		try {
+			if ((atOpen == null) || (now.getDosboxVersion() == null) || (now.getDosboxVersion().getId() != dosboxAtOpen) || !atOpen.equals(before))
+				return false;
+			org.dbgl.model.aggregate.Profile copy = org.dbgl.model.factory.ProfileFactory.create(now);
+			copy.resetAndLoadConfiguration(); // the file as it is
+			if (!autoexecText(copy).equals(atOpen))
+				return false;
+			Configuration combinedConf = copy.getCombinedConfiguration();
+			for (Chain c: metaControls_)
+				if (!c.hasChangedValue())
+					c.updateConfigurableByControl(copy, combinedConf);
+				else if (c.writesAutoexec())
+					return false;
+			if ((nativeCommandControl_ != null) && nativeCommandControl_.hasChangedValue())
+				return false;
+			return autoexecText(copy).equals(autoexecText(now));
+		} catch (java.io.IOException | RuntimeException e) {
+			e.printStackTrace();
+			return false;
+		}
 	}
 
 	/** a field for a setting that only some DOSBox versions have (mostly DOSBox-X, ECE and Daum) */
@@ -1674,7 +1777,13 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		org.dbgl.util.MidiRoms.Found found = mt32 ? org.dbgl.util.MidiRoms.mt32(c.getDosboxVersion(), combined, x): org.dbgl.util.MidiRoms.soundCanvas(c.getDosboxVersion(), combined);
 		if (found.dir() == null)
 			return text_.get("dialog.template.roms.none");
-		String models = found.models().isEmpty() ? text_.get("dialog.template.roms.unnamed"): String.join("\n", found.models()); // a model a line
+		String models; // recognised by their checksums, as DOSBox does it: a model a line
+		if (found.otherNames())
+			models = text_.get("dialog.template.roms.xnames");
+		else if (found.models().isEmpty())
+			models = text_.get("dialog.template.roms.incomplete");
+		else
+			models = String.join("\n", found.models());
 		String result = models + "\n" + text_.get("dialog.template.roms.in", new Object[] {found.dir().getPath(), found.files()});
 		if (!mt32 && !org.dbgl.util.MidiRoms.soundCanvasPlugin(c.getDosboxVersion()))
 			result += "\n" + text_.get("dialog.template.roms.noplugin");

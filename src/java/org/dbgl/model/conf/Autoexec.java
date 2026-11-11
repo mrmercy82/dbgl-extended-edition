@@ -177,11 +177,20 @@ public class Autoexec {
 	 */
 	public void placeLine(UnknownLine line, boolean markers) {
 		if (line.afterExit())
-			plainLines_[SECTIONS] += line.text() + SystemUtils.EOLN;
+			plainLines_[SECTIONS] = appended(plainLines_[SECTIONS], line.text());
 		else if (markers && !startLines_.contains(line.text()))
-			customSections_[line.section()] += line.text() + SystemUtils.EOLN;
+			customSections_[line.section()] = appended(customSections_[line.section()], line.text());
 		else
-			plainLines_[line.section()] += line.text() + SystemUtils.EOLN;
+			plainLines_[line.section()] = appended(plainLines_[line.section()], line.text());
+	}
+
+	/**
+	 * a line after the others; a section from the profile dialog ends without a line break (its field leaves it out): before alpha
+	 * 47 "SET PATH=C:\" and "cls" became the one line "SET PATH=C:\cls"
+	 */
+	private static String appended(String lines, String line) {
+		boolean open = StringUtils.isNotEmpty(lines) && !lines.endsWith("\n") && !lines.endsWith("\r");
+		return lines + (open ? SystemUtils.EOLN: "") + line + SystemUtils.EOLN;
 	}
 
 	/** take a kept line out again, wherever it was put (see {@link #placeLine(UnknownLine, boolean)}) */

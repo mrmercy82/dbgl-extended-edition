@@ -487,6 +487,55 @@ public class Dbgl0102Tests {
 	}
 
 	/**
+	 * Alpha 47: a mount added to a profile whose [autoexec] DBGL would write in another order (a start script with "win" at its
+	 * end): only the mount line is added, after the other ones, everything else stays as written. Removed again: as before.
+	 */
+	@Test
+	public void testOnlyMountLineAdded() throws IOException {
+		String before = "[cpu]\ncputype = pentium\n\n[autoexec]\n@ECHO OFF\ncls\nmount c .\n\nSET PATH=Z:\\;C:\\;C:\\WINDOWS;\nC:\\WINDOWS\\SMARTDRV.EXE\n\nc:\ncd\\\ncd windows\ncls\nwin\nexit\n";
+		Configuration c = new Configuration();
+		c.loadDataWithAutoexec(GenericTextService.getInstance(), before, null, null);
+		org.dbgl.util.UnknownAutoexecLines.keepOnRead(c.getAutoexec());
+		c.getAutoexec().addMount("mount E \"other\"");
+		String saved = c.textToSave(before, false, List.of()).replace("\r\n", "\n");
+		assertEquals(before.replace("mount c .\n", "mount c .\nmount E \"other\"\n"), saved);
+		assertEquals("mount d x", org.dbgl.model.conf.MountLines.patch("[autoexec]\nmount d x\nmount e y", "[autoexec]\nmount D \"x\"\nmount E \"y\"", "[autoexec]\nmount D \"x\"").replace("\r\n", "\n").substring(11));
+		assertNull(org.dbgl.model.conf.MountLines.patch("[autoexec]\nmount d x", "[autoexec]\nmount D \"x\"\nC:", "[autoexec]\nmount D \"x\"\nD:")); // more than a mount
+	}
+
+	/** Alpha 47: a line put after a section from the profile dialog (no line break at its end) stays a line of its own */
+	@Test
+	public void testPlacedLineAfterDialogSection() {
+		org.dbgl.model.conf.Autoexec a = new org.dbgl.model.conf.Autoexec();
+		a.setCustomSection(1, "SET PATH=Z:\\;C:\\");
+		a.placeLine(new org.dbgl.model.conf.Autoexec.UnknownLine("cls", 1, false), true);
+		assertEquals(List.of("SET PATH=Z:\\;C:\\", "cls"), List.of(a.getCustomSection(1).split("\\R")));
+	}
+
+	/**
+	 * Alpha 47: saving keeps the order of the sections and settings, the empty lines and settings as written ("fullscreen =
+	 * true"); a changed value is written as DBGL writes it, a new setting after the others of its section. An [autoexec] DBGL
+	 * would write as it reads it stays as written (a menu with CHOICE and GOTO stays in its order, "c:" stays "c:").
+	 */
+	@Test
+	public void testLayoutKeptOnSave() throws IOException {
+		String before = "[cpu]\ncycles=max\n\n\n[sdl]\nfullscreen = true\n\n# Ausgabe\noutput=opengl\n\n[autoexec]\n@echo off\nchoice /c:12\nif errorlevel 2 goto b\nmount c .\nc:\ngame.exe\ngoto end\n:b\nmount c .\nc:\nsetup.exe\n:end\n";
+		Configuration c = new Configuration();
+		c.loadDataWithAutoexec(GenericTextService.getInstance(), before, null, null);
+		org.dbgl.util.UnknownAutoexecLines.keepOnRead(c.getAutoexec());
+		assertEquals(before, c.textToSave(before, false, List.of()).replace("\r\n", "\n")); // nothing changed: the same
+		c.setValue("cpu", "cycles", "auto");
+		c.setValue("sdl", "autolock", "true");
+		c.setValue("render", "aspect", "true");
+		String saved = c.textToSave(before, false, List.of()).replace("\r\n", "\n");
+		assertEquals("[cpu]\ncycles=auto\n\n\n[sdl]\nfullscreen = true\n\n# Ausgabe\noutput=opengl\nautolock=true\n\n[render]\naspect=true\n\n[autoexec]" + before.substring(before.indexOf("[autoexec]") + 10), saved);
+		Configuration again = new Configuration();
+		again.loadDataWithAutoexec(GenericTextService.getInstance(), saved, null, null);
+		org.dbgl.util.UnknownAutoexecLines.keepOnRead(again.getAutoexec());
+		assertEquals(saved, again.textToSave(saved, false, List.of()).replace("\r\n", "\n")); // saving twice: the same
+	}
+
+	/**
 	 * Found with configurations from the internet (alpha 46): DOSBox reads "[SDL]" and "[Autoexec]" as [sdl] and [autoexec].
 	 * DBGL did not: the value of "[SDL]" was not shown, and the lines of "[Autoexec]" were gone after saving.
 	 */
@@ -2336,5 +2385,18 @@ public class Dbgl0102Tests {
 		assertEquals("2.1", org.dbgl.util.MidiRoms.patchVersion(dir));
 		java.nio.file.Files.writeString(new File(dir, "ULTRASND.INI").toPath(), "[Ultrasound]\r\n# Ver: 9.9\r\n");
 		assertNull(org.dbgl.util.MidiRoms.patchVersion(dir)); // not in its head: no version
+	}
+
+	/** alpha 47: MT-32 ROMs recognised by their checksums, as DOSBox does it (Munt): a model needs its control and its PCM ROM */
+	@Test
+	public void testMt32RomsByChecksum() {
+		String ctrl107 = "b083518fffb7f66b03c23b7eb4f868e62dc5a987", ctrlCm102 = "a439fbb390da38cada95a7cbb1d6ca199cd66ef8";
+		String pcmMt32 = "f6b1eebc4b2d200ec6d3d21d51325d5b48c60252", pcmCm32l = "289cc298ad532b702461bfc738009d9ebe8025ea", pcmCm32lHigh = "3ad889fde5db5b6437cbc2eb6e305312fec3df93";
+		assertEquals(java.util.Set.of("MT-32 v1.07"), org.dbgl.util.MidiRoms.mt32ModelsOfSums(List.of(ctrl107, pcmMt32)));
+		assertEquals(java.util.Set.of("CM-32L v1.02"), org.dbgl.util.MidiRoms.mt32ModelsOfSums(List.of(ctrlCm102, pcmCm32l)));
+		assertEquals(java.util.Set.of("CM-32L v1.02", "MT-32 v1.07"), org.dbgl.util.MidiRoms.mt32ModelsOfSums(List.of(ctrl107, ctrlCm102, pcmMt32, pcmCm32lHigh)));
+		assertEquals(java.util.Set.of(), org.dbgl.util.MidiRoms.mt32ModelsOfSums(List.of(ctrl107))); // no PCM ROM: nothing whole
+		assertEquals(java.util.Set.of(), org.dbgl.util.MidiRoms.mt32ModelsOfSums(List.of(ctrlCm102, pcmMt32))); // the PCM ROM of the MT-32 alone is not the one of the CM-32L
+		assertEquals(java.util.Set.of("MT-32 v1.07"), org.dbgl.util.MidiRoms.mt32ModelsOfSums(List.of("13f06b38f0d9e0fc050b6503ab777bb938603260", "c55e165487d71fa88bd8c5e9c083bc456c1a89aa", pcmMt32))); // halves
 	}
 }

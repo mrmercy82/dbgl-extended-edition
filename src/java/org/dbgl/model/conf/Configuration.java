@@ -51,6 +51,12 @@ public class Configuration extends Settings {
 	private Autoexec autoexec_;
 	private boolean allSettings_;
 	private java.nio.charset.Charset charset_; // null: the charset of the system (as FileReader and FileWriter use it)
+	// how the configuration was read last: to tell whether its [autoexec] is the same as it was in the file (see textToSave)
+	private ITextService loadedText_;
+	private File loadedFile_, loadedCwd_;
+	private List<Mount> loadedDbMounts_, nextReadDbMounts_;
+	private boolean keepAutoexecAsWritten_;
+	private Boolean sameDosboxAsRead_; // null: not known (no profile), as true
 
 	public Configuration() {
 		super();
@@ -65,6 +71,11 @@ public class Configuration extends Settings {
 		autoexec_ = new Autoexec(configuration.getAutoexec());
 		allSettings_ = configuration.allSettings_;
 		charset_ = configuration.charset_;
+		loadedText_ = configuration.loadedText_; // the profile editor saves a copy
+		loadedFile_ = configuration.loadedFile_;
+		loadedCwd_ = configuration.loadedCwd_;
+		loadedDbMounts_ = configuration.loadedDbMounts_;
+		nextReadDbMounts_ = configuration.nextReadDbMounts_;
 	}
 
 	/**
@@ -227,6 +238,10 @@ public class Configuration extends Settings {
 		List<String> autoexecLines = new ArrayList<>();
 		List<String> customLines = new ArrayList<>();
 		String content = org.apache.commons.io.IOUtils.toString(reader);
+		loadedText_ = text;
+		loadedFile_ = file;
+		loadedCwd_ = cwd;
+		loadedDbMounts_ = dbMounts == null ? null: new ArrayList<>(dbMounts);
 		if (content.lines().anyMatch(l -> l.trim().equalsIgnoreCase(ALL_SETTINGS_MARKER)))
 			allSettings_ = true;
 		warningsLog.append(loadData(text, new StringReader(content), file, AUTOEXEC_SECTION_NAME, autoexecLines, CUSTOM_SECTION, customLines));
@@ -271,22 +286,97 @@ public class Configuration extends Settings {
 	/** the file as save would write it */
 	public byte[] bytesToSave(boolean prepareOnly, List<Mount> combinedMountingPoints) throws IOException {
 		File file = fileLocation_.getCanonicalFile();
-		StringWriter data = new StringWriter();
-		try (BufferedWriter writer = new BufferedWriter(data)) {
-			writeData(writer, prepareOnly, combinedMountingPoints);
-		}
 		java.nio.charset.Charset readAs = charset_ != null ? charset_: java.nio.charset.Charset.defaultCharset();
-		// comments ("# ...") and lines DBGL cannot read stay where they were (before alpha 46 they were gone after saving)
 		File old = keepForeignLinesFrom_ != null ? keepForeignLinesFrom_: file;
-		String content = data.toString();
-		if (old.isFile())
-			content = ForeignLines.keep(new String(java.nio.file.Files.readAllBytes(old.toPath()), readAs), content);
+		String content = textToSave(old.isFile() ? new String(java.nio.file.Files.readAllBytes(old.toPath()), readAs): null, prepareOnly, combinedMountingPoints);
 		// a character the old charset does not have (e.g. typed in the editor): in the charset of the system, as before
 		java.nio.charset.Charset charset = (charset_ != null) && charset_.newEncoder().canEncode(content) ? charset_: java.nio.charset.Charset.defaultCharset();
 		return content.getBytes(charset);
 	}
 
+	/**
+	 * The text saving writes, the file having been before as given (null: no file yet). Comments ("# ...") and lines DBGL cannot
+	 * read stay where they were (before alpha 46 they were gone after saving); the order of the sections and settings and the
+	 * empty lines of the file stay as they were, and an [autoexec] DBGL would write just as it reads it from the file stays
+	 * exactly as it was written ("c:" not "C:", no "cd \" added, the lines of a menu with CHOICE and GOTO in their order; alpha
+	 * 47).
+	 */
+	public String textToSave(String before, boolean prepareOnly, List<Mount> combinedMountingPoints) {
+		String keptAutoexec = before == null ? null: keepAutoexecAsWritten_ ? ConfLayout.autoexecOf(before): unchangedAutoexec(before, prepareOnly, combinedMountingPoints);
+		StringWriter data = new StringWriter();
+		try (BufferedWriter writer = new BufferedWriter(data)) {
+			writeData(writer, prepareOnly, combinedMountingPoints, keptAutoexec);
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+		String content = data.toString();
+		return before != null ? ConfLayout.keep(before, ForeignLines.keep(before, content)): content;
+	}
+
+	/**
+	 * The [autoexec] of the file as it was written there, if DBGL writes the same [autoexec] now as it does after reading the
+	 * file again (the same way as the last time: nothing changed in it, or nothing DBGL would write differently). Then the file
+	 * says the same, in the words of its author. Else, or when unsure (the file read in another way, several [autoexec]
+	 * sections), null: written as DBGL writes it.
+	 */
+	/**
+	 * The profile editor found that nothing done in it changes what DBGL writes into [autoexec] (see
+	 * EditConfigurableDialog.autoexecUnchanged): the [autoexec] of the file is written again exactly as it is, even where DBGL
+	 * would write it in another way (alpha 47; before, changing the memory size could turn the order of a long start script
+	 * around).
+	 */
+	public void keepAutoexecAsWritten() {
+		keepAutoexecAsWritten_ = true;
+	}
+
+	/**
+	 * The mounts of the DOSBox version the file will be read with next (the one of the profile now, after switching to another
+	 * one too): the [autoexec] as written must mean the same with them, as DBGL reads it then.
+	 */
+	public void setDbMountsOfNextRead(List<Mount> dbMounts) {
+		nextReadDbMounts_ = dbMounts == null ? null: new ArrayList<>(dbMounts);
+	}
+
+	/** whether the profile is saved for the DOSBox version it was read with (not switched to another one) */
+	public void setSameDosboxAsRead(boolean same) {
+		sameDosboxAsRead_ = same;
+	}
+
+	private String unchangedAutoexec(String before, boolean prepareOnly, List<Mount> combinedMountingPoints) {
+		if (loadedText_ == null)
+			return null;
+		String raw = ConfLayout.autoexecOf(before);
+		if (raw == null)
+			return null;
+		try {
+			String now = autoexec_.toString(prepareOnly, combinedMountingPoints);
+			String read = readAutoexec(before, prepareOnly, combinedMountingPoints);
+			if (read.equals(now))
+				return raw;
+			// only mounts changed (one added in the profile dialog): only those lines, if the file then says what DBGL means; not
+			// when switching to another DOSBox version (its mounts read differently): then written as DBGL writes it, as before
+			if (Boolean.FALSE.equals(sameDosboxAsRead_))
+				return null;
+			String patched = MountLines.patch(raw, read, now);
+			return (patched != null) && readAutoexec(ConfLayout.withAutoexec(before, patched), prepareOnly, combinedMountingPoints).equals(now) ? patched: null;
+		} catch (IOException | RuntimeException e) {
+			return null;
+		}
+	}
+
+	/** the [autoexec] DBGL writes for a text, read as this configuration was read last (or will be read next) */
+	private String readAutoexec(String text, boolean prepareOnly, List<Mount> combinedMountingPoints) throws IOException {
+		Configuration fresh = new Configuration();
+		fresh.loadDataWithAutoexec(loadedText_, text, loadedFile_, nextReadDbMounts_ != null ? nextReadDbMounts_: loadedDbMounts_, loadedCwd_);
+		org.dbgl.util.UnknownAutoexecLines.keepOnRead(fresh.getAutoexec());
+		return fresh.getAutoexec().toString(prepareOnly, combinedMountingPoints);
+	}
+
 	private void writeData(BufferedWriter writer, boolean prepareOnly, List<Mount> combinedMountingPoints) throws IOException {
+		writeData(writer, prepareOnly, combinedMountingPoints, null);
+	}
+
+	private void writeData(BufferedWriter writer, boolean prepareOnly, List<Mount> combinedMountingPoints, String autoexec) throws IOException {
 		if (allSettings_)
 			writer.write(ALL_SETTINGS_MARKER + SystemUtils.EOLN + SystemUtils.EOLN);
 		writer.write(sections_.toString());
@@ -297,7 +387,7 @@ public class Configuration extends Settings {
 			result.append(CUSTOM_SECTION[1]).append(SystemUtils.EOLN).append(SystemUtils.EOLN);
 			writer.write(result.toString());
 		}
-		writer.write(autoexec_.toString(prepareOnly, combinedMountingPoints));
+		writer.write(autoexec != null ? autoexec: autoexec_.toString(prepareOnly, combinedMountingPoints));
 	}
 
 	public void removeUnequalValuesIn(Configuration configuration) {

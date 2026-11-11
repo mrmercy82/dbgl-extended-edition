@@ -434,6 +434,17 @@ public final class ProfileFindings {
 				solution = "movebehinddrive";
 				fix = new TextFix((p, t) -> t.moveBehind(cds, driveLine));
 			}
+			case "gusnopatches" -> {
+				// the folder ULTRASND beside DOSBox: mounted as a drive of its own, ultradir on it (args: dir, drive, host, letter, folder)
+				if (pr.args().length > 4) {
+					String letter = String.valueOf(pr.args()[3]), folder = String.valueOf(pr.args()[4]);
+					solution = "mountultrasnd";
+					fix = new TextFix((p, t) -> {
+						t.insertAutoexecFirst("mount " + letter + " \"" + folder + "\"");
+						t.setRaw("gus", "ultradir", letter + ":\\");
+					});
+				}
+			}
 			case "longdosnames", "cdrelative", "drivebeforemount" -> {
 				solution = "rewrite";
 				fix = REWRITE;
@@ -782,6 +793,25 @@ public final class ProfileFindings {
 			if ((at > 0) && !lines_.get(at - 1).trim().isEmpty())
 				add.add(0, "");
 			lines_.addAll(at, add);
+		}
+
+		/**
+		 * A line put first in [autoexec] (e.g. a mount line, before the lines that start the game), the section added if there
+		 * is none; in the charset of the file.
+		 */
+		public void insertAutoexecFirst(String line) {
+			String raw = new String(line.getBytes(charset()), java.nio.charset.StandardCharsets.ISO_8859_1);
+			for (int i = 0; i < lines_.size(); i++) {
+				String h = header(lines_.get(i));
+				if ((h != null) && h.equalsIgnoreCase("autoexec")) {
+					lines_.add(i + 1, raw);
+					return;
+				}
+			}
+			if (!lines_.isEmpty() && !lines_.get(lines_.size() - 1).trim().isEmpty())
+				lines_.add("");
+			lines_.add("[autoexec]");
+			lines_.add(raw);
 		}
 
 		/** the first line that is this one (trimmed, as in the file) replaced, or removed (replacement null); false if not there */

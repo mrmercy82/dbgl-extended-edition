@@ -283,6 +283,48 @@ public final class EditionUpdater {
 		}
 	}
 
+	/**
+	 * After an update installed with one click (its log ends with "Done"): the archive downloaded for it, still in the work
+	 * folder; null if there is none (nothing installed, already cleaned up, or the update failed: then everything stays there
+	 * to see what went wrong).
+	 */
+	public static File installedArchive() {
+		File work = workDir();
+		File log = new File(work, "update-log.txt");
+		try {
+			if (!log.isFile() || Files.readAllLines(log.toPath(), StandardCharsets.UTF_8).stream().noneMatch(l -> l.trim().equals("Done")))
+				return null;
+		} catch (IOException e) {
+			return null;
+		}
+		File[] zips = work.listFiles(f -> f.isFile() && f.getName().toLowerCase().endsWith(".zip"));
+		return (zips != null) && (zips.length > 0) ? zips[0]: null;
+	}
+
+	/**
+	 * Clean up after an installed update (alpha 47): the unpacked files and the copy of the installer are deleted, the logs
+	 * stay; the downloaded archive goes into the backup folder if wanted (to install it again without GitHub), else it is deleted.
+	 *
+	 * @return where the archive is kept, or null
+	 */
+	public static File cleanUp(File archive, boolean keepArchive) throws IOException {
+		File work = workDir();
+		File kept = null;
+		if ((archive != null) && archive.isFile()) {
+			if (keepArchive) {
+				File backupDir = org.dbgl.service.BackupService.defaultAutoBackupDir();
+				Files.createDirectories(backupDir.toPath());
+				kept = new File(backupDir, archive.getName());
+				Files.move(archive.toPath(), kept.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+			} else {
+				Files.delete(archive.toPath());
+			}
+		}
+		org.apache.commons.io.FileUtils.deleteQuietly(new File(work, "files"));
+		org.apache.commons.io.FileUtils.deleteQuietly(new File(work, "dbgl-updater.jar"));
+		return kept;
+	}
+
 	/** the installer: args pid, folder with the new files, installation folder, then the command to start DBGL again */
 	public static void main(String[] args) throws Exception {
 		File log = new File(new File(args[1]).getParentFile(), "update-log.txt");

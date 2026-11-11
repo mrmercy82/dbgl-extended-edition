@@ -664,6 +664,12 @@ public class Chain {
 		return StringUtils.EMPTY;
 	}
 
+	/** whether the field writes into [autoexec] (or DBGL's own section, the native commands) rather than a setting */
+	public boolean writesAutoexec() {
+		return (builder_.autoexecStringUpdater_ != null) || (builder_.autoexecIndexedStringUpdater_ != null) || (builder_.customSectionUpdater_ != null)
+				|| (builder_.nativeCommandsUpdater_ != null);
+	}
+
 	public String getCurrentStringValue() {
 		String[] values = builder_.controls_.stream().map(this::getFieldValue).filter(Objects::nonNull).toArray(String[]::new);
 		return values.length == builder_.controls_.size() ? builder_.convertor_.toConfValue(null, values): null;

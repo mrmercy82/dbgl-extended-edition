@@ -4,6 +4,30 @@ DBGL Extended Edition - Changes since 0.100 beta 17
 Based on DBGL 0.100 beta 17 by Ronald Blankendaal (https://dbgl.org), source code. Newest version first.
 
 
+0.101 alpha 47 (2026-11-11)
+---------------------------
+Fixed
+- Saving leaves a profile file as it was: order, empty lines, the way
+  settings are written and an unchanged [autoexec] stay; only what was
+  changed is changed (only the one mount line when a drive is added).
+  Saving twice no longer changes anything.
+- Profile editor: a changed setting mixed up a long start script ("win"
+  before "cd windows"); an unknown line in "Before Launch" was added to
+  its last line.
+- Profile editor: OK and Cancel without waiting one or two seconds.
+
+New
+- MT-32/CM-32L and Sound Canvas ROMs are recognised by their checksums
+  (model and version, Sound Canvas also in subfolders), with a hint for
+  incomplete ROMs.
+- "Check profiles": a missing ULTRASND folder can be solved with one click.
+- "Switch profile": "Show the whole file" in the preview.
+- After a one-click update: keep the installation file (in the backup
+  folder) or delete it.
+- For bug reports: with a file slowwatch.txt in the DBGL folder, DBGL
+  writes slow-<date>.txt for delays over 0.8 s.
+
+
 0.101 alpha 46 (2026-11-10)
 ---------------------------
 Fixed

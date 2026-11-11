@@ -68,6 +68,73 @@ public final class FreezeWatch {
 		watch.setDaemon(true);
 		watch.setPriority(Thread.MIN_PRIORITY);
 		watch.start();
+		if (new File(dir, "slowwatch").exists() || new File(dir, "slowwatch.txt").exists())
+			startSlowWatch(display, dir);
+	}
+
+	/**
+	 * For a report about short delays (alpha 47): with a file "slowwatch" (or "slowwatch.txt") in the folder of DBGL, every time
+	 * the window does not answer for more than 0.8 seconds, where DBGL spent that time is written to slow-<date>.txt: the
+	 * places in the program, each with how long it was seen there (looked at every 50 ms). At most 30 files per start.
+	 */
+	private static void startSlowWatch(Display display, File dir) {
+		Thread ui = display.getThread();
+		Thread watch = new Thread(() -> {
+			int files = 0;
+			java.util.concurrent.atomic.AtomicLong answered = new java.util.concurrent.atomic.AtomicLong(System.currentTimeMillis());
+			long sent = 0;
+			boolean pending = false;
+			java.util.Map<String, Integer> seen = new java.util.LinkedHashMap<>();
+			while (!display.isDisposed() && (files < 30)) {
+				try {
+					Thread.sleep(50);
+				} catch (InterruptedException e) {
+					return;
+				}
+				long now = System.currentTimeMillis();
+				if (pending && (answered.get() >= sent)) { // answered again
+					long stall = answered.get() - sent;
+					if ((stall > 800) && !seen.isEmpty()) {
+						writeSlow(dir, stall, seen);
+						files++;
+					}
+					seen.clear();
+					pending = false;
+				}
+				if (!pending) {
+					sent = now;
+					pending = true;
+					try {
+						display.asyncExec(() -> answered.set(System.currentTimeMillis()));
+					} catch (org.eclipse.swt.SWTException e) {
+						return;
+					}
+				} else if (now - sent > 300) {
+					StringBuilder sb = new StringBuilder();
+					int n = 0;
+					for (StackTraceElement e: ui.getStackTrace()) {
+						if (n++ >= 14)
+							break;
+						sb.append("\tat ").append(e).append('\n');
+					}
+					seen.merge(sb.toString(), 1, Integer::sum);
+				}
+			}
+		}, "DBGL slow watch");
+		watch.setDaemon(true);
+		watch.start();
+	}
+
+	private static void writeSlow(File dir, long stall, java.util.Map<String, Integer> seen) {
+		StringBuilder sb = new StringBuilder("DBGL did not answer for " + stall + " ms (" + LocalDateTime.now() + "), Java " + System.getProperty("java.version") + ", "
+				+ System.getProperty("os.name") + " " + System.getProperty("os.version") + "\n\n");
+		seen.entrySet().stream().sorted((a, b) -> b.getValue() - a.getValue()).forEach(e -> sb.append(e.getValue() * 50).append(" ms:\n").append(e.getKey()).append('\n'));
+		File file = new File(dir, "slow-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss-SSS")) + ".txt");
+		try {
+			Files.writeString(file.toPath(), sb, StandardCharsets.UTF_8);
+		} catch (IOException e) {
+			System.err.println(sb);
+		}
 	}
 
 	private static boolean write(File dir, long late) {

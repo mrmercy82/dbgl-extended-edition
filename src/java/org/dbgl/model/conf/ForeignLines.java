@@ -124,15 +124,23 @@ public final class ForeignLines {
 			lines.remove(lines.size() - 1);
 		// a line DBGL writes itself as well is not kept twice; counted, so that repeated comments ("# ----" in each section of
 		// a file written by "config -writeconf") all stay (before, only the first of them did; found by review, alpha 46)
+		// in its own section only: a comment of [sdl] the same as one in [autoexec] went to [autoexec] (alpha 47)
 		Map<String, Integer> written = new java.util.HashMap<>();
-		for (String l: lines)
-			written.merge(l.trim(), 1, Integer::sum);
+		String region = null;
+		for (String l: lines) {
+			String h = header(l.trim());
+			if (h != null)
+				region = h;
+			else
+				written.merge(region + "\n" + l.trim(), 1, Integer::sum);
+		}
 		for (Map.Entry<Anchor, List<String>> e: foreign.entrySet()) {
 			List<String> add = new ArrayList<>();
 			for (String l: e.getValue()) {
-				Integer n = written.get(l.trim());
+				String id = (e.getKey().kind().equals("header") ? null: e.getKey().section()) + "\n" + l.trim(); // before a header: before any section
+				Integer n = written.get(id);
 				if ((n != null) && (n > 0))
-					written.put(l.trim(), n - 1);
+					written.put(id, n - 1);
 				else
 					add.add(l);
 			}

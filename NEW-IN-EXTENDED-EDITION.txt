@@ -16,6 +16,16 @@ Extended Edition (source code, downloads, reporting problems):
 https://github.com/mrmercy82/dbgl-extended-edition
 
 
+NEWEST IN 0.101 ALPHA 47
+------------------------
+  - Saving leaves a profile file as it was; only what was changed is
+    changed. Long start scripts stay intact in the profile editor.
+  - Profile editor: OK and Cancel without waiting.
+  - MT-32 and Sound Canvas ROMs are recognised by their checksums.
+  - "Check profiles": a missing ULTRASND folder can be solved with one click.
+  - After an update: keep or delete the installation file.
+
+
 NEWEST IN 0.101 ALPHA 46
 ------------------------
   - Saving a profile works much more reliably.

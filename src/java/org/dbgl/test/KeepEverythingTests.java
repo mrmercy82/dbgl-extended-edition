@@ -50,7 +50,7 @@ public class KeepEverythingTests {
 		Configuration conf = new Configuration();
 		conf.loadDataWithAutoexec(GenericTextService.getInstance(), text, null, null);
 		UnknownAutoexecLines.keepOnRead(conf.getAutoexec());
-		return ForeignLines.keep(text, conf.toString(List.of()));
+		return conf.textToSave(text, false, List.of());
 	}
 
 	private static List<String> comments(String text) {
@@ -145,5 +145,5 @@ public class KeepEverythingTests {
 	}
 
 	/** how many of the random files are still changed by a second saving (see testRandomFiles) */
-	private static final int LIMIT = 95; // alpha 46: 91
+	private static final int LIMIT = 0; // alpha 46: 91, alpha 47: none (order, empty lines and [autoexec] kept as written)
 }

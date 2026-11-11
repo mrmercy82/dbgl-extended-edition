@@ -16,6 +16,16 @@ Extended Edition (Quellcode, Downloads, Fehler melden):
 https://github.com/mrmercy82/dbgl-extended-edition
 
 
+DAS NEUESTE IN 0.101 ALPHA 47
+-----------------------------
+  - Speichern lässt eine Profildatei so, wie sie war; geändert wird nur,
+    was geändert wurde. Lange Startskripte bleiben im Profileditor heil.
+  - Profileditor: OK und Abbrechen ohne Wartezeit.
+  - MT-32- und Sound-Canvas-ROMs werden an ihren Prüfsummen erkannt.
+  - "Profile prüfen": fehlender ULTRASND-Ordner mit einem Klick lösbar.
+  - Nach einem Update: Installationsdatei behalten oder löschen.
+
+
 DAS NEUESTE IN 0.101 ALPHA 46
 -----------------------------
   - Das Speichern eines Profils funktioniert deutlich zuverlässiger.

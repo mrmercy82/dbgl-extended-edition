@@ -122,7 +122,7 @@ public abstract class BaseDialog<T> extends Dialog {
 
 		onShellOpened();
 
-		while (!shell_.isDisposed()) {
+		while (!shell_.isDisposed() && !closedAhead_) {
 			shellDispatchCallback();
 			if (!display_.readAndDispatch()) {
 				display_.sleep();
@@ -211,6 +211,12 @@ public abstract class BaseDialog<T> extends Dialog {
 
 	protected void onShellInit() {
 	}
+
+	/**
+	 * EE alpha 47: the window is closed (hidden), open() returns, its widgets are taken down afterwards (see
+	 * EditConfigurableDialog: thousands of them took one or two seconds, while DBGL did not answer).
+	 */
+	protected boolean closedAhead_;
 
 	protected abstract String getDialogTitle();
 

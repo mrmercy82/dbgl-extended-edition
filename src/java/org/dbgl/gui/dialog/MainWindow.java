@@ -292,6 +292,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		checkAllProfilesInBackground();
 
 		display_.asyncExec(this::autoBackupIfDue);
+		display_.asyncExec(this::cleanUpAfterEditionUpdate);
 		// if the window ever stops answering: what DBGL was doing, written to freeze-<date>.txt for a report
 		org.dbgl.util.FreezeWatch.start(display_, org.dbgl.service.FileLocationService.getInstance().getDataDir());
 
@@ -759,6 +760,28 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			Mess_.on(shell_).key("dialog.main.editionupdate.none", new Object[] {Constants.EDITION_NAME, org.dbgl.util.EditionUpdateChecker.readable(Constants.PROGRAM_VERSION)}).display();
 		else
 			offerEditionRelease(result.newer());
+	}
+
+	/**
+	 * First start after an update installed with one click: keep its installation archive (in the backup folder, to install it
+	 * again if GitHub can no longer be reached) or delete it; the other files of the update are deleted either way (alpha 47).
+	 */
+	private void cleanUpAfterEditionUpdate() {
+		File archive = org.dbgl.util.EditionUpdater.installedArchive();
+		if ((archive == null) || shell_.isDisposed())
+			return;
+		org.eclipse.swt.widgets.MessageBox box = new org.eclipse.swt.widgets.MessageBox(shell_, SWT.ICON_QUESTION | SWT.YES | SWT.NO);
+		box.setText(text_.get("dialog.main.menu.editionupdate").replace("&", "").replace("...", ""));
+		box.setMessage(text_.get("dialog.main.editionupdate.keeparchive", new Object[] {Constants.EDITION_NAME,
+			org.dbgl.util.EditionUpdateChecker.readable(Constants.PROGRAM_VERSION), archive.getName(), (archive.length() + 512 * 1024) / (1024 * 1024),
+			org.dbgl.service.BackupService.defaultAutoBackupDir().getPath()}));
+		box.setButtonLabels(java.util.Map.of(SWT.YES, text_.get("dialog.main.editionupdate.keep"), SWT.NO, text_.get("dialog.main.editionupdate.delete")));
+		boolean keep = box.open() == SWT.YES;
+		try {
+			org.dbgl.util.EditionUpdater.cleanUp(archive, keep);
+		} catch (IOException e) {
+			Mess_.on(shell_).exception(e).warning();
+		}
 	}
 
 	private void offerEditionRelease(org.dbgl.util.EditionUpdateChecker.Release r) {

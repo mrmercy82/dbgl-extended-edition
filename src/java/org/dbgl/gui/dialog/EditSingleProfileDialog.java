@@ -93,6 +93,9 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 	private final String sendTo_;
 	private final boolean editing_;
 	private final boolean focusOnTitle_;
+	// [autoexec] and DOSBox version as read when the dialog opens: to tell whether [autoexec] stays as written (alpha 47)
+	private String autoexecAtOpen_;
+	private int dosboxAtOpen_ = -1;
 
 	public EditSingleProfileDialog(Shell parent, Profile prof, String sendTo, boolean focusOnTitle) {
 		super(parent);
@@ -216,6 +219,8 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 			}
 
 			warningsLog.append(profile_.resetAndLoadConfiguration());
+			autoexecAtOpen_ = autoexecText(profile_);
+			dosboxAtOpen_ = profile_.getDosboxVersion() != null ? profile_.getDosboxVersion().getId(): -1;
 
 			if (StringUtils.isNotBlank(warningsLog))
 				Mess_.on(getParent()).txt(warningsLog.toString()).warning();
@@ -734,11 +739,17 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 				if (editing_ && (org.dbgl.gui.controls.CharsetQuestion.ask(shell_, java.util.List.of(profile_)) == org.dbgl.gui.controls.CharsetQuestion.Answer.CANCEL))
 					return;
 				try {
+					String autoexecBefore = editing_ ? autoexecText(profile_): null;
 					try (org.dbgl.gui.controls.UiProgress progress = new org.dbgl.gui.controls.UiProgress(shell_, text_.get("dialog.profile.working"), 2)) {
 						updateConfigurableByControls(profile_);
 						progress.step();
 					}
-					askUnknownAutoexecLines(); // kept lines go straight into the configuration saved below
+					// nothing done here changes [autoexec]: it stays as written in the file, lines DBGL does not know too (no question)
+					if (editing_ && autoexecUnchanged(profile_, autoexecAtOpen_, dosboxAtOpen_, autoexecBefore))
+						profile_.getConfiguration().keepAutoexecAsWritten();
+					else if (!(editing_ && org.dbgl.model.conf.MountLines.onlyMountsDiffer(autoexecAtOpen_, autoexecText(profile_))))
+						askUnknownAutoexecLines(); // kept lines go straight into the configuration saved below
+					// (only mounts changed: only those lines of [autoexec] change, the others stay as written, no question either)
 
 					// saving (database, configuration file, history, extras) in the background: with a progress bar when it takes a moment
 					// (without Cancel: half saved is worse than waiting)
@@ -860,7 +871,8 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 	}
 
 	private void usePc98MachineIfNeeded() {
-		computeAllPages(profile_);
+		// only the pages shown so far: the others changed nothing (before alpha 47 all 50 pages were built here first, which took
+		// two seconds on Windows after each OK, for profiles without a .HDI too)
 		updateConfigurableByControls(profile_);
 		if (profile_.ensurePc98MachineForHdi())
 			updateControlsByConfigurable(profile_);

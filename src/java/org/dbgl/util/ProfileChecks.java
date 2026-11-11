@@ -476,7 +476,25 @@ public final class ProfileChecks {
 			for (Mount m: netto)
 				if (!m.isUnmounted() && (Character.toUpperCase(m.getDrive()) == gusDrive) && (m instanceof DirMount dm))
 					host = dm.getCanonicalPath().getPath();
-			result.add(new Problem("gusnopatches", gusDir, String.valueOf(gusDrive), host));
+			// the folder ULTRASND beside DOSBox, if there is one: as a drive of its own (U:, else the first one free from G: on)
+			File ultrasnd = MidiRoms.ultrasnd(prof.getDosboxVersion()).dir();
+			Character free = null;
+			if (ultrasnd != null) {
+				Set<Character> used = new java.util.HashSet<>();
+				for (Mount m: netto)
+					used.add(Character.toUpperCase(m.getDrive()));
+				for (Mount m: autoexec.getMountingpoints())
+					used.add(Character.toUpperCase(m.getDrive()));
+				for (char c: "UGHIJKLMNOPQRSTVWXY".toCharArray())
+					if (!used.contains(c)) {
+						free = c;
+						break;
+					}
+			}
+			if (free != null)
+				result.add(new Problem("gusnopatches", gusDir, String.valueOf(gusDrive), host, String.valueOf(free), ultrasnd.getPath()));
+			else
+				result.add(new Problem("gusnopatches", gusDir, String.valueOf(gusDrive), host));
 		}
 
 		// umlauts in the [autoexec] in another charset than the DOSBox version reads it with: the folder is not found

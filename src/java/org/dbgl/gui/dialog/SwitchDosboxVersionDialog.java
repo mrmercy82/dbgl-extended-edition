@@ -108,6 +108,10 @@ public class SwitchDosboxVersionDialog extends SizeControlledButtonDialog<Boolea
 			overviewButton_.setText(text_.get("dialog.switchdosbox.overview"));
 	}
 
+	private static boolean fullFile() {
+		return org.dbgl.service.SettingsService.getInstance().getBooleanValue("switchdosbox", "fullfile");
+	}
+
 	private static boolean byId() {
 		return "id".equals(org.dbgl.service.SettingsService.getInstance().getValue("switchdosbox", "sort"));
 	}
@@ -161,7 +165,7 @@ public class SwitchDosboxVersionDialog extends SizeControlledButtonDialog<Boolea
 		new Label(contents_, SWT.NONE);
 		Composite countRow = new Composite(contents_, SWT.NONE);
 		countRow.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
-		GridLayout countLayout = new GridLayout(3, false);
+		GridLayout countLayout = new GridLayout(4, false);
 		countLayout.marginWidth = 0;
 		countLayout.marginHeight = 0;
 		countRow.setLayout(countLayout);
@@ -175,6 +179,15 @@ public class SwitchDosboxVersionDialog extends SizeControlledButtonDialog<Boolea
 			org.dbgl.service.SettingsService.getInstance().setValue("switchdosbox", "sort", sort.getSelectionIndex() == 1 ? "id": "name");
 			if (lastWasPreview_)
 				run(true); // the preview shown again in the new order (the ticks stay)
+		});
+		// the whole configuration of each profile in the preview, its changes marked, or only the changes (alpha 47, remembered)
+		org.eclipse.swt.widgets.Button full = new org.eclipse.swt.widgets.Button(countRow, SWT.CHECK);
+		full.setText(text_.get("dialog.checkprofiles.previewfull"));
+		full.setSelection(fullFile());
+		full.addListener(SWT.Selection, e -> {
+			org.dbgl.service.SettingsService.getInstance().setBooleanValue("switchdosbox", "fullfile", full.getSelection());
+			if (lastWasPreview_)
+				run(true);
 		});
 		// how many profiles use which DOSBox version, into the report below; then the same button goes back to the preview
 		overviewButton_ = (org.eclipse.swt.widgets.Button)Button_.on(countRow).text().key("dialog.switchdosbox.overview").listen(new SelectionAdapter() {
@@ -480,7 +493,7 @@ public class SwitchDosboxVersionDialog extends SizeControlledButtonDialog<Boolea
 					choices.addAll(org.dbgl.util.SwitchMemory.restoresFrom(memory, prof));
 					String afterSwitch = prof.getConfiguration().toString(null);
 					List<SwitchChoices.Choice> kept = SwitchChoices.apply(prof, choices, this::keeps, markers_.getSelection(), preview);
-					List<String> diff = new ArrayList<>(grouped(before, afterSwitch)); // each section, below it its values
+					List<String> diff = new ArrayList<>(grouped(before, afterSwitch, fullFile())); // each section, below it its values
 					for (SwitchChoices.Choice c: choices)
 						if ((c.kind() == SwitchChoices.Kind.AUTOEXEC) && !kept.contains(c))
 							diff.add("- [autoexec] " + c.oldText()); // not ticked: removed
@@ -562,15 +575,24 @@ public class SwitchDosboxVersionDialog extends SizeControlledButtonDialog<Boolea
 
 	/** as the preview of "Check profiles": the section in a line of its own ("[sdl]"), below it its values ("- output=..") */
 	static List<String> grouped(String before, String after) {
+		return grouped(before, after, false);
+	}
+
+	/** @param full also the lines that stay as they are (the whole configuration, its changes marked) */
+	static List<String> grouped(String before, String after, boolean full) {
 		List<String> result = new ArrayList<>();
-		for (org.dbgl.util.ProfileFindings.DiffLine d: org.dbgl.util.ProfileFindings.diff(before, after)) {
+		boolean changes = false;
+		for (org.dbgl.util.ProfileFindings.DiffLine d: org.dbgl.util.ProfileFindings.diff(before, after, null, full)) {
 			boolean section = d.text().startsWith("[") && d.text().endsWith("]");
 			if (section && (d.kind() == ' '))
 				result.add(d.text());
-			else if (d.kind() == '-' || d.kind() == '+')
+			else if (d.kind() == '-' || d.kind() == '+') {
 				result.add(d.kind() + " " + d.text()); // the values below their section, not indented
+				changes = true;
+			} else if (full && StringUtils.isNotBlank(d.text()))
+				result.add("  " + d.text());
 		}
-		return result;
+		return full && !changes ? new ArrayList<>(): result; // nothing changed: said so, as without the whole file
 	}
 
 	/** lines removed (-) and added (+), ignoring order */
