@@ -1175,6 +1175,10 @@ public class Dbgl0102Tests {
 		assertTrue(cmp.apply("0.101 alpha 31", "0.101alpha30") > 0);
 		assertEquals("0.101 alpha 31", org.dbgl.util.EditionUpdateChecker.readable("v0.101-alpha31"));
 		assertEquals("0.101 alpha 30", org.dbgl.util.EditionUpdateChecker.readable("0.101alpha30"));
+		// alpha 48: a test build with its number, in the title of the main window; it counts as that version
+		assertEquals("0.101 alpha 48 TEST 9", org.dbgl.util.EditionUpdateChecker.readable("0.101alpha48-test9"));
+		assertEquals("0.101 alpha 48 test", org.dbgl.util.EditionUpdateChecker.readable("0.101alpha48-test"));
+		assertEquals(0, org.dbgl.util.EditionUpdateChecker.compare("0.101alpha48-test9", "0.101alpha48"));
 
 		String json = "[{\"tag_name\":\"v0.101-alpha32\",\"draft\":true,\"prerelease\":true,\"html_url\":\"u32\"},"
 				+ "{\"tag_name\":\"v0.101-alpha31\",\"draft\":false,\"prerelease\":true,\"html_url\":\"u31\"},"
@@ -1189,6 +1193,79 @@ public class Dbgl0102Tests {
 		String withFinal = json.replace("v0.100-final", "v0.101");
 		assertEquals("0.101", org.dbgl.util.EditionUpdateChecker.newest(withFinal, "0.101alpha30", false).version());
 		assertEquals("0.101", org.dbgl.util.EditionUpdateChecker.newest(withFinal, "0.101alpha30", true).version());
+	}
+
+	/** alpha 48: the order of the toolbar chosen by the user, made whole against what DBGL builds */
+	@Test
+	public void testToolbarLayout() {
+		java.util.function.Function<String, List<String>> t = org.dbgl.gui.controls.ToolbarCustomizer::tokens;
+		java.util.function.BiFunction<List<String>, List<String>, String> n = (c, d) -> String.join(",", org.dbgl.gui.controls.ToolbarCustomizer.normalize(c, d));
+		List<String> def = t.apply("add,edit,|,run,|,wizard,usb,>,list,tiles,|,settings");
+		assertNull(t.apply(""));
+		assertNull(t.apply(null));
+		assertEquals("add,edit,|,run,|,wizard,usb,>,list,tiles,|,settings", n.apply(null, def));
+		// moved, a line more, one less, a button into the second bar
+		assertEquals("run,|,add,edit,wizard,>,usb,list,|,tiles,settings", n.apply(t.apply("run,|,add,edit,wizard,|,>,usb,list,|,tiles,settings"), def));
+		// lines at the start, at the end, twice, before the second bar: gone
+		assertEquals("add,|,edit,run,wizard,usb,>,list,tiles,settings", n.apply(t.apply("|,add,|,|,edit,run,wizard,usb,|,>,|,list,tiles,settings,|"), def));
+		// a button of an older version left out, a new one after the one it follows as built, the second bar added if missing
+		assertEquals("edit,add,run,wizard,usb,>,list,tiles,settings", n.apply(t.apply("edit,add,old,run,wizard,list,tiles,settings"), t.apply("add,edit,run,wizard,usb,>,list,tiles,settings")));
+		assertEquals("usb,add,>,list", n.apply(t.apply("usb,add,>"), t.apply("add,usb,>,list")));
+		assertEquals("add,usb,>,tv,list", n.apply(t.apply("add,usb,>"), t.apply("add,usb,>,tv,list")));
+	}
+
+	/** alpha 48: the changelog and "What is new" in parts for their window (headings, parts, entries, paragraphs) */
+	@Test
+	public void testDocumentBlocks() throws Exception {
+		String doc = "DBGL Extended Edition - Changes\r\n===============\r\n\r\nBased on DBGL 0.100 beta 17\r\nby Ronald.\r\n\r\n\r\n0.101 alpha 48 (2026-11-11)\r\n------\r\n"
+				+ "Fixed\r\n- Saving leaves a file\r\n  as it was.\r\n- Second & last\r\nNew\r\n- A thing:\r\n    - nested entry\r\n\r\nWHAT IS NEW\r\n-----\r\n  - indented entry\r\n    continued\r\n\r\nAll details: Help.\r\n";
+		List<org.dbgl.gui.dialog.DocumentDialog.Block> b = org.dbgl.gui.dialog.DocumentDialog.blocks(doc);
+		String shown = b.stream().map(x -> x.kind() + (x.level() > 0 ? "" + x.level(): "") + ":" + x.text()).collect(java.util.stream.Collectors.joining("|"));
+		assertEquals("TITLE:DBGL Extended Edition - Changes|PARAGRAPH:Based on DBGL 0.100 beta 17 by Ronald.|SECTION:0.101 alpha 48 (2026-11-11)|SUB:Fixed"
+				+ "|BULLET:Saving leaves a file as it was.|BULLET:Second & last|SUB:New|BULLET:A thing:|BULLET1:nested entry|SECTION:WHAT IS NEW"
+				+ "|BULLET:indented entry continued|PARAGRAPH:All details: Help.", shown);
+		// the real documents: every line of text ends up in a part, nothing is lost
+		for (String name: new String[] {"changelog_de", "changelog_en", "whatsnew_de", "whatsnew_en"}) {
+			String text;
+			try (java.io.InputStream in = getClass().getClassLoader().getResourceAsStream("doc/" + name + ".txt")) {
+				text = new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+			}
+			String joined = org.dbgl.gui.dialog.DocumentDialog.blocks(text).stream().map(org.dbgl.gui.dialog.DocumentDialog.Block::text).collect(java.util.stream.Collectors.joining(" "));
+			String words = text.replaceAll("(?m)^\\s*[-=]{3,}\\s*$", "").replaceAll("(?m)^\\s*[-*] ", "").replaceAll("\\s+", " ").trim();
+			assertEquals(name, words, joined.replaceAll("\\s+", " ").trim());
+		}
+	}
+
+	/** alpha 48: the text of a release (Markdown) as plain text in the changelog window, problems with GitHub in words */
+	@Test
+	public void testEditionReleaseNotesAndProblems() throws Exception {
+		org.dbgl.service.ITextService text = org.dbgl.service.TextService.getInstance();
+		String md = "**DBGL Extended Edition 0.101 alpha 47** \u2013 by Ronald ([dbgl.org](https://dbgl.org), [Vogons](https://www.vogons.org/x?p=1#p1)).\r\n\r\n"
+				+ "> [!WARNING]\r\n> **This is an alpha. Back up** \u2013 copy it.\r\n>\r\n> *Deutsch:* **Sichern**\r\n\r\n"
+				+ "### Changes in this version (2026-11-11)\r\n**Fixed**\r\n- Saving leaves `[autoexec]` as it was; a very long line that goes on and on and on, well past the width of one hundred characters of the window\r\n"
+				+ "  continued line\r\n- writes slow-&lt;date&gt;.txt\r\n\r\n<details>\r\n<summary>Earlier versions</summary>\r\n\r\n#### 0.101 alpha 46\r\n- _old_ entry\r\n</details>\r\n\r\n---\r\n```\r\nsha256  file\r\n```\r\n";
+		String plain = org.dbgl.util.EditionUpdateChecker.plainNotes(md);
+		for (String mark: new String[] {"**", "###", "](", "> ", "[!WARNING]", "&lt;", "<details>", "<summary>", "`", "```", "_old_", "\r"})
+			assertFalse(mark + " in: " + plain, plain.contains(mark));
+		assertTrue(plain, plain.replaceAll("\n(?!\n)", " ").startsWith("DBGL Extended Edition 0.101 alpha 47 \u2013 by Ronald (dbgl.org (https://dbgl.org), Vogons (https://www.vogons.org/x?p=1#p1))."));
+		assertTrue(plain, plain.contains("\n\n" + text.get("dialog.main.editionupdate.notes.warning") + ":\nThis is an alpha. Back up \u2013 copy it.\n\nDeutsch: Sichern\n"));
+		assertTrue(plain, plain.contains("\n\nChanges in this version (2026-11-11)\nFixed\n\u2022 Saving leaves [autoexec] as it was;"));
+		assertTrue(plain, plain.contains("\n  continued line\n\u2022 writes slow-<date>.txt\n"));
+		assertTrue(plain, plain.contains("Earlier versions\n\n0.101 alpha 46\n\u2022 old entry"));
+		assertTrue(plain, plain.contains("    sha256  file"));
+		for (String line: plain.split("\n"))
+			assertTrue(line, line.length() <= 80);
+		assertTrue(plain, plain.contains("\n  ")); // the wrapped part of a bullet is indented like its text
+		assertEquals("", org.dbgl.util.EditionUpdateChecker.plainNotes(null));
+
+		assertEquals(text.get("dialog.main.editionupdate.problem.offline"), org.dbgl.util.EditionUpdateChecker.describe(new java.io.IOException(new java.net.ConnectException())));
+		assertEquals(text.get("dialog.main.editionupdate.problem.offline"), org.dbgl.util.EditionUpdateChecker.describe(new java.net.UnknownHostException("api.github.com")));
+		assertEquals(text.get("dialog.main.editionupdate.problem.timeout"), org.dbgl.util.EditionUpdateChecker.describe(new java.net.http.HttpConnectTimeoutException("x")));
+		assertEquals(text.get("dialog.main.editionupdate.problem.certificate"), org.dbgl.util.EditionUpdateChecker.describe(new javax.net.ssl.SSLHandshakeException("PKIX")));
+		assertEquals(text.get("dialog.main.editionupdate.problem.checksum"), org.dbgl.util.EditionUpdateChecker.describe(new org.dbgl.util.EditionUpdater.ChecksumMismatch("SHA-256")));
+		assertEquals("something else", org.dbgl.util.EditionUpdateChecker.describe(new java.io.IOException("something else")));
+		assertEquals(text.get("dialog.main.editionupdate.problem.ratelimit"), org.dbgl.util.EditionUpdateChecker.httpProblem(403));
+		assertTrue(org.dbgl.util.EditionUpdateChecker.httpProblem(500).contains("500"));
 	}
 
 	/** alpha 45: one-click update (files of a release, sums, safe unpacking), statistics as web page and CSV, DOSBox-X advice */
@@ -2398,5 +2475,408 @@ public class Dbgl0102Tests {
 		assertEquals(java.util.Set.of(), org.dbgl.util.MidiRoms.mt32ModelsOfSums(List.of(ctrl107))); // no PCM ROM: nothing whole
 		assertEquals(java.util.Set.of(), org.dbgl.util.MidiRoms.mt32ModelsOfSums(List.of(ctrlCm102, pcmMt32))); // the PCM ROM of the MT-32 alone is not the one of the CM-32L
 		assertEquals(java.util.Set.of("MT-32 v1.07"), org.dbgl.util.MidiRoms.mt32ModelsOfSums(List.of("13f06b38f0d9e0fc050b6503ab777bb938603260", "c55e165487d71fa88bd8c5e9c083bc456c1a89aa", pcmMt32))); // halves
+	}
+
+	private static File image(long size, java.util.function.Consumer<byte[]> first, byte[] footer) throws IOException {
+		File f = File.createTempFile("dbgl-geometry-", ".img");
+		f.deleteOnExit();
+		try (java.io.RandomAccessFile r = new java.io.RandomAccessFile(f, "rw")) {
+			r.setLength(size);
+			byte[] s = new byte[512];
+			first.accept(s);
+			r.write(s);
+			if (footer != null) {
+				r.seek(size - 512);
+				r.write(footer);
+			}
+		}
+		return f;
+	}
+
+	/** alpha 48: the geometry for "-size" from a partition table, a boot sector or a VHD footer; nothing from other files */
+	@Test
+	public void testDiskGeometry() throws IOException {
+		long size = 20L * 1024 * 1024;
+		File mbr = image(size, s -> {
+			s[510] = 0x55;
+			s[511] = (byte)0xaa;
+			s[446] = (byte)0x80;
+			s[446 + 4] = 0x06; // FAT16
+			s[446 + 5] = 15; // end head: 16 heads
+			s[446 + 6] = 63; // end sector: 63
+		}, null);
+		org.dbgl.util.DiskGeometry.Result r = org.dbgl.util.DiskGeometry.of(mbr);
+		assertNotNull(r);
+		assertEquals("mbr", r.source());
+		assertEquals("512,63,16,40", r.size().toString());
+
+		File bpb = image(size, s -> {
+			s[0] = (byte)0xeb;
+			s[0x0b] = 0;
+			s[0x0c] = 2; // 512 bytes per sector
+			s[0x18] = 32; // sectors per track
+			s[0x1a] = 64; // heads
+			s[510] = 0x55;
+			s[511] = (byte)0xaa;
+		}, null);
+		assertEquals("512,32,64,20", org.dbgl.util.DiskGeometry.of(bpb).size().toString());
+
+		byte[] footer = new byte[512];
+		System.arraycopy("conectix".getBytes(StandardCharsets.ISO_8859_1), 0, footer, 0, 8);
+		footer[0x38] = 0x01;
+		footer[0x39] = 0x2c; // 300 cylinders
+		footer[0x3a] = 4;
+		footer[0x3b] = 17;
+		footer[0x3f] = 2; // fixed
+		r = org.dbgl.util.DiskGeometry.of(image(size + 512, s -> {}, footer));
+		assertEquals("vhd", r.source());
+		assertEquals("512,17,4,300", r.size().toString());
+		footer[0x3f] = 3; // dynamic: not usable as it is
+		assertNull(org.dbgl.util.DiskGeometry.of(image(size + 512, s -> {}, footer)));
+
+		assertNull(org.dbgl.util.DiskGeometry.of(image(size, s -> {}, null))); // nothing in it
+		assertNull(org.dbgl.util.DiskGeometry.of(image(1474560, s -> {
+			s[510] = 0x55;
+			s[511] = (byte)0xaa;
+		}, null))); // a floppy: DOSBox knows it by its size
+		assertNull(org.dbgl.util.DiskGeometry.of(new File("does-not-exist.img")));
+	}
+
+	/** alpha 48: the controller assistant changes only the lines of the binds it assigns, the others stay as DOSBox wrote them */
+	@Test
+	public void testMapperFileAssign() {
+		String text = "hand_shutdown \"key 66 mod1\" \"stick_0 button 7 mod3\" \r\nkey_esc \"key 41\"\r\nkey_space \"key 44\" \r\nkey_lctrl \"key 224\" \r\n"
+				+ "key_up \"key 82\" \r\njbutton_0_0 \"stick_0 button 0\" \r\njhat_0_0_0 \"stick_0 hat 0 1\" \r\n";
+		org.dbgl.util.MapperFile m = new org.dbgl.util.MapperFile(text);
+		assertEquals(List.of("key_esc", "key_space", "key_lctrl", "key_up"), m.keyEvents());
+		assertNull(m.keyOf("stick_0 button 0"));
+		m.assign("stick_0 button 0", "key_space");
+		m.assign("stick_0 hat 0 1", "key_up");
+		m.assign("stick_0 button 7", "key_esc");
+		assertEquals("key_space", m.keyOf("stick_0 button 0"));
+		String out = m.text();
+		assertTrue(out, out.contains("\r\nkey_space \"key 44\" \"stick_0 button 0\" \r\n"));
+		assertTrue(out, out.contains("\r\njbutton_0_0 \"stick_0 button 0\" \r\n")); // the emulated joystick keeps it (joysticktype=hidden)
+		assertTrue(out, out.startsWith("hand_shutdown \"key 66 mod1\" \"stick_0 button 7 mod3\" \r\n")); // with Ctrl: a bind of its own
+		assertTrue(out, out.contains("\r\nkey_lctrl \"key 224\" \r\n"));
+		m.assign("stick_0 button 0", "key_lctrl"); // moved
+		assertEquals("key_lctrl", m.keyOf("stick_0 button 0"));
+		assertTrue(m.text().contains("\r\nkey_space \"key 44\" \r\n"));
+		m.assign("stick_0 button 0", null); // removed
+		assertNull(m.keyOf("stick_0 button 0"));
+		assertEquals(7, m.eventCount());
+		assertEquals(text.split("\r\n", -1).length, m.text().split("\r\n", -1).length);
+		// unchanged: exactly as read
+		assertEquals(text, new org.dbgl.util.MapperFile(text).text());
+	}
+
+	/** alpha 48: a changed value in the way the line was written; the end of the file as it was (no line end after "exit") */
+	@Test
+	public void testChangedValueKeepsItsSpacing() {
+		String before = "[dos]\r\nems = false\r\nxms =true\r\n\r\n[autoexec]\r\nexit";
+		String after = "[dos]\r\nems=off\r\nxms=on\r\n\r\n[autoexec]\r\nexit\r\n";
+		assertEquals("[dos]\r\nems = off\r\nxms =on\r\n\r\n[autoexec]\r\nexit", org.dbgl.model.conf.ConfLayout.keep(before, after));
+		assertEquals("[dos]\r\nems = off\r\nxms =on\r\n\r\n[autoexec]\r\nexit\r\n", org.dbgl.model.conf.ConfLayout.keep(before + "\r\n", after));
+	}
+
+	/** alpha 48: an eXoDOS collection: installed games with LaunchBox's data and cover, the others counted; paths from its folder */
+	@Test
+	public void testExoImport() throws IOException {
+		File root = Files.createTempDirectory("dbgl-exo-").toFile();
+		File bang = new File(root, "eXo/eXoDOS/!dos/1942");
+		bang.mkdirs();
+		Files.writeString(new File(bang, "1942 - The Pacific Air War (1994).bat").toPath(), "@echo off\r\n");
+		Files.writeString(new File(bang, "dosbox.conf").toPath(), "[sdl]\r\nfullscreen=true\r\n\r\n[cpu]\r\ncycles=fixed 15000\r\n\r\n[dos]\r\nxms=false\r\n\r\n"
+				+ "[autoexec]\r\n@echo off\r\nmount c .\\eXo\\eXoDOS\\1942\\\r\nc:\r\ncls\r\ncd 1942\r\n1942.EXE\r\nexit\r\n");
+		File game = new File(root, "eXo/eXoDOS/1942/1942");
+		game.mkdirs();
+		Files.writeString(new File(game, "1942.EXE").toPath(), "MZ");
+		File other = new File(root, "eXo/eXoDOS/!dos/keen1");
+		other.mkdirs();
+		Files.writeString(new File(other, "dosbox.conf").toPath(), "[autoexec]\r\nmount c .\\eXo\\eXoDOS\\keen1\\\r\n");
+		File platforms = new File(root, "Data/Platforms");
+		platforms.mkdirs();
+		Files.writeString(new File(platforms, "MS-DOS.xml").toPath(), "<?xml version=\"1.0\" standalone=\"yes\"?>\r\n<LaunchBox>\r\n  <Game>\r\n"
+				+ "    <ApplicationPath>eXo\\eXoDOS\\!dos\\1942\\1942 - The Pacific Air War (1994).bat</ApplicationPath>\r\n    <Title>1942: The Pacific Air War</Title>\r\n"
+				+ "    <Developer>MicroProse</Developer>\r\n    <Publisher>MicroProse Software, Inc.</Publisher>\r\n    <ReleaseDate>1994-01-01T00:00:00-08:00</ReleaseDate>\r\n"
+				+ "    <Genre>Simulation; Flight</Genre>\r\n    <Notes>A flight simulator &amp; more.</Notes>\r\n  </Game>\r\n</LaunchBox>\r\n");
+		File covers = new File(root, "Images/MS-DOS/Box - Front/North America");
+		covers.mkdirs();
+		Files.write(new File(covers, "1942_ The Pacific Air War-01.jpg").toPath(), new byte[] {1, 2, 3});
+
+		org.dbgl.util.ExoImport.Result r = org.dbgl.util.ExoImport.find(new File(root, "eXo/eXoDOS")); // a folder below is fine
+		assertNotNull(r);
+		assertEquals(root.getCanonicalFile(), r.root().getCanonicalFile());
+		assertEquals(1, r.games().size());
+		assertEquals(1, r.notInstalled());
+		org.dbgl.util.StoreGameImport.Found f = r.games().get(0);
+		assertEquals("1942: The Pacific Air War", f.title());
+		assertEquals("eXoDOS", f.store());
+		assertEquals("1994", f.meta().year());
+		assertEquals("MicroProse", f.meta().developer());
+		assertEquals("A flight simulator & more.", f.meta().notes());
+		assertEquals("1942_ The Pacific Air War-01.jpg", f.meta().cover().get().getName());
+
+		File dosboxConf = new File(DATA_DIR, "dosbox-staging-0.83.0.conf");
+		org.dbgl.model.aggregate.DosboxVersion v = DosboxVersionFactory.create("DOSBox Staging 0.83.0", SettingsService.STAGING_DOSBOX_FAM.title_, "0.83.0", false, true, false, null, "staging083", "", "",
+			dosboxConf.getAbsolutePath());
+		v.resetAndLoadConfiguration();
+		org.dbgl.model.aggregate.Profile p = org.dbgl.util.StoreGameImport.toProfile(f, v, GenericTextService.getInstance());
+		assertEquals("MicroProse Software, Inc.", p.getPublisher());
+		assertEquals("Simulation; Flight", p.getGenre());
+		assertTrue(p.getNotes(), p.getNotes().endsWith("eXoDOS: " + f.gameDir().getPath()));
+		assertEquals("1942.EXE", new File(p.getConfiguration().getAutoexec().getMain()).getName());
+		assertTrue(p.getConfiguration().getAutoexec().getMountingpoints().get(0).toString(), p.getConfiguration().getAutoexec().getMountingpoints().get(0).toString().contains(new File(root, "eXo").getPath()));
+		assertEquals("off", p.getConfiguration().getValue("dos", "xms")); // converted for Staging 0.83
+
+		assertNull(org.dbgl.util.ExoImport.find(game)); // no collection: nothing
+	}
+
+	/** alpha 48: empty images DOSBox can use at once: formatted, read again by DBGL's own FAT reader, the geometry as said */
+	@Test
+	public void testDiskImageMaker() throws IOException {
+		File dir = Files.createTempDirectory("dbgl-img-").toFile();
+		for (org.dbgl.util.DiskImageMaker.Floppy t: org.dbgl.util.DiskImageMaker.Floppy.values()) {
+			File f = new File(dir, t.name() + ".img");
+			org.dbgl.util.DiskImageMaker.floppy(f, t, "Spiel 1");
+			assertEquals(t.kb() * 1024L, f.length());
+			org.dbgl.util.fat.FileDisk d = new org.dbgl.util.fat.FileDisk(f);
+			assertNotNull(new org.dbgl.util.fat.FatFileSystem(d).getRoot());
+			d.close();
+			byte[] b = Files.readAllBytes(f.toPath());
+			assertEquals("SPIEL 1    ", new String(b, 0x2b, 11, StandardCharsets.US_ASCII));
+		}
+		for (int mb: new int[] {32, 250, 2047}) {
+			File f = new File(dir, "hd" + mb + ".img");
+			org.dbgl.util.DiskImageMaker.hardDisk(f, mb, "");
+			org.dbgl.util.DiskGeometry.Result g = org.dbgl.util.DiskGeometry.of(f);
+			assertNotNull(g);
+			assertEquals(org.dbgl.util.DiskImageMaker.geometry(mb).toString(), g.size().toString());
+			org.dbgl.util.fat.FileDisk d = new org.dbgl.util.fat.FileDisk(f);
+			assertNotNull(new org.dbgl.util.fat.FatFileSystem(d).getRoot());
+			d.close();
+		}
+		try {
+			org.dbgl.util.DiskImageMaker.hardDisk(new File(dir, "hd32.img"), 32, "");
+			fail("an image there already must not be overwritten");
+		} catch (IOException e) {
+			// as it should
+		}
+	}
+
+	/** alpha 48: the picture presets of DOSBox Staging 0.83 as a whole on 0.83, nothing of them on 0.82 */
+	@Test
+	public void testStaging083PicturePresets() throws IOException {
+		java.util.Map<String, org.dbgl.util.Presets.Preset> byKey = new java.util.HashMap<>();
+		org.dbgl.util.Presets.BUILT_IN.forEach(p -> byKey.put(p.key(), p));
+		org.dbgl.model.aggregate.DosboxVersion v083 = DosboxVersionFactory.create("DOSBox Staging 0.83.0", SettingsService.STAGING_DOSBOX_FAM.title_, "0.83.0", false, true, false, null, "s", "", "",
+			new File(DATA_DIR, "dosbox-staging-0.83.0.conf").getAbsolutePath());
+		v083.resetAndLoadConfiguration();
+		org.dbgl.model.aggregate.Profile p = org.dbgl.model.factory.ProfileFactory.create(v083, null);
+		assertEquals(10, org.dbgl.util.Presets.apply(p, byKey.get("dialog.preset.monogreen")));
+		assertEquals("crt/crt-hyllian:monochrome-hires", p.getConfiguration().getValue("render", "shader"));
+		assertEquals("125", p.getConfiguration().getValue("render", "green_gain"));
+		assertEquals(1, org.dbgl.util.Presets.apply(p, byKey.get("dialog.preset.fmv")));
+		assertEquals("on", p.getConfiguration().getValue("render", "deinterlacing"));
+		assertEquals(1, org.dbgl.util.Presets.apply(p, byKey.get("dialog.preset.ega")));
+		assertTrue(org.dbgl.util.Presets.apply(p, byKey.get("dialog.preset.win31")) >= 5);
+		assertEquals("on", p.getConfiguration().getValue("sdl", "keyboard_capture"));
+
+		org.dbgl.model.aggregate.DosboxVersion v082 = DosboxVersionFactory.create("DOSBox Staging 0.82.2", SettingsService.STAGING_DOSBOX_FAM.title_, "0.82.2", false, true, false, null, "s", "", "",
+			new File(DATA_DIR, "dosbox-staging-0.82.2.conf").getAbsolutePath());
+		v082.resetAndLoadConfiguration();
+		org.dbgl.model.aggregate.Profile old = org.dbgl.model.factory.ProfileFactory.create(v082, null);
+		for (String k: new String[] {"dialog.preset.crt", "dialog.preset.monogreen", "dialog.preset.monoamber", "dialog.preset.fmv", "dialog.preset.ega"})
+			assertEquals(k, 0, org.dbgl.util.Presets.apply(old, byKey.get(k)));
+		assertFalse(old.getConfiguration().hasValue("render", "shader"));
+	}
+
+	/** alpha 48: a DFendX game archive (ZIP: .prof and .conf next to VirtualHD), read like D-Fend Reloaded; an unsafe ZIP is stopped */
+	@Test
+	public void testDFendXArchive() throws Exception {
+		File tmp = java.nio.file.Files.createTempDirectory("dfx").toFile();
+		try {
+			File zip = new File(tmp, "Game X.zip");
+			try (java.util.zip.ZipOutputStream z = new java.util.zip.ZipOutputStream(new java.io.FileOutputStream(zip))) {
+				z.putNextEntry(new java.util.zip.ZipEntry("Game X.prof"));
+				z.write(("[Extra]\r\nExe=.\\VirtualHD\\GAME\\GAME.EXE\r\nNrOfMounts=1\r\n0=.\\VirtualHD;Drive;C;False;;\r\nProfileMode=DOSBox\r\n"
+						+ "[ExtraInfo]\r\nGenre=Action\r\nDeveloper=Dev\r\nYear=1993\r\nName=Game X\r\n[dosbox]\r\ncaptures=.\\Capture\\Game X\\\r\n").getBytes("windows-1252"));
+				z.putNextEntry(new java.util.zip.ZipEntry("Game X.conf"));
+				z.write("[dosbox]\r\nmemsize=16\r\n[autoexec]\r\nmount C \".\\VIRTUA~1\\\"\r\nC:\r\nGAME.EXE\r\n".getBytes("windows-1252"));
+				z.putNextEntry(new java.util.zip.ZipEntry("VirtualHD/GAME/GAME.EXE"));
+				z.write(1);
+			}
+			File dir = org.dbgl.model.conf.dfend.DFendXArchive.freeTargetDir(tmp, zip);
+			assertEquals("Game X", dir.getName());
+			org.dbgl.model.conf.dfend.DFendXArchive.extract(zip, dir);
+			assertEquals("Game X (2)", org.dbgl.model.conf.dfend.DFendXArchive.freeTargetDir(tmp, zip).getName());
+			java.util.List<File> profs = org.dbgl.model.conf.dfend.DFendXArchive.profFiles(dir);
+			assertEquals(1, profs.size());
+
+			org.dbgl.model.conf.dfend.DFendReloadedConfiguration cfg = new org.dbgl.model.conf.dfend.DFendReloadedConfiguration(new File(dir, "-none-"));
+			cfg.loadArchive(profs);
+			cfg.loadProfile(profs.get(0));
+			// the sections of a .prof keep their case (read as a Configuration, they were lower case since alpha 46: no title)
+			assertEquals("Game X", cfg.getValue(profs.get(0), "ExtraInfo", "name"));
+			assertEquals("Dev", cfg.getValue(profs.get(0), "ExtraInfo", "developer"));
+			assertTrue(cfg.hasConf(profs.get(0)));
+
+			String conv = org.dbgl.model.conf.dfend.DFendProfConverter.convert(cfg.getProf(profs.get(0)), dir).conf();
+			String conf = org.dbgl.gui.thread.DFendReloadedImportThread.withAutoexecOf(cfg.getConf(profs.get(0)), conv);
+			assertTrue(conf, conf.contains("memsize=16"));
+			assertFalse(conf, conf.contains("VIRTUA~1"));
+			assertTrue(conf, conf.contains("mount C \"" + new File(dir, "VirtualHD").getPath() + "\""));
+			assertEquals(1, org.apache.commons.lang3.StringUtils.countMatches(conf, "[autoexec]"));
+			assertEquals(new File(new File(dir, "Capture"), "Game X"), org.dbgl.model.conf.dfend.DFendProfConverter.hostPath(dir, ".\\Capture\\Game X\\"));
+
+			File evil = new File(tmp, "evil.zip");
+			try (java.util.zip.ZipOutputStream z = new java.util.zip.ZipOutputStream(new java.io.FileOutputStream(evil))) {
+				z.putNextEntry(new java.util.zip.ZipEntry("../outside.txt"));
+				z.write(1);
+			}
+			try {
+				org.dbgl.model.conf.dfend.DFendXArchive.extract(evil, new File(tmp, "evil"));
+				fail("unsafe entry not stopped");
+			} catch (java.io.IOException e) {
+				// expected
+			}
+			assertFalse(new File(tmp, "outside.txt").exists());
+		} finally {
+			org.apache.commons.io.FileUtils.deleteQuietly(tmp);
+		}
+	}
+
+	/** alpha 48 (wish 11): which files are saved games: patterns (* ? ** and folders), the suggestion */
+	@Test
+	public void testSavegamePatterns() throws Exception {
+		assertTrue(org.dbgl.util.SavegameBackup.glob("*.SAV").matcher("game1.sav").matches());
+		assertFalse(org.dbgl.util.SavegameBackup.glob("*.SAV").matcher("saves/game1.sav").matches());
+		assertTrue(org.dbgl.util.SavegameBackup.glob("**/*.sav").matcher("saves/game1.sav").matches());
+		assertTrue(org.dbgl.util.SavegameBackup.glob("SAVES/").matcher("saves/a/b.dat").matches());
+		assertTrue(org.dbgl.util.SavegameBackup.glob("SAVEGAME.?").matcher("savegame.1").matches());
+		assertTrue(org.dbgl.util.SavegameBackup.glob("\\SAVES\\*").matcher("saves/x").matches());
+		File tmp = Files.createTempDirectory("sg").toFile();
+		try {
+			long old = System.currentTimeMillis() - 400L * 24 * 3600 * 1000;
+			for (String n: new String[] {"GAME.EXE", "DATA.DAT", "SOUND.CFG", "MAP.DAT"}) {
+				File f = new File(tmp, n);
+				Files.writeString(f.toPath(), n);
+				f.setLastModified(old);
+			}
+			new File(tmp, "SAVES").mkdirs();
+			for (int i = 1; i <= 5; i++)
+				Files.writeString(new File(tmp, "SAVES/SLOT" + i + ".DAT").toPath(), "s");
+			Files.writeString(new File(tmp, "RESUME.GAM").toPath(), "r");
+			Files.writeString(new File(tmp, "ASCEND.CFG").toPath(), "c");
+			String suggestion = org.dbgl.util.SavegameBackup.suggest(tmp);
+			assertEquals("SAVES/**; RESUME.GAM", suggestion);
+			java.util.Map<String, File> m = org.dbgl.util.SavegameBackup.matching(tmp, suggestion);
+			assertEquals(6, m.size());
+			assertTrue(m.containsKey("SAVES/SLOT1.DAT"));
+			assertTrue(org.dbgl.util.SavegameBackup.matching(tmp, " ; ").isEmpty());
+		} finally {
+			org.apache.commons.io.FileUtils.deleteQuietly(tmp);
+		}
+	}
+
+	/** alpha 48: the USB stick: the package of Adoptium with its own checksum (not that of the installer), images with their tracks */
+	@Test
+	public void testPortableJavaAndImages() throws Exception {
+		String sumMsi = "a".repeat(64), sumZip = "b".repeat(64);
+		String json = "[{\"binary\":{\"image_type\":\"jre\",\"installer\":{\"checksum\":\"" + sumMsi + "\",\"link\":\"https://x/OpenJDK21U-jre_x64_windows_hotspot.msi\"},"
+				+ "\"package\":{\"checksum\":\"" + sumZip + "\",\"link\":\"https://x/OpenJDK21U-jre_x64_windows_hotspot.zip\"}}}]";
+		String[] pkg = org.dbgl.util.PortableExport.adoptiumPackage(json);
+		assertNotNull(pkg);
+		assertEquals("https://x/OpenJDK21U-jre_x64_windows_hotspot.zip", pkg[0]);
+		assertEquals(sumZip, pkg[1]);
+		assertNull(org.dbgl.util.PortableExport.adoptiumPackage("[]"));
+		assertNull(org.dbgl.util.PortableExport.adoptiumPackage("not json"));
+
+		File tmp = Files.createTempDirectory("img").toFile();
+		try {
+			Files.writeString(new File(tmp, "Game.cue").toPath(), "FILE \"Game.bin\" BINARY\n  TRACK 01 MODE1/2352\nFILE \"music 2.wav\" WAVE\nFILE \"../outside.bin\" BINARY\n");
+			for (String n: new String[] {"Game.bin", "music 2.wav", "other.iso"})
+				Files.writeString(new File(tmp, n).toPath(), n);
+			Files.writeString(new File(tmp.getParentFile(), "outside.bin").toPath(), "x");
+			java.util.Set<String> names = new java.util.TreeSet<>();
+			for (File f: org.dbgl.util.PortableExport.imageFiles(new File(tmp, "Game.cue").getCanonicalFile()))
+				names.add(f.getName());
+			assertEquals(new java.util.TreeSet<>(List.of("Game.cue", "Game.bin", "music 2.wav")), names);
+			new File(tmp.getParentFile(), "outside.bin").delete();
+		} finally {
+			org.apache.commons.io.FileUtils.deleteQuietly(tmp);
+		}
+	}
+
+	/** alpha 48: Steam's binary shortcuts.vdf (read, add, write, nothing lost), the paths of the LaunchBox data, the controller directions */
+	@Test
+	public void testSteamShortcutsAndExoPaths() throws Exception {
+		File tmp = java.nio.file.Files.createTempDirectory("steam").toFile();
+		try {
+			// a file as Steam writes it: one game of the user with a field this class does not know
+			java.util.Map<String, Object> game = new java.util.LinkedHashMap<>();
+			game.put("appid", 0x9a2b3c4d);
+			game.put("AppName", "Other game");
+			game.put("Exe", "\"C:\\Games\\other.exe\"");
+			game.put("UnknownField", "kept");
+			java.util.Map<String, Object> tags = new java.util.LinkedHashMap<>();
+			tags.put("0", "favorite");
+			game.put("tags", tags);
+			java.util.Map<String, Object> list = new java.util.LinkedHashMap<>();
+			list.put("0", game);
+			java.util.Map<String, Object> root = new java.util.LinkedHashMap<>();
+			root.put("shortcuts", list);
+			byte[] bytes = org.dbgl.util.SteamShortcuts.write(root);
+			assertEquals(0x00, bytes[0]);
+			assertEquals(0x08, bytes[bytes.length - 1]);
+			assertEquals(0x08, bytes[bytes.length - 2]);
+			assertEquals(root, org.dbgl.util.SteamShortcuts.read(bytes));
+
+			File config = new File(tmp, "userdata/123/config");
+			config.mkdirs();
+			java.nio.file.Files.write(new File(config, "shortcuts.vdf").toPath(), bytes);
+			File cover = new File(tmp, "cover.png");
+			java.nio.file.Files.write(cover.toPath(), new byte[] {1, 2, 3});
+			org.dbgl.util.SteamShortcuts.User user = new org.dbgl.util.SteamShortcuts.User(new File(tmp, "userdata/123"), "Me");
+			org.dbgl.util.SteamShortcuts.Game doom = new org.dbgl.util.SteamShortcuts.Game("Doom", new File(tmp, "dosbox.exe"), tmp, "-conf \"x.conf\"", cover);
+			org.dbgl.util.SteamShortcuts.Result r = org.dbgl.util.SteamShortcuts.add(user, java.util.List.of(doom), true);
+			assertEquals(1, r.added());
+			r = org.dbgl.util.SteamShortcuts.add(user, java.util.List.of(doom), true); // the same again: updated, not twice
+			assertEquals(0, r.added());
+			assertEquals(1, r.updated());
+			java.util.Map<String, Object> after = org.dbgl.util.SteamShortcuts.read(java.nio.file.Files.readAllBytes(new File(config, "shortcuts.vdf").toPath()));
+			@SuppressWarnings("unchecked")
+			java.util.Map<String, Object> shortcuts = (java.util.Map<String, Object>)after.get("shortcuts");
+			assertEquals(2, shortcuts.size());
+			assertEquals(game, shortcuts.get("0")); // the game of the user as it was
+			@SuppressWarnings("unchecked")
+			java.util.Map<String, Object> added = (java.util.Map<String, Object>)shortcuts.get("1");
+			assertEquals("Doom", added.get("AppName"));
+			assertEquals("-conf \"x.conf\"", added.get("LaunchOptions"));
+			long appId = org.dbgl.util.SteamShortcuts.appId("\"" + doom.exe().getPath() + "\"", "Doom");
+			assertEquals((int)appId, added.get("appid"));
+			assertTrue(appId >= 0x80000000L);
+			assertTrue(new File(config, "grid/" + appId + "p.png").isFile());
+			assertTrue(new File(config, "shortcuts.vdf.dbgl-backup").isFile());
+			// cut off or wrong: an error, not a broken file
+			try {
+				org.dbgl.util.SteamShortcuts.read(java.util.Arrays.copyOf(bytes, 10));
+				fail("cut off file read");
+			} catch (java.io.IOException e) {
+				// expected
+			}
+
+			// the paths of the LaunchBox data stay in the collection
+			File manual = new File(tmp, "Manuals/MS-DOS/Doom.pdf");
+			manual.getParentFile().mkdirs();
+			java.nio.file.Files.write(manual.toPath(), new byte[] {1});
+			assertEquals(manual.getCanonicalFile(), org.dbgl.util.ExoImport.insideForTest(tmp, "Manuals\\MS-DOS\\Doom.pdf"));
+			assertNull(org.dbgl.util.ExoImport.insideForTest(tmp, "..\\outside.pdf"));
+			assertNull(org.dbgl.util.ExoImport.insideForTest(tmp, "C:\\Windows\\win.ini"));
+			assertNull(org.dbgl.util.ExoImport.insideForTest(tmp, "/etc/passwd"));
+			assertNull(org.dbgl.util.ExoImport.insideForTest(tmp, "Manuals/MS-DOS/Missing.pdf"));
+		} finally {
+			org.apache.commons.io.FileUtils.deleteQuietly(tmp);
+		}
 	}
 }

@@ -74,7 +74,7 @@ public class SettingsService {
 		settings_ = new Settings();
 		setDefaultSettings();
 
-		String conf = (SystemUtils.USE_USER_HOME_DIR || !FilesUtils.isWritableDirectory(new File("."))) ? new File(SystemUtils.USER_DATA_DIR, SETTINGS_CONF).getPath(): SETTINGS_CONF;
+		String conf = !SystemUtils.PORTABLE && (SystemUtils.USE_USER_HOME_DIR || !FilesUtils.isWritableDirectory(new File("."))) ? new File(SystemUtils.USER_DATA_DIR, SETTINGS_CONF).getPath(): SETTINGS_CONF; // alpha 48: portable
 		settings_.setFileLocation(new FileLocation(conf));
 
 		try {
@@ -83,6 +83,22 @@ public class SettingsService {
 				System.out.println(warnings);
 		} catch (IOException e) {
 			// if settings could not be read, use only the defaults
+		}
+		// alpha 48: settings the selected DOSBox does not have are hidden now by default, also for an existing settings.conf (once,
+		// the editor has a switch to show them all)
+		if (!java.util.Arrays.asList(settings_.getValue("gui", "uidefaults").split(" ")).contains("a48hints")) { // alpha 48: profiles with hints marked by default too
+			settings_.setValue("gui", "profilehints", true);
+			settings_.setValue("gui", "uidefaults", (settings_.getValue("gui", "uidefaults") + " a48hints").strip());
+		}
+		if (!java.util.Arrays.asList(settings_.getValue("gui", "uidefaults").split(" ")).contains("a48")) {
+			settings_.setValue("gui", "hideunsupportedsettings", true);
+			settings_.setValue("gui", "uidefaults", (settings_.getValue("gui", "uidefaults") + " a48").strip());
+		}
+		// alpha 48: the column "ID" (before "Profil-ID" in German) narrow, once
+		if (!java.util.Arrays.asList(settings_.getValue("gui", "uidefaults").split(" ")).contains("a48cols")) {
+			if (settings_.getIntValue("gui", "column9width") > 38)
+				settings_.setValue("gui", "column9width", "38");
+			settings_.setValue("gui", "uidefaults", (settings_.getValue("gui", "uidefaults") + " a48cols").strip());
 		}
 		// MobyGames is no longer the default source: without an API key (paid) it gives nothing, so use TheGamesDB instead
 		if ("mobygames".equalsIgnoreCase(settings_.getValue("gui", "searchengine")) && StringUtils.isBlank(settings_.getValue("mobygames", "api_key")))
@@ -215,6 +231,10 @@ public class SettingsService {
 		settings_.setValue("gui", "bulkundodialog_height", "560");
 		settings_.setValue("gui", "differencesdialog_width", "600");
 		settings_.setValue("gui", "differencesdialog_height", "460");
+		settings_.setValue("gui", "shortcutsdialog_width", "620"); // alpha 48
+		settings_.setValue("gui", "shortcutsdialog_height", "640");
+		settings_.setValue("gui", "documentdialog_width", "780"); // alpha 48: changelog and what is new
+		settings_.setValue("gui", "documentdialog_height", "720");
 		settings_.setValue("gui", "textinputdialog_width", "480");
 		settings_.setValue("gui", "preseteditdialog_width", "560");
 		settings_.setValue("gui", "choicedialog_width", "620");
@@ -230,6 +250,15 @@ public class SettingsService {
 		settings_.setValue("gui", "mountdialog_height", "600");
 		settings_.setValue("gui", "imgsizedialog_width", "330");
 		settings_.setValue("gui", "imgsizedialog_height", "260");
+		// alpha 48
+		settings_.setValue("gui", "newimagedialog_width", "560");
+		settings_.setValue("gui", "newimagedialog_height", "300");
+		settings_.setValue("gui", "deviationsdialog_width", "720");
+		settings_.setValue("gui", "deviationsdialog_height", "480");
+		settings_.setValue("gui", "controllerdialog_width", "820");
+		settings_.setValue("gui", "controllerdialog_height", "720");
+		settings_.setValue("gui", "exoimportdialog_width", "980");
+		settings_.setValue("gui", "exoimportdialog_height", "660");
 		settings_.setValue("gui", "archivebrowser_width", "400");
 		settings_.setValue("gui", "mobygamesbrowser_width", "650");
 		settings_.setValue("gui", "mobygamesbrowser_height", "375");
@@ -369,6 +398,7 @@ public class SettingsService {
 		settings_.setValue("gui", "autosortonupdate", false);
 		settings_.setValue("gui", "screenshotsfilename", true);
 		settings_.setValue("gui", "buttondisplay", 0);
+		settings_.setValue("gui", "toolbarhidden", ""); // alpha 48: keys of the toolbar buttons the user hid
 		settings_.setValue("gui", "randomgame", "all"); // random game from: all, neverstarted, favorites
 		settings_.setValue("gui", "custom1", "Custom1");
 		settings_.setValue("gui", "custom2", "Custom2");
@@ -389,6 +419,16 @@ public class SettingsService {
 		settings_.setValue("gui", "notesfont", "Courier 10 0"); // 0 = SWT.NORMAL
 		settings_.setValue("gui", "notesvisible", true);
 		settings_.setValue("gui", "theme", 0);
+		settings_.setValue("gui", "darkownframes", true); // alpha 48: Windows, dark mode: frames and buttons drawn by DBGL
+		settings_.setValue("gui", "tvhints", 0); // alpha 48: TV mode: key hints right (1 centre, 2 left), the four buttons
+		settings_.setValue("gui", "tvbutton1", "A");
+		settings_.setValue("gui", "tvbutton2", "B");
+		settings_.setValue("gui", "tvbutton3", "X");
+		settings_.setValue("gui", "tvbutton4", "Y");
+		settings_.setValue("gui", "tvbutton1color", "16,124,16");
+		settings_.setValue("gui", "tvbutton2color", "196,43,28");
+		settings_.setValue("gui", "tvbutton3color", "16,92,196");
+		settings_.setValue("gui", "tvbutton4color", "214,160,0");
 		settings_.setValue("gui", "linking", 0);
 
 		settings_.setValue("gui", "viewstyle", ProfilesListType.TABLE.toString().toLowerCase());
@@ -413,7 +453,8 @@ public class SettingsService {
 		settings_.setValue("profiledefaults", "capturespath", 1);
 
 		settings_.setValue("dosbox", "hideconsole", false);
-		settings_.setValue("gui", "hideunsupportedsettings", false);
+		settings_.setValue("gui", "hideunsupportedsettings", true);
+		settings_.setValue("gui", "uidefaults", ""); // alpha 48: which new GUI defaults were applied to an existing settings.conf
 		settings_.setValue("gui", "statuswindowkeepopen", false);
 		settings_.setValue("gui", "xbuildnoticeshown", "");
 		settings_.setValue("dosbox", "detectfailedstart", true);
@@ -427,7 +468,7 @@ public class SettingsService {
 		settings_.setValue("checkprofiles", "previewsort", "name"); // the games in the previews: by title ("name") or by profile ID ("id")
 		settings_.setValue("profile", "charsetkeepalways", false); // files in Windows-1252 (umlauts) kept so without asking (CharsetQuestion)
 		settings_.setValue("gui", "profilewarnings", true);
-		settings_.setValue("gui", "profilehints", false); // a note in the list for profiles with hints only
+		settings_.setValue("gui", "profilehints", true); // a note in the list for profiles with hints only (on since alpha 48)
 		settings_.setValue("gui", "longtooltips", true);
 		settings_.setValue("edition", "checkforupdates", false);
 		settings_.setValue("edition", "prereleases", true);
@@ -441,9 +482,18 @@ public class SettingsService {
 		settings_.setValue("gui", "viewsize_tiles", 1); // the size the Tiles button brings back (0 small, 1 medium, 2 large)
 		settings_.setValue("gui", "viewsize_boxes", 1);
 		settings_.setValue("gui", "viewhintshown", false);
+		settings_.setValue("gui", "tvhintshown", false); // alpha 48: the TV mode told about once
+		settings_.setValue("gui", "toolbarlayout", ""); // alpha 48: the order of the toolbar buttons chosen by the user (empty: as built)
 		settings_.setValue("gui", "extrasexpand", "changed");
 		settings_.setValue("gui", "extrasexpandonextraspages", false);
 		settings_.setValue("gui", "extrascountchanges", true);
+		settings_.setValue("gui", "extrasexpandmax", 0); // alpha 48: groups with at most this many settings start open (0: off)
+		settings_.setValue("gui", "showplaytimeininfo", true); // alpha 48: play time below the notes on the Info page
+		settings_.setValue("gui", "showplaytimeinnotes", true); // alpha 48: play time below the notes of the main window
+		settings_.setValue("gui", "showplaytimeintv", true); // alpha 48: play time below the chosen game in the TV mode
+		settings_.setValue("dosbox", "ownsavestates", true); // alpha 48: DOSBox-X: the saved states of each game in its own folder
+		settings_.setValue("gui", "tvfilter", ""); // alpha 48: TV mode, the games shown and the last one chosen
+		settings_.setValue("gui", "tvlastprofile", "");
 		settings_.setValue("backup", "auto", "never");
 		settings_.setValue("backup", "keep", 3);
 		settings_.setValue("backup", "last", "");

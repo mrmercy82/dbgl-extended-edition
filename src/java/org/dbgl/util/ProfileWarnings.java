@@ -211,7 +211,7 @@ public final class ProfileWarnings {
 
 	/** the problems of {@link ProfileChecks} that also get the warning sign in the list: the game or its setup does not start */
 	static final java.util.Set<String> STOPS_START = java.util.Set.of("setupmissing", "altexemissing", "notreachable", "notaprogram", "windowsprogram", "win16program",
-		"nothingtostart", "mountfile", "mountimage", "imagefolder", "emptyimage", "archiveimage", "cuemissing", "drivenotmounted", "confreadonly", "drivehidden5", "drivehiddencd3", "mounttwocommands", "mountnoquotes", "driveunmounted", "driveunmountedown", "drivebeforemount",
+		"nothingtostart", "mountfile", "mountimage", "imagefolder", "emptyimage", "archiveimage", "cuemissing", "mdsneedsstaging083", "mdfinsteadofmds", "drivenotmounted", "confreadonly", "drivehidden5", "drivehiddencd3", "mounttwocommands", "mountnoquotes", "driveunmounted", "driveunmountedown", "drivebeforemount",
 		"cdrelative", "cdrelativecustom", "startsectiondrive", "casemismatchdb3", "casemismatchprof2", "charsetmismatch", "stagingumlaut2", "xumlaut2", "stagingumlautlinux2");
 
 	public static void forget(int profileId) {

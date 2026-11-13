@@ -36,6 +36,7 @@ import org.dbgl.gui.controls.Chain;
 import org.dbgl.gui.controls.Mess_;
 import org.dbgl.model.aggregate.DosboxVersion;
 import org.dbgl.model.aggregate.Profile;
+import org.dbgl.model.entity.GenerationAwareConfigurable.Generation;
 import org.dbgl.model.repository.DosboxVersionRepository;
 import org.dbgl.model.repository.ProfileRepository;
 import org.dbgl.util.SystemUtils;
@@ -139,6 +140,43 @@ public class SwitchDosboxVersionDialog extends SizeControlledButtonDialog<Boolea
 		return this;
 	}
 
+	/** the DOSBox version to switch from, chosen beforehand, or -1 */
+	private int fromId_ = -1;
+	/** what the profiles were written for, chosen beforehand (null: as the DOSBox version says) */
+	private Generation writtenForPreset_;
+	private Combo writtenFor_;
+
+	/**
+	 * Alpha 48: the version of a DOSBox version in DBGL was changed (e.g. "DOSBox Staging 0.82" that runs 0.83 in truth, and
+	 * DBGL found out), its profiles are still written for the old one. They are converted in place, from that old version.
+	 */
+	public SwitchDosboxVersionDialog withWrittenFor(int dbversionId, Generation gen) {
+		fromId_ = dbversionId;
+		targetId_ = dbversionId;
+		writtenForPreset_ = gen;
+		return this;
+	}
+
+	/** a name for a generation, as DBGL lists the versions ("DOSBox Staging 0.82") */
+	static String generationTitle(Generation g) {
+		String n = g.name();
+		String v = n.substring(n.indexOf('_') + 1);
+		return switch (n.substring(0, n.indexOf('_'))) {
+			case "official" -> "DOSBox " + v.charAt(0) + '.' + v.substring(1);
+			case "svn" -> "DOSBox SVN " + v;
+			case "daum" -> "DOSBox Daum";
+			case "ece" -> "DOSBox ECE " + v;
+			case "staging" -> "DOSBox Staging " + v.charAt(0) + '.' + v.substring(1, 3);
+			default -> "DOSBox-X " + (v.length() == 8 ? v.substring(0, 4) + '.' + v.substring(4, 6) + '.' + v.substring(6): v.charAt(0) + "." + v.substring(1, 3) + '.' + v.substring(3));
+		};
+	}
+
+	/** what the user said the profiles were written for, or null: as their DOSBox version says */
+	private Generation writtenFor() {
+		int i = (writtenFor_ == null) ? 0: writtenFor_.getSelectionIndex();
+		return i <= 0 ? null: Generation.values()[i - 1];
+	}
+
 	@Override
 	protected String getDialogTitle() {
 		return text_.get((selected_ == null) || (selected_.size() > 1) ? "dialog.switchdosbox.title": "dialog.switchdosbox.title.single");
@@ -162,15 +200,35 @@ public class SwitchDosboxVersionDialog extends SizeControlledButtonDialog<Boolea
 		String[] titles = dbversions_.stream().map(DosboxVersion::getTitle).toArray(String[]::new);
 		from_ = Chain.on(contents_).lbl(l -> l.key("dialog.switchdosbox.from")).cmb(c -> c.items(titles).visibleItemCount(15)).combo();
 		to_ = Chain.on(contents_).lbl(l -> l.key("dialog.switchdosbox.to")).cmb(c -> c.items(titles).visibleItemCount(15)).combo();
+		// alpha 48: the profiles may be written for another version than their DOSBox version says (its version changed later)
+		java.util.List<String> gens = new java.util.ArrayList<>();
+		gens.add(text_.get("dialog.switchdosbox.writtenfor.asis"));
+		for (Generation g: Generation.values())
+			gens.add(generationTitle(g));
+		writtenFor_ = Chain.on(contents_).lbl(l -> l.key("dialog.switchdosbox.writtenfor")).cmb(c -> c.items(gens.toArray(String[]::new)).visibleItemCount(15)).combo();
+		writtenFor_.setToolTipText(text_.get("dialog.switchdosbox.writtenfor.tooltip"));
+		// all three as wide as the longest entry of any of them (it was cut off, alpha 48)
+		int comboWidth = 0;
+		for (Combo c: new Combo[] {from_, to_, writtenFor_})
+			comboWidth = Math.max(comboWidth, c.computeSize(SWT.DEFAULT, SWT.DEFAULT, true).x + 24);
+		for (Combo c: new Combo[] {from_, to_, writtenFor_}) {
+			GridData g = c.getLayoutData() instanceof GridData gd ? gd: new GridData();
+			g.widthHint = comboWidth;
+			g.horizontalAlignment = SWT.BEGINNING;
+			g.grabExcessHorizontalSpace = false;
+			c.setLayoutData(g);
+		}
+		writtenFor_.select(writtenForPreset_ == null ? 0: writtenForPreset_.ordinal() + 1);
 		new Label(contents_, SWT.NONE);
 		Composite countRow = new Composite(contents_, SWT.NONE);
 		countRow.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
-		GridLayout countLayout = new GridLayout(4, false);
+		GridLayout countLayout = new GridLayout(3, false);
 		countLayout.marginWidth = 0;
 		countLayout.marginHeight = 0;
 		countRow.setLayout(countLayout);
-		count_ = new Label(countRow, SWT.NONE);
-		count_.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+		// on a line of its own (alpha 48: in one line with the controls below, it was cut off or pushed them over the list)
+		count_ = new Label(countRow, SWT.WRAP);
+		count_.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 3, 1));
 		// the profiles in the preview and the report: by the title of the game or by its profile ID (remembered)
 		Combo sort = new Combo(countRow, SWT.READ_ONLY);
 		sort.setItems(text_.get("dialog.checkprofiles.sort.name"), text_.get("dialog.checkprofiles.sort.id"));
@@ -204,6 +262,8 @@ public class SwitchDosboxVersionDialog extends SizeControlledButtonDialog<Boolea
 		overviewButton_.setText(text_.get("dialog.switchdosbox.overview"));
 		GridData ob = overviewButton_.getLayoutData() instanceof GridData g ? g: new GridData();
 		ob.widthHint = Math.max(ob.widthHint, wide);
+		ob.horizontalAlignment = SWT.BEGINNING; // not over the rest of the row (alpha 48)
+		ob.grabExcessHorizontalSpace = false;
 		overviewButton_.setLayoutData(ob);
 
 		SashForm sash = new SashForm(contents_, SWT.VERTICAL);
@@ -245,6 +305,9 @@ public class SwitchDosboxVersionDialog extends SizeControlledButtonDialog<Boolea
 			for (int i = 0; i < dbversions_.size(); i++)
 				if (dbversions_.get(i).getId() == targetId_)
 					to_.select(i);
+			for (int i = 0; i < dbversions_.size(); i++)
+				if (dbversions_.get(i).getId() == fromId_)
+					from_.select(i);
 		}
 		from_.setEnabled(selected_ == null);
 		SelectionAdapter update = new SelectionAdapter() {
@@ -255,6 +318,7 @@ public class SwitchDosboxVersionDialog extends SizeControlledButtonDialog<Boolea
 		};
 		from_.addSelectionListener(update);
 		to_.addSelectionListener(update);
+		writtenFor_.addSelectionListener(update);
 		updateCount();
 
 		createGoCancelButtons("dialog.switchdosbox.switch2", new SelectionAdapter() {
@@ -322,8 +386,10 @@ public class SwitchDosboxVersionDialog extends SizeControlledButtonDialog<Boolea
 			col.setWidth(key.endsWith("profile") ? 180: 200);
 		}
 		choices_.addListener(SWT.Selection, e -> {
-			if ((e.detail == SWT.CHECK) && (e.item instanceof TableItem item))
+			if ((e.detail == SWT.CHECK) && (e.item instanceof TableItem item)) {
 				keep_.put(((SwitchChoices.Choice)item.getData()).key(), item.getChecked());
+				previewOutdated();
+			}
 		});
 		all.addListener(SWT.Selection, e -> setAllChoices(true));
 		none.addListener(SWT.Selection, e -> setAllChoices(false));
@@ -334,6 +400,19 @@ public class SwitchDosboxVersionDialog extends SizeControlledButtonDialog<Boolea
 			item.setChecked(keep);
 			keep_.put(((SwitchChoices.Choice)item.getData()).key(), keep);
 		}
+		previewOutdated();
+	}
+
+	private boolean outdatedShown_;
+
+	/** ticks changed after the preview: it says so at its top, until the next preview (alpha 48: it showed the old state) */
+	private void previewOutdated() {
+		if (!lastWasPreview_ || outdatedShown_ || (reportBeforeOverview_ != null))
+			return;
+		outdatedShown_ = true;
+		report_.setText("! " + text_.get("dialog.switchdosbox.previewoutdated") + Text.DELIMITER + Text.DELIMITER + report_.getText());
+		colorReport();
+		report_.setTopIndex(0);
 	}
 
 	private boolean keeps(SwitchChoices.Choice c) {
@@ -408,7 +487,7 @@ public class SwitchDosboxVersionDialog extends SizeControlledButtonDialog<Boolea
 			java.util.Map<String, Long> byVersion = new java.util.LinkedHashMap<>();
 			selectedProfiles().forEach(p -> byVersion.merge(p.getDosboxVersion().getTitle(), 1L, Long::sum));
 			String parts = byVersion.entrySet().stream().map(e -> e.getValue() + " \u00d7 " + e.getKey()).collect(java.util.stream.Collectors.joining(", "));
-			long toSwitch = selectedProfiles().stream().filter(p -> p.getDosboxVersion().getId() != dst.getId()).count();
+			long toSwitch = selectedProfiles().stream().filter(p -> (writtenFor() != null) || (p.getDosboxVersion().getId() != dst.getId())).count();
 			count_.setText(text_.get("dialog.switchdosbox.selected2", new Object[] {selectedProfiles().size(), parts, toSwitch}));
 		}
 		else
@@ -423,8 +502,9 @@ public class SwitchDosboxVersionDialog extends SizeControlledButtonDialog<Boolea
 		DosboxVersion dst = dbversions_.get(to_.getSelectionIndex());
 		List<Profile> profiles;
 		String srcTitle;
+		Generation writtenFor = writtenFor();
 		if (selected_ == null) {
-			if (src.getId() == dst.getId()) {
+			if ((src.getId() == dst.getId()) && (writtenFor == null)) {
 				Mess_.on(shell_).key("dialog.switchdosbox.error.same").warning();
 				return;
 			}
@@ -436,7 +516,7 @@ public class SwitchDosboxVersionDialog extends SizeControlledButtonDialog<Boolea
 			}
 		} else {
 			// the chosen profiles, which may use different DOSBox versions
-			profiles = selectedProfiles().stream().filter(p -> p.getDosboxVersion().getId() != dst.getId()).toList();
+			profiles = selectedProfiles().stream().filter(p -> (writtenFor != null) || (p.getDosboxVersion().getId() != dst.getId())).toList();
 			srcTitle = profiles.stream().map(p -> p.getDosboxVersion().getTitle()).distinct().collect(java.util.stream.Collectors.joining(", "));
 			if (profiles.isEmpty()) {
 				Mess_.on(shell_).key("dialog.switchdosbox.error.same").warning();
@@ -445,7 +525,20 @@ public class SwitchDosboxVersionDialog extends SizeControlledButtonDialog<Boolea
 		}
 		profiles = new ArrayList<>(profiles);
 		profiles.sort(byId() ? java.util.Comparator.comparingInt(Profile::getId): java.util.Comparator.comparing(Profile::getTitle, String.CASE_INSENSITIVE_ORDER));
-		String what = src.getId() + ">" + dst.getId();
+		if (writtenFor != null) // converted from the version they were written for
+			srcTitle += " (" + text_.get("dialog.switchdosbox.writtenfor.short", new Object[] {generationTitle(writtenFor)}) + ")";
+		String what = src.getId() + ">" + dst.getId() + ":" + writtenFor;
+		// alpha 48: profiles of more than one DOSBox version at once: which ones, how many of each, to be confirmed first
+		if (!preview) {
+			java.util.Map<String, Long> sources = new java.util.LinkedHashMap<>();
+			profiles.forEach(p -> sources.merge(p.getDosboxVersion().getTitle(), 1L, Long::sum));
+			if (sources.size() > 1) {
+				StringBuilder list = new StringBuilder();
+				sources.forEach((t, n) -> list.append(String.format("%5d \u00d7 %s", n, t)).append('\n'));
+				if (!Mess_.on(shell_).key("dialog.switchdosbox.confirmmulti", new Object[] {sources.size(), list.toString().stripTrailing(), dst.getTitle(), profiles.size()}).confirmUnwrapped())
+					return;
+			}
+		}
 		// two questions: without a look at the preview first, then the switch itself
 		if (!preview && !what.equals(previewed_) && !Mess_.on(shell_).key("dialog.switchdosbox.nopreview2", new Object[] {profiles.size()}).confirm())
 			return;
@@ -454,6 +547,7 @@ public class SwitchDosboxVersionDialog extends SizeControlledButtonDialog<Boolea
 		if (preview)
 			previewed_ = what;
 		lastWasPreview_ = preview;
+		outdatedShown_ = false;
 		// files in Windows-1252 (umlauts) where the system uses UTF-8: kept so, or converted, as the user wants
 		org.dbgl.gui.controls.CharsetQuestion.Answer charsetAnswer = preview ? org.dbgl.gui.controls.CharsetQuestion.Answer.KEEP: org.dbgl.gui.controls.CharsetQuestion.ask(shell_, profiles, p -> dst);
 		if (charsetAnswer == org.dbgl.gui.controls.CharsetQuestion.Answer.CANCEL)
@@ -468,7 +562,7 @@ public class SwitchDosboxVersionDialog extends SizeControlledButtonDialog<Boolea
 		StringBuilder report = new StringBuilder();
 		report.append(text_.get(preview ? "dialog.switchdosbox.report.preview": "dialog.switchdosbox.report.done", new Object[] {srcTitle, dst.getTitle()})).append(Text.DELIMITER).append(Text.DELIMITER);
 		if (selected_ != null) { // chosen profiles that use the new DOSBox version already: not switched, told
-			List<Profile> already = selectedProfiles().stream().filter(p -> p.getDosboxVersion().getId() == dst.getId()).toList();
+			List<Profile> already = selectedProfiles().stream().filter(p -> (writtenFor == null) && (p.getDosboxVersion().getId() == dst.getId())).toList();
 			if (!already.isEmpty()) {
 				report.append("= ").append(text_.get("dialog.switchdosbox.report.notswitched", new Object[] {already.size(), dst.getTitle()})).append(Text.DELIMITER);
 				already.forEach(p -> report.append("=    ").append(p.getTitle()).append(" (").append(p.getId()).append(')').append(Text.DELIMITER));
@@ -483,22 +577,31 @@ public class SwitchDosboxVersionDialog extends SizeControlledButtonDialog<Boolea
 				try {
 					String warnings = prof.resetAndLoadConfiguration();
 					String before = prof.getConfiguration().toString(null);
+					String autoexecRead = prof.getConfiguration().getAutoexec().toString(false, null);
 					SwitchChoices.Snapshot snapshot = SwitchChoices.before(prof);
-					org.dbgl.model.entity.GenerationAwareConfigurable.Generation fromGen = prof.getGeneration();
-					warnings += prof.switchToDosboxVersion(dst);
+					Generation fromGen = writtenFor != null ? writtenFor: prof.getGeneration();
+					warnings += writtenFor != null ? prof.alterToDosboxVersionGeneration(writtenFor, dst): prof.switchToDosboxVersion(dst);
 					org.dbgl.gui.controls.CharsetQuestion.applyTo(prof, charsetAnswer); // in the charset the new DOSBox version reads
+					// alpha 48: the [autoexec] as written in the file, when the switch changes nothing in it (before, it was written
+					// anew in DBGL's order: "win" before "cd windows", empty lines gone, "keyb" as "keyb.com")
+					boolean autoexecSame = autoexecRead.equals(prof.getConfiguration().getAutoexec().toString(false, null));
 					List<SwitchChoices.Choice> choices = SwitchChoices.after(snapshot, prof);
 					// lost when switched away from this kind of DOSBox before: offered again
 					java.util.Properties memory = org.dbgl.util.SwitchMemory.load(prof.getId());
 					choices.addAll(org.dbgl.util.SwitchMemory.restoresFrom(memory, prof));
 					String afterSwitch = prof.getConfiguration().toString(null);
 					List<SwitchChoices.Choice> kept = SwitchChoices.apply(prof, choices, this::keeps, markers_.getSelection(), preview);
+					boolean asWritten = autoexecSame && choices.stream().filter(c -> c.kind() == SwitchChoices.Kind.AUTOEXEC).allMatch(this::keeps);
+					if (asWritten)
+						prof.getConfiguration().keepAutoexecAsWritten(); // all its lines kept: as it is
 					List<String> diff = new ArrayList<>(grouped(before, afterSwitch, fullFile())); // each section, below it its values
 					for (SwitchChoices.Choice c: choices)
 						if ((c.kind() == SwitchChoices.Kind.AUTOEXEC) && !kept.contains(c))
 							diff.add("- [autoexec] " + c.oldText()); // not ticked: removed
 					for (SwitchChoices.Choice c: kept)
-						if (c.kind() == SwitchChoices.Kind.RESTORE)
+						if (asWritten && (c.kind() == SwitchChoices.Kind.AUTOEXEC))
+							continue; // not each line: the [autoexec] stays as a whole, said below
+						else if (c.kind() == SwitchChoices.Kind.RESTORE)
 							diff.add("+ " + text_.get("dialog.switchdosbox.report.restored") + ": " + where(c) + "=" + c.oldText());
 						else
 							diff.add("= " + text_.get("dialog.switchdosbox.report.kept") + ": " + where(c) + " " + c.oldText());
@@ -509,6 +612,8 @@ public class SwitchDosboxVersionDialog extends SizeControlledButtonDialog<Boolea
 					else
 						changed++;
 					diff.forEach(l -> report.append("   ").append(l).append(Text.DELIMITER));
+					if (asWritten && choices.stream().anyMatch(c -> c.kind() == SwitchChoices.Kind.AUTOEXEC))
+						report.append("   = ").append(text_.get("dialog.switchdosbox.report.autoexecaswritten")).append(Text.DELIMITER);
 					if (StringUtils.isNotBlank(warnings))
 						report.append("   ! ").append(warnings.trim().replace("\n", Text.DELIMITER + "   ! ")).append(Text.DELIMITER);
 					if (!preview) {

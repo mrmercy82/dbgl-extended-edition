@@ -107,6 +107,16 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 		windowImage_ = editing_ ? ImageService.IMG_TB_EDIT: ImageService.IMG_TB_NEW; // the symbols of the toolbar
 	}
 
+	@Override
+	protected org.dbgl.model.aggregate.Profile savegamesProfile() {
+		return editing_ ? profile_: null;
+	}
+
+	@Override
+	protected File savestatesDir() {
+		return editing_ ? org.dbgl.util.ExecuteUtils.savestatesDir(profile_): null;
+	}
+
 	private String initialSearch_;
 
 	/** open the dialog showing a setting, e.g. one DOSBox complained about in the status window */
@@ -343,6 +353,7 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 		TreeItem infoItem = addPageGenerator("dialog.template.tab.info", this::createInfoPage);
 		addPageGenerator(infoItem, "dialog.profile.tab.custominfo", this::createCustomInfoPage);
 		addPageGenerator("dialog.template.tab.mounting", this::createMountingPage);
+		addSavePageGenerators(true); // alpha 48: below the drives
 		TreeItem dosboxItem = addPageGenerator("dialog.template.tab.dosbox", this::createDosboxPage);
 		addCommonPageGenerators(dosboxItem);
 
@@ -676,9 +687,20 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 		}
 	}
 
+	private org.eclipse.swt.widgets.Group allSettingsGroup_;
+
+	/** alpha 48: the settings without a field of their own come at the end of a page; on this one above 'all settings' */
+	@Override
+	protected void onPageCreated(String key, Composite page) {
+		super.onPageCreated(key, page);
+		if ((allSettingsGroup_ != null) && !allSettingsGroup_.isDisposed() && (allSettingsGroup_.getParent() == page))
+			allSettingsGroup_.moveBelow(null);
+	}
+
 	/** this profile alone keeps all DOSBox settings (as D-Fend Reloaded does), with the drawbacks right below it */
 	private void createAllSettingsControls(Composite composite) {
 		org.eclipse.swt.widgets.Group group = new org.eclipse.swt.widgets.Group(composite, SWT.NONE);
+		allSettingsGroup_ = group;
 		group.setText(text_.get("dialog.profile.allsettings.group"));
 		group.setLayoutData(new GridData(SWT.FILL, SWT.BEGINNING, true, false));
 		group.setLayout(new GridLayout(1, false));

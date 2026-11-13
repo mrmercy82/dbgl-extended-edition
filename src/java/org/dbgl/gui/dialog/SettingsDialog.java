@@ -38,6 +38,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Strings;
 import org.dbgl.constants.Constants;
 import org.dbgl.gui.abstractdialog.SizeControlledTabbedDialog;
+import org.dbgl.gui.controls.DarkTheme;
 import org.dbgl.gui.controls.CTabFolder_;
 import org.dbgl.gui.controls.Chain;
 import org.dbgl.gui.controls.Combo_;
@@ -111,7 +112,12 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 		Locale locale = new Locale(settings_.getValue("locale", "language"), settings_.getValue("locale", "country"), settings_.getValue("locale", "variant"));
 		String locString = locales.keySet().stream().filter(key -> locales.get(key).equals(locale)).findFirst().orElse(StringUtils.EMPTY);
 
-		// first what DBGL looks for on the internet by itself, then the settings for DOSBox
+		// alpha 48: the language first
+		Group i18nGroup = Group_.on(generalComposite).layout(new GridLayout(2, false)).key("dialog.settings.i18n").build();
+		Combo localeCombo = Chain.on(i18nGroup).lbl(l -> l.key("dialog.settings.languagecountry")).cmb(c -> c.items(locales.keySet().toArray(new String[0])).visibleItemCount(20)).combo();
+		localeCombo.setText(locString);
+
+		// then what DBGL looks for on the internet by itself, then the settings for DOSBox
 		Group updatesGroup = Group_.on(generalComposite).layout(new GridLayout(2, false)).key("dialog.settings.autoupdates").build();
 		Button checkForUpdates = Chain.on(updatesGroup).lbl(l -> l.key("dialog.settings.checkforupdates")).but(b -> b.tooltip("dialog.settings.checkforupdates.tooltip").select(settings_.getBooleanValue("dosbox", "checkforupdates"))).button();
 		Button editionCheck = Chain.on(updatesGroup).lbl(l -> l.key("dialog.settings.edition.check2")).but(b -> b.tooltip("dialog.settings.edition.check.tooltip")
@@ -121,33 +127,40 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 
 		Group dosboxGroup = Group_.on(generalComposite).layout(new GridLayout(2, false)).key("dialog.settings.dosbox").build();
 		Button console = Chain.on(dosboxGroup).lbl(l -> l.key("dialog.settings.hidestatuswindow")).but(b -> b.select(settings_.getBooleanValue("dosbox", "hideconsole"))).button();
-		Button hideUnsupported = Chain.on(dosboxGroup).lbl(l -> l.key("dialog.settings.hideunsupportedsettings")).but(b -> b.select(settings_.getBooleanValue("gui", "hideunsupportedsettings"))).button();
 		Button detectFailedStart = Chain.on(dosboxGroup).lbl(l -> l.key("dialog.settings.detectfailedstart")).but(b -> b.select(settings_.getBooleanValue("dosbox", "detectfailedstart"))).button();
 		Button checkVersions = Chain.on(dosboxGroup).lbl(l -> l.key("dialog.settings.checkversionsatstartup")).but(b -> b.select(settings_.getBooleanValue("dosbox", "checkversionsatstartup"))).button();
 		Button checkBeforeStart = Chain.on(dosboxGroup).lbl(l -> l.key("dialog.settings.checkbeforestart")).but(b -> b.select(settings_.getBooleanValue("dosbox", "checkbeforestart"))).button();
+		Button ownSavestates = Chain.on(dosboxGroup).lbl(l -> l.key("dialog.settings.ownsavestates")).but(b -> b.tooltip("dialog.settings.ownsavestates.tooltip")
+			.select(settings_.getBooleanValue("dosbox", "ownsavestates"))).button(); // alpha 48
 		// "Do not ask again" in the question about the charset of a file (CharsetQuestion): asked again when ticked here
 		Button askCharset = Chain.on(dosboxGroup).lbl(l -> l.key("dialog.settings.askcharset")).but(b -> b.tooltip("dialog.settings.askcharset2.tooltip")
 				.select(!settings_.getBooleanValue(org.dbgl.gui.controls.CharsetQuestion.SECTION, org.dbgl.gui.controls.CharsetQuestion.ITEM))).button();
-		// a note for profiles with hints only (what "Check profiles" finds that does not keep them from starting); off at first
-		Button profileHints = Chain.on(dosboxGroup).lbl(l -> l.key("dialog.settings.profilehints")).but(b -> b.tooltip("dialog.settings.profilehints.tooltip").select(settings_.getBooleanValue("gui", "profilehints"))).button();
-		Button profileWarnings = Chain.on(dosboxGroup).lbl(l -> l.key("dialog.settings.profilewarnings")).but(b -> b.tooltip("dialog.settings.profilewarnings.tooltip").select(settings_.getBooleanValue("gui", "profilewarnings"))).button();
 		Button longToolTips = Chain.on(dosboxGroup).lbl(l -> l.key("dialog.settings.longtooltips")).but(b -> b.tooltip("dialog.settings.longtooltips.tooltip").select(settings_.getBooleanValue("gui", "longtooltips"))).button();
-
-		Group unknownGroup = Group_.on(generalComposite).layout(new GridLayout(2, false)).key("dialog.settings.unknownlines").build();
 		boolean askUnknown = org.dbgl.util.UnknownAutoexecLines.ASK.equals(settings_.getValue(org.dbgl.util.UnknownAutoexecLines.SECTION, org.dbgl.util.UnknownAutoexecLines.MODE));
-		Combo unknownMode = Chain.on(unknownGroup).lbl(l -> l.key("dialog.settings.unknownlines.mode")).cmb(c -> c.items(new String[] {text_.get("dialog.settings.unknownlines.auto"),
+		Combo unknownMode = Chain.on(dosboxGroup).lbl(l -> l.key("dialog.settings.unknownlines.mode")).cmb(c -> c.items(new String[] {text_.get("dialog.settings.unknownlines.auto"),
 			text_.get("dialog.settings.unknownlines.ask")}).select(askUnknown ? 1: 0)).combo();
-		Button unknownNoMarkers = Chain.on(unknownGroup).lbl(l -> l.key("dialog.settings.unknownlines.nomarkers")).but(b -> b.tooltip("dialog.settings.unknownlines.nomarkers.tooltip2")
+		Button unknownNoMarkers = Chain.on(dosboxGroup).lbl(l -> l.key("dialog.settings.unknownlines.nomarkers")).but(b -> b.tooltip("dialog.settings.unknownlines.nomarkers.tooltip2")
 				.select(settings_.getBooleanValue(org.dbgl.util.UnknownAutoexecLines.SECTION, org.dbgl.util.UnknownAutoexecLines.NO_MARKERS))).button();
 		unknownNoMarkers.setEnabled(!askUnknown);
 		unknownMode.addListener(SWT.Selection, e -> unknownNoMarkers.setEnabled(unknownMode.getSelectionIndex() == 0));
 
-		Group extrasGroup = Group_.on(generalComposite).layout(new GridLayout(2, false)).key("dialog.settings.extras").build();
+		// alpha 48: settings of the profile editor
+		Group editorGroup = Group_.on(generalComposite).layout(new GridLayout(3, false)).key("dialog.settings.profileeditor").build();
+		Button showPlayTime = Chain.on(editorGroup).lbl(l -> l.key("dialog.settings.showplaytimeininfo")).but(b -> b.horSpan(2).select(settings_.getBooleanValue("gui", "showplaytimeininfo"))).button();
+		Button hideUnsupported = Chain.on(editorGroup).lbl(l -> l.key("dialog.settings.hideunsupportedsettings")).but(b -> b.horSpan(2).select(settings_.getBooleanValue("gui", "hideunsupportedsettings"))).button();
+		Button findExtras = Chain.on(editorGroup).lbl(l -> l.key("dialog.settings.findextras")).but(b -> b.horSpan(2).tooltip("dialog.settings.findextras.tooltip")
+				.select(settings_.getBooleanValue(org.dbgl.util.ExtrasFinder.SECTION, org.dbgl.util.ExtrasFinder.ON_ADD))).button();
+		Spinner extrasExpandMax = Chain.on(editorGroup).lbl(l -> l.key("dialog.settings.extrasexpandmax")).spn(s -> s.min(0).max(99).tooltip("dialog.settings.extrasexpandmax.tooltip").select(settings_.getIntValue("gui", "extrasexpandmax"))).lbl(l -> l.key("dialog.settings.extrasexpandmax.unit")).spinner();
 		String[] expandModes = {"collapsed", "always", "changed"};
-		Combo extrasExpand = Chain.on(extrasGroup).lbl(l -> l.key("dialog.settings.extrasexpand")).cmb(c -> c.items(new String[] {text_.get("dialog.settings.extrasexpand.collapsed"),
+		Combo extrasExpand = Chain.on(editorGroup).lbl(l -> l.key("dialog.settings.extrasexpand")).cmb(c -> c.horSpan(2).items(new String[] {text_.get("dialog.settings.extrasexpand.collapsed"),
 			text_.get("dialog.settings.extrasexpand.always"), text_.get("dialog.settings.extrasexpand.changed")}).select(Math.max(0, Arrays.asList(expandModes).indexOf(settings_.getValue("gui", "extrasexpand"))))).combo();
-		Button extrasOnExtrasPages = Chain.on(extrasGroup).lbl(l -> l.key("dialog.settings.extrasexpandonextraspages")).but(b -> b.tooltip("dialog.settings.extrasexpandonextraspages.tooltip").select(settings_.getBooleanValue("gui", "extrasexpandonextraspages"))).button();
-		Button extrasCount = Chain.on(extrasGroup).lbl(l -> l.key("dialog.settings.extrascountchanges")).but(b -> b.select(settings_.getBooleanValue("gui", "extrascountchanges"))).button();
+		Button extrasCount = Chain.on(editorGroup).lbl(l -> l.key("dialog.settings.extrascountchanges")).but(b -> b.horSpan(2).select(settings_.getBooleanValue("gui", "extrascountchanges"))).button();
+		Button extrasOnExtrasPages = Chain.on(editorGroup).lbl(l -> l.key("dialog.settings.extrasexpandonextraspages")).but(b -> b.horSpan(2).tooltip("dialog.settings.extrasexpandonextraspages.tooltip").select(settings_.getBooleanValue("gui", "extrasexpandonextraspages"))).button();
+		java.util.List<WebSearchEngine> engines = SettingsService.availableWebSearchEngines();
+		WebSearchEngine currentEngine = WebSearchEngine.getBySimpleName(settings_.getValue("gui", "searchengine"));
+		Combo defaultEngine = Chain.on(editorGroup).lbl(l -> l.key("dialog.settings.defaultsearchengine")).cmb(c -> c.horSpan(2).tooltip("dialog.settings.defaultsearchengine.tooltip")
+			.items(engines.stream().map(WebSearchEngine::getName).toArray(String[]::new)).select(Math.max(0, engines.indexOf(currentEngine)))).combo();
+		alignFirstColumns(updatesGroup, dosboxGroup, editorGroup); // alpha 48: the boxes of these groups in one column
 
 		Group backupGroup = Group_.on(generalComposite).layout(new GridLayout(2, false)).key("dialog.settings.autobackup").build();
 		String[] backupModes = {"never", "daily", "weekly"};
@@ -158,6 +171,9 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 		Group sendToGroup = Group_.on(generalComposite).layout(new GridLayout(2, false)).key("dialog.settings.sendto").build();
 		Button portEnabled = Chain.on(sendToGroup).lbl(l -> l.key("dialog.settings.enableport")).but(b -> b.select(settings_.getBooleanValue("communication", "port_enabled"))).button();
 		Text port = Chain.on(sendToGroup).lbl(l -> l.key("dialog.settings.port")).txt(t -> t.val(settings_.getValue("communication", "port"))).text();
+		GridData portData = new GridData(SWT.BEGINNING, SWT.CENTER, false, false);
+		portData.widthHint = 70;
+		port.setLayoutData(portData);
 		port.setEnabled(portEnabled.getSelection());
 		portEnabled.addSelectionListener(new SelectionAdapter() {
 			@Override
@@ -173,8 +189,6 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 
 		Combo capturesLocation = Chain.on(profileDefGroup).lbl(l -> l.key("dialog.settings.captures")).cmb(
 			c -> c.horSpan(2).items(getCapsLocations()).select(settings_.getIntValue("profiledefaults", "capturespath"))).combo();
-		Button findExtras = Chain.on(profileDefGroup).lbl(l -> l.key("dialog.settings.findextras")).but(b -> b.horSpan(2).tooltip("dialog.settings.findextras.tooltip")
-				.select(settings_.getBooleanValue(org.dbgl.util.ExtrasFinder.SECTION, org.dbgl.util.ExtrasFinder.ON_ADD))).button();
 		// all DOSBox settings in each profile (as D-Fend Reloaded does), with the drawbacks right below, impossible to miss
 		boolean allSettingsBefore = org.dbgl.util.FullConfProfiles.enabled();
 		Button allSettings = Chain.on(profileDefGroup).lbl(l -> l.key("dialog.settings.allsettings.new")).but(b -> b.horSpan(2).select(allSettingsBefore)).button();
@@ -185,9 +199,11 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 		allSettingsWarning.setText(text_.get("dialog.settings.allsettings.warning"));
 		allSettingsWarning.setForeground(shell_.getDisplay().getSystemColor(SWT.COLOR_DARK_RED));
 
-		Group i18nGroup = Group_.on(generalComposite).layout(new GridLayout(2, false)).key("dialog.settings.i18n").build();
-		Combo localeCombo = Chain.on(i18nGroup).lbl(l -> l.key("dialog.settings.languagecountry")).cmb(c -> c.items(locales.keySet().toArray(new String[0])).visibleItemCount(20)).combo();
-		localeCombo.setText(locString);
+		// alpha 48: all groups of this tab as wide as the widest
+		for (org.eclipse.swt.widgets.Control c: generalComposite.getChildren())
+			if (c instanceof Group)
+				c.setLayoutData(new GridData(SWT.FILL, SWT.BEGINNING, true, false));
+
 
 		Composite profileTableComposite = createTabWithComposite("dialog.settings.tab.profiletable", new GridLayout());
 
@@ -275,7 +291,75 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 			}
 		});
 
-		Composite guiComposite = createTabWithComposite("dialog.settings.tab.gui", 4);
+		Composite guiComposite = createScrolledTabWithComposite("dialog.settings.tab.gui", new GridLayout(4, false)); // alpha 48: scrolls when the window is lower than the page
+
+		// alpha 48: what the list of profiles and the area below it show
+		Group overviewGroup = Group_.on(guiComposite).layout(new GridLayout(2, false)).layoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 4, 1)).key("dialog.settings.profileoverview").build();
+		Button showPlayTimeInNotes = Chain.on(overviewGroup).lbl(l -> l.key("dialog.settings.showplaytimeinnotes")).but(b -> b.select(settings_.getBooleanValue("gui", "showplaytimeinnotes"))).button();
+		Button profileHints = Chain.on(overviewGroup).lbl(l -> l.key("dialog.settings.profilehints")).but(b -> b.tooltip("dialog.settings.profilehints.tooltip").select(settings_.getBooleanValue("gui", "profilehints"))).button();
+		Button profileWarnings = Chain.on(overviewGroup).lbl(l -> l.key("dialog.settings.profilewarnings")).but(b -> b.tooltip("dialog.settings.profilewarnings.tooltip").select(settings_.getBooleanValue("gui", "profilewarnings"))).button();
+
+		// alpha 48: the TV mode: where its key hints are, the names and colours of the four buttons of the controller
+		Group tvGroup = Group_.on(guiComposite).layout(new GridLayout(6, false)).layoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 4, 1)).key("dialog.settings.tv").build();
+		new Label(tvGroup, SWT.NONE).setText(TextService.getInstance().get("dialog.settings.tv.hints"));
+		Combo tvHints = new Combo(tvGroup, SWT.READ_ONLY);
+		tvHints.setItems(TextService.getInstance().get("dialog.settings.tv.hints.right"), TextService.getInstance().get("dialog.settings.tv.hints.center"),
+			TextService.getInstance().get("dialog.settings.tv.hints.left"));
+		tvHints.select(Math.max(0, Math.min(2, settings_.getIntValue("gui", "tvhints"))));
+		tvHints.setLayoutData(new GridData(SWT.BEGINNING, SWT.CENTER, false, false, 5, 1));
+		Text[] tvLabels = new Text[4];
+		org.eclipse.swt.graphics.RGB[] tvColors = new org.eclipse.swt.graphics.RGB[4];
+		for (int i = 0; i < 4; i++) {
+			int n = i;
+			Label buttonLabel = new Label(tvGroup, SWT.NONE);
+			buttonLabel.setText(TextService.getInstance().get("dialog.settings.tv.button", new Object[] {i + 1}));
+			if (i % 2 == 1) { // the second button of a row a bit apart from the first
+				GridData bd = new GridData();
+				bd.horizontalIndent = 24;
+				buttonLabel.setLayoutData(bd);
+			}
+			tvLabels[i] = new Text(tvGroup, SWT.BORDER);
+			tvLabels[i].setText(settings_.getValue("gui", "tvbutton" + (i + 1)));
+			tvLabels[i].setTextLimit(6);
+			GridData labelData = new GridData(SWT.BEGINNING, SWT.CENTER, false, false);
+			labelData.widthHint = 60;
+			tvLabels[i].setLayoutData(labelData);
+			tvColors[i] = org.dbgl.gui.tv.TvMode.buttonColor(i + 1);
+			Button color = new Button(tvGroup, SWT.PUSH);
+			color.setText(TextService.getInstance().get("dialog.settings.tv.color"));
+			Runnable swatch = () -> {
+				org.eclipse.swt.graphics.Image old = color.getImage();
+				org.eclipse.swt.graphics.Image img = new org.eclipse.swt.graphics.Image(shell_.getDisplay(), 16, 12);
+				org.eclipse.swt.graphics.GC gc = new org.eclipse.swt.graphics.GC(img);
+				gc.setBackground(new org.eclipse.swt.graphics.Color(tvColors[n]));
+				gc.fillRectangle(0, 0, 16, 12);
+				gc.dispose();
+				color.setImage(img);
+				if (old != null)
+					old.dispose();
+			};
+			swatch.run();
+			color.addDisposeListener(e -> {
+				if (color.getImage() != null)
+					color.getImage().dispose();
+			});
+			color.addListener(SWT.Selection, e -> {
+				org.eclipse.swt.widgets.ColorDialog cd = new org.eclipse.swt.widgets.ColorDialog(shell_);
+				cd.setRGB(tvColors[n]);
+				org.eclipse.swt.graphics.RGB rgb = cd.open();
+				if (rgb != null) {
+					tvColors[n] = rgb;
+					swatch.run();
+				}
+			});
+		}
+		// alpha 48: the play time below the chosen game
+		Label tvPlayLabel = new Label(tvGroup, SWT.NONE);
+		tvPlayLabel.setText(TextService.getInstance().get("dialog.settings.tv.playtime"));
+		tvPlayLabel.setLayoutData(new GridData(SWT.BEGINNING, SWT.CENTER, false, false, 3, 1));
+		Button tvPlayTime = new Button(tvGroup, SWT.CHECK);
+		tvPlayTime.setSelection(settings_.getBooleanValue("gui", "showplaytimeintv"));
+		tvPlayTime.setLayoutData(new GridData(SWT.BEGINNING, SWT.CENTER, false, false, 3, 1));
 
 		Font notesFont = stringToFont(shell_.getDisplay(), settings_.getValues("gui", "notesfont"), port.getFont());
 
@@ -352,8 +436,24 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 
 		Group themeGroup = Group_.on(guiComposite).layout(new GridLayout(2, false)).key("dialog.settings.colors").build();
 		Combo themeSelector = Chain.on(themeGroup).lbl(l -> l.key("dialog.settings.theme")).cmb(
-			c -> c.items(Arrays.asList(TextService.getInstance().get("dialog.settings.theme.default"), TextService.getInstance().get("dialog.settings.theme.forcedarkmode"))).select(
-				settings_.getIntValue("gui", "theme"))).combo();
+			c -> c.items(Arrays.asList(TextService.getInstance().get("dialog.settings.theme.default"), TextService.getInstance().get("dialog.settings.theme.forcedarkmode"),
+				TextService.getInstance().get("dialog.settings.theme.system"), TextService.getInstance().get("dialog.settings.theme.highcontrast"))).select(
+					settings_.getIntValue("gui", "theme"))).combo();
+		// alpha 48: a box with its text over both columns (the drop-down stays next to its short label)
+		Button ownFrames = new Button(themeGroup, SWT.CHECK);
+		ownFrames.setText(TextService.getInstance().get("dialog.settings.theme.ownframes"));
+		ownFrames.setToolTipText(TextService.getInstance().get("dialog.settings.theme.ownframes.tooltip"));
+		ownFrames.setSelection(settings_.getBooleanValue("gui", "darkownframes"));
+		ownFrames.setLayoutData(new GridData(SWT.BEGINNING, SWT.CENTER, false, false, 2, 1));
+		ownFrames.setEnabled(org.dbgl.util.SystemUtils.IS_WINDOWS);
+
+		// alpha 48: the row of small groups right below the profile overview, the screenshots after them
+		for (Group g: new Group[] {buttonsGroup, linkingGroup, notesGroup, themeGroup})
+			g.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false)); // the same height in their row
+		buttonsGroup.moveBelow(tvGroup);
+		linkingGroup.moveBelow(buttonsGroup);
+		notesGroup.moveBelow(linkingGroup);
+		themeGroup.moveBelow(notesGroup);
 
 		Composite enginesComposite = createTabWithComposite("dialog.settings.tab.engines", new FillLayout());
 
@@ -401,6 +501,7 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 						t -> t.horSpan(2).val(settings_.getValue(engine.getSimpleName(), org.dbgl.util.searchengine.IgdbSearchEngine.CLIENT_ID))).text();
 				apiSecrets[i] = Chain.on(consultGroup).lbl(l -> l.key("dialog.settings.igdb.clientsecret")).txt(
 						t -> t.horSpan(2).val(settings_.getValue(engine.getSimpleName(), org.dbgl.util.searchengine.IgdbSearchEngine.CLIENT_SECRET))).text();
+				apiSecrets[i].setEchoChar('\u25CF'); // the secret is not shown (alpha 48)
 			}
 			{
 				// where to get the key: a link, and what this source gives (for every source since alpha 45)
@@ -462,6 +563,8 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 		enginesTabFolder.setSelection(0);
 
 		Composite envComposite = createTabWithComposite("dialog.settings.tab.environment", new GridLayout());
+		moveTabToFront(guiComposite);
+		moveTabToFront(generalComposite); // alpha 48: General first, then GUI
 
 		Group envGroup = Group_.on(envComposite).layoutData(new GridData(SWT.FILL, SWT.FILL, true, true)).layout(new GridLayout(2, false)).key("dialog.settings.environment").build();
 		Button enableEnv = Chain.on(envGroup).lbl(l -> l.key("dialog.settings.enableenvironment")).but(b -> b.select(settings_.getBooleanValue("environment", "use"))).button();
@@ -482,6 +585,16 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 					return;
 				}
 
+				// alpha 48: Windows changes its menus to the other mode only in a new start of DBGL: asked, else the mode stays
+				// (only when it really gets lighter or darker: "as the system" may be the same as before)
+				if ((themeSelector.getSelectionIndex() != settings_.getIntValue("gui", "theme")) && ((DarkTheme.isDark(themeSelector.getSelectionIndex()) != DarkTheme.forced())
+						|| ((themeSelector.getSelectionIndex() == 3) != DarkTheme.HIGH_CONTRAST))) {
+					if (Mess_.on(shell_).key("dialog.settings.theme.restart").confirm())
+						MainWindow.requestProcessRestart();
+					else
+						themeSelector.select(settings_.getIntValue("gui", "theme"));
+				}
+
 				boolean changedVisColumns = haveColumnsBeenChanged();
 				if (changedVisColumns)
 					updateColumnSettings(allColumnIds, visibleColumns);
@@ -489,7 +602,8 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 				boolean requireRestart = changedVisColumns || (portEnabled.getSelection() != (settings_.getBooleanValue("communication", "port_enabled")))
 						|| (!port.getText().equalsIgnoreCase(settings_.getValue("communication", "port"))) || (screenshotsHeight.getSelection() != settings_.getIntValue("gui", "screenshotsheight"))
 						|| (screenshotsColumnHeight.getSelection() != settings_.getIntValue("gui", "screenshotscolumnheight"))
-						|| (buttonDisplay.getSelectionIndex() != settings_.getIntValue("gui", "buttondisplay")) || (themeSelector.getSelectionIndex() != settings_.getIntValue("gui", "theme"));
+						|| (buttonDisplay.getSelectionIndex() != settings_.getIntValue("gui", "buttondisplay")) || (themeSelector.getSelectionIndex() != settings_.getIntValue("gui", "theme"))
+						|| (ownFrames.getSelection() != settings_.getBooleanValue("gui", "darkownframes"));
 
 				if ((!locales.get(localeCombo.getText()).getLanguage().equalsIgnoreCase(settings_.getValue("locale", "language")))
 						|| (!locales.get(localeCombo.getText()).getCountry().equalsIgnoreCase(settings_.getValue("locale", "country")))
@@ -507,6 +621,7 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 				settings_.setBooleanValue("dosbox", "checkversionsatstartup", checkVersions.getSelection());
 				settings_.setBooleanValue("dosbox", "checkforupdates", checkForUpdates.getSelection());
 				settings_.setBooleanValue("dosbox", "checkbeforestart", checkBeforeStart.getSelection());
+				settings_.setBooleanValue("dosbox", "ownsavestates", ownSavestates.getSelection());
 				settings_.setBooleanValue(org.dbgl.gui.controls.CharsetQuestion.SECTION, org.dbgl.gui.controls.CharsetQuestion.ITEM, !askCharset.getSelection());
 				settings_.setBooleanValue("gui", "profilewarnings", profileWarnings.getSelection());
 				settings_.setBooleanValue("gui", "profilehints", profileHints.getSelection());
@@ -520,6 +635,11 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 				settings_.setValue("gui", "extrasexpand", expandModes[Math.max(0, extrasExpand.getSelectionIndex())]);
 				settings_.setBooleanValue("gui", "extrasexpandonextraspages", extrasOnExtrasPages.getSelection());
 				settings_.setBooleanValue("gui", "extrascountchanges", extrasCount.getSelection());
+				settings_.setBooleanValue("gui", "showplaytimeininfo", showPlayTime.getSelection());
+				settings_.setBooleanValue("gui", "showplaytimeinnotes", showPlayTimeInNotes.getSelection());
+				settings_.setIntValue("gui", "extrasexpandmax", extrasExpandMax.getSelection());
+				if (defaultEngine.getSelectionIndex() >= 0)
+					settings_.setValue("gui", "searchengine", engines.get(defaultEngine.getSelectionIndex()).getSimpleName());
 				settings_.setValue("backup", "auto", backupModes[Math.max(0, autoBackup.getSelectionIndex())]);
 				settings_.setIntValue("backup", "keep", backupKeep.getSelection());
 				settings_.setBooleanValue("communication", "port_enabled", portEnabled.getSelection());
@@ -553,6 +673,14 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 				settings_.setIntValue("gui", "buttondisplay", buttonDisplay.getSelectionIndex());
 				settings_.setMultilineValue("gui", "notesfont", fontToString(fontButton.getFont()), "|");
 				settings_.setIntValue("gui", "theme", themeSelector.getSelectionIndex());
+				settings_.setBooleanValue("gui", "darkownframes", ownFrames.getSelection());
+				settings_.setIntValue("gui", "tvhints", tvHints.getSelectionIndex());
+				settings_.setBooleanValue("gui", "showplaytimeintv", tvPlayTime.getSelection());
+				for (int i = 0; i < 4; i++) {
+					String label = tvLabels[i].getText().strip();
+					settings_.setValue("gui", "tvbutton" + (i + 1), label.isEmpty() ? org.dbgl.gui.tv.TvMode.DEFAULT_BUTTONS[i]: label);
+					settings_.setValue("gui", "tvbutton" + (i + 1) + "color", tvColors[i].red + "," + tvColors[i].green + "," + tvColors[i].blue);
+				}
 				settings_.setIntValue("gui", "linking", linkingSelector.getSelectionIndex());
 
 				for (int i = 0; i < nrOfEngines; i++) {
@@ -732,6 +860,43 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 		List<Integer> allColumnIds = new ArrayList<>(orderedVisibleColumnIds);
 		allColumnIds.addAll(remainingColumnIDs);
 		return allColumnIds;
+	}
+
+	/** alpha 48: this tab first (at the left); the one shown at first stays the same */
+	/** alpha 48: the labels in the first column of the groups as wide as the widest, so their controls stand in one column */
+	private static void alignFirstColumns(Composite... groups) {
+		java.util.List<org.eclipse.swt.widgets.Label> labels = new java.util.ArrayList<>();
+		for (Composite group: groups) {
+			int columns = ((GridLayout)group.getLayout()).numColumns, col = 0;
+			for (org.eclipse.swt.widgets.Control c: group.getChildren()) {
+				if (col == 0 && c instanceof org.eclipse.swt.widgets.Label label)
+					labels.add(label);
+				int span = (c.getLayoutData() instanceof GridData gd) ? gd.horizontalSpan: 1;
+				col = (col + span) % columns;
+			}
+		}
+		int width = labels.stream().mapToInt(l -> l.computeSize(SWT.DEFAULT, SWT.DEFAULT).x).max().orElse(0);
+		for (org.eclipse.swt.widgets.Label label: labels) {
+			GridData data = (label.getLayoutData() instanceof GridData gd) ? gd: new GridData();
+			data.widthHint = width;
+			label.setLayoutData(data);
+		}
+	}
+
+	private void moveTabToFront(Composite composite) {
+		CTabItem item = getTabItemByComposite(composite);
+		if ((item == null) || (tabFolder_.indexOf(item) == 0))
+			return;
+		CTabItem selected = tabFolder_.getSelection();
+		org.eclipse.swt.widgets.Control control = item.getControl();
+		CTabItem moved = new CTabItem(tabFolder_, item.getStyle(), 0);
+		moved.setText(item.getText());
+		moved.setImage(item.getImage());
+		moved.setToolTipText(item.getToolTipText());
+		item.setControl(null);
+		item.dispose();
+		moved.setControl(control);
+		tabFolder_.setSelection((selected == item) ? moved: selected);
 	}
 
 	private boolean isValid(Table visibleColumnsTable, TableItem[] visibleColumns, CTabItem columnsTabItem) {

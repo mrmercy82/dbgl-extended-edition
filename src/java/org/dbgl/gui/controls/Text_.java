@@ -94,7 +94,7 @@ public final class Text_ {
 		public Text build() {
 			Text text = new Text(composite_, style_);
 			if (DarkTheme.forced()) {
-				text.setBackground(DarkTheme.inputBackground);
+				text.setBackground(((text.getStyle() & SWT.MULTI) != 0) ? DarkTheme.inputBackground: DarkTheme.fieldBackground); // alpha 48: fields lighter
 				text.setForeground(DarkTheme.defaultForeground);
 			}
 			if (averageCharacterWidth_ == null) {

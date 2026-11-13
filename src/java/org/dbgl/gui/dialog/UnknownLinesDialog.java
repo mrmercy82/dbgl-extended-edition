@@ -47,11 +47,22 @@ public class UnknownLinesDialog extends SizeControlledButtonDialog<List<UnknownA
 
 	private final String profileTitle_;
 	private final List<Autoexec.UnknownLine> lines_;
+	private java.util.function.Function<List<UnknownAutoexecLines.Decision>, String> preview_;
 
 	public UnknownLinesDialog(Shell parent, String profileTitle, List<Autoexec.UnknownLine> lines) {
 		super(parent, "unknownlinesdialog");
 		profileTitle_ = profileTitle;
 		lines_ = lines;
+	}
+
+	/**
+	 * Alpha 48: at the right the [autoexec] as it will be with the choices made so far, changing with every box ticked
+	 *
+	 * @param preview the [autoexec] for the choices
+	 */
+	public UnknownLinesDialog withPreview(java.util.function.Function<List<UnknownAutoexecLines.Decision>, String> preview) {
+		preview_ = preview;
+		return this;
 	}
 
 	/**
@@ -63,7 +74,7 @@ public class UnknownLinesDialog extends SizeControlledButtonDialog<List<UnknownA
 		Label where = new Label(parent, SWT.WRAP);
 		where.setText(text.get("dialog.unknownlines.markers.where3", new Object[] {text.get("dialog.main.menu.file").replace("&", ""),
 				text.get("dialog.main.menu.adjustsettings").replace("&", "").replace("...", "").replace("…", "").trim(), text.get("dialog.settings.tab.general").replace("&", ""),
-				text.get("dialog.settings.unknownlines")}));
+				text.get("dialog.settings.dosbox")})); // alpha 48: the options are in the group DOSBox now
 		GridData data = new GridData(SWT.FILL, SWT.CENTER, true, false, span, 1);
 		data.horizontalIndent = 20;
 		where.setLayoutData(data);
@@ -77,18 +88,26 @@ public class UnknownLinesDialog extends SizeControlledButtonDialog<List<UnknownA
 
 	@Override
 	protected void onShellCreated() {
-		contents_.setLayout(new GridLayout(3, false));
-		Label info = new Label(contents_, SWT.WRAP);
+		org.eclipse.swt.widgets.Composite left = contents_;
+		if (preview_ != null) {
+			contents_.setLayout(new GridLayout(2, false));
+			left = new org.eclipse.swt.widgets.Composite(contents_, SWT.NONE);
+			left.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
+		}
+		left.setLayout(new GridLayout(3, false));
+		if (preview_ != null)
+			((GridLayout)left.getLayout()).marginWidth = ((GridLayout)left.getLayout()).marginHeight = 0;
+		Label info = new Label(left, SWT.WRAP);
 		info.setText(text_.get("dialog.unknownlines.info", new Object[] {profileTitle_}));
 		GridData infoData = new GridData(SWT.FILL, SWT.BEGINNING, true, false);
 		infoData.widthHint = 400;
 		info.setLayoutData(infoData);
-		Button all = new Button(contents_, SWT.PUSH);
+		Button all = new Button(left, SWT.PUSH);
 		all.setText(text_.get("dialog.switchdosbox.keepall"));
-		Button none = new Button(contents_, SWT.PUSH);
+		Button none = new Button(left, SWT.PUSH);
 		none.setText(text_.get("dialog.switchdosbox.keepnone"));
 
-		Table table = new Table(contents_, SWT.CHECK | SWT.FULL_SELECTION | SWT.BORDER | SWT.V_SCROLL | SWT.H_SCROLL);
+		Table table = new Table(left, SWT.CHECK | SWT.FULL_SELECTION | SWT.BORDER | SWT.V_SCROLL | SWT.H_SCROLL);
 		table.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 3, 1));
 		table.setHeaderVisible(true);
 		table.setLinesVisible(true);
@@ -131,12 +150,12 @@ public class UnknownLinesDialog extends SizeControlledButtonDialog<List<UnknownA
 		gc.dispose();
 		sectionColumn.setWidth(Math.max(longest + 70, combos.stream().mapToInt(c -> c.getSize().x).max().orElse(0) + 40));
 
-		Button markers = new Button(contents_, SWT.CHECK);
+		Button markers = new Button(left, SWT.CHECK);
 		markers.setText(text_.get("dialog.unknownlines.markers"));
 		markers.setSelection(org.dbgl.util.UnknownAutoexecLines.markersChosen()); // as last time
 		markers.addListener(SWT.Selection, e -> org.dbgl.util.UnknownAutoexecLines.rememberMarkers(markers.getSelection()));
 		markers.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 3, 1));
-		markersWhere(contents_, 3);
+		markersWhere(left, 3);
 
 		all.addListener(SWT.Selection, e -> {
 			for (TableItem item: table.getItems())
@@ -147,19 +166,71 @@ public class UnknownLinesDialog extends SizeControlledButtonDialog<List<UnknownA
 				item.setChecked(false);
 		});
 
+		java.util.function.Supplier<List<UnknownAutoexecLines.Decision>> decisions = () -> {
+			List<UnknownAutoexecLines.Decision> result = new ArrayList<>();
+			for (int i = 0; i < lines_.size(); i++) {
+				Autoexec.UnknownLine l = lines_.get(i);
+				int section = l.afterExit() ? l.section(): combos.get(i).getSelectionIndex();
+				result.add(new UnknownAutoexecLines.Decision(l, table.getItem(i).getChecked(), section, markers.getSelection()));
+			}
+			return result;
+		};
+
+		if (preview_ != null) {
+			org.eclipse.swt.widgets.Group group = new org.eclipse.swt.widgets.Group(contents_, SWT.NONE);
+			group.setText(text_.get("dialog.unknownlines.preview"));
+			group.setLayout(new GridLayout(1, false));
+			GridData groupData = new GridData(SWT.FILL, SWT.FILL, true, true);
+			groupData.widthHint = 380;
+			group.setLayoutData(groupData);
+			org.eclipse.swt.widgets.Text autoexec = new org.eclipse.swt.widgets.Text(group, SWT.MULTI | SWT.READ_ONLY | SWT.BORDER | SWT.V_SCROLL | SWT.H_SCROLL);
+			GridData textData = new GridData(SWT.FILL, SWT.FILL, true, true);
+			textData.widthHint = 360;
+			autoexec.setLayoutData(textData);
+			org.eclipse.swt.graphics.Font mono = new org.eclipse.swt.graphics.Font(shell_.getDisplay(),
+				org.dbgl.util.SystemUtils.IS_WINDOWS ? "Consolas": (org.dbgl.util.SystemUtils.IS_OSX ? "Menlo": "Monospace"), 9, SWT.NORMAL);
+			autoexec.setFont(mono);
+			autoexec.addDisposeListener(e -> mono.dispose());
+			Runnable update = () -> {
+				if (autoexec.isDisposed())
+					return;
+				String text;
+				try {
+					text = preview_.apply(decisions.get());
+				} catch (RuntimeException e) {
+					text = e.toString();
+				}
+				int top = autoexec.getTopIndex();
+				autoexec.setText(text.replace("\r\n", "\n").replace("\n", org.eclipse.swt.widgets.Text.DELIMITER));
+				autoexec.setTopIndex(top);
+			};
+			table.addListener(SWT.Selection, e -> {
+				if (e.detail == SWT.CHECK)
+					update.run();
+			});
+			for (CCombo combo: combos)
+				combo.addListener(SWT.Selection, e -> update.run());
+			markers.addListener(SWT.Selection, e -> update.run());
+			all.addListener(SWT.Selection, e -> update.run());
+			none.addListener(SWT.Selection, e -> update.run());
+			update.run();
+		}
+
 		createOkCancelButtons(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
-				List<UnknownAutoexecLines.Decision> result = new ArrayList<>();
-				for (int i = 0; i < lines_.size(); i++) {
-					Autoexec.UnknownLine l = lines_.get(i);
-					int section = l.afterExit() ? l.section(): combos.get(i).getSelectionIndex();
-					result.add(new UnknownAutoexecLines.Decision(l, table.getItem(i).getChecked(), section, markers.getSelection()));
-				}
-				result_ = result;
+				result_ = decisions.get();
 				shell_.close();
 			}
 		});
 		shell_.setDefaultButton(okButton_);
+
+		// wide enough for both sides (with the preview), also when a smaller size was remembered from before; since alpha 48 also
+		// high enough for OK and Cancel (they were cut off below)
+		org.eclipse.swt.graphics.Rectangle bounds = shell_.getBounds(), area = shell_.getMonitor().getClientArea();
+		int width = Math.min(Math.max(bounds.width, (preview_ != null) ? 1100: 0), area.width);
+		int height = Math.min(Math.max(bounds.height, shell_.computeSize(width, SWT.DEFAULT).y), area.height);
+		if ((width != bounds.width) || (height != bounds.height))
+			shell_.setSize(width, height); // placed in the middle afterwards
 	}
 }

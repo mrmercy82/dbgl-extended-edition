@@ -178,11 +178,20 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		}
 	}
 	
+	/**
+	 * alpha 48: main pages below "Drives": the backups of saved games (only for one profile: they belong to its game) and the saved
+	 * states of DOSBox-X
+	 */
+	protected void addSavePageGenerators(boolean savegames) {
+		if (savegames)
+			addPageGenerator("dialog.template.tab.savegames", this::createSavegamesPage);
+		addPageGenerator("dialog.template.tab.savestates", this::createSavestatesPage);
+	}
+
 	protected void addCommonPageGenerators(TreeItem dosboxItem) {
 		addPageGenerator(dosboxItem, "dialog.template.tab.startup", this::createDosboxStartupPage);
 		addPageGenerator(dosboxItem, "dialog.template.tab.dosboxautoexec", this::createDosboxAutoexecPage);
 		TreeItem renderTreeItem = addPageGenerator(dosboxItem, "dialog.template.tab.rendering", this::createRenderingPage);
-		addPageGenerator(renderTreeItem, "dialog.template.tab.imageadjustments", this::createImageAdjustmentsPage);
 		addPageGenerator(renderTreeItem, "dialog.template.tab.ttf", this::createTtfPage);
 		TreeItem dosTreeItem = addPageGenerator(dosboxItem, "dialog.template.dos", this::createDosPage);
 		addPageGenerator(dosTreeItem, "dialog.template.tab.configsys", this::createConfigSysPage);
@@ -308,9 +317,18 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 	private final List<java.util.function.Consumer<TemplateProfileBase>> versionNotes_ = new ArrayList<>();
 
 	/** a note below the controls of a page, set for the selected DOSBox version (hidden when it says nothing) */
+	/** alpha 48: a field for a short value: as wide as needed, not over the whole width */
+	private static void shorter(Text text, int width) {
+		if (text.getLayoutData() instanceof GridData data) {
+			data.widthHint = width;
+			data.horizontalAlignment = SWT.BEGINNING;
+			data.grabExcessHorizontalSpace = false;
+		}
+	}
+
 	private void versionNote(Composite parent, int span, TemplateProfileBase configurable, java.util.function.Function<TemplateProfileBase, String> text) {
 		org.eclipse.swt.widgets.Label note = new org.eclipse.swt.widgets.Label(parent, SWT.WRAP);
-		GridData gd = new GridData(SWT.FILL, SWT.BEGINNING, true, false, span, 1);
+		GridData gd = new GridData(SWT.FILL, span == 1 ? SWT.CENTER: SWT.BEGINNING, true, false, span, 1); // alpha 48: next to its field: in the middle
 		gd.widthHint = 400;
 		note.setLayoutData(gd);
 		java.util.function.Consumer<TemplateProfileBase> update = c -> {
@@ -375,7 +393,7 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 	 * its own changes and takes everything else from the configuration of the selected DOSBox version.
 	 */
 	protected void applyPendingDosboxVersion() {
-		if (setButton_.isEnabled() && (dbversionCombo_.getSelectionIndex() != -1))
+		if ((setButton_ != null) && !setButton_.isDisposed() && setButton_.isEnabled() && (dbversionCombo_.getSelectionIndex() != -1)) // its page maybe never built
 			doPerformDosboxConfAction(DosboxConfAction.SWITCH, dbversionsList_.get(dbversionCombo_.getSelectionIndex()));
 	}
 
@@ -387,27 +405,125 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 	protected void updatePageTree(TemplateProfileBase configurable) {
 		String cacheKey = pageTreeCacheKey(configurable);
 		if ((cacheKey != null) && !PageTreeCache.contains(cacheKey)) {
-			display_.asyncExec(() -> {
-				if (!shell_.isDisposed())
-					updatePageTree(currentConfigurable(), true);
-			});
+			buildPagesStepwise();
 			return;
 		}
 		updatePageTree(configurable, true);
 	}
 
+	/**
+	 * the pages one by one, DBGL answering in between (alpha 48: all at once froze it for about two seconds the first time a
+	 * DOSBox version was shown); then the empty ones are left out
+	 */
+	private void buildPagesStepwise() {
+		stepwise_ = true;
+		display_.timerExec(20, () -> { // a pause in between: what the user does, and painting, come first
+			if (shell_.isDisposed() || closedAhead_) { // closed meanwhile: its controls go away in parts
+				stepwise_ = false;
+				afterPages_.clear();
+				return;
+			}
+			if (computeNextPage(currentConfigurable())) {
+				buildPagesStepwise();
+				return;
+			}
+			stepwise_ = false;
+			updatePageTree(currentConfigurable(), true);
+			List<Runnable> after = new ArrayList<>(afterPages_);
+			afterPages_.clear();
+			after.forEach(Runnable::run);
+		});
+	}
+
+	/**
+	 * OK and Cancel, and next to them the switch to show also the settings the selected DOSBox version does not have (alpha
+	 * 48: they are hidden by default now, the same as the setting in the settings dialog)
+	 */
+	@Override
+	protected void createOkCancelButtons(org.eclipse.swt.events.SelectionListener listener) {
+		super.createOkCancelButtons(listener);
+		GridLayout layout = (GridLayout)okCancelButtons_.getLayout();
+		layout.numColumns++;
+		Button showAll = new Button(okCancelButtons_, SWT.CHECK);
+		showAll.setText(TextService.getInstance().get("dialog.template.showallsettings"));
+		showAll.setToolTipText(TextService.getInstance().get("dialog.template.showallsettings.tooltip"));
+		GridData data = new GridData(SWT.BEGINNING, SWT.CENTER, false, false);
+		data.horizontalIndent = 16;
+		showAll.setLayoutData(data);
+		showAll.setSelection(!SettingsService.getInstance().getBooleanValue("gui", "hideunsupportedsettings"));
+		showAll.addListener(SWT.Selection, e -> {
+			SettingsService.getInstance().setBooleanValue("gui", "hideunsupportedsettings", !showAll.getSelection());
+			Runnable refresh = () -> {
+				if (closedAhead_ || shell_.isDisposed())
+					return;
+				TemplateProfileBase configurable = currentConfigurable();
+				forEachControl(x -> x.enableOrDisableControl(configurable));
+				updatePageTree(configurable, true);
+				relayoutVisiblePage();
+			};
+			if (stepwise_)
+				afterPages_.add(refresh);
+			else
+				refresh.run();
+		});
+	}
+
+	/** the pages are being built one by one (see above) */
+	private boolean stepwise_;
+	/** what needs all pages, done when they are built */
+	private final List<Runnable> afterPages_ = new ArrayList<>();
+
 	@Override
 	protected void onPageShown(Composite page) {
 		String key = extras_.keyOfPage(page);
 		if ((key != null) && !extras_.isBuilt(key, currentConfigurable().getDosboxVersion())) {
-			display_.asyncExec(() -> { // all other pages must exist first, which can't be done while this page is being created
-				if (!page.isDisposed() && !extras_.isBuilt(key, currentConfigurable().getDosboxVersion())) {
+			Runnable build = () -> {
+				if (!closedAhead_ && !page.isDisposed() && !extras_.isBuilt(key, currentConfigurable().getDosboxVersion())) {
 					extras_.build(currentConfigurable(), key);
 					relayoutVisiblePage();
 				}
+			};
+			// all other pages must exist first, which can't be done while this page is being created; while they are built one
+			// by one, after them (alpha 48: else all at once, the dialog frozen)
+			display_.asyncExec(() -> {
+				if (stepwise_)
+					afterPages_.add(build);
+				else
+					build.run();
 			});
 		}
+		visibilityFollowers_.forEach(Runnable::run);
+		org.dbgl.gui.controls.DarkTheme.apply(page); // pages and groups built later
+		// alpha 48: the arrangement of a page is worked out again only when something on it was shown or hidden since (or the mode
+		// changed): switching back to a page is immediate
+		boolean hide = SettingsService.getInstance().getBooleanValue("gui", "hideunsupportedsettings");
+		if (GridCompactor.signature(page, hide).equals(page.getData(LAYOUT_SIGNATURE)))
+			return;
 		GridCompactor.compact(page);
+		GridCompactor.dropLeadingIndent(page);
+		GridCompactor.alignColumns(page, hide);
+		page.setData(LAYOUT_SIGNATURE, GridCompactor.signature(page, hide));
+	}
+
+	private static final String LAYOUT_SIGNATURE = "dbgl.layoutsignature";
+
+	/** alpha 48: controls shown only together with a setting (e.g. headings above it), brought in line before compacting */
+	private final List<Runnable> visibilityFollowers_ = new ArrayList<>();
+
+	/** alpha 48: the profile whose saved games the page "Savegames" backs up (editing one profile), else null */
+	protected org.dbgl.model.aggregate.Profile savegamesProfile() {
+		return null;
+	}
+
+	protected Composite createSavegamesPage(TemplateProfileBase configurable, Composite parent) {
+		Composite composite = createPage("dialog.template.tab.savegames", parent, 1);
+		org.dbgl.gui.controls.SavegamesPanel.create(composite, savegamesProfile());
+		return composite;
+	}
+
+	/** alpha 48: the folder of the saved states (DOSBox-X) of the profile being edited, null for templates and new profiles */
+	protected java.io.File savestatesDir() {
+		return null;
 	}
 
 	/**
@@ -471,25 +587,14 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		TemplateProfileBase configurable = currentConfigurable();
 		computeAllPages(configurable);
 		updateConfigurableByControls(configurable);
-		Configuration own = configurable.getConfiguration();
-		Configuration dosboxConf = configurable.getDosboxVersion().getConfiguration();
-		String defaultText = TextService.getInstance().get("dialog.template.moresettings.default");
-		StringBuilder sb = new StringBuilder(configurable.getDosboxVersion().getTitle()).append(Text.DELIMITER).append(Text.DELIMITER);
-		int count = 0;
-		for (String section: own.getSectionNames()) {
-			for (String item: own.getItemNames(section)) {
-				String value = own.getValue(section, item);
-				String def = dosboxConf.getValue(section, item);
-				if (StringUtils.equals(value, def) || ExtraSettings.DBGL_MANAGED_SETTINGS.contains(section + '/' + item))
-					continue;
-				sb.append('[').append(section).append("] ").append(item).append(" = ").append(value).append("   (").append(defaultText).append(": ")
-						.append(def == null ? "-": def).append(')').append(Text.DELIMITER);
-				count++;
-			}
-		}
-		if (count == 0)
-			sb.append(TextService.getInstance().get("dialog.differences.none"));
-		new org.dbgl.gui.dialog.DifferencesDialog(shell_, TextService.getInstance().get("dialog.differences.title"), sb.toString()).open();
+		// as a list, ticked ones set back to the defaults here in the dialog (saved with OK, alpha 48)
+		new org.dbgl.gui.dialog.DeviationsDialog(shell_, configurable.getDosboxVersion().getTitle(), Deviations.of(configurable), chosen -> {
+			if (Deviations.reset(configurable, chosen) == 0)
+				return null;
+			updateControlsByConfigurable(configurable);
+			updateConfigurableByControls(configurable);
+			return Deviations.of(configurable);
+		}).open();
 	}
 
 	/** the profile or template being edited */
@@ -607,9 +712,14 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 	 * box (that also takes other values). The tooltips are the help texts of the DOSBox version itself.
 	 */
 	protected void addAdditionalOptions(Composite composite, int span, TemplateProfileBase configurable, AdditionalField... fields) {
+		addAdditionalOptions(composite, span, configurable, false, fields);
+	}
+
+	/** alpha 48: oneColumn: all below each other (else two in a row) */
+	protected void addAdditionalOptions(Composite composite, int span, TemplateProfileBase configurable, boolean oneColumn, AdditionalField... fields) {
 		GridData gd = new GridData(SWT.FILL, SWT.BEGINNING, true, false, span, 1);
 		gd.verticalIndent = 20;
-		Group group = Group_.on(composite).layoutData(gd).layout(new GridLayout(5, false)).key("dialog.template.additionaloptions").build();
+		Group group = Group_.on(composite).layoutData(gd).layout(new GridLayout(oneColumn ? 2: 5, false)).key("dialog.template.additionaloptions").build();
 		for (int i = 0; i < fields.length; i++) {
 			AdditionalField f = fields[i];
 			Chain.Builder builder = Chain.on(group).lbl(l -> l.key(f.labelKey()));
@@ -622,7 +732,7 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 			else
 				builder.cmb(c -> c.editable().items(f.values()));
 			builder.section(f.section(), f.sectionNew()).item(f.item(), f.itemNew()).dosboxHelp().build(metaControls_).init(configurable);
-			if ((i % 2 == 0) && (i < fields.length - 1))
+			if (!oneColumn && (i % 2 == 0) && (i < fields.length - 1))
 				Label_.on(group).grabHorSpace().build();
 		}
 	}
@@ -640,10 +750,11 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 
 	protected Composite createMainboardPage(TemplateProfileBase configurable, Composite parent) {
 		Composite composite = createPage("dialog.template.tab.system", SettingPlacement.MAINBOARD, parent, 1);
+		// alpha 48: two in a row, the PCI bus clock below the PCI bus
 		addAdditionalOptions(composite, 1, configurable,
+			field("dialog.template.x.enablepcibus", 'b', "dosbox", null, "enable pci bus", null),
 			field("dialog.template.x.isabusclock", 'c', "dosbox", null, "isa bus clock", null, "std8.3", "std8", "std6", "std4.77", "oc10", "oc12", "oc15", "oc16"),
-			field("dialog.template.x.pcibusclock", 'c', "dosbox", null, "pci bus clock", null, "std33.3", "std30", "std25"),
-			field("dialog.template.x.enablepcibus", 'b', "dosbox", null, "enable pci bus", null));
+			field("dialog.template.x.pcibusclock", 'c', "dosbox", null, "pci bus clock", null, "std33.3", "std30", "std25"));
 		return composite;
 	}
 
@@ -666,6 +777,13 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 			field("dialog.template.x.videoallowttyvesamodes", 'b', "dosbox", "video", "allow tty vesa modes", "allow tty vesa modes"),
 			field("dialog.template.x.videoallow4bppvesamodes", 'b', "dosbox", "video", "allow 4bpp vesa modes", "allow 4bpp vesa modes"),
 			field("dialog.template.x.videovesasetdisplayvsync", 'o', "video", null, "vesa set display vsync", null));
+		// alpha 48: the maximum width (the second field) half as long, the page was wider than the window
+		org.eclipse.swt.widgets.Control[] kids = composite.getChildren();
+		if (kids.length > 0 && kids[kids.length - 1] instanceof Composite group) {
+			java.util.List<Text> texts = java.util.Arrays.stream(group.getChildren()).filter(Text.class::isInstance).map(Text.class::cast).toList();
+			if (texts.size() > 1)
+				shorter(texts.get(1), 100);
+		}
 		return composite;
 	}
 
@@ -717,12 +835,19 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		}).ctrl();
 
 		Group miscGroup = Group_.on(composite).layoutData(new GridData(SWT.FILL, SWT.FILL, true, true)).layout(new GridLayout(3, false)).key("dialog.template.miscellaneous").build();
-		Chain.on(miscGroup).lbl(l -> l).lbl(l -> l.key("dialog.template.active")).lbl(l -> l.key("dialog.template.inactive")).build();
-		Chain.on(miscGroup).lbl(l -> l.key("dialog.template.priority")).cmb(c -> c.tooltip("dialog.template.priority.tooltip")
+		Chain activeInactive = Chain.on(miscGroup).lbl(l -> l).lbl(l -> l.key("dialog.template.active")).lbl(l -> l.key("dialog.template.inactive")).build();
+		Chain priority = Chain.on(miscGroup).lbl(l -> l.key("dialog.template.priority")).cmb(c -> c.tooltip("dialog.template.priority.tooltip")
 			.items("profile", configurable.priorityActiveSectionItem()).dynItem(GenerationAwareConfigurable::priorityActiveSectionItem)).cmb(c -> c.tooltip("dialog.template.priority.tooltip")
 			.items("profile", configurable.priorityInactiveSectionItem()).dynItem(GenerationAwareConfigurable::priorityInactiveSectionItem)).section("sdl").item("priority")
 			.convert(configurable.getPriorityConvertor()).customInputConvertor(TemplateProfileBase::detectPriorityConvertor).customOutputConvertor(TemplateProfileBase::getPriorityConvertor)
 			.build(metaControls_).init(configurable);
+		// alpha 48: 'active' and 'inactive' only above the priority, not without it (a DOSBox version without priority)
+		Runnable headings = () -> activeInactive.getLabels().forEach(l -> {
+			if (!l.isDisposed() && !priority.getCombo().isDisposed())
+				l.setVisible(priority.getCombo().getVisible());
+		});
+		visibilityFollowers_.add(headings);
+		headings.run();
 		Chain.on(miscGroup).lbl(l -> l.key("dialog.template.waitonerror")).but(b -> b.horSpan(2).tooltip("dialog.template.waitonerror.tooltip")).section("sdl").item("waitonerror").build(metaControls_).init(configurable);
 		Chain.on(miscGroup).lbl(l -> l.key("dialog.template.exitafterwards")).but(b -> b.horSpan(2).tooltip("dialog.template.exitafterwards.tooltip")).autoexec(Autoexec::getExit, Autoexec::setExit).build(metaControls_).init(configurable);
 		Chain.on(miscGroup).lbl(l -> l.key("dialog.template.languagefile")).cmb(c -> c.editable().horSpan(2).tooltip("dialog.template.languagefile.tooltip").items("profile", "languages")).section("dosbox").item("language").build(
@@ -806,18 +931,10 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		Chain.on(expDosbox).lbl(l -> l.key("dialog.template.debuggerrun")).cmb(c -> c.tooltip("dialog.template.debuggerrun.tooltip").items("profile", "debuggerrun_x20240301"))
 			.section("log").item("debuggerrun").build(metaControls_).init(configurable);
 		
-		Chain.on(expDosbox).lbl(l -> l.key("dialog.template.saveslot")).spn(s -> s.min(1).max(100).tooltip("dialog.template.saveslot.tooltip")).section("dosbox").item("saveslot")
-			.build(metaControls_).init(configurable);
-		Label_.on(expDosbox).grabHorSpace().build();
-		Chain.on(expDosbox).lbl(l -> l.key("dialog.template.savefile")).txt(t -> t.tooltip("dialog.template.savefile.tooltip")).section("dosbox").item("savefile").build(metaControls_).init(configurable);
-		
-		Chain.on(expDosbox).lbl(l -> l.key("dialog.template.saveremark")).but(b -> b.tooltip("dialog.template.saveremark.tooltip")).section("dosbox").item("saveremark").build(metaControls_).init(configurable);
-		Label_.on(expDosbox).grabHorSpace().build();
-		Chain.on(expDosbox).lbl(l -> l.key("dialog.template.autosave")).txt(t -> t.tooltip("dialog.template.autosave.tooltip")).section("dosbox").item("autosave").build(metaControls_).init(configurable);
-		
-		Chain.on(expDosbox).lbl(l -> l.key("dialog.template.forceloadstate")).but(b -> b.tooltip("dialog.template.forceloadstate.tooltip")).section("dosbox").item("forceloadstate").build(metaControls_).init(configurable);
-		Label_.on(expDosbox).grabHorSpace().build();
 		Chain.on(expDosbox).lbl(l -> l.key("dialog.template.synctime")).but(b -> b.tooltip("dialog.template.synctime.tooltip")).section("dosbox").item("synchronize time").build(metaControls_).init(configurable);
+		Label_.on(expDosbox).grabHorSpace().build(); // alpha 48: the settings on saved states have a page of their own
+		Label_.on(expDosbox).build();
+		Label_.on(expDosbox).build();
 
 		Chain.on(expDosbox).lbl(l -> l.key("dialog.template.clipboardspeed")).spn(s -> s.min(0).tooltip("dialog.template.clipboardspeed.tooltip")).section("sdl").item("clip_paste_speed")
 			.build(metaControls_).init(configurable);
@@ -836,14 +953,14 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 
 	protected Composite createRenderingPage(TemplateProfileBase configurable, Composite parent) {
 		Composite composite = createPage("dialog.template.tab.dosbox", "dialog.template.tab.rendering", parent, 6);
-		Chain.on(composite).lbl(l -> l.key("dialog.template.output")).cmb(c -> c.tooltip("dialog.template.output.tooltip").items("profile", configurable.outputSectionItem()).dynItem(GenerationAwareConfigurable::outputSectionItem))
-			.section("sdl").item("output").build(metaControls_).init(configurable);
+		org.eclipse.swt.widgets.Combo outputCombo = Chain.on(composite).lbl(l -> l.key("dialog.template.output")).cmb(c -> c.tooltip("dialog.template.output.tooltip").items("profile", configurable.outputSectionItem()).dynItem(GenerationAwareConfigurable::outputSectionItem))
+			.section("sdl").item("output").build(metaControls_).init(configurable).getCombo();
 		Label_.on(composite).horSpan(2).grabHorSpace().build();
 		Chain.on(composite).lbl(l -> l.key("dialog.template.fullscreen")).but(b -> b.tooltip("dialog.template.fullscreen.tooltip")).section("sdl").item("fullscreen").build(
 			metaControls_).init(configurable);
 		
-		Chain.on(composite).lbl(l -> l.key("dialog.template.windowresolution")).cmb(c -> c.editable().tooltip("dialog.template.windowresolution.tooltip").items("profile", configurable.windowresSectionItem()).dynItem(GenerationAwareConfigurable::windowresSectionItem))
-			.section("sdl").item("windowresolution", "window_size").newItemLabel("dialog.template.windowsize").build(metaControls_).init(configurable);
+		org.eclipse.swt.widgets.Combo windowCombo = Chain.on(composite).lbl(l -> l.key("dialog.template.windowresolution")).cmb(c -> c.editable().tooltip("dialog.template.windowresolution.tooltip").items("profile", configurable.windowresSectionItem()).dynItem(GenerationAwareConfigurable::windowresSectionItem))
+			.section("sdl").item("windowresolution", "window_size").newItemLabel("dialog.template.windowsize").build(metaControls_).init(configurable).getCombo();
 		Label_.on(composite).horSpan(2).grabHorSpace().build();
 		Chain.on(composite).lbl(l -> l.key("dialog.template.fullscreenresolution")).cmb(
 			c -> c.tooltip("dialog.template.fullscreenresolution.tooltip").items("profile", configurable.fullscreenmodeSectionItem()).dynItem(GenerationAwareConfigurable::fullscreenmodeSectionItem)).section("sdl").item("fullresolution", "fullscreen_mode").newItemLabel("dialog.template.fullscreenmode").build(metaControls_).init(configurable);
@@ -901,8 +1018,10 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		Chain.on(composite).lbl(l -> l.key("dialog.template.doublebuffering")).but(b -> b.tooltip("dialog.template.doublebuffering.tooltip")).section("sdl").item("fulldouble").build(
 				metaControls_).init(configurable);
 
-		Chain.on(composite).lbl(l -> l.key("dialog.template.aspectcorrection")).cmb(c -> c.tooltip("dialog.template.aspectcorrection.tooltip").items("profile", configurable.aspectSectionItem()).dynItem(GenerationAwareConfigurable::aspectSectionItem))
-			.section("render").item("aspect").build(metaControls_).init(configurable);
+		org.eclipse.swt.widgets.Combo aspectCombo = Chain.on(composite).lbl(l -> l.key("dialog.template.aspectcorrection")).cmb(c -> c.tooltip("dialog.template.aspectcorrection.tooltip").items("profile", configurable.aspectSectionItem()).dynItem(GenerationAwareConfigurable::aspectSectionItem))
+			.section("render").item("aspect").build(metaControls_).init(configurable).getCombo();
+		// alpha 48: output and window size as long as the aspect correction below them
+		sameWidth(aspectCombo, outputCombo, windowCombo);
 		Label_.on(composite).horSpan(2).grabHorSpace().build();
 		Chain.on(composite).lbl(l -> l.key("dialog.template.frameskip")).cmb(
 				c -> c.tooltip("dialog.template.frameskip.tooltip").items("profile", "frameskip").visibleItemCount(15)).section("render").item("frameskip").build(metaControls_).init(configurable);
@@ -911,11 +1030,14 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		gd.verticalIndent = 20;
 		Group expRendering = Group_.on(composite).layoutData(gd).layout(new GridLayout(6, false)).key("dialog.template.tab.experimentaloptions").build();
 		org.dbgl.util.DosboxVersionDetector.clearShaderCaches(); // shaders copied into the folders since the last dialog show up
-		Chain shaderChain = Chain.on(expRendering).lbl(l -> l.key("dialog.template.glshader")).cmb(c -> c.horSpan(4).tooltip("dialog.template.glshader.tooltip").editable().wide().items(configurable.glshaderValues()).dynItems(GenerationAwareConfigurable::glshaderValues))
+		// alpha 48: the button "..." below the second column (the values at the right), not at the far right
+		Chain shaderChain = Chain.on(expRendering).lbl(l -> l.key("dialog.template.glshader")).cmb(c -> c.horSpan(3).tooltip("dialog.template.glshader.tooltip").editable().wide().items(configurable.glshaderValues()).dynItems(GenerationAwareConfigurable::glshaderValues))
 			.but(b -> b.browse(true, Button_.BrowseType.FILE, Button_.CanonicalType.GLSHADER, false)).section("render").item("glshader", "shader").newItemLabel("dialog.template.shader").build(metaControls_).init(configurable);
+		Label_.on(expRendering).build();
 		createShaderButtons(expRendering, shaderChain.getCombo());
-		Chain.on(expRendering).lbl(l -> l.key("dialog.template.pixelshader")).txt(t -> t.horSpan(4).tooltip("dialog.template.pixelshader.tooltip"))
+		Chain.on(expRendering).lbl(l -> l.key("dialog.template.pixelshader")).txt(t -> t.horSpan(3).tooltip("dialog.template.pixelshader.tooltip"))
 			.but(b -> b.browse(true, Button_.BrowseType.FILE, Button_.CanonicalType.GLSHADER, false)).section("render").item("pixelshader").build(metaControls_).init(configurable);
+		Label_.on(expRendering).build();
 		
 		Chain.on(expRendering).lbl(l -> l.key("dialog.template.texturerenderer")).cmb(c -> c.tooltip("dialog.template.texturerenderer.tooltip").items("profile", "texturerenderer_staging0810"))
 			.section("sdl").item("texture_renderer").build(metaControls_).init(configurable);
@@ -1010,16 +1132,38 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 
 		Chain.on(expRendering).lbl(l -> l.key("dialog.template.imageadjustments")).but(b -> b.tooltip("dialog.template.imageadjustments.tooltip")).section("render").item("image_adjustments")
 			.build(metaControls_).init(configurable);
-		
+
+		addImageAdjustments(configurable, composite);
+
 		addAdditionalOptions(composite, 6, configurable,
 			field("dialog.template.x.renderxbrzslice", 'o', "render", null, "xbrz slice", null),
 			field("dialog.template.x.renderxbrzmaxscalefactor", 'o', "render", null, "xbrz max scale factor", null));
 		return composite;
 	}
 	
-	protected Composite createImageAdjustmentsPage(TemplateProfileBase configurable, Composite parent) {
-		Composite composite = createPage("dialog.template.tab.rendering", "dialog.template.tab.imageadjustments", parent, 1);
-		Group expImg = Group_.on(composite).layoutData(new GridData(SWT.FILL, SWT.BEGINNING, true, false)).layout(new GridLayout(5, false)).key("dialog.template.tab.experimentaloptions").build();
+	/** alpha 48: the drop-downs (or fields) as wide as the first of them is by itself */
+	protected static void sameWidth(org.eclipse.swt.widgets.Control model, org.eclipse.swt.widgets.Control... others) {
+		if (model == null)
+			return;
+		int w = model.computeSize(SWT.DEFAULT, SWT.DEFAULT).x;
+		for (org.eclipse.swt.widgets.Control c: java.util.stream.Stream.concat(java.util.stream.Stream.of(model), java.util.Arrays.stream(others)).toList()) {
+			if (c == null)
+				continue;
+			GridData old = c.getLayoutData() instanceof GridData g ? g: new GridData();
+			GridData d = new GridData(SWT.BEGINNING, old.verticalAlignment, false, false, old.horizontalSpan, old.verticalSpan);
+			d.widthHint = (c instanceof Text t) ? Math.max(20, w - t.computeTrim(0, 0, 0, 0).width): w; // the hint of a text is without its border
+			d.horizontalIndent = old.horizontalIndent;
+			d.verticalIndent = old.verticalIndent;
+			d.exclude = old.exclude;
+			c.setLayoutData(d);
+		}
+	}
+
+	/** DOSBox Staging 0.83 [render] image adjustments; alpha 48: a group on the page Display, no page of their own any more */
+	private void addImageAdjustments(TemplateProfileBase configurable, Composite composite) {
+		GridData data = new GridData(SWT.FILL, SWT.BEGINNING, true, false, 6, 1);
+		data.verticalIndent = 10;
+		Group expImg = Group_.on(composite).layoutData(data).layout(new GridLayout(5, false)).key("dialog.template.tab.imageadjustments").build();
 		Chain.on(expImg).lbl(l -> l.key("dialog.template.brightness")).spn(s -> s.min(0).max(100).tooltip("dialog.template.brightness.tooltip"))
 			.section("render").item("brightness").build(metaControls_).init(configurable);
 		Label_.on(expImg).grabHorSpace().build();
@@ -1056,7 +1200,6 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		Chain.on(expImg).lbl(l -> l.key("dialog.template.colorspace")).cmb(c -> c.tooltip("dialog.template.colorspace.tooltip").items("profile", "colorspace_staging0830"))
 			.section("render").item("color_space").build(metaControls_).init(configurable);
 
-		return composite;
 	}
 
 	protected Composite createTtfPage(TemplateProfileBase configurable, Composite parent) {
@@ -1121,6 +1264,50 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		return composite;
 	}
 	
+	/** alpha 48: the saved states of DOSBox-X (settings and, for a profile, its states), a page of its own below DOSBox */
+	protected Composite createSavestatesPage(TemplateProfileBase configurable, Composite parent) {
+		Composite composite = createPage("dialog.template.tab.savestates", parent, 1);
+		// alpha 48: two pairs per row, the fields right next to their labels
+		Group expSave = Group_.on(composite).layoutData(new GridData(SWT.FILL, SWT.BEGINNING, true, false)).layout(new GridLayout(4, false)).key("dialog.template.tab.experimentaloptions").build();
+		Chain.on(expSave).lbl(l -> l.key("dialog.template.saveslot")).spn(s -> s.min(1).max(100).tooltip("dialog.template.saveslot.tooltip")).section("dosbox").item("saveslot")
+			.build(metaControls_).init(configurable);
+		Chain savefile = Chain.on(expSave).lbl(l -> l.key("dialog.template.savefile")).txt(t -> t.tooltip("dialog.template.savefile.tooltip")).section("dosbox").item("savefile").build(metaControls_).init(configurable);
+		
+		Chain.on(expSave).lbl(l -> l.key("dialog.template.saveremark")).but(b -> b.tooltip("dialog.template.saveremark.tooltip")).section("dosbox").item("saveremark").build(metaControls_).init(configurable);
+		Chain autosave = Chain.on(expSave).lbl(l -> l.key("dialog.template.autosave")).txt(t -> t.tooltip("dialog.template.autosave.tooltip")).section("dosbox").item("autosave").build(metaControls_).init(configurable);
+		for (Chain c: new Chain[] {savefile, autosave}) {
+			GridData d = new GridData(SWT.BEGINNING, SWT.CENTER, false, false);
+			d.widthHint = 220;
+			c.getText().setLayoutData(d);
+			if (c.getLabel().getLayoutData() instanceof GridData ld)
+				ld.horizontalIndent = 40;
+			else {
+				GridData ld = new GridData();
+				ld.horizontalIndent = 40;
+				c.getLabel().setLayoutData(ld);
+			}
+		}
+		// alpha 48: the saved states of this game (DOSBox-X: its own folder per game, see ExecuteUtils), like the settings on them
+		java.io.File stateDir = savestatesDir();
+		if (stateDir != null) {
+			Composite states = org.dbgl.gui.controls.SavestatesList.create(expSave, 4, stateDir);
+			Runnable follow = () -> {
+				if (!states.isDisposed() && !autosave.getText().isDisposed()) {
+					boolean visible = autosave.getText().getVisible();
+					states.setVisible(visible);
+					((GridData)states.getLayoutData()).exclude = !visible;
+				}
+			};
+			visibilityFollowers_.add(follow);
+			follow.run();
+		}
+		
+		Chain.on(expSave).lbl(l -> l.key("dialog.template.forceloadstate")).but(b -> b.tooltip("dialog.template.forceloadstate.tooltip")).section("dosbox").item("forceloadstate").build(metaControls_).init(configurable);
+		Label_.on(expSave).build();
+		Label_.on(expSave).build();
+		return composite;
+	}
+
 	protected Composite createDosPage(TemplateProfileBase configurable, Composite parent) {
 		Composite composite = createPage("dialog.template.tab.dosbox", "dialog.template.dos", parent, 1);
 		Group expDos = Group_.on(composite).layoutData(new GridData(SWT.FILL, SWT.BEGINNING, true, false)).layout(new GridLayout(5, false)).key("dialog.template.tab.experimentaloptions").build();
@@ -1172,11 +1359,12 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		Chain.on(expDos).lbl(l -> l.key("dialog.template.autofixwarning")).cmb(c -> c.tooltip("dialog.template.autofixwarning.tooltip").items("profile", "autofixwarning_x20240301"))
 			.section("dos").item("autofixwarning").build(metaControls_).init(configurable);
 		
-		addAdditionalOptions(composite, 1, configurable,
+		// alpha 48: below each other: EXEPACK, the programs started in the console, the one for unknown commands, then the two boxes
+		addAdditionalOptions(composite, 1, configurable, true,
 			field("dialog.template.x.dosexepack", 'o', "dos", null, "exepack", null),
 			field("dialog.template.x.dosstartincon", 'o', "dos", null, "startincon", null),
-			field("dialog.template.x.doshidenonrepresentable", 'b', "dos", null, "hidenonrepresentable", null),
 			field("dialog.template.x.dosbadcommandhandler", 'o', "dos", null, "badcommandhandler", null),
+			field("dialog.template.x.doshidenonrepresentable", 'b', "dos", null, "hidenonrepresentable", null),
 			field("dialog.template.x.dosautomountdrivedirectories", 'b', "dos", null, "automount drive directories", null));
 		return composite;
 	}
@@ -1186,14 +1374,14 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		Group expConfigSys = Group_.on(composite).layoutData(new GridData(SWT.FILL, SWT.BEGINNING, true, false)).layout(new GridLayout(8, false)).key("dialog.template.tab.experimentaloptions").build();
 		Chain.on(expConfigSys).lbl(l -> l.key("dialog.template.configsys.shell")).cmb(c -> c.horSpan(7).tooltip("dialog.template.configsys.shell.tooltip").items("profile", "configsysshell_x20240301").editable())
 			.section("config").item("shell").build(metaControls_).init(configurable);
-		Chain.on(expConfigSys).lbl(l -> l.key("dialog.template.configsys.dos")).txt(t -> t.horSpan(7).tooltip("dialog.template.configsys.dos.tooltip"))
-			.section("config").item("dos").build(metaControls_).init(configurable);
+		shorter(Chain.on(expConfigSys).lbl(l -> l.key("dialog.template.configsys.dos")).txt(t -> t.horSpan(7).tooltip("dialog.template.configsys.dos.tooltip"))
+			.section("config").item("dos").build(metaControls_).init(configurable).getText(), 181); // alpha 48: about as wide as the shell above
 		Chain.on(expConfigSys).lbl(l -> l.key("dialog.template.configsys.fcbs")).spn(s -> s.horSpan(7).min(0).max(255).tooltip("dialog.template.configsys.fcbs.tooltip"))
 			.section("config").item("fcbs").build(metaControls_).init(configurable);
 		Chain.on(expConfigSys).lbl(l -> l.key("dialog.template.configsys.files")).spn(s -> s.horSpan(7).min(0).max(255).tooltip("dialog.template.configsys.files.tooltip"))
 			.section("config").item("files").build(metaControls_).init(configurable);
-		Chain.on(expConfigSys).lbl(l -> l.key("dialog.template.configsys.country")).txt(t -> t.horSpan(7).tooltip("dialog.template.configsys.country.tooltip"))
-			.section("config").item("country").build(metaControls_).init(configurable);
+		shorter(Chain.on(expConfigSys).lbl(l -> l.key("dialog.template.configsys.country")).txt(t -> t.horSpan(7).tooltip("dialog.template.configsys.country.tooltip"))
+			.section("config").item("country").build(metaControls_).init(configurable).getText(), 181); // alpha 48: about as wide as the shell above
 		Chain.on(expConfigSys).lbl(l -> l.key("dialog.template.configsys.lastdrive")).cmb(c -> c.tooltip("dialog.template.configsys.lastdrive.tooltip").items("profile", "configsyslastdrive_x20240301"))
 			.section("config").item("lastdrive").build(metaControls_).init(configurable);
 		Label_.on(expConfigSys).grabHorSpace().build();
@@ -1320,10 +1508,11 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 	
 	protected Composite createCpuPage(TemplateProfileBase configurable, Composite parent) {
 		Composite composite = createPage("dialog.template.tab.system", "dialog.template.tab.cpu", parent, 6);
-		Chain.on(composite).lbl(l -> l.key("dialog.template.core")).cmb(c -> c.horSpan(5).tooltip("dialog.template.core.tooltip").items("profile", configurable.coreSectionItem()).dynItem(GenerationAwareConfigurable::coreSectionItem))
-			.section("cpu").item("core").build(metaControls_).init(configurable);
-		Chain.on(composite).lbl(l -> l.key("dialog.template.cputype")).cmb(c -> c.horSpan(5).tooltip("dialog.template.cputype.tooltip").items("profile", configurable.cputypeSectionItem()).dynItem(GenerationAwareConfigurable::cputypeSectionItem))
-			.section("cpu").item("cputype").build(metaControls_).init(configurable);
+		org.eclipse.swt.widgets.Combo core = Chain.on(composite).lbl(l -> l.key("dialog.template.core")).cmb(c -> c.horSpan(5).tooltip("dialog.template.core.tooltip").items("profile", configurable.coreSectionItem()).dynItem(GenerationAwareConfigurable::coreSectionItem))
+			.section("cpu").item("core").build(metaControls_).init(configurable).getCombo();
+		org.eclipse.swt.widgets.Combo cputype = Chain.on(composite).lbl(l -> l.key("dialog.template.cputype")).cmb(c -> c.horSpan(5).tooltip("dialog.template.cputype.tooltip").items("profile", configurable.cputypeSectionItem()).dynItem(GenerationAwareConfigurable::cputypeSectionItem))
+			.section("cpu").item("cputype").build(metaControls_).init(configurable).getCombo();
+		sameWidth(cputype, core); // alpha 48: the core as long as the CPU type
 		Chain.on(composite).lbl(l -> l.key("dialog.template.cycles")).cmb(c -> c.editable().tooltip("dialog.template.cycles.tooltip").items("profile", "cycles").visibleItemCount(15)).section(
 			"cpu").item("cycles").build(metaControls_).init(configurable);
 		Chain.on(composite).lbl(l -> l.key("dialog.template.up")).cmb(c -> c.editable().tooltip("dialog.template.up.tooltip").items("profile", "cycles_up")).section("cpu").item("cycleup").build(
@@ -1381,8 +1570,8 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		Chain.on(composite).lbl(l -> l.key("dialog.template.memorysize")).cmb(c -> c.horSpan(3).tooltip("dialog.template.memorysize.tooltip").items("profile", "memsize")).section("dosbox").item(
 			"memsize").build(metaControls_).init(configurable);
 		Chain.on(composite).lbl(l -> l.key("dialog.template.xms")).but(b -> b.horSpan(3).tooltip("dialog.template.xms.tooltip")).section("dos").item("xms").build(metaControls_).init(configurable);
-		Chain.on(composite).lbl(l -> l.key("dialog.template.ems")).cmb(c -> c.horSpan(3).tooltip("dialog.template.ems.tooltip").items("profile", configurable.emsSectionItem()).dynItem(GenerationAwareConfigurable::emsSectionItem))
-			.section("dos").item("ems").build(metaControls_).init(configurable);
+		org.eclipse.swt.widgets.Combo ems = Chain.on(composite).lbl(l -> l.key("dialog.template.ems")).cmb(c -> c.horSpan(3).tooltip("dialog.template.ems.tooltip").items("profile", configurable.emsSectionItem()).dynItem(GenerationAwareConfigurable::emsSectionItem))
+			.section("dos").item("ems").build(metaControls_).init(configurable).getCombo();
 		Chain.on(composite).lbl(l -> l.key("dialog.template.umb")).but(b -> b.horSpan(3).tooltip("dialog.template.umb.tooltip"))
 			.section("dos").item("umb").build(metaControls_).init(configurable);
 		
@@ -1399,8 +1588,9 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		Chain.on(expMemory).lbl(l -> l.key("dialog.template.minimummcbfree")).spn(s -> s.tooltip("dialog.template.minimummcbfree.tooltip").min(0)).section("dos").item("minimum mcb free").build(metaControls_).init(configurable);
 		Chain.on(expMemory).lbl(l -> l.key("dialog.template.a20")).cmb(c -> c.tooltip("dialog.template.a20.tooltip").items("profile", "a20_x20240301"))
 			.section("dosbox").item("a20").build(metaControls_).init(configurable);
-		Chain.on(expMemory).lbl(l -> l.key("dialog.template.mcbfaults")).cmb(c -> c.tooltip("dialog.template.mcbfaults.tooltip").items("profile", "mcbfaults_staging0810"))
-			.section("dosbox").item("mcb_fault_strategy").build(metaControls_).init(configurable);
+		org.eclipse.swt.widgets.Combo mcb = Chain.on(expMemory).lbl(l -> l.key("dialog.template.mcbfaults")).cmb(c -> c.tooltip("dialog.template.mcbfaults.tooltip").items("profile", "mcbfaults_staging0810"))
+			.section("dosbox").item("mcb_fault_strategy").build(metaControls_).init(configurable).getCombo();
+		sameWidth(ems, mcb); // alpha 48: as long as the one for expanded memory
 		Chain.on(expMemory).lbl(l -> l.key("dialog.template.pcjrmemorylayout")).cmb(c -> c.tooltip("dialog.template.pcjrmemorylayout.tooltip").items("profile", "pcjrmemorylayout_staging0811"))
 			.section("dos").item("pcjr_memory_config").build(metaControls_).init(configurable);
 		Chain.on(expMemory).lbl(l -> l.key("dialog.template.memoryfile")).txt(t -> t.tooltip("dialog.template.memoryfile.tooltip"))
@@ -1651,10 +1841,11 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 					}
 				}).build(metaControls_).init(configurable);
 
-		Chain.on(composite).lbl(l -> l.key("dialog.template.mididevice")).cmb(c -> c.tooltip("dialog.template.mididevice.tooltip").items("profile", configurable.midideviceSectionItem()).dynItem(GenerationAwareConfigurable::midideviceSectionItem))
-			.section("midi").item("device", "mididevice").build(metaControls_).init(configurable);
-		Chain.on(composite).lbl(l -> l.key("dialog.template.midiconfig")).txt(t -> t.tooltip("dialog.template.midiconfig.tooltip")).section("midi").item("config", "midiconfig").build(
-			metaControls_).init(configurable);
+		org.eclipse.swt.widgets.Combo midiDevice = Chain.on(composite).lbl(l -> l.key("dialog.template.mididevice")).cmb(c -> c.tooltip("dialog.template.mididevice.tooltip").items("profile", configurable.midideviceSectionItem()).dynItem(GenerationAwareConfigurable::midideviceSectionItem))
+			.section("midi").item("device", "mididevice").build(metaControls_).init(configurable).getCombo();
+		Text midiConfig = Chain.on(composite).lbl(l -> l.key("dialog.template.midiconfig")).txt(t -> t.tooltip("dialog.template.midiconfig.tooltip")).section("midi").item("config", "midiconfig").build(
+			metaControls_).init(configurable).getText();
+		sameWidth(midiDevice, midiConfig); // alpha 48: ends where the MIDI device ends
 		
 		GridData gd = new GridData(SWT.FILL, SWT.BEGINNING, true, false, 2, 1);
 		gd.verticalIndent = 20;
@@ -1670,8 +1861,9 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 			.build(metaControls_).init(configurable);
 		Chain.on(midiExpGroup).lbl(l -> l.key("dialog.template.soundcanvasmodel")).cmb(c -> c.tooltip("dialog.template.soundcanvasmodel.tooltip").items("profile", "soundcanvasmodel_staging0830"))
 			.section("soundcanvas").item("soundcanvas_model").build(metaControls_).init(configurable);
-		Chain.on(midiExpGroup).lbl(l -> l.key("dialog.template.soundcanvasromdir")).txt(t -> t.tooltip("dialog.template.soundcanvasromdir.tooltip"))
-			.section("soundcanvas").item("soundcanvas_rom_dir").build(metaControls_).init(configurable);
+		Text romDir = Chain.on(midiExpGroup).lbl(l -> l.key("dialog.template.soundcanvasromdir")).txt(t -> t.tooltip("dialog.template.soundcanvasromdir.tooltip"))
+			.section("soundcanvas").item("soundcanvas_rom_dir").build(metaControls_).init(configurable).getText();
+		shorter(romDir, 400); // alpha 48: a folder: twice as long
 		Chain.on(midiExpGroup).lbl(l -> l.key("dialog.template.soundcanvasfilter")).cmb(c -> c.editable().tooltip("dialog.template.soundcanvasfilter.tooltip").items(new String[] {"on", "off"}))
 			.section("soundcanvas").item("soundcanvas_filter").build(metaControls_).init(configurable);
 		// which ROMs the DOSBox version finds (DOSBox Staging, DOSBox-X): an MT-32 or Sound Canvas without them stays silent
@@ -2022,7 +2214,7 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		Chain.on(composite).lbl(l -> l.key("dialog.template.gusdma1")).cmb(c -> c.tooltip("dialog.template.gusdma1.tooltip").items("profile", configurable.gusdma1SectionItem()).dynItem(GenerationAwareConfigurable::gusdma1SectionItem))
 			.section("gus").item("dma1", "gusdma").build(metaControls_).init(configurable);
 		Chain.on(composite).lbl(l -> l.key("dialog.template.gusdma2")).cmb(c -> c.tooltip("dialog.template.gusdma1.tooltip").items("profile", "dma2")).section("gus").item("dma2").build(metaControls_).init(configurable);
-		Chain.on(composite).lbl(l -> l.key("dialog.template.ultradir")).txt(t -> t.horSpan(3).tooltip("dialog.template.ultradir.tooltip")).section("gus").item("ultradir").build(metaControls_).init(configurable).getText();
+		shorter(Chain.on(composite).lbl(l -> l.key("dialog.template.ultradir")).txt(t -> t.horSpan(3).tooltip("dialog.template.ultradir.tooltip")).section("gus").item("ultradir").build(metaControls_).init(configurable).getText(), 240); // alpha 48: a path or a short value, not over the whole width
 		// the patch files of the GUS (folder ULTRASND): beside DOSBox, and where the games look for them
 		infoGroup(composite, 4, "dialog.template.gus.patches", configurable, new String[] {""}, this::gusValue, c -> text_.get(
 			"dialog.template.gus.ingame", new Object[] {StringUtils.defaultIfBlank(StringUtils.trim(c.getCombinedConfigurationForReading().getValue("gus", "ultradir")), "C:\\ULTRASND")}));
@@ -2039,7 +2231,7 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 			.section("gus").item("gus master volume").build(metaControls_).init(configurable);
 		Chain.on(gusExpGroup).lbl(l -> l.key("dialog.template.gusglobalregisterreadalias")).cmb(c -> c.tooltip("dialog.template.gusglobalregisterreadalias.tooltip").items("profile", "gusglobalregisterreadalias_x20240301"))
 			.section("gus").item("global register read alias").build(metaControls_).init(configurable);
-		Chain.on(gusExpGroup).lbl(l -> l.key("dialog.template.gusfilter")).txt(t -> t.tooltip("dialog.template.gusfilter.tooltip")).section("gus").item("gus_filter").build(metaControls_).init(configurable).getText();
+		shorter(Chain.on(gusExpGroup).lbl(l -> l.key("dialog.template.gusfilter")).txt(t -> t.tooltip("dialog.template.gusfilter.tooltip")).section("gus").item("gus_filter").build(metaControls_).init(configurable).getText(), 80); // alpha 48: a short value (a third of before)
 	
 		addAdditionalOptions(composite, 4, configurable,
 			field("dialog.template.x.gusautoamp", 'b', "gus", null, "autoamp", null),
@@ -2162,10 +2354,25 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 				mapperfile.setText(settings_.getValue("profile", "uniquemapperfile"));
 			}
 		}).ctrl();
-		Chain.on(composite).lbl(l -> l.key("dialog.template.keyboardlayout")).cmb(
-			c -> c.horSpan(2).wide().editable().tooltip("dialog.template.keyboardlayout.tooltip").items("profile", "keyboardlayout").visibleItemCount(15)).section("dos").item("keyboardlayout", "keyboard_layout").build(
-				metaControls_).init(configurable);
-		Chain.on(composite).lbl(l -> l.key("dialog.template.keybcommand")).txt(t -> t.tooltip("dialog.template.keybcommand.tooltip").horSpan(2)).autoexec(Autoexec::getKeyb, Autoexec::setKeyb).build(metaControls_).init(configurable);
+		// alpha 48: both as long as the mapper file (its column, the star button next to it)
+		org.eclipse.swt.widgets.Combo keyboardLayout = Chain.on(composite).lbl(l -> l.key("dialog.template.keyboardlayout")).cmb(
+			c -> c.wide().editable().tooltip("dialog.template.keyboardlayout.tooltip").items("profile", "keyboardlayout").visibleItemCount(15)).section("dos").item("keyboardlayout", "keyboard_layout").build(
+				metaControls_).init(configurable).getCombo();
+		Label_.on(composite).build();
+		Text keyb = Chain.on(composite).lbl(l -> l.key("dialog.template.keybcommand")).txt(t -> t.tooltip("dialog.template.keybcommand.tooltip")).autoexec(Autoexec::getKeyb, Autoexec::setKeyb).build(metaControls_).init(configurable).getText();
+		Label_.on(composite).build();
+		for (org.eclipse.swt.widgets.Control c: new org.eclipse.swt.widgets.Control[] {keyboardLayout, keyb}) {
+			GridData d = new GridData(SWT.FILL, SWT.CENTER, true, false);
+			if (mapperfile.getLayoutData() instanceof GridData m)
+				d.widthHint = m.widthHint;
+			c.setLayoutData(d);
+			c.setData(org.dbgl.gui.controls.GridCompactor.KEEP_WIDTH, Boolean.TRUE);
+		}
+		if (mapperfile.getLayoutData() instanceof GridData m) {
+			m.horizontalAlignment = SWT.FILL;
+			m.grabExcessHorizontalSpace = true;
+		}
+		mapperfile.setData(org.dbgl.gui.controls.GridCompactor.KEEP_WIDTH, Boolean.TRUE);
 		
 		GridData gd = new GridData(SWT.FILL, SWT.BEGINNING, true, false, 3, 1);
 		gd.verticalIndent = 20;
@@ -2190,8 +2397,9 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 	}
 	
 	protected Composite createMousePage(TemplateProfileBase configurable, Composite parent) {
-		Composite composite = createPage("dialog.template.tab.peripherals", "dialog.template.tab.mouse", parent, 2);
+		Composite composite = createPage("dialog.template.tab.peripherals", "dialog.template.tab.mouse", parent, 3); // alpha 48: 3, the x/y note right of the sensitivity
 		Chain.on(composite).lbl(l -> l.key("dialog.template.autolock")).but(b -> b.tooltip("dialog.template.autolock.tooltip")).section("sdl").item("autolock").build(metaControls_).init(configurable);
+		Label_.on(composite).build();
 		Chain.on(composite).lbl(l -> l.key("dialog.template.sensitivity")).cmb(
 			c -> c.editable().items("profile", "sensitivity").visibleItemCount(20).tooltip("dialog.template.sensitivity.tooltip")).section("sdl", "mouse").item("sensitivity", "mouse_sensitivity").convert(new BaseDaControlConvertor() {
 				@Override
@@ -2210,7 +2418,6 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 				}
 			}).build(metaControls_).init(configurable);
 		// DOSBox Staging and DOSBox-X take a second value for the vertical axis (DOSBox 0.74: one value only)
-		new org.eclipse.swt.widgets.Label(composite, SWT.NONE);
 		versionNote(composite, 1, configurable, c -> {
 			GenerationAwareConfigurable.Generation gen = c.getGeneration();
 			if (gen == null)
@@ -2223,7 +2430,7 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 			return null;
 		});
 		
-		GridData gd = new GridData(SWT.FILL, SWT.BEGINNING, true, false, 2, 1);
+		GridData gd = new GridData(SWT.FILL, SWT.BEGINNING, true, false, 3, 1);
 		gd.verticalIndent = 20;
 		Group mouseExpGroup = Group_.on(composite).layoutData(gd).layout(new GridLayout(5, false)).key(
 				"dialog.template.tab.experimentaloptions").build();
@@ -2296,7 +2503,7 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		Chain.on(mouseExpGroup).lbl(l -> l.key("dialog.template.builtindosmousedriveroptions")).cmb(c -> c.editable().tooltip("dialog.template.builtindosmousedriveroptions.tooltip").items("profile", "builtindosmousedriveroptions_staging0830"))
 			.section("mouse").item("builtin_dos_mouse_driver_options").build(metaControls_).init(configurable);
 
-		addAdditionalOptions(composite, 2, configurable,
+		addAdditionalOptions(composite, 3, configurable,
 			field("dialog.template.x.biosps2", 'b', "dos", null, "biosps2", null),
 			field("dialog.template.x.dosint33maxx", 'o', "dos", null, "int33 max x", null),
 			field("dialog.template.x.dosint33maxy", 'o', "dos", null, "int33 max y", null),
@@ -2478,7 +2685,9 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		unknownLabel.setText(text_.get("dialog.template.unknownlines"));
 		unknownLabel.setToolTipText(text_.get("dialog.template.unknownlines.tooltip"));
 		unknownLabel.setLayoutData(new GridData(SWT.BEGINNING, SWT.BEGINNING, false, false));
-		unknownLinesText_ = new Text(composite, SWT.MULTI | SWT.READ_ONLY | SWT.BORDER | SWT.V_SCROLL | SWT.H_SCROLL);
+		// alpha 48: StyledText, the places ("Before the start:") in grey, the lines themselves as before
+		unknownLinesText_ = new org.eclipse.swt.custom.StyledText(composite, SWT.MULTI | SWT.READ_ONLY | SWT.BORDER | SWT.V_SCROLL | SWT.H_SCROLL);
+		unknownLinesText_.setEditable(false);
 		GridData textData = new GridData(SWT.FILL, SWT.FILL, true, false);
 		textData.heightHint = 70;
 		unknownLinesText_.setLayoutData(textData);
@@ -2496,7 +2705,18 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		return composite;
 	}
 
-	private Text unknownLinesText_;
+	private org.eclipse.swt.custom.StyledText unknownLinesText_;
+
+	/** alpha 48: the [autoexec] as it would be with these choices, for the window that asks (nothing is changed) */
+	private static String autoexecWith(TemplateProfileBase configurable, List<org.dbgl.util.UnknownAutoexecLines.Decision> decisions) {
+		Autoexec autoexec = new Autoexec(configurable.getConfiguration().getAutoexec());
+		for (org.dbgl.util.UnknownAutoexecLines.Decision d: decisions) {
+			autoexec.removePlacedLine(d.line());
+			if (d.keep())
+				autoexec.placeLine(new Autoexec.UnknownLine(d.line().text(), d.section(), d.line().afterExit()), d.markers());
+		}
+		return autoexec.toString(false, configurable.getNettoMountingPoints());
+	}
 
 	/** show the lines of the [autoexec] DBGL does not know that are kept without its marker lines */
 	private void showUnknownLines(TemplateProfileBase configurable) {
@@ -2506,9 +2726,18 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		List<Autoexec.UnknownLine> lines = configurable.getConfiguration().getAutoexec().getPlainLines();
 		java.util.function.Function<Autoexec.UnknownLine, String> where = l -> (l.afterExit() ? text_.get("dialog.unknownlines.afterexit"): text_.get("dialog.template.customcommand" + (l.section() + 1))) + ":";
 		int width = lines.stream().mapToInt(l -> where.apply(l).length()).max().orElse(0);
-		for (Autoexec.UnknownLine l: lines) // the lines one below the other, after the place they are in
-			sb.append(org.apache.commons.lang3.StringUtils.rightPad(where.apply(l), width)).append(' ').append(l.text()).append(Text.DELIMITER);
-		unknownLinesText_.setText(sb.length() == 0 ? text_.get("dialog.template.unknownlines.none"): sb.toString().trim());
+		List<int[]> places = new ArrayList<>();
+		String delimiter = unknownLinesText_.getLineDelimiter();
+		for (Autoexec.UnknownLine l: lines) { // the lines one below the other, after the place they are in
+			places.add(new int[] {sb.length(), width});
+			sb.append(org.apache.commons.lang3.StringUtils.rightPad(where.apply(l), width)).append(' ').append(l.text()).append(delimiter);
+		}
+		unknownLinesText_.setText(sb.length() == 0 ? text_.get("dialog.template.unknownlines.none"): sb.toString().stripTrailing());
+		if (places.isEmpty())
+			return;
+		org.eclipse.swt.graphics.Color grey = org.dbgl.gui.controls.DarkTheme.forced() ? new org.eclipse.swt.graphics.Color(150, 150, 150): new org.eclipse.swt.graphics.Color(105, 105, 105);
+		for (int[] p: places)
+			unknownLinesText_.setStyleRange(new org.eclipse.swt.custom.StyleRange(p[0], p[1], grey, null));
 	}
 
 	/** put the lines DBGL does not know into the sections above (or remove them), line by line, as the user chooses */
@@ -2519,7 +2748,8 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		List<Autoexec.UnknownLine> plain = autoexec.getPlainLines();
 		if (plain.isEmpty())
 			return;
-		List<org.dbgl.util.UnknownAutoexecLines.Decision> decisions = new org.dbgl.gui.dialog.UnknownLinesDialog(shell_, configurable.getTitle(), plain).open();
+		List<org.dbgl.util.UnknownAutoexecLines.Decision> decisions = new org.dbgl.gui.dialog.UnknownLinesDialog(shell_, configurable.getTitle(), plain)
+			.withPreview(chosen -> autoexecWith(configurable, chosen)).open();
 		if (decisions == null)
 			return;
 		if (configurable instanceof org.dbgl.model.aggregate.Profile profile) {
@@ -2642,6 +2872,8 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		Composite composite = createPage("dialog.template.tab.mounting", parent, 2);
 
 		mountingpointsList_ = List_.on(composite).build();
+		if (mountingpointsList_.getLayoutData() instanceof GridData listData)
+			listData.widthHint = 300; // alpha 48: a long path made the page wider than the window, it fills the width all the same
 		if (!Arrays.equals(mountingpointsList_.getItems(), configurable.getMountStringsForUI()))
 			mountingpointsList_.setItems(configurable.getMountStringsForUI());
 		mountingpointsList_.addMouseListener(new MouseAdapter() {
@@ -2686,21 +2918,22 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 	
 	protected void createMountingPageAdditions(TemplateProfileBase configurable, Composite composite) {
 		GridData gd = new GridData(SWT.FILL, SWT.BEGINNING, true, false, 2, 1);
-		Group expMounting = Group_.on(composite).layoutData(gd).layout(new GridLayout(8, false)).key("dialog.template.tab.experimentaloptions").build();
+		// alpha 48: two pairs per row (FAT and the cache below the warning and the free room: the page was wider than the window)
+		Group expMounting = Group_.on(composite).layoutData(gd).layout(new GridLayout(5, false)).key("dialog.template.tab.experimentaloptions").build();
 		Chain.on(expMounting).lbl(l -> l.key("dialog.template.automount")).but(b -> b.tooltip("dialog.template.automount.tooltip"))
 			.section("dos", "dosbox").item("automount", "automount").build(metaControls_).init(configurable);
 		Label_.on(expMounting).grabHorSpace().build();
 		Chain.on(expMounting).lbl(l -> l.key("dialog.template.automountall")).cmb(c -> c.tooltip("dialog.template.automountall.tooltip").items("profile", "automountall_x20240301"))
 			.section("dos").item("automountall").build(metaControls_).init(configurable);
-		Label_.on(expMounting).grabHorSpace().build();
-		Chain.on(expMounting).lbl(l -> l.key("dialog.template.convertdrivefat")).but(b -> b.tooltip("dialog.template.convertdrivefat.tooltip"))
-			.section("dosbox").item("convertdrivefat").build(metaControls_).init(configurable);
-		
+
 		Chain.on(expMounting).lbl(l -> l.key("dialog.template.automountwarning")).but(b -> b.tooltip("dialog.template.automountwarning.tooltip"))
 			.section("dos").item("mountwarning").build(metaControls_).init(configurable);
 		Label_.on(expMounting).grabHorSpace().build();
 		Chain.on(expMounting).lbl(l -> l.key("dialog.template.freesizecap")).cmb(c -> c.tooltip("dialog.template.freesizecap.tooltip").items("profile", "freesizecap_x20240301"))
 			.section("dosbox").item("freesizecap").build(metaControls_).init(configurable);
+
+		Chain.on(expMounting).lbl(l -> l.key("dialog.template.convertdrivefat")).but(b -> b.tooltip("dialog.template.convertdrivefat.tooltip"))
+			.section("dosbox").item("convertdrivefat").build(metaControls_).init(configurable);
 		Label_.on(expMounting).grabHorSpace().build();
 		Chain.on(expMounting).lbl(l -> l.key("dialog.template.nocachedir")).but(b -> b.tooltip("dialog.template.nocachedir.tooltip"))
 			.section("dosbox").item("nocachedir").build(metaControls_).init(configurable);
@@ -2714,7 +2947,7 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 			// nothing we can do, just take a sensible default
 			drive = 'C';
 		}
-		EditMountDialog addMountDialog = new EditMountDialog(shell, null, drive);
+		EditMountDialog addMountDialog = new EditMountDialog(shell, null, drive).withGeneration(configurable.getGeneration());
 		String mount = addMountDialog.open();
 		if (mount != null) {
 			configurable.addMount(mount);
@@ -2730,8 +2963,12 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 			sel = 0;
 			mountingpoints.select(sel);
 		}
+		if ((sel == -1) && (mounts > 1)) { // alpha 48: say why nothing happens
+			Mess_.on(shell).key("dialog.template.mountingpoint.selectfirst").warning();
+			return;
+		}
 		if ((sel != -1) && (!configurable.getMountingPointsForUI().get(sel).isUnmounted())) {
-			EditMountDialog editMountDialog = new EditMountDialog(shell, mountingpoints.getItem(sel), 'C');
+			EditMountDialog editMountDialog = new EditMountDialog(shell, mountingpoints.getItem(sel), 'C').withGeneration(configurable.getGeneration());
 			String mount = editMountDialog.open();
 			if (mount != null) {
 				configurable.editMountBasedOnIndexUI(sel, mount);

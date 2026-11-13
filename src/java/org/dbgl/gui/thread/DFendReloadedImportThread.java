@@ -44,6 +44,7 @@ public class DFendReloadedImportThread extends UIThread<File> {
 	private final DosboxVersion defaultDBVersion_;
 	private final File dfendPath_;
 	private final DFendReloadedConfiguration profiles_;
+	private final boolean archive_;
 
 	public DFendReloadedImportThread(Text log, ProgressBar progressBar, Label status, File dfendPath, File confsPath, boolean performCleanup, DosboxVersion defaultDBVersion) throws IOException {
 		super(log, progressBar, status, false);
@@ -58,6 +59,20 @@ public class DFendReloadedImportThread extends UIThread<File> {
 
 		String defLoc = profiles_.getValue("ProgramSets", "defloc");
 		dfendPath_ = StringUtils.isNotBlank(defLoc) ? new File(defLoc): dfendPath;
+		archive_ = false;
+	}
+
+	/** alpha 48: the .prof files of a DFendX game archive, whose paths are relative to the folder they are in */
+	public DFendReloadedImportThread(Text log, ProgressBar progressBar, Label status, java.util.List<File> profFiles, boolean performCleanup, DosboxVersion defaultDBVersion) {
+		super(log, progressBar, status, false);
+
+		performCleanup_ = performCleanup;
+		defaultDBVersion_ = defaultDBVersion;
+		dfendPath_ = profFiles.get(0).getAbsoluteFile().getParentFile();
+		archive_ = true;
+		profiles_ = new DFendReloadedConfiguration(new File(dfendPath_, "-no D-Fend settings-"));
+		profiles_.loadArchive(profFiles);
+		setObjects(profiles_.getConfFiles());
 	}
 
 	@Override
@@ -90,7 +105,7 @@ public class DFendReloadedImportThread extends UIThread<File> {
 				StringUtils.EMPTY, StringUtils.EMPTY, StringUtils.EMPTY};
 		String setup = profiles_.getValue(profFile, "Extra", "setup");
 		if (StringUtils.isNotEmpty(setup))
-			setup = FilesUtils.concat(dfendPath_, setup);
+			setup = org.dbgl.model.conf.dfend.DFendProfConverter.hostPath(dfendPath_, setup).getPath(); // alpha 48: also .\ and \ on Linux and macOS
 		String setupParams = profiles_.getValue(profFile, "Extra", "setupparameters");
 
 		Profile newProfile = ProfileFactory.create(title, developer, publisher, genre, year, status, notes, favorite, links, linkTitles, customStrings, setup, setupParams);
@@ -99,6 +114,15 @@ public class DFendReloadedImportThread extends UIThread<File> {
 		String confText;
 		if (profiles_.hasConf(profFile)) {
 			confText = profiles_.getConf(profFile);
+			// alpha 48: the .conf in a DFendX archive mounts with relative short names (".\VIRTUA~1\") that only work in its
+			// own folder on Windows: its settings are kept, the [autoexec] comes from the .prof (full paths in this folder)
+			if (archive_) {
+				org.dbgl.model.conf.dfend.DFendProfConverter.Result converted = org.dbgl.model.conf.dfend.DFendProfConverter.convert(profiles_.getProf(profFile), dfendPath_);
+				confText = withAutoexecOf(confText, converted.conf());
+				warnings.append(text_.get("dialog.dfendimport.dfendx.autoexecfromprof", new Object[] {title})).append(StringUtils.LF);
+				if (!converted.notes().isEmpty())
+					warnings.append(text_.get("dialog.dfendimport.notconverted", new Object[] {title, StringUtils.join(converted.notes(), ", ")})).append(StringUtils.LF);
+			}
 		} else {
 			org.dbgl.model.conf.dfend.DFendProfConverter.Result converted = org.dbgl.model.conf.dfend.DFendProfConverter.convert(profiles_.getProf(profFile), dfendPath_);
 			confText = converted.conf();
@@ -130,7 +154,7 @@ public class DFendReloadedImportThread extends UIThread<File> {
 		newProfile = new ProfileRepository().add(newProfile);
 
 		String captures = profiles_.getValue(profFile, "dosbox", "captures");
-		File srcCaptures = StringUtils.isBlank(captures) ? null: new File(dfendPath_, captures);
+		File srcCaptures = StringUtils.isBlank(captures) ? null: org.dbgl.model.conf.dfend.DFendProfConverter.hostPath(dfendPath_, captures); // alpha 48: as above
 
 		if (FilesUtils.isExistingDirectory(srcCaptures))
 			FileUtils.copyDirectory(srcCaptures, newProfile.getCanonicalCaptures(), FileFileFilter.INSTANCE);
@@ -157,6 +181,37 @@ public class DFendReloadedImportThread extends UIThread<File> {
 				found = v; // the last one: the newest, as the list is sorted
 		}
 		return found != null ? found: defaultDBVersion_;
+	}
+
+	/** the configuration text with its [autoexec] section replaced by the one of the other text (alpha 48) */
+	public static String withAutoexecOf(String conf, String other) {
+		return withoutAutoexec(conf).stripTrailing() + StringUtils.LF + StringUtils.LF + autoexecOf(other);
+	}
+
+	private static String withoutAutoexec(String conf) {
+		StringBuilder sb = new StringBuilder();
+		boolean inAutoexec = false;
+		for (String line: conf.split("\\r?\\n", -1)) {
+			String t = line.strip();
+			if (t.startsWith("[") && t.endsWith("]"))
+				inAutoexec = t.equalsIgnoreCase("[autoexec]");
+			if (!inAutoexec)
+				sb.append(line).append(StringUtils.LF);
+		}
+		return sb.toString();
+	}
+
+	private static String autoexecOf(String conf) {
+		StringBuilder sb = new StringBuilder();
+		boolean inAutoexec = false;
+		for (String line: conf.split("\\r?\\n", -1)) {
+			String t = line.strip();
+			if (t.startsWith("[") && t.endsWith("]"))
+				inAutoexec = t.equalsIgnoreCase("[autoexec]");
+			if (inAutoexec)
+				sb.append(line).append(StringUtils.LF);
+		}
+		return sb.toString();
 	}
 
 	/** all settings of a configuration as "section.item" = value */

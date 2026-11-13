@@ -124,6 +124,7 @@ public class EditTemplateDialog extends EditConfigurableDialog<Template> {
 	protected void onShellCreated() {
 		TreeItem infoItem = addPageGenerator("dialog.template.tab.info", this::createInfoPage);
 		addPageGenerator("dialog.template.tab.mounting", this::createMountingPage);
+		addSavePageGenerators(false); // alpha 48: below the drives
 		TreeItem dosboxItem = addPageGenerator("dialog.template.tab.dosbox", this::createDosboxPage);
 		addCommonPageGenerators(dosboxItem);
 

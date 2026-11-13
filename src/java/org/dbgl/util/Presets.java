@@ -51,17 +51,37 @@ public final class Presets {
 		return new Entry(section, item, candidates);
 	}
 
+	/** the first of the picture presets (DOSBox Staging 0.83), shown as a group of their own in the menus */
+	public static final String FIRST_PICTURE_PRESET = "dialog.preset.crt";
+
 	public static final List<Preset> BUILT_IN = List.of(
 		new Preset("dialog.preset.win9x", true, List.of(e("dosbox", "memsize", "64"), e("cpu", "cputype", "pentium_mmx", "pentium", "pentium_slow"), e("cpu", "core", "normal"),
 			e("dos", "ems", "off", "false"))),
 		new Preset("dialog.preset.win31", true, List.of(e("dosbox", "machine", "svga_s3", "svga_s3trio64", "vesa_nolfb"), e("dosbox", "memsize", "16"),
-			e("cpu", "cputype", "486", "486_slow", "486_prefetch", "auto"), e("cpu", "core", "normal"), e("dos", "ems", "off", "false"))),
+			e("cpu", "cputype", "486", "486_slow", "486_prefetch", "auto"), e("cpu", "core", "normal"), e("dos", "ems", "off", "false"),
+			// DOSBox Staging 0.83: Alt+Tab and the like go to Windows in DOSBox, not to the host (alpha 48)
+			e("sdl", "keyboard_capture", "on"))),
 		new Preset("dialog.preset.slow", true, List.of(e("cpu", "core", "normal"), e("cpu", "cputype", "286", "386", "auto"), e("cpu", "cycles", "fixed 3000"),
 			e("cpu", "cpu_cycles", "3000"), e("cpu", "cpu_cycles_protected", "3000"))),
 		new Preset("dialog.preset.fast", true, List.of(e("cpu", "core", "dynamic", "auto"), e("cpu", "cputype", "auto"), e("cpu", "cycles", "max"),
 			e("cpu", "cpu_cycles", "max"), e("cpu", "cpu_cycles_protected", "max"))),
 		new Preset("dialog.preset.tandy", true, List.of(e("dosbox", "machine", "tandy"), e("speaker", "tandy", "on", "auto"))),
-		new Preset("dialog.preset.pc98", true, List.of(e("dosbox", "machine", "pc98"))));
+		new Preset("dialog.preset.pc98", true, List.of(e("dosbox", "machine", "pc98"))),
+		// alpha 48, DOSBox Staging 0.83 only (needs its image adjustments, see REQUIRES): the settings of its release notes
+		new Preset("dialog.preset.crt", true, List.of(e("render", "image_adjustments", "on"), e("render", "shader", "crt-auto"), e("render", "crt_color_profile", "auto"))),
+		new Preset("dialog.preset.monogreen", true, List.of(e("render", "image_adjustments", "on"), e("render", "shader", "crt/crt-hyllian:monochrome-hires"),
+			e("render", "crt_color_profile", "none"), e("render", "brightness", "45"), e("render", "contrast", "60"), e("render", "gamma", "10"),
+			e("render", "color_temperature", "6500"), e("render", "red_gain", "0"), e("render", "green_gain", "125"), e("render", "blue_gain", "0"))),
+		new Preset("dialog.preset.monoamber", true, List.of(e("render", "image_adjustments", "on"), e("render", "shader", "crt/crt-hyllian:monochrome-hires"),
+			e("render", "crt_color_profile", "none"), e("render", "brightness", "42"), e("render", "contrast", "100"), e("render", "gamma", "15"),
+			e("render", "saturation", "-50"), e("render", "color_temperature", "6500"), e("render", "red_gain", "125"), e("render", "green_gain", "70"),
+			e("render", "blue_gain", "0"))),
+		new Preset("dialog.preset.fmv", true, List.of(e("render", "deinterlacing", "on"))),
+		new Preset("dialog.preset.ega", true, List.of(e("render", "dedithering", "on"))));
+
+	/** a preset that only makes sense as a whole: nothing of it is set if the DOSBox version does not have this setting */
+	static final java.util.Map<String, String> REQUIRES = java.util.Map.of("dialog.preset.crt", "render/crt_color_profile", "dialog.preset.monogreen", "render/image_adjustments",
+		"dialog.preset.monoamber", "render/image_adjustments", "dialog.preset.fmv", "render/deinterlacing", "dialog.preset.ega", "render/dedithering");
 
 	private Presets() {
 	}
@@ -133,6 +153,10 @@ public final class Presets {
 	 * @return the number of settings that were set
 	 */
 	public static int apply(org.dbgl.model.entity.TemplateProfileBase configurable, Preset preset) {
+		String needs = REQUIRES.get(preset.key());
+		if ((needs != null) && ((configurable.getDosboxVersion() == null)
+				|| !configurable.getDosboxVersion().getConfiguration().hasValue(needs.substring(0, needs.indexOf('/')), needs.substring(needs.indexOf('/') + 1))))
+			return 0;
 		int applied = 0;
 		for (Entry entry: preset.entries())
 			if (setFirstSupported(configurable, entry.section(), entry.item(), entry.candidates()))
@@ -149,7 +173,9 @@ public final class Presets {
 			return false;
 		org.dbgl.model.conf.ConfValueOptions.Options options = configurable.getDosboxVersion().getConfValueOptions().get(section, item);
 		for (String candidate: candidates) {
-			if ((options == null) || options.isFreeForm() || options.getValues().stream().anyMatch(v -> v.equalsIgnoreCase(candidate))) {
+			// a shader file of DOSBox Staging ("crt/crt-hyllian:monochrome-hires"): its configuration lists only the built-in ones
+			boolean shaderFile = "render".equals(section) && "shader".equals(item) && candidate.contains("/");
+			if ((options == null) || options.isFreeForm() || shaderFile || options.getValues().stream().anyMatch(v -> v.equalsIgnoreCase(candidate))) {
 				configurable.setValue(section, item, candidate);
 				return true;
 			}

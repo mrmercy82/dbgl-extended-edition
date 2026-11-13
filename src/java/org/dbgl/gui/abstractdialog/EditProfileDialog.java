@@ -124,6 +124,13 @@ public abstract class EditProfileDialog<T> extends EditConfigurableDialog<T> {
 			metaControls_).init(configurable).getCombo();
 		year_ = Chain.on(composite).lbl(l -> l.key("dialog.profile.year")).cmb(c -> c.horSpan(2).autoSelect(yearsList_)).profile(Profile::getYear, Profile::setYear).build(metaControls_).init(configurable).getCombo();
 
+		// alpha 48: as wide as the page allows, not as wide as the longest name in the list (the page had to be scrolled sideways)
+		for (org.eclipse.swt.widgets.Combo combo: new org.eclipse.swt.widgets.Combo[] {developer_, publisher_, genre_, year_})
+			if (combo.getLayoutData() instanceof GridData data) {
+				data.widthHint = 100;
+				data.horizontalAlignment = SWT.FILL;
+				data.grabExcessHorizontalSpace = true;
+			}
 		link_ = new Text[Profile.NR_OF_LINK_DESTINATIONS];
 		linkBrowseButton_ = new Button[Profile.NR_OF_LINK_TITLES];
 		linkTitle_ = new Text[Profile.NR_OF_LINK_TITLES];
@@ -136,6 +143,10 @@ public abstract class EditProfileDialog<T> extends EditConfigurableDialog<T> {
 			linkBrowseButton_[i] = chnLink.getButton();
 			linkTitle_[i] = Chain.on(composite).lbl(l -> l.key("dialog.profile.linktitle")).txt(t -> t).profile(i, Profile::getLinkTitle, Profile::setLinkTitle).build(
 				metaControls_).init(configurable).getText();
+			GridData titleData = new GridData(SWT.FILL, SWT.CENTER, true, false); // alpha 48: up to "Remove"
+			titleData.widthHint = 100;
+			linkTitle_[i].setLayoutData(titleData);
+			linkTitle_[i].setData(org.dbgl.gui.controls.GridCompactor.KEEP_WIDTH, Boolean.TRUE);
 			// empty link and title at once, e.g. to make room for more manuals and extras (8 links per profile)
 			final int index = i;
 			org.eclipse.swt.widgets.Button remove = new org.eclipse.swt.widgets.Button(composite, SWT.PUSH);
@@ -149,17 +160,21 @@ public abstract class EditProfileDialog<T> extends EditConfigurableDialog<T> {
 		}
 		
 		Chain.on(composite).lbl(l -> l.key("dialog.profile.status")).cmb(c -> c.horSpan(2).autoSelect(statusList_)).profile(Profile::getStatus, Profile::setStatus).build(metaControls_).init(configurable);
-		Chain.on(composite).lbl(l -> l.key("dialog.profile.favorite")).but(b -> b.layoutData(new GridData(SWT.FILL, SWT.CENTER, true, false))).lbl(l -> l).profile(Profile::getFavorite,
+		// alpha 48: "Favorite" only, the long text made its column and so the page wider than the window (as tooltip)
+		Chain favorite = Chain.on(composite).lbl(l -> l.key("dialog.profile.favorite.short")).but(b -> b.layoutData(new GridData(SWT.FILL, SWT.CENTER, true, false))).lbl(l -> l).profile(Profile::getFavorite,
 			Profile::setFavorite).build(metaControls_).init(configurable);
+		favorite.getLabel().setToolTipText(text_.get("dialog.profile.favorite"));
 		
 		notes_ = Chain.on(composite).lbl(l -> l.key("dialog.profile.notes")).txt(t -> t.horSpan(5).multi().wrap()).profile(Profile::getNotes, Profile::setNotes).build(metaControls_).init(configurable).getText();
 		notes_.setFont(stringToFont(display_, settings_.getValues("gui", "notesfont"), notes_.getFont()));
 		notes_.addDisposeListener(e -> notes_.getFont().dispose());
 		// below the notes: play time, sessions and the last one (of a profile that exists already)
-		if ((configurable instanceof Profile prof) && (prof.getId() >= 0) && (prof.getProfileStats() != null)) {
+		if ((configurable instanceof Profile prof) && (prof.getId() >= 0) && (prof.getProfileStats() != null) && settings_.getBooleanValue("gui", "showplaytimeininfo")) {
 			new org.eclipse.swt.widgets.Label(composite, SWT.NONE);
 			org.eclipse.swt.widgets.Label playInfo = new org.eclipse.swt.widgets.Label(composite, SWT.WRAP);
-			playInfo.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 5, 1));
+			GridData playInfoData = new GridData(SWT.FILL, SWT.CENTER, true, false, 5, 1);
+			playInfoData.widthHint = 200; // wraps if needed, does not make the page wider
+			playInfo.setLayoutData(playInfoData);
 			playInfo.setText(org.dbgl.util.ProfileReports.playInfo(prof, text_));
 		}
 		
@@ -207,6 +222,24 @@ public abstract class EditProfileDialog<T> extends EditConfigurableDialog<T> {
 						metaControls_).init(configurable);
 		}
 		
+		// alpha 48: all fields twice as long as before, and all equally long (right edges in a line: a text field gets less as it
+		// has more border than a drop-down)
+		int comboWidth = -1;
+		for (org.eclipse.swt.widgets.Control c: composite.getChildren())
+			if (c instanceof org.eclipse.swt.widgets.Combo combo) {
+				comboWidth = combo.computeSize(400, SWT.DEFAULT).x;
+				break;
+			}
+		for (org.eclipse.swt.widgets.Control c: composite.getChildren())
+			if ((c instanceof org.eclipse.swt.widgets.Combo) || (c instanceof Text)) {
+				GridData d = new GridData(SWT.BEGINNING, SWT.CENTER, false, false);
+				d.widthHint = 400;
+				if ((c instanceof Text t) && comboWidth > 0)
+					d.widthHint = Math.max(100, 400 - (t.computeSize(400, SWT.DEFAULT).x - comboWidth));
+				c.setLayoutData(d);
+				c.setData(org.dbgl.gui.controls.GridCompactor.KEEP_WIDTH, Boolean.TRUE);
+			}
+
 		custom9_ = Chain.on(composite).lbl(l -> l.txt(settings_.getValue("gui", "custom9"))).scl(s -> s).profile(0, Profile::getCustomInt, Profile::setCustomInt).build(
 				metaControls_).init(configurable).getScale();
 		Chain.on(composite).lbl(l -> l.txt(settings_.getValue("gui", "custom10"))).spn(s -> s).profile(1, Profile::getCustomInt,
@@ -221,7 +254,13 @@ public abstract class EditProfileDialog<T> extends EditConfigurableDialog<T> {
 		Group associationGroup = (Group) composite.getChildren()[2];
 
 		templateCombo_ = Chain.on(associationGroup).lbl(l -> l.key("dialog.profile.template")).cmb(
-			c -> c.horSpan(2).wide().items(templatesList_.stream().map(Template::getTitle).toArray(String[]::new)).select(templateIndex_).visibleItemCount(20)).combo();
+			c -> c.wide().items(templatesList_.stream().map(Template::getTitle).toArray(String[]::new)).select(templateIndex_).visibleItemCount(20)).combo();
+		// alpha 48: as long as the drop-down of the DOSBox version above it
+		if (dbversionCombo_ != null && dbversionCombo_.getLayoutData() instanceof GridData v) {
+			GridData t = new GridData(v.horizontalAlignment, SWT.CENTER, v.grabExcessHorizontalSpace, false);
+			t.widthHint = v.widthHint;
+			templateCombo_.setLayoutData(t);
+		}
 
 		Button_.on(associationGroup).text().key("dialog.profile.loadsettings").tooltip("dialog.profile.loadsettings.tooltip").listen(new SelectionAdapter() {
 			@Override
@@ -235,6 +274,7 @@ public abstract class EditProfileDialog<T> extends EditConfigurableDialog<T> {
 				}
 			}
 		}).ctrl();
+		new org.eclipse.swt.widgets.Label(associationGroup, SWT.NONE); // "Reset" stays below "To default"
 
 		Button_.on(associationGroup).text().key("dialog.profile.reloadsettings").tooltip("dialog.profile.reloadsettings.tooltip").listen(new SelectionAdapter() {
 			@Override

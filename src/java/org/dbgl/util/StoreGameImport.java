@@ -50,7 +50,18 @@ import org.json.JSONObject;
 public final class StoreGameImport {
 
 	/** a game found: its name, folder, the configuration files in the order DOSBox reads them, and its working folder */
-	public record Found(String title, File gameDir, List<File> confs, File workingDir, String store) {
+	public record Found(String title, File gameDir, List<File> confs, File workingDir, String store, Meta meta) {
+		public Found(String title, File gameDir, List<File> confs, File workingDir, String store) {
+			this(title, gameDir, confs, workingDir, store, null);
+		}
+	}
+
+	/** what a game collection says about a game (eXoDOS via its LaunchBox data, alpha 48); the cover is looked for when needed */
+	public record Meta(String developer, String publisher, String year, String genre, String notes, java.util.function.Supplier<File> cover,
+			java.util.function.Supplier<List<File>> pictures, List<ExtrasFinder.Extra> extras) {
+		public Meta(String developer, String publisher, String year, String genre, String notes, java.util.function.Supplier<File> cover) {
+			this(developer, publisher, year, genre, notes, cover, List::of, List.of());
+		}
 	}
 
 	static final int DEPTH = 4;
@@ -408,12 +419,17 @@ public final class StoreGameImport {
 	public static Profile toProfile(Found f, DosboxVersion version, ITextService text) throws IOException {
 		Profile p = ProfileFactory.create(version, null);
 		p.setTitle(f.title());
-		p.setDeveloper("");
-		p.setPublisher("");
-		p.setGenre("");
-		p.setYear("");
+		Meta meta = f.meta();
+		p.setDeveloper(meta == null ? "": StringUtils.defaultString(meta.developer()));
+		p.setPublisher(meta == null ? "": StringUtils.defaultString(meta.publisher()));
+		p.setGenre(meta == null ? "": StringUtils.defaultString(meta.genre()));
+		p.setYear(meta == null ? "": StringUtils.defaultString(meta.year()));
 		p.setStatus("");
-		p.setNotes(f.store() + ": " + f.gameDir().getPath());
+		// the folder last: by it a game imported before is known again
+		p.setNotes((meta != null) && StringUtils.isNotBlank(meta.notes()) ? meta.notes().trim() + "\n\n" + f.store() + ": " + f.gameDir().getPath(): f.store() + ": " + f.gameDir().getPath());
+		// alpha 48: the manual and the soundtrack of the collection as links
+		if ((meta != null) && (meta.extras() != null) && !meta.extras().isEmpty())
+			ExtrasFinder.link(p, meta.extras());
 		p.setSetupFileLocation("");
 		p.setSetupParams("");
 		p.setAltExeFileLocations(new String[] {"", ""});

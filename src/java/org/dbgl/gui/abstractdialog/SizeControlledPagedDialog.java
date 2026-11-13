@@ -45,7 +45,7 @@ import org.eclipse.swt.events.ModifyEvent;
 import org.eclipse.swt.events.ModifyListener;
 import org.eclipse.swt.graphics.Font;
 import org.eclipse.swt.graphics.FontData;
-import org.eclipse.swt.graphics.Rectangle;
+import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.layout.FillLayout;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
@@ -104,19 +104,53 @@ public abstract class SizeControlledPagedDialog<T> extends SizeControlledButtonD
 		tree_ = createTree(leftComposite, SWT.BORDER | SWT.V_SCROLL | SWT.H_SCROLL);
 		tree_.setFocus();
 
-		rightComposite_ = createScrolledComposite(sash, SWT.V_SCROLL);
+		rightComposite_ = createScrolledComposite(sash, SWT.V_SCROLL | SWT.H_SCROLL); // alpha 48: also sideways, a wide page was cut off at the right
 		rightComposite_.setExpandVertical(true);
 		rightComposite_.setExpandHorizontal(true);
 		rightComposite_.setLayout(new GridLayout(1, true));
 		rightComposite_.addControlListener(ControlListener.controlResizedAdapter(e -> {
 			Control ctrl = rightComposite_.getContent();
 			if (ctrl != null) {
-				Rectangle r = rightComposite_.getClientArea();
-				rightComposite_.setMinSize(ctrl.computeSize(r.width, SWT.DEFAULT));
+				rightComposite_.setMinSize(minSizeOf(ctrl));
 			}
 		}));
 		
 		sash.setWeights(new int[] {22, 78});
+
+		// alpha 48: also without a mouse: Ctrl+Page down/up the next/previous page, Ctrl+F the search of settings, F6 between tree and page
+		org.eclipse.swt.widgets.Listener keys = e -> {
+			if (tree_.isDisposed() || e.display.getActiveShell() != tree_.getShell())
+				return;
+			boolean ctrl = (e.stateMask & SWT.MOD1) != 0;
+			if (ctrl && (e.keyCode == SWT.PAGE_DOWN || e.keyCode == SWT.PAGE_UP)) {
+				List<TreeItem> items = allTreeItems(tree_.getItems());
+				TreeItem[] sel = tree_.getSelection();
+				int at = sel.length > 0 ? items.indexOf(sel[0]): -1;
+				int next = Math.max(0, Math.min(items.size() - 1, at + (e.keyCode == SWT.PAGE_DOWN ? 1: -1)));
+				if (!items.isEmpty() && next != at) {
+					tree_.setSelection(items.get(next));
+					org.eclipse.swt.widgets.Event ev = new org.eclipse.swt.widgets.Event();
+					ev.item = items.get(next);
+					tree_.notifyListeners(SWT.Selection, ev);
+				}
+				e.doit = false;
+			} else if (ctrl && (e.keyCode == 'f' || e.keyCode == 'F')) {
+				search_.setFocus();
+				search_.selectAll();
+				e.doit = false;
+			} else if (e.keyCode == SWT.F6) {
+				if (tree_.isFocusControl()) {
+					Control page = rightComposite_.getContent();
+					if (page instanceof Composite c)
+						c.setFocus();
+				} else {
+					tree_.setFocus();
+				}
+				e.doit = false;
+			}
+		};
+		tree_.getDisplay().addFilter(SWT.KeyDown, keys);
+		tree_.addListener(SWT.Dispose, e -> e.display.removeFilter(SWT.KeyDown, keys));
 	}
 	
 	protected void renderPage(TemplateProfileBase configurable, Widget item) {
@@ -141,9 +175,18 @@ public abstract class SizeControlledPagedDialog<T> extends SizeControlledButtonD
 		
 		page.pack();
 		rightComposite_.setContent(page);
-		rightComposite_.setMinSize(page.computeSize(rightComposite_.getClientArea().width, SWT.DEFAULT));
+		rightComposite_.setMinSize(minSizeOf(page));
 	}
 	
+	/**
+	 * the size the page needs: as wide as the visible area, or wider if its settings don't fit in it (then it can be scrolled
+	 * sideways, alpha 48: before it was cut off at the right)
+	 */
+	private Point minSizeOf(Control page) {
+		int width = Math.max(rightComposite_.getClientArea().width, page.computeSize(SWT.DEFAULT, SWT.DEFAULT).x);
+		return page.computeSize(width, SWT.DEFAULT);
+	}
+
 	/** called before a page is laid out and shown */
 	protected void onPageShown(Composite page) {
 	}
@@ -162,12 +205,22 @@ public abstract class SizeControlledPagedDialog<T> extends SizeControlledButtonD
 			onPageShown(page);
 			page.pack();
 			page.layout(true, true);
-			rightComposite_.setMinSize(page.computeSize(rightComposite_.getClientArea().width, SWT.DEFAULT));
+			rightComposite_.setMinSize(minSizeOf(page));
 		});
 	}
 
 	protected void computeAllPages(TemplateProfileBase configurable) {
 		pageGenerators_.keySet().forEach(key -> computePage(configurable, key));
+	}
+
+	/** build the next page not built yet; false if all are (alpha 48: one at a time, DBGL answering in between) */
+	protected boolean computeNextPage(TemplateProfileBase configurable) {
+		for (String key: pageGenerators_.keySet())
+			if (!pages_.containsKey(key)) {
+				computePage(configurable, key);
+				return true;
+			}
+		return false;
 	}
 
 	/** how many pages are not built yet (for a progress bar) */
@@ -233,7 +286,9 @@ public abstract class SizeControlledPagedDialog<T> extends SizeControlledButtonD
 		treeItem.setData(key);
 		treeItem.setText(TextService.getInstance().get(key));
 		if (withImage) {
-			String img = "bs/" + key.substring(key.lastIndexOf('.') + 1) + ".png";
+			String name = key.substring(key.lastIndexOf('.') + 1);
+			// alpha 48: a dark icon (DOSBox) has a grey one for the dark mode
+			String img = "bs/" + name + (org.dbgl.gui.controls.DarkTheme.forced() && getClass().getResource("/img/bs/" + name + "_dark.png") != null ? "_dark": "") + ".png";
 			treeItem.setImage(ImageService.getResourceImage(getParent().getDisplay(), img));
 		}
 		return treeItem;

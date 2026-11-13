@@ -83,7 +83,7 @@ public class Spinner_ {
 		public Spinner build() {
 			Spinner spinner = new Spinner(composite_, style_);
 			if (DarkTheme.forced()) {
-				spinner.setBackground(DarkTheme.inputBackground);
+				spinner.setBackground(DarkTheme.fieldBackground); // alpha 48: fields lighter
 				spinner.setForeground(DarkTheme.defaultForeground);
 			}
 			spinner.setLayoutData(layoutData());

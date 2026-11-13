@@ -47,6 +47,12 @@ public final class PresetsMenu {
 	public static void addPresetItems(Menu menu, Consumer<Preset> onApply) {
 		var text = TextService.getInstance();
 		for (Preset preset: Presets.BUILT_IN) {
+			if (preset.key().equals(Presets.FIRST_PICTURE_PRESET)) { // alpha 48: the picture presets as a group of their own
+				new MenuItem(menu, SWT.SEPARATOR);
+				MenuItem header = new MenuItem(menu, SWT.PUSH);
+				header.setText(text.get("dialog.preset.group.picture").replace("&", "&&"));
+				header.setEnabled(false);
+			}
 			MenuItem item = new MenuItem(menu, SWT.PUSH);
 			item.setText(text.get(preset.key()).replace("&", "&&"));
 			item.addListener(SWT.Selection, e -> onApply.accept(preset));

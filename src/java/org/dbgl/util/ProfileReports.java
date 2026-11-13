@@ -486,6 +486,8 @@ public final class ProfileReports {
 			return y != null ? text.get("dialog.statistics.decade", new Object[] {y.substring(0, 3) + "0"}): none;
 		}, none, true, true, Integer.MAX_VALUE);
 		groups(out, text.get("dialog.statistics.byreleaseyear"), profiles, p -> StringUtils.defaultIfEmpty(releaseYear(p), none), none, true, true, Integer.MAX_VALUE);
+		// alpha 48: when the profiles were made (the date DBGL keeps since the profile was added)
+		groups(out, text.get("dialog.statistics.bycreatedyear"), profiles, p -> StringUtils.defaultIfEmpty(createdYear(p), none), none, true, true, Integer.MAX_VALUE);
 		groups(out, text.get("dialog.statistics.bydeveloper2"), profiles, p -> StringUtils.defaultIfBlank(StringUtils.strip(p.getDeveloper()), none), none, true, false, TOP);
 		if (profiles.stream().anyMatch(p -> StringUtils.isNotBlank(p.getStatus())))
 			groups(out, text.get("dialog.statistics.bystatus"), profiles, p -> StringUtils.defaultIfBlank(StringUtils.strip(p.getStatus()), none), none, false, false, Integer.MAX_VALUE);
@@ -495,8 +497,33 @@ public final class ProfileReports {
 		never.forEach(p -> out.row(new int[0], new String[0], p.getTitle(), -1));
 	}
 
-	/** one line: how long a profile was played, in how many sessions, and when last (main window and profile editor) */
+	/** one line: how long a profile was played, in how many sessions, and when last (main window and profile editor); since alpha 48 also when it was made */
 	public static String playInfo(Profile prof, ITextService text) {
+		return playInfo(prof, text, " · ");
+	}
+
+	/** the same, with "made on" after the separator (below the notes: in a line of its own) */
+	public static String playInfo(Profile prof, ITextService text, String separator) {
+		String info = playInfoWithoutCreated(prof, text);
+		java.util.Date created = (prof.getStats() == null) ? null: prof.getStats().getCreated();
+		if (created == null || info.isEmpty())
+			return info;
+		org.dbgl.service.SettingsService settings = org.dbgl.service.SettingsService.getInstance();
+		java.util.Locale locale = new java.util.Locale(settings.getValue("locale", "language"), settings.getValue("locale", "country"));
+		return info + separator + text.get("dialog.main.playinfo.created", new Object[] {DateFormat.getDateInstance(DateFormat.MEDIUM, locale).format(created)});
+	}
+
+	/** the year in which the profile was made, or null */
+	private static String createdYear(Profile p) {
+		java.util.Date created = (p.getStats() == null) ? null: p.getStats().getCreated();
+		if (created == null)
+			return null;
+		java.util.Calendar cal = java.util.Calendar.getInstance();
+		cal.setTime(created);
+		return String.valueOf(cal.get(java.util.Calendar.YEAR));
+	}
+
+	private static String playInfoWithoutCreated(Profile prof, ITextService text) {
 		try {
 			int seconds = prof.getProfileStats() == null ? 0: prof.getProfileStats().getPlayTime();
 			org.dbgl.model.repository.ProfileRepository.SessionSummary sessions = new org.dbgl.model.repository.ProfileRepository().sessionSummary(prof.getId());

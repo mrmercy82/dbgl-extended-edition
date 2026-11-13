@@ -148,6 +148,7 @@ public class CheckProfilesDialog extends SizeControlledButtonDialog<Boolean> {
 		Button none = new Button(bar, SWT.PUSH);
 		none.setText(text_.get("button.none"));
 		none.addListener(SWT.Selection, e -> chooseAll(false));
+		wideButton(none);
 		onlyFixable_ = new Button(bar, SWT.CHECK);
 		onlyFixable_.setText(text_.get("dialog.checkprofiles.onlyfixable"));
 		onlyFixable_.addListener(SWT.Selection, e -> fillTree());

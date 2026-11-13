@@ -387,15 +387,22 @@ public final class ExtraSettings {
 	 * Whether a group starts open, as set under 'Settings': always, only when the profile/template changes one of its
 	 * settings, or collapsed. Pages that only hold such settings may always start open.
 	 */
-	static boolean initiallyExpanded(boolean onlyExtrasPage, int changedCount) {
+	static boolean initiallyExpanded(boolean onlyExtrasPage, int changedCount, int entries) {
 		SettingsService settings = SettingsService.getInstance();
 		if (onlyExtrasPage && !settings.getBooleanValue("gui", "extrasexpandonextraspages"))
+			return true;
+		int few = settings.getIntValue("gui", "extrasexpandmax"); // alpha 48: a group of only a few settings starts open (0: off)
+		if ((few > 0) && (entries <= few))
 			return true;
 		switch (settings.getValue("gui", "extrasexpand")) {
 			case "always": return true;
 			case "collapsed": return false;
 			default: return changedCount > 0;
 		}
+	}
+
+	private int entryCount(Group group) {
+		return (int)settings_.stream().filter(g -> !g.label().isDisposed() && (g.label().getParent() == group)).count();
 	}
 
 	private int changedCount(Group group) {
@@ -427,7 +434,7 @@ public final class ExtraSettings {
 			if (!(c instanceof Group group) || (group.getData(HEADER) == null))
 				continue;
 			Button header = (Button)group.getData(HEADER);
-			boolean expanded = expanded_.computeIfAbsent((String)group.getData(GROUP_KEY), k -> initiallyExpanded(group.getData(ONLY_EXTRAS_PAGE) != null, changedCount(group)));
+			boolean expanded = expanded_.computeIfAbsent((String)group.getData(GROUP_KEY), k -> initiallyExpanded(group.getData(ONLY_EXTRAS_PAGE) != null, changedCount(group), entryCount(group)));
 			int shown = 0;
 			Map<Control, Setting> byLabel = new HashMap<>();
 			settings_.stream().filter(g -> !g.label().isDisposed() && (g.label().getParent() == group)).forEach(g -> byLabel.put(g.label(), g));

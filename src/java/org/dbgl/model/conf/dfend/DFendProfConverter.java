@@ -74,7 +74,7 @@ public final class DFendProfConverter {
 	}
 
 	/** a path of D-Fend: .\ (or nothing in front) means its folder */
-	static File hostPath(File dfendDir, String path) {
+	public static File hostPath(File dfendDir, String path) {
 		String p = path.trim().replace('\\', File.separatorChar).replace('/', File.separatorChar);
 		File f = new File(p);
 		if (f.isAbsolute() || p.matches("^[A-Za-z]:.*"))

@@ -58,8 +58,37 @@ public class Messaging extends Thread {
 			System.out.println(text_.get("communication.notice.listening", new Object[] {port_}));
 
 			while (true) {
-				try (Socket client = server_.accept(); BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(client.getInputStream()))) {
-					String line = bufferedReader.readLine();
+				Socket accepted = server_.accept();
+				// alpha 48: a game started from outside (Steam: "dbgl --run <id>"); the answer comes when it ended
+				accepted.setSoTimeout(5000);
+				BufferedReader reader = new BufferedReader(new InputStreamReader(accepted.getInputStream(), java.nio.charset.StandardCharsets.UTF_8));
+				String first;
+				try {
+					first = reader.readLine();
+				} catch (IOException e) {
+					first = null;
+				}
+				if (first != null && first.startsWith(org.dbgl.gui.RunProfile.RUN_PROFILE)) {
+					String id = first.substring(org.dbgl.gui.RunProfile.RUN_PROFILE.length()).trim();
+					Thread t = new Thread(() -> {
+						try (Socket client = accepted) {
+							Thread game = mainWindow_.runProfileById(Integer.parseInt(id));
+							if (game != null)
+								game.join();
+							client.getOutputStream().write((org.dbgl.gui.RunProfile.DONE + "\n").getBytes(java.nio.charset.StandardCharsets.UTF_8));
+						} catch (IOException | NumberFormatException e) {
+							System.err.println(text_.get("communication.error.io"));
+						} catch (InterruptedException e) {
+							Thread.currentThread().interrupt();
+						}
+					}, "DBGL run from outside");
+					t.setDaemon(true);
+					t.start();
+					continue;
+				}
+				final String firstLine = first;
+				try (Socket client = accepted; BufferedReader bufferedReader = reader) {
+					String line = firstLine;
 					System.out.print(text_.get("communication.notice.receivingmessage"));
 					System.out.println(' ' + line);
 					if (line != null && line.startsWith(SendToProfile.SEND_TO_PROFILE))

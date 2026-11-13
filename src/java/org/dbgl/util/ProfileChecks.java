@@ -409,6 +409,13 @@ public final class ProfileChecks {
 					else if (img.isFile() && FilesUtils.isCueSheet(img.getName())) // also GOG's .ins
 						for (String missing: missingCueFiles(img))
 							result.add(new Problem("cuemissing", img.getName(), missing));
+					// Alcohol 120% / Daemon Tools (alpha 48): DOSBox Staging 0.83 mounts the .mds, it reads the .mdf it names
+					if (img.isFile() && (name.endsWith(".mds") || name.endsWith(".mdf"))) {
+						if (!staging083 && !dosboxX)
+							result.add(new Problem("mdsneedsstaging083", img.getName()));
+						else if (FilesUtils.mdsOf(img) != null)
+							result.add(new Problem("mdfinsteadofmds", img.getName(), FilesUtils.mdsOf(img).getName()));
+					}
 				}
 			}
 		}

@@ -207,7 +207,10 @@ public final class Button_ {
 								String confText = new FileLocation(confFile.getPath(), builder.canonicalizer_).getFile().getPath();
 								altControl.setText(confText);
 							} else if ((builder.browseCanonicalType_ == CanonicalType.CDIMAGE) && (combo != null) && (filenames != null)) {
-								if (FilesUtils.isCdImageFile(filenames[0])) {
+								File mds = (filterPath == null) || (filenames.length != 1) ? null: FilesUtils.mdsOf(new File(filterPath, filenames[0]));
+								if (mds != null) // an .mdf: DOSBox Staging 0.83 mounts its .mds (alpha 48)
+									control.setText(result.substring(0, result.length() - 4) + mds.getName().substring(mds.getName().length() - 4));
+								if (FilesUtils.isCdImageFile(filenames[0]) || FilesUtils.isMdsImage(filenames[0]) || (mds != null)) {
 									combo.setText("iso");
 								} else if (FilesUtils.isPc98HdImage(filenames[0])) {
 									combo.setText("hdd");

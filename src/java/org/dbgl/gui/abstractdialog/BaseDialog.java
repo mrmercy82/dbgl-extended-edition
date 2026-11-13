@@ -115,6 +115,7 @@ public abstract class BaseDialog<T> extends Dialog {
 		onShellInit();
 
 		onShellCreated();
+		DarkTheme.apply(shell_); // alpha 48: also controls made without the builders (e.g. pages that scroll)
 
 		placeShell();
 
@@ -271,6 +272,14 @@ public abstract class BaseDialog<T> extends Dialog {
 		return sComposite;
 	}
 
+	/** alpha 48: a push button with a short text (All, None) as wide as the OK and Cancel buttons at least */
+	public static Button wideButton(Button button) {
+		GridData data = (button.getLayoutData() instanceof GridData gd) ? gd: new GridData();
+		data.widthHint = Math.max(90, button.computeSize(SWT.DEFAULT, SWT.DEFAULT).x + 16);
+		button.setLayoutData(data);
+		return button;
+	}
+
 	/* ExpandItem */
 	protected static ExpandItem createExpandItem(ExpandBar expandBar, String text, boolean expanded, Composite composite) {
 		ExpandItem expandItem = new ExpandItem(expandBar, SWT.NONE);
@@ -313,6 +322,7 @@ public abstract class BaseDialog<T> extends Dialog {
 		else
 			toolItem.setText(TextService.getInstance().get(title));
 		toolItem.addSelectionListener(listener);
+		toolItem.setData("dbgl.tb", title); // alpha 48: which button it is (the user can hide it)
 		return toolItem;
 	}
 

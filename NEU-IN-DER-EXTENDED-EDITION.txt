@@ -5,15 +5,32 @@ DBGL wurde bis zur Version 0.100 beta 17 von Ronald Blankendaal entwickelt
 (https://dbgl.org; Ankündigung von 0.100 beta 17:
 https://www.vogons.org/viewtopic.php?p=1380082#p1380082). Die Extended Edition
 ist eine unabhängige Weiterführung, an der er nicht beteiligt ist. Sie ergänzt
-vor allem die Unterstützung aktueller DOSBox-Versionen; das Fundament und fast
-alles andere sind sein Werk: Knapp 60 Prozent des Programmcodes
-sind unverändert aus seiner 0.100 beta 17 (von seinen rund 42.000 Zeilen
-wurden rund 360 geändert oder entfernt, etwa 29.000 kamen hinzu).
+vor allem die Unterstützung aktueller DOSBox-Versionen; das Fundament und ein
+Großteil daran sind sein Werk, das auf fast 20 Jahre Entwicklungszeit
+zurückgeht.
 
 Profile, Datenbank und Einstellungen bleiben beim Umstieg erhalten.
 
 Extended Edition (Quellcode, Downloads, Fehler melden):
 https://github.com/mrmercy82/dbgl-extended-edition
+
+
+DAS NEUESTE IN 0.101 ALPHA 48
+-----------------------------
+  - TV-Modus (F11): die Spiele als große Cover im Vollbild, bedienbar mit
+    Tastatur oder Controller (XInput unter Windows, Joystick unter Linux).
+  - Zu Steam hinzufügen: Profile als Nicht-Steam-Spiele, mit Cover und
+    Spielzeit über DBGL.
+  - USB-Stick: ein Assistent packt DBGL mit den gewählten Profilen, Spielen
+    und DOSBox-Versionen portabel in eine ZIP-Datei.
+  - Savegames werden vor jedem Start gesichert und lassen sich mit einem
+    Klick zurückholen; DOSBox-X-Savestates je Spiel.
+  - Import von eXoDOS-Spielen und DFendX-Spielarchiven.
+  - Dunkelmodus überarbeitet, "Wie das System", neuer Modus "Hoher
+    Kontrast".
+  - Symbolleiste anpassbar: Knöpfe, Reihenfolge, Trennlinien.
+  - Controller als Tastatur, Abweichungen vom Standard im Kontextmenü,
+    F1 zeigt alle Tastenkürzel.
 
 
 DAS NEUESTE IN 0.101 ALPHA 47

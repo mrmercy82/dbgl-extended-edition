@@ -112,6 +112,8 @@ public class Mess_ {
 			if (exception_ != null)
 				exception_.printStackTrace(printStream_);
 
+			if (shell_ != null && DarkTheme.forced())
+				return darkBox(msg); // alpha 48: the message box of the system stays light
 			if (shell_ != null) {
 				MessageBox messageBox = new MessageBox(shell_, style_);
 				messageBox.setText(title_);
@@ -139,6 +141,87 @@ public class Mess_ {
 			style_ = SWT.APPLICATION_MODAL | SWT.ICON_WARNING | SWT.YES | SWT.NO;
 			title_ = TextService.getInstance().get("general.confirmation");
 			return display() == SWT.YES;
+		}
+
+		/** alpha 48: a question to be answered with OK (go on) or Cancel, e.g. after doing something outside DBGL */
+		public boolean okCancel() {
+			style_ = SWT.APPLICATION_MODAL | SWT.ICON_INFORMATION | SWT.OK | SWT.CANCEL;
+			title_ = TextService.getInstance().get("general.confirmation");
+			return display() == SWT.OK;
+		}
+
+		/** alpha 48: the message in a dialog of our own, in the colours of the dark mode; the buttons and their result as with MessageBox */
+		private int darkBox(String msg) {
+			org.eclipse.swt.widgets.Display display = shell_.getDisplay();
+			Shell dlg = new Shell(shell_, SWT.DIALOG_TRIM | SWT.APPLICATION_MODAL);
+			dlg.setText(title_);
+			org.dbgl.gui.abstractdialog.BaseDialog.inheritWindowImage(dlg, shell_);
+			dlg.setBackground(DarkTheme.dialogBackground);
+			org.eclipse.swt.layout.GridLayout layout = new org.eclipse.swt.layout.GridLayout(2, false);
+			layout.marginWidth = 16;
+			layout.marginHeight = 14;
+			layout.horizontalSpacing = 14;
+			layout.verticalSpacing = 16;
+			dlg.setLayout(layout);
+			int iconStyle = style_ & (SWT.ICON_ERROR | SWT.ICON_WARNING | SWT.ICON_INFORMATION | SWT.ICON_QUESTION | SWT.ICON_WORKING);
+			org.eclipse.swt.widgets.Label icon = new org.eclipse.swt.widgets.Label(dlg, SWT.NONE);
+			icon.setImage(display.getSystemImage(iconStyle == 0 ? SWT.ICON_INFORMATION: iconStyle));
+			icon.setLayoutData(new org.eclipse.swt.layout.GridData(SWT.BEGINNING, SWT.BEGINNING, false, false));
+			org.eclipse.swt.widgets.Label text = new org.eclipse.swt.widgets.Label(dlg, SWT.WRAP);
+			text.setText(msg.replace("&", "&&"));
+			org.eclipse.swt.layout.GridData textData = new org.eclipse.swt.layout.GridData(SWT.FILL, SWT.CENTER, true, false);
+			textData.widthHint = Math.min(640, Math.max(260, text.computeSize(SWT.DEFAULT, SWT.DEFAULT).x)); // a usual sentence on one line
+			text.setLayoutData(textData);
+
+			List<int[]> buttons = new ArrayList<>(); // result, text key index
+			if ((style_ & SWT.YES) != 0)
+				buttons.add(new int[] {SWT.YES});
+			if ((style_ & SWT.NO) != 0)
+				buttons.add(new int[] {SWT.NO});
+			if ((style_ & SWT.OK) != 0)
+				buttons.add(new int[] {SWT.OK});
+			if ((style_ & SWT.CANCEL) != 0)
+				buttons.add(new int[] {SWT.CANCEL});
+			if (buttons.isEmpty())
+				buttons.add(new int[] {SWT.OK});
+			org.eclipse.swt.widgets.Composite row = new org.eclipse.swt.widgets.Composite(dlg, SWT.NONE);
+			row.setBackground(DarkTheme.dialogBackground);
+			row.setLayoutData(new org.eclipse.swt.layout.GridData(SWT.END, SWT.END, true, false, 2, 1));
+			org.eclipse.swt.layout.GridLayout rowLayout = new org.eclipse.swt.layout.GridLayout(buttons.size(), true);
+			rowLayout.marginWidth = 0;
+			rowLayout.marginHeight = 0;
+			row.setLayout(rowLayout);
+			int[] result = {(style_ & SWT.CANCEL) != 0 ? SWT.CANCEL: (style_ & SWT.NO) != 0 ? SWT.NO: SWT.OK}; // closing the window
+			for (int[] b: buttons) {
+				org.eclipse.swt.widgets.Button button = new org.eclipse.swt.widgets.Button(row, SWT.PUSH);
+				String key = switch (b[0]) {
+					case SWT.YES -> "button.yes";
+					case SWT.NO -> "button.no";
+					case SWT.CANCEL -> "button.cancel";
+					default -> "button.ok";
+				};
+				button.setText(TextService.getInstance().get(key));
+				org.eclipse.swt.layout.GridData bd = new org.eclipse.swt.layout.GridData(SWT.FILL, SWT.CENTER, true, false);
+				bd.widthHint = Math.max(90, button.computeSize(SWT.DEFAULT, SWT.DEFAULT).x + 16);
+				button.setLayoutData(bd);
+				button.addListener(SWT.Selection, e -> {
+					result[0] = b[0];
+					dlg.close();
+				});
+				if (b == buttons.get(0))
+					dlg.setDefaultButton(button);
+			}
+			DarkTheme.apply(dlg);
+			dlg.pack();
+			org.eclipse.swt.graphics.Rectangle area = shell_.getMonitor().getClientArea(), parent = shell_.getBounds();
+			org.eclipse.swt.graphics.Point size = dlg.getSize();
+			dlg.setLocation(Math.max(area.x, Math.min(parent.x + (parent.width - size.x) / 2, area.x + area.width - size.x)),
+				Math.max(area.y, Math.min(parent.y + (parent.height - size.y) / 2, area.y + area.height - size.y)));
+			dlg.open();
+			while (!dlg.isDisposed())
+				if (!display.readAndDispatch())
+					display.sleep();
+			return result[0];
 		}
 
 		/**
@@ -194,6 +277,10 @@ public class Mess_ {
 				});
 				if (b)
 					dlg.setDefaultButton(button);
+			}
+			if (DarkTheme.forced()) { // alpha 48
+				dlg.setBackground(DarkTheme.dialogBackground);
+				DarkTheme.apply(dlg);
 			}
 			dlg.pack();
 			org.eclipse.swt.graphics.Rectangle area = shell_.getMonitor().getClientArea();

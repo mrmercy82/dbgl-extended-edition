@@ -428,6 +428,10 @@ public abstract class TemplateProfileBase extends GenerationAwareConfigurable {
 	 */
 	boolean isKnownOrFileShader(String value) {
 		String v = value.trim();
+		// DOSBox Staging 0.83: a shader with one of its presets, "crt/crt-hyllian:monochrome-hires" (alpha 48; not "C:\\x.glsl")
+		int colon = v.lastIndexOf(':');
+		if ((colon > 1) && !v.substring(colon + 1).matches(".*[\\\\/].*"))
+			v = v.substring(0, colon);
 		try {
 			for (String s: glshaderValues())
 				if (s.equalsIgnoreCase(v))

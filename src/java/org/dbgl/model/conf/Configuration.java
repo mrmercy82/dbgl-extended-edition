@@ -196,6 +196,7 @@ public class Configuration extends Settings {
 		customSection_ = StringUtils.EMPTY;
 		autoexec_ = new Autoexec();
 		allSettings_ = false;
+		keepAutoexecAsWritten_ = false; // for the file read now, as the one who reads it decides (alpha 48)
 
 		return loadWithAutoexec(text, dbMounts, cwd);
 	}

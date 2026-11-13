@@ -54,6 +54,15 @@ import java.util.zip.ZipOutputStream;
 public final class EditionUpdater {
 
 	/** what is ready to be installed: the unpacked files, where they go, and the backups made */
+	/** alpha 48: the downloaded update is not the file of the release (damaged or changed); said in words to the user */
+	public static final class ChecksumMismatch extends IOException {
+		private static final long serialVersionUID = 1L;
+
+		public ChecksumMismatch(String message) {
+			super(message);
+		}
+	}
+
 	public record Prepared(File pending, File installDir, File dataBackup, File programBackup) {
 	}
 
@@ -173,7 +182,17 @@ public final class EditionUpdater {
 		File work = workDir();
 		org.apache.commons.io.FileUtils.deleteQuietly(work);
 		Files.createDirectories(work.toPath());
+		try {
+			return prepare(jar, work, zipUrl, sumsUrl, fromVersion, progress);
+		} catch (IOException | InterruptedException | java.sql.SQLException | RuntimeException e) {
+			// alpha 48: nothing of a failed or cancelled update stays behind (before, the download stayed until the next try)
+			org.apache.commons.io.FileUtils.deleteQuietly(work);
+			throw e;
+		}
+	}
 
+	private static Prepared prepare(File jar, File work, String zipUrl, String sumsUrl, String fromVersion, AtomicInteger progress) throws IOException, InterruptedException,
+			java.sql.SQLException {
 		String zipName = zipUrl.substring(zipUrl.lastIndexOf('/') + 1);
 		String expected = sumOf(getText(sumsUrl), zipName);
 		if (expected == null)
@@ -182,7 +201,7 @@ public final class EditionUpdater {
 		download(zipUrl, zip, progress);
 		String actual = sha256(zip);
 		if (!actual.equals(expected))
-			throw new IOException("SHA-256 of " + zipName + " is " + actual + ", expected " + expected);
+			throw new ChecksumMismatch("SHA-256 of " + zipName + " is " + actual + ", expected " + expected);
 		progress.set(920);
 
 		File pending = new File(work, "files");
@@ -241,7 +260,7 @@ public final class EditionUpdater {
 	 * How this DBGL was started (java with its options and -jar dbgl.jar), to start it again. Windows does not tell the
 	 * arguments of a process: then the same java with the options of this one (if known) and -jar dbgl.jar.
 	 */
-	static List<String> restartCommand() {
+	public static List<String> restartCommand() {
 		ProcessHandle.Info info = ProcessHandle.current().info();
 		List<String> cmd = new ArrayList<>();
 		if (info.command().isPresent() && info.arguments().isPresent() && (info.arguments().get().length > 0)) {

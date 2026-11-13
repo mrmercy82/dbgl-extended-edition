@@ -130,7 +130,7 @@ public final class Combo_ {
 		public Combo build() {
 			Combo combo = new Combo(composite_, style_);
 			if (DarkTheme.forced()) {
-				combo.setBackground(DarkTheme.inputBackground);
+				combo.setBackground(DarkTheme.fieldBackground); // alpha 48: fields lighter
 				combo.setForeground(DarkTheme.defaultForeground);
 			}
 			combo.setLayoutData(layoutData());

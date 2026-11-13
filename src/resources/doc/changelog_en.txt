@@ -1,8 +1,71 @@
 DBGL Extended Edition - Changes since 0.100 beta 17
 ===================================================
 
-Based on DBGL 0.100 beta 17 by Ronald Blankendaal (https://dbgl.org), source code. Newest version first.
+Based on DBGL 0.100 beta 17 by Ronald Blankendaal (https://dbgl.org), source code.
 
+
+0.101 alpha 48 (2026-11-14)
+---------------------------
+Fixed
+- Switch profiles: the [autoexec] stays as written in the file, changed
+  values keep the way they were written; profiles of a DOSBox version
+  changed afterwards are converted correctly.
+- Saving: a comment above a section that becomes empty stays in its place.
+- Editing several profiles and opening the profile editor the first time
+  without waiting.
+- The mapper file of a profile is found also when DBGL starts it from a
+  temporary copy.
+- D-Fend Reloaded without exported .conf files: titles, details and drives
+  are taken over again.
+- Dark mode: pages that scroll and parts built later no longer stay light.
+- Small fixes in the question before an update, in "Edit..." on the drives
+  and in the window for unknown [autoexec] lines.
+
+New
+- TV mode (F11): your games as big covers full screen, with the keyboard or
+  a controller (XInput on Windows, joystick on Linux), with filters, random
+  game and notes; key hints, names and colours of the buttons can be set.
+- Add to Steam: profiles as non-Steam games with their cover; optionally
+  Steam starts them through DBGL, which counts the play time.
+- USB stick (Profiles menu, context menu, toolbar): an assistant packs DBGL
+  with the chosen profiles, games, screenshots and DOSBox versions portable
+  into a ZIP file; games outside of dosroot go into dosroot, all paths
+  become relative, optionally with a Java runtime.
+- Saved games are backed up before each start and restored with one click;
+  DOSBox-X saved states per game. Both have a page of their own in the
+  profile editor.
+- Import of eXoDOS games (with the details from LaunchBox, cover, manual and
+  soundtrack) and of DFendX game archives.
+- Controller as keyboard: put keys onto the buttons and sticks of a
+  controller.
+- "Differences from the defaults" in the context menu of a profile, with
+  reset.
+- Dark mode reworked, plus "As the system" and the new mode "High contrast".
+- Customizable toolbar (right-click): show or hide buttons, order,
+  separators. In a narrow window it shrinks evenly.
+- Shortcuts: F1 lists them all, F6 and Ctrl+PgUp/PgDn move between parts and
+  pages.
+- DOSBox Staging 0.83: MDS/MDF images, new empty floppy and hard disk
+  images, presets for CRT and monochrome monitors.
+- Mount dialog: suggestions for other parameters, image size read from the
+  image; the archive browser marks probable start files.
+- Update notice with changelog; errors while updating in plain words.
+- Below the notes: when the profile was made; the statistics count by year
+  too.
+
+Clearer
+- Profile editor: settings the chosen DOSBox version does not know are
+  hidden; pages are closer and lined up, fields better sized, pages that are
+  too wide can be scrolled.
+- Context menu of a profile reordered, with "Tools" and "Open folder".
+- Settings reorganized: section "Profile editor" under "General", "Profile
+  overview" and "TV mode" under "GUI".
+- Changelog, New features and shortcuts in clear windows, links to click.
+- New symbols, logo with an "Extended Edition" sash, dark title bar on
+  Windows.
+- About window, README and "New features": the foundation and a large part
+  of it are Ronald Blankendaal's work, the result of nearly 20 years of
+  development.
 
 0.101 alpha 47 (2026-11-11)
 ---------------------------

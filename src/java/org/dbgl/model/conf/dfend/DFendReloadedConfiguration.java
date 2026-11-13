@@ -52,7 +52,7 @@ public class DFendReloadedConfiguration {
 		warningsLog.append(datConfiguration_.loadDetectingCharset(TextService.getInstance()));
 		for (File profFile: FileUtils.listFiles(profsPath, new String[] {"prof"}, false)) {
 			File confFile = new File(confsPath, FilenameUtils.removeExtension(profFile.getName()) + FilesUtils.CONF_EXT);
-			Configuration prof = new Configuration();
+			Settings prof = new Settings(); // keeps [ExtraInfo] as written (a Configuration writes section names in lower case since alpha 46)
 			prof.setFileLocation(new FileLocation(profFile.getPath()));
 			Configuration conf = new Configuration();
 			conf.setFileLocation(new FileLocation(confFile.getPath()));
@@ -60,6 +60,17 @@ public class DFendReloadedConfiguration {
 			profiles_.put(profFile, new DFendProfile(prof, conf));
 		}
 		return warningsLog.toString();
+	}
+
+	/** alpha 48: the .prof files of a DFendX archive (without the settings of a D-Fend installation); a .conf next to one is used */
+	public void loadArchive(List<File> profFiles) {
+		for (File profFile: profFiles) {
+			Settings prof = new Settings(); // keeps [ExtraInfo] as written (a Configuration writes section names in lower case since alpha 46)
+			prof.setFileLocation(new FileLocation(profFile.getPath()));
+			Configuration conf = new Configuration();
+			conf.setFileLocation(new FileLocation(new File(profFile.getParentFile(), FilenameUtils.removeExtension(profFile.getName()) + FilesUtils.CONF_EXT).getPath()));
+			profiles_.put(profFile, new DFendProfile(prof, conf));
+		}
 	}
 
 	public String loadProfile(File profFile) throws IOException {

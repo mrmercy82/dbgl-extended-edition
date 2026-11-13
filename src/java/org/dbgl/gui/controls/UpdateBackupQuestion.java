@@ -62,7 +62,7 @@ public final class UpdateBackupQuestion {
 
 	private static File lastFile_;
 
-	private static final Map<Part, String> LABELS = Map.of(Part.DOSBOX, "dialog.updatebackup.dosbox", Part.PROGRAM, "dialog.updatebackup.program2", Part.CAPTURES,
+	private static final Map<Part, String> LABELS = Map.of(Part.DOSBOX, "dialog.updatebackup.dosbox", Part.PROGRAM, "dialog.updatebackup.program", Part.CAPTURES,
 		"dialog.updatebackup.captures", Part.BACKUPS, "dialog.updatebackup.backups", Part.GAMES, "dialog.updatebackup.games");
 
 	private UpdateBackupQuestion() {

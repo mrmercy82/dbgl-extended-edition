@@ -83,7 +83,7 @@ public class FilesUtils {
 	public static final String DBGLZIP_FILTER = "*.dbgl.zip;*.DBGL.ZIP";
 	public static final String BTR_FILTER = "*.cp2;*.CP2;*.dcf;*.DCF;*.img;*.IMG;*.jrc;*.JRC;*.td0;*.TD0;*.fdd;*.FDD;*.fdi;*.FDI;*.d88;*.D88;*.hdi;*.HDI;*.nhd;*.NHD;*.hdm;*.HDM";
 	public static final String HDI_FILTER = "*.hdi;*.HDI;*.nhd;*.NHD";
-	public static final String CDI_FILTER = "*.iso;*.ISO;*.cue;*.CUE;*.gog;*.GOG;*.ins;*.INS;*.game;*.GAME;*.inst;*.INST";
+	public static final String CDI_FILTER = "*.iso;*.ISO;*.cue;*.CUE;*.gog;*.GOG;*.ins;*.INS;*.game;*.GAME;*.inst;*.INST;*.mds;*.MDS";
 	public static final String FATI_FILTER = "*.ima;*.IMA;*.img;*.IMG;*.fdi;*.FDI;*.d88;*.D88";
 	public static final String ALL_FILTER = "*";
 
@@ -186,7 +186,25 @@ public class FilesUtils {
 	public static boolean isDiskImage(String filename) {
 		String f = filename.toLowerCase();
 		return Stream.of(CDIMAGES).anyMatch(f::endsWith) || Stream.of(FATIMAGES).anyMatch(f::endsWith) || Stream.of(BOOTERIMAGES).anyMatch(f::endsWith) || f.endsWith(".vhd")
-				|| f.endsWith(".chd") || f.endsWith(".ccd") || f.endsWith(".mdf");
+				|| f.endsWith(".chd") || f.endsWith(".ccd") || f.endsWith(".mdf") || f.endsWith(".mds");
+	}
+
+	/** an Alcohol 120% / Daemon Tools CD image: the .mds is mounted, it names its .mdf (DOSBox Staging 0.83, alpha 48) */
+	public static boolean isMdsImage(String filename) {
+		return filename.toLowerCase().endsWith(".mds");
+	}
+
+	/** for an .mdf, the .mds next to it that DOSBox Staging mounts (or null) */
+	public static File mdsOf(File mdf) {
+		if ((mdf == null) || !mdf.getName().toLowerCase().endsWith(".mdf"))
+			return null;
+		String base = mdf.getName().substring(0, mdf.getName().length() - 4);
+		for (String ext: new String[] {".mds", ".MDS", ".Mds"}) {
+			File mds = new File(mdf.getParentFile(), base + ext);
+			if (mds.isFile())
+				return mds;
+		}
+		return null;
 	}
 
 	public static boolean isFatImage(String filename) {

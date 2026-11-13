@@ -59,6 +59,14 @@ public class EditMountDialog extends SizeControlledButtonDialog<String> {
 		driveletter_ = driveletter;
 	}
 
+	/** the kind of DOSBox, for the suggestions of other parameters (alpha 48), null: none */
+	private org.dbgl.model.entity.GenerationAwareConfigurable.Generation gen_;
+
+	public EditMountDialog withGeneration(org.dbgl.model.entity.GenerationAwareConfigurable.Generation gen) {
+		gen_ = gen;
+		return this;
+	}
+
 	/** the mount being edited, as read */
 	private Mount previous_;
 
@@ -105,7 +113,7 @@ public class EditMountDialog extends SizeControlledButtonDialog<String> {
 		Button imgSizeHelperButton = Chain.on(imgComposite).but(b -> b.layoutData(new GridData(SWT.BEGINNING, SWT.CENTER, false, false)).threedots().listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
-				String command = new EditImgSizeDialog(shell_, imgMountSize.getText()).open();
+				String command = new EditImgSizeDialog(shell_, imgMountSize.getText()).withImage(firstImage(imgChain.getText())).open();
 				if (command != null)
 					imgMountSize.setText(command);
 			}
@@ -120,6 +128,18 @@ public class EditMountDialog extends SizeControlledButtonDialog<String> {
 		imgSeriesHint.setForeground(shell_.getDisplay().getSystemColor(SWT.COLOR_WIDGET_DARK_SHADOW));
 
 		Text imgMountImage = imgChain.getText();
+		// an empty formatted image, made here (alpha 48, like MAKEIMG of DOSBox Staging 0.83)
+		Button newImage = new Button(imgComposite, SWT.PUSH);
+		newImage.setText(text_.get("dialog.newimage.button"));
+		newImage.setLayoutData(new GridData(SWT.BEGINNING, SWT.CENTER, false, false, 5, 1));
+		newImage.addListener(SWT.Selection, e -> {
+			NewImageDialog.Made made = new NewImageDialog(shell_, org.dbgl.service.FileLocationService.getInstance().getDosroot()).open();
+			if (made != null) {
+				imgMountImage.setText(new org.dbgl.model.FileLocation(made.file().getPath(), org.dbgl.service.FileLocationService.getInstance().dosrootRelative()).getFile().getPath());
+				imgMountType.setText(made.type());
+				imgMountType.notifyListeners(SWT.Selection, new org.eclipse.swt.widgets.Event());
+			}
+		});
 		imgChain.getButton().setData(Button_.DATA_COMBO, imgMountType);
 
 		imgMountType.setText("iso");
@@ -178,6 +198,8 @@ public class EditMountDialog extends SizeControlledButtonDialog<String> {
 		mountDirButton.addSelectionListener(driveLetterSelectionAdapter);
 		mountImageButton.addSelectionListener(driveLetterSelectionAdapter);
 		mountZipButton.addSelectionListener(driveLetterSelectionAdapter);
+
+		org.dbgl.gui.controls.MountOptionSuggest.attach(extraOptions, gen_, mountImageButton::getSelection);
 
 		createOkCancelButtons(new SelectionAdapter() {
 			@Override
@@ -345,6 +367,22 @@ public class EditMountDialog extends SizeControlledButtonDialog<String> {
 		imgSizeConfig.setEnabled(imgFsNone);
 	}
 
+	/** the first image of the field, as a file (relative to the DOSroot as DBGL takes it), or null */
+	private static java.io.File firstImage(Text images) {
+		String[] all = StringRelatedUtils.textAreaToStringArray(images.getText(), images.getLineDelimiter());
+		if ((all.length == 0) || StringUtils.isBlank(all[0]))
+			return null;
+		return new org.dbgl.model.FileLocation(all[0].trim(), org.dbgl.service.FileLocationService.getInstance().dosrootRelative()).getCanonicalFile();
+	}
+
+	/** the geometry the image says (VHD footer, partition table, boot sector): asked whether to take it */
+	private void offerGeometry(Text images, Text size) {
+		org.dbgl.util.DiskGeometry.Result found = org.dbgl.util.DiskGeometry.of(firstImage(images));
+		if ((found != null) && Mess_.on(shell_).key("dialog.mount.geometry.found", new Object[] {found.size().toString(), text_.get("dialog.mount.geometry.source." + found.source()),
+			found.size().getTotalSizeInMB()}).confirm())
+			size.setText(found.size().toString());
+	}
+
 	private boolean isValid(Button imgSizeHelperButton, Text dirMountDir, Button mountImageButton, Text imgMountImage, Combo imgMountFs, Text imgMountSize, Button mountZipButton, Text zipMountZip) {
 		Mess_.Builder mess = Mess_.on(shell_);
 		if (imgSizeHelperButton.getSelection() && StringUtils.isBlank(dirMountDir.getText())) {
@@ -352,6 +390,8 @@ public class EditMountDialog extends SizeControlledButtonDialog<String> {
 		} else if (mountImageButton.getSelection()) {
 			if (StringUtils.isBlank(imgMountImage.getText()))
 				mess.key("dialog.mount.required.image").bind(imgMountImage);
+			if (imgMountFs.getText().equalsIgnoreCase("none") && StringUtils.isBlank(imgMountSize.getText()))
+				offerGeometry(imgMountImage, imgMountSize); // read from the image, if it says (alpha 48)
 			if (imgMountFs.getText().equalsIgnoreCase("none") && StringUtils.isBlank(imgMountSize.getText()))
 				mess.key("dialog.mount.required.imgsize").bind(imgMountSize);
 		} else if (mountZipButton.getSelection() && StringUtils.isBlank(zipMountZip.getText())) {

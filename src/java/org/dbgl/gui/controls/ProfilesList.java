@@ -300,7 +300,7 @@ public class ProfilesList {
 		if ((columnIds[colIndex] == 8) || (columnIds[colIndex] == 9) || (columnIds[colIndex] == 18) || (columnIds[colIndex] == 19)) { // numeric values
 			column.setAlignment(SWT.RIGHT);
 		}
-		if ((columnIds[colIndex] == 20)) { // screenshot
+		if ((columnIds[colIndex] == 20) || (columnIds[colIndex] == 1) || (columnIds[colIndex] == 7)) { // screenshot; alpha 48: tick of setup, star of favourite
 			column.setAlignment(SWT.CENTER);
 		}
 		column.addSelectionListener(new SelectionAdapter() {

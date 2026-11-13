@@ -306,7 +306,7 @@ public final class ConfLayout {
 				if (!entry.isEmpty())
 					for (int b = 0; b < gap; b++)
 						out.add("");
-				out.add((raw != null) && value(raw.trim()).equals(value(now.trim())) ? raw: now);
+				out.add(raw == null ? now: value(raw.trim()).equals(value(now.trim())) ? raw: withValue(raw, now));
 			}
 			List<String> rest = new ArrayList<>(s.rest);
 			while (!rest.isEmpty() && rest.get(rest.size() - 1).isBlank())
@@ -324,7 +324,19 @@ public final class ConfLayout {
 			out.remove(out.size() - 1);
 		for (int b = 0; b < old.blanksAtEnd; b++)
 			out.add("");
-		return String.join(eol, out) + (endsWithEol || (old.blanksAtEnd > 0) ? eol: "");
+		// the last line with or without its end as in the file (alpha 48: "exit" at the very end got one)
+		boolean beforeEnds = before.endsWith("\n") || before.endsWith("\r");
+		return String.join(eol, out) + (beforeEnds || (old.blanksAtEnd > 0) ? eol: "");
+	}
+
+	/** a changed value written as the line was: "ems = false" becomes "ems = off", not "ems=off" (alpha 48) */
+	static String withValue(String raw, String now) {
+		int eq = raw.indexOf('='), nowEq = now.indexOf('=');
+		if ((eq < 0) || (nowEq < 0))
+			return now;
+		String after = raw.substring(eq + 1);
+		String space = after.substring(0, after.length() - after.stripLeading().length());
+		return raw.substring(0, eq + 1) + space + now.substring(nowEq + 1).trim();
 	}
 
 	/**

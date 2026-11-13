@@ -80,7 +80,7 @@ public class FileLocationService {
 		SettingsService settings = SettingsService.getInstance();
 
 		File data = replaceTildeInPath(settings.getValue("directory", "data"));
-		boolean dataInUserDir = SystemUtils.USE_USER_HOME_DIR || !FilesUtils.isWritableDirectory(data);
+		boolean dataInUserDir = !SystemUtils.PORTABLE && (SystemUtils.USE_USER_HOME_DIR || !FilesUtils.isWritableDirectory(data)); // alpha 48: portable
 		dataDir_ = canonicalTo(new File("."), dataInUserDir ? new File(FilesUtils.concat(SystemUtils.USER_DATA_DIR, data)): data);
 
 		profilesDir_ = new File(dataDir_, PROFILES_DIR_STRING);

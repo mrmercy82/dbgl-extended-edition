@@ -122,6 +122,10 @@ public class ImageService {
 	public static final String IMG_WHATSNEW = "whatsnew.png";
 	public static final String IMG_PROFILE_CONF = "profile_conf.png";
 	public static final String IMG_EXTRA_WEB = "extra_web.png";
+	public static final String IMG_TOOLS = "tools.png";
+	public static final String IMG_CONTROLLER = "controller.png";
+	public static final String IMG_KEYBOARD = "keyboard.png"; // alpha 48
+	public static final String IMG_USB = "usb.png"; // alpha 48
 	/** per kind of extra (see ExtrasFinder.Kind): "extra_" + kind in lower case + ".png" */
 	public static final String IMG_EXTRA_PREFIX = "extra_";
 

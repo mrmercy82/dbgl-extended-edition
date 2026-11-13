@@ -150,12 +150,15 @@ public final class ForeignLines {
 			if (at < 0) { // its section is gone: the section again, with just these lines (DOSBox does not mind)
 				Anchor a = e.getKey();
 				List<String> block = new ArrayList<>();
+				// lines before its header stay before it (alpha 48: "# a comment" above [dosbox] came below it, at the end)
+				if (a.kind().equals("header"))
+					block.addAll(add);
 				if (a.section() != null)
 					block.add("[" + a.section() + "]");
-				block.addAll(add);
+				if (!a.kind().equals("header"))
+					block.addAll(add);
 				block.add("");
-				int autoexec = indexOfHeader(lines, "autoexec");
-				lines.addAll(autoexec >= 0 ? autoexec: lines.size(), block);
+				lines.addAll(whereSectionWas(lines, a.section(), before), block);
 			} else {
 				lines.addAll(at, add);
 			}
@@ -192,6 +195,25 @@ public final class ForeignLines {
 				result.putIfAbsent(h, t);
 		}
 		return result;
+	}
+
+	/**
+	 * where a section that DBGL leaves out now goes again: before the first section that came after it in the file and is still
+	 * there (alpha 48), else before [autoexec], else at the end
+	 */
+	private static int whereSectionWas(List<String> lines, String section, String before) {
+		boolean after = false;
+		for (String line: before.replace("\uFEFF", "").split("\r\n|\r|\n", -1)) {
+			String h = header(line.trim());
+			if (h == null)
+				continue;
+			if (h.equals(section))
+				after = true;
+			else if (after && !h.equals("autoexec") && (indexOfHeader(lines, h) >= 0))
+				return indexOfHeader(lines, h);
+		}
+		int autoexec = indexOfHeader(lines, "autoexec");
+		return autoexec >= 0 ? autoexec: lines.size();
 	}
 
 	private static int indexOfHeader(List<String> lines, String section) {

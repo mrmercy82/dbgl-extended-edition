@@ -52,12 +52,30 @@ public class Launcher {
 			Display.setAppVersion(Constants.PROGRAM_VERSION);
 		}
 
-		while (Boolean.TRUE.equals(new MainWindow().open()));
+		// alpha 48: one profile, e.g. from Steam ("--run <id>"), until its game ends
+		int runId = RunProfile.idOf(args);
+		if (runId >= 0) {
+			RunProfile.run(runId);
+			System.exit(0);
+		}
+
+		while (Boolean.TRUE.equals(new MainWindow().open()) && !MainWindow.isProcessRestartRequested());
 		try {
 			DatabaseService.getInstance().shutdown();
 			MetropolisDatabaseService.getInstance().shutdown(false);
 		} catch (SQLException e) {
 			// nothing we can do
+		}
+		// alpha 48: a new start as a new program, after the database is closed
+		if (MainWindow.isProcessRestartRequested()) {
+			java.util.List<String> cmd = org.dbgl.util.EditionUpdater.restartCommand();
+			if (!cmd.isEmpty()) {
+				try {
+					new ProcessBuilder(cmd).directory(new java.io.File(".").getAbsoluteFile()).start();
+				} catch (java.io.IOException e) {
+					System.err.println("DBGL could not start again: " + e);
+				}
+			}
 		}
 		System.exit(0);
 	}

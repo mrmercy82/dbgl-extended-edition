@@ -48,7 +48,12 @@ public class SystemUtils {
 
 	public static final boolean USE_DBGL_DATA_LOCAL_APP_DATA = Boolean.parseBoolean(System.getProperty("dbgl.data.localappdata"));
 	public static final boolean USE_DBGL_DATA_USER_HOME = Boolean.parseBoolean(System.getProperty("dbgl.data.userhome"));
-	public static final boolean USE_USER_HOME_DIR = USE_DBGL_DATA_LOCAL_APP_DATA || USE_DBGL_DATA_USER_HOME;
+	/**
+	 * alpha 48: portable (e.g. on a USB stick): a file "portable" (or "portable.txt") next to DBGL keeps all its data in its own
+	 * folder, never in the folder of the user, also when that folder is not writable (DBGL then says so instead)
+	 */
+	public static final boolean PORTABLE = new File("portable").isFile() || new File("portable.txt").isFile() || Boolean.getBoolean("dbgl.portable");
+	public static final boolean USE_USER_HOME_DIR = !PORTABLE && (USE_DBGL_DATA_LOCAL_APP_DATA || USE_DBGL_DATA_USER_HOME);
 
 	public static final File USER_DATA_DIR = IS_WINDOWS ? new File(System.getenv("LOCALAPPDATA"), "/DBGL")
 			: IS_LINUX ? new File(USER_HOME, "/.local/share/dbgl"): new File(USER_HOME, "/Library/dbgl");

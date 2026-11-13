@@ -176,6 +176,7 @@ public class EditMultiProfileDialog extends EditProfileDialog<List<Profile>> {
 		TreeItem infoItem = addPageGenerator("dialog.template.tab.info", this::createInfoPage);
 		addPageGenerator(infoItem, "dialog.profile.tab.custominfo", this::createCustomInfoPage);
 		addPageGenerator("dialog.template.tab.mounting", this::createMountingPage);
+		addSavePageGenerators(false); // alpha 48: below the drives
 		TreeItem dosboxItem = addPageGenerator("dialog.template.tab.dosbox", this::createDosboxPage);
 		addCommonPageGenerators(dosboxItem);
 
@@ -217,7 +218,8 @@ public class EditMultiProfileDialog extends EditProfileDialog<List<Profile>> {
 		createOkCancelButtons(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
-				computeAllPages(profile_);
+				// alpha 48: the pages not built yet are not built now (on Windows that took seconds): a setting on a page never
+				// shown is not changed, the review lists only the changed ones
 				if (!isValid()) {
 					return;
 				}

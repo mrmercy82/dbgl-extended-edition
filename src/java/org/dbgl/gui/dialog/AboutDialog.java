@@ -62,7 +62,7 @@ public class AboutDialog extends BaseDialog<Object> {
 		Canvas canvas = new Canvas(shell_, SWT.NONE);
 		canvas.setBackground(shell_.getBackground());
 		canvas.setLayoutData(new GridData_(SWT.LEFT, SWT.CENTER, true, true).widthHint(256).heightHint(256).build());
-		canvas.addPaintListener(e -> e.gc.drawImage(ImageService.getResourceImage(getParent().getDisplay(), "ico/256.png"), 0, 0));
+		canvas.addPaintListener(e -> e.gc.drawImage(ImageService.getResourceImage(getParent().getDisplay(), "about_logo.png"), 0, 0));
 
 		Group group = Group_.on(shell_).layoutData(new GridData(SWT.FILL, SWT.CENTER, true, true)).layout(new GridLayout()).build();
 		// the original program and its author: DBGL up to 0.100 beta 17, introduced by a small "based on"

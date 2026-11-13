@@ -347,6 +347,29 @@ public class Staging083Tests {
 		assertValue(back, "dos", "xms", "true");
 	}
 
+	/**
+	 * Alpha 48: a DOSBox version that said 0.82 but ran 0.83 is corrected to 0.83; its profiles still have 0.82 settings. Converted
+	 * in place from 0.82 ("Profiles written for" in the switch dialog), onto the same DOSBox version.
+	 */
+	@Test
+	public void testConvertInPlaceFromWrittenForGeneration() throws IOException {
+		File dosboxConfFile = new File(DATA_DIR, "dosbox-staging-0.83.0.conf");
+		DosboxVersion v083 = DosboxVersionFactory.create("DOSBox Staging 0.82 (runs 0.83)", SettingsService.STAGING_DOSBOX_FAM.title_, "0.83.0", false, true, false, null, "staging083", "", "", dosboxConfFile.getAbsolutePath());
+		v083.resetAndLoadConfiguration();
+		Profile profile = ProfileFactory.create(v083, null);
+		profile.getConfiguration().setValue("render", "glshader", "sharp");
+		profile.getConfiguration().setValue("dos", "xms", "false");
+		assertEquals(Generation.staging_0830, profile.getGeneration());
+
+		assertEquals("", profile.switchToDosboxVersion(v083)); // the same DOSBox version: nothing done, the old way
+		assertValue(profile.getConfiguration(), "render", "glshader", "sharp");
+
+		profile.alterToDosboxVersionGeneration(Generation.staging_0820, v083);
+		assertAbsent(profile.getConfiguration(), "render", "glshader");
+		assertValue(profile.getConfiguration(), "render", "shader", "sharp");
+		assertValue(profile.getConfiguration(), "dos", "xms", "off");
+	}
+
 	@Test
 	public void testEmptyValuesAreLeftOutWhenSaving() throws IOException {
 		DosboxVersion v083 = DosboxVersionFactory.create("DOSBox Staging 0.83.0", SettingsService.STAGING_DOSBOX_FAM.title_, "0.83.0", false, true, false, null, "staging083", "", "", "staging083/dosbox.conf");

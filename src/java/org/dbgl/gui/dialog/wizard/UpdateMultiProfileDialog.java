@@ -57,7 +57,7 @@ public class UpdateMultiProfileDialog extends JobWizardDialog<Boolean> {
 		dbversionChanged_ = dbversionChanged;
 		templateReloaded_ = templateReloaded;
 		metaControls_ = metaControls.stream().filter(Chain::hasChangedValue).toList();
-		nativeCommandControl_ = nativeCommandControl.hasChangedValue() ? nativeCommandControl: null;
+		nativeCommandControl_ = (nativeCommandControl != null) && nativeCommandControl.hasChangedValue() ? nativeCommandControl: null; // its page maybe never built
 		extraChanges_ = extraChanges;
 		engine_ = engine;
 	}

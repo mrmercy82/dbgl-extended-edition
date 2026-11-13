@@ -38,6 +38,14 @@ public class EditImgSizeDialog extends SizeControlledTabbedDialog<String> {
 		sizeCommand = new ImgSizeCommand(command);
 	}
 
+	/** the image the size is for: a button reads its geometry (alpha 48), null: none */
+	private java.io.File image_;
+
+	public EditImgSizeDialog withImage(java.io.File image) {
+		image_ = image;
+		return this;
+	}
+
 	@Override
 	protected String getDialogTitle() {
 		return text_.get("dialog.imgsize.title");
@@ -64,6 +72,24 @@ public class EditImgSizeDialog extends SizeControlledTabbedDialog<String> {
 			totalSize.setText(text_.get("dialog.imgsize.totalsize.value", new Long[] {sizeCommand.getTotalSize(), sizeCommand.getTotalSizeInMB()}));
 			composite.layout();
 		};
+
+		// alpha 48: what the image says itself (VHD footer, partition table, boot sector)
+		if (image_ != null) {
+			new org.eclipse.swt.widgets.Label(composite, org.eclipse.swt.SWT.NONE);
+			org.eclipse.swt.widgets.Button read = new org.eclipse.swt.widgets.Button(composite, org.eclipse.swt.SWT.PUSH);
+			read.setText(text_.get("dialog.imgsize.fromimage"));
+			read.addListener(org.eclipse.swt.SWT.Selection, e -> {
+				org.dbgl.util.DiskGeometry.Result found = org.dbgl.util.DiskGeometry.of(image_);
+				if (found == null) {
+					org.dbgl.gui.controls.Mess_.on(shell_).key("dialog.imgsize.notfound", new Object[] {image_.getName()}).warning();
+					return;
+				}
+				bytesPerSector.setSelection(found.size().getBytesPerSector());
+				sectorsPerTrack.setSelection(found.size().getSectorsPerTrack());
+				heads.setSelection(found.size().getHeads());
+				cylinders.setSelection(found.size().getCylinders());
+			});
+		}
 
 		bytesPerSector.addModifyListener(listener);
 		sectorsPerTrack.addModifyListener(listener);

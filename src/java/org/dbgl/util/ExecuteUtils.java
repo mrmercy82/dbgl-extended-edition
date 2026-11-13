@@ -70,6 +70,27 @@ public class ExecuteUtils {
 		private final File conf_;
 		private final Display display_;
 		private final int playTimeProfileId_;
+		private File saveDir_;
+
+		/** alpha 48: DOSBox-X keeps the saved states of this start in this folder (-savedir), null: where it keeps them by itself */
+		ConfigurableExecutor saveDir(File saveDir) {
+			saveDir_ = saveDir;
+			return this;
+		}
+
+		private String[] withSaveDir(String[] args) {
+			if (saveDir_ == null)
+				return args;
+			try {
+				java.nio.file.Files.createDirectories(saveDir_.toPath());
+			} catch (IOException e) {
+				return args; // DOSBox-X then uses its own folder
+			}
+			String[] result = java.util.Arrays.copyOf(args, args.length + 2);
+			result[args.length] = "-savedir";
+			result[args.length + 1] = saveDir_.getPath();
+			return result;
+		}
 
 		public ConfigurableExecutor(TemplateProfileBase templateOrProfile, DosboxVersion dosboxVersion, File conf, Display display) {
 			this(templateOrProfile, dosboxVersion, conf, display, -1);
@@ -93,7 +114,7 @@ public class ExecuteUtils {
 					if (cmd.isDosboxCommand()) {
 						long start = System.currentTimeMillis();
 						long startNanos = System.nanoTime(); // the duration not changed when the clock is set while playing
-						doRunDosbox(dosboxVersion_, new String[] {"-conf", conf_.getPath()}, false, dosboxVersion_.getCwd(), true);
+						doRunDosbox(dosboxVersion_, withSaveDir(new String[] {"-conf", conf_.getPath()}), false, dosboxVersion_.getCwd(), true);
 						registerPlayTime(playTimeProfileId_, start, (System.nanoTime() - startNanos) / 1_000_000L);
 					} else {
 						execute(cmd.getCanonicalCommandAndParameters(), cmd.getCanonicalCwd(), cmd.isWaitFor());
@@ -184,6 +205,17 @@ public class ExecuteUtils {
 					statusWindow_.streamClosed();
 			}
 		}
+	}
+
+	/**
+	 * DOSBox with the profile, straight into its key mapper (alpha 48, for the controller assistant); waits until DOSBox is
+	 * closed. DOSBox Staging writes the option with two dashes, the others with one.
+	 */
+	public static void runMapper(Profile prof) throws IOException {
+		DosboxVersion v = prof.getDosboxVersion();
+		GenerationAwareConfigurable.Generation gen = GenerationAwareConfigurable.determineGen(v);
+		boolean staging = (gen != null) && (GenerationAwareConfigurable.familyIdx(gen) == GenerationAwareConfigurable.familyIdx(GenerationAwareConfigurable.Generation.staging_0830));
+		doRunDosbox(v, new String[] {"-conf", prof.getConfigurationCanonicalFile().getPath(), staging ? "--startmapper": "-startmapper"}, false, v.getCwd(), true, false);
 	}
 
 	public static void doRunDosbox(DosboxVersion dbversion) throws IOException {
@@ -321,6 +353,9 @@ public class ExecuteUtils {
 				}
 			}
 		}
+		// alpha 48 (wish 11): the saved games into a backup first, if switched on for this profile (page "Savegames")
+		if (mode == ProfileRunMode.NORMAL && !prepareOnly)
+			SavegameBackup.beforeStart(prof);
 		boolean pc98Changed = prof.ensurePc98MachineForHdi(); // DOSBox-X crashes when booting an .HDI in IBM PC mode
 		// "mount D game.cue" works in Staging 0.83+ only; DOSBox-X quits with "PHYSFS couldn't mount ... unsupported"
 		boolean mountsChanged = prof.adaptImageMountsToDosbox();
@@ -350,14 +385,40 @@ public class ExecuteUtils {
 				default:
 			}
 			preparedProfile.getConfiguration().setFileLocation(FileLocationService.getInstance().getTmpConfLocation());
+			// DOSBox finds a relative mapper file next to the file it reads: the copy may be in another folder (alpha 48)
+			File mapper = prof.getCustomMapperFile();
+			if ((mapper != null) && !new File(preparedProfile.getConfiguration().getValue("sdl", "mapperfile")).isAbsolute()
+					&& !mapper.getParentFile().equals(preparedProfile.getConfigurationCanonicalFile().getParentFile()))
+				preparedProfile.getConfiguration().setValue("sdl", "mapperfile", mapper.getPath());
 			preparedProfile.saveConfiguration(prepareOnly);
 		}
 
 		if (mode == ProfileRunMode.INSTALLER)
 			doRunDosbox(dosboxVersion, new String[] {"-conf", preparedProfile.getConfigurationCanonicalFile().getPath()}, false, dosboxVersion.getCwd(), true);
-		else
-			new ConfigurableExecutor(preparedProfile, dosboxVersion, preparedProfile.getConfigurationCanonicalFile(), display,
-					(!prepareOnly && (mode != ProfileRunMode.SETUP)) ? prof.getId(): -1).start();
+		else {
+			ConfigurableExecutor executor = new ConfigurableExecutor(preparedProfile, dosboxVersion, preparedProfile.getConfigurationCanonicalFile(), display,
+					(!prepareOnly && (mode != ProfileRunMode.SETUP)) ? prof.getId(): -1).saveDir(usesOwnSavestates(dosboxVersion) ? savestatesDir(prof): null);
+			lastStarted_ = executor;
+			executor.start();
+		}
+	}
+
+	private static volatile Thread lastStarted_;
+
+	/** alpha 48: the thread of the DOSBox started last; it ends with DOSBox (after the play time is written) */
+	public static Thread lastStarted() {
+		return lastStarted_;
+	}
+
+	/** alpha 48: the folder of the saved states of DOSBox-X for this game: "savestates" in its folder of screenshots */
+	public static File savestatesDir(Profile profile) {
+		return new File(profile.getCanonicalCaptures(), "savestates");
+	}
+
+	/** alpha 48: DOSBox-X, and each game is to have its own saved states (Settings, on by default) */
+	public static boolean usesOwnSavestates(DosboxVersion dosboxVersion) {
+		return (dosboxVersion != null) && StringUtils.defaultString(dosboxVersion.getFamily()).toLowerCase(java.util.Locale.ROOT).contains("dosbox-x")
+				&& SettingsService.getInstance().getBooleanValue("dosbox", "ownsavestates");
 	}
 
 	public static void createShortcut(Profile profile) throws IOException {
