@@ -140,12 +140,32 @@ public class ExecuteUtils {
 		playTimeListener_ = listener;
 	}
 
+	/**
+	 * Alpha 50: DBGL on a USB stick made by the assistant keeps next to itself how often and how long its profiles were
+	 * played, for "Bring back from USB stick" in the installation the stick was made from. Nothing happens in any other
+	 * installation.
+	 */
+	public static void writeStickState() {
+		File dir = new File(".").getAbsoluteFile();
+		if (!StickReturn.isStick(dir))
+			return;
+		try {
+			java.util.Map<Integer, StickReturn.Stats> played = new java.util.LinkedHashMap<>();
+			for (org.dbgl.model.aggregate.Profile p: new org.dbgl.model.repository.ProfileRepository().list("", null, new org.dbgl.model.repository.DosboxVersionRepository().listAll()))
+				played.put(p.getId(), PortableExport.statsOf(p));
+			StickReturn.writeState(dir, played);
+		} catch (java.sql.SQLException e) {
+			e.printStackTrace();
+		}
+	}
+
 	/** add the time DOSBox ran to the profile; very short runs are failed starts and don't count */
 	private static void registerPlayTime(int profileId, long start, long millis) {
 		if ((profileId < 0) || (millis < DosboxStatusWindow.QUICK_EXIT_MILLIS))
 			return;
 		try {
 			new org.dbgl.model.repository.ProfileRepository().addPlayTime(profileId, start, millis / 1000);
+			writeStickState();
 			java.util.function.IntConsumer listener = playTimeListener_;
 			Display display = Display.getDefault();
 			if ((listener != null) && !display.isDisposed())

@@ -518,6 +518,32 @@ public class ProfileRepository extends LoggingRepository<Profile> {
 		return register(profile, REGISTER_RUN_QRY, "register run profile", LogEntry.Event.RUN);
 	}
 
+	/**
+	 * Alpha 50: starts of a profile that happened in another installation (on a USB stick made from this one) added to its
+	 * number here; the time of its last start becomes the later one of both.
+	 */
+	public void addRuns(int profileId, int runs, long lastRunMillis) throws SQLException {
+		if ((runs <= 0) && (lastRunMillis <= 0))
+			return;
+		try (Transaction transaction = dbService_.startTransaction()) {
+			try (PreparedStatement stmt = transaction.prepareStatement("UPDATE GAMES SET STATS_RUNS = (STATS_RUNS + ?) WHERE ID = ?")) {
+				stmt.setInt(1, Math.max(runs, 0));
+				stmt.setInt(2, profileId);
+				stmt.executeUpdate();
+			}
+			if (lastRunMillis > 0) {
+				try (PreparedStatement stmt = transaction.prepareStatement("UPDATE GAMES SET STATS_LASTRUN = ? WHERE ID = ? AND (STATS_LASTRUN IS NULL OR STATS_LASTRUN < ?)")) {
+					java.sql.Timestamp last = new java.sql.Timestamp(lastRunMillis);
+					stmt.setTimestamp(1, last);
+					stmt.setInt(2, profileId);
+					stmt.setTimestamp(3, last);
+					stmt.executeUpdate();
+				}
+			}
+			transaction.commit();
+		}
+	}
+
 	/** add to the time the profile was played, in seconds, and keep this time as a play session (started at 'startedMillis') */
 	public void addPlayTime(int profileId, long startedMillis, long seconds) throws SQLException {
 		if (seconds <= 0)

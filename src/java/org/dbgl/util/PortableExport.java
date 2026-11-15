@@ -117,6 +117,7 @@ public final class PortableExport {
 	private final Map<String, File> entries_ = new LinkedHashMap<>(); // path in the ZIP file -> file here
 	private final Map<String, byte[]> generated_ = new LinkedHashMap<>(); // path in the ZIP file -> content
 	private final List<String> notes_ = new ArrayList<>();
+	private final Map<String, File> returnPaths_ = new LinkedHashMap<>(); // path in the folder of DBGL on the stick -> folder or file here
 	private long done_, total_;
 
 	public PortableExport(Options options, Progress progress, BooleanSupplier cancelled) throws IOException {
@@ -167,11 +168,16 @@ public final class PortableExport {
 					if (copiedWhole.contains(top) && !n.path().equals(top))
 						continue; // in it anyway
 				}
-				if (n.dir())
-					addPath(n.path(), n.path().equals(base) ? prefix: prefix + relative(base, n.path()));
-				else
-					for (File f: n.files())
+				if (n.dir()) {
+					String zipPath = n.path().equals(base) ? prefix: prefix + relative(base, n.path());
+					addPath(n.path(), zipPath);
+					returnPaths_.put(zipPath.substring(ROOT.length()), n.path());
+				} else {
+					for (File f: n.files()) {
 						addPath(f, prefix + relative(base, f));
+						returnPaths_.put((prefix + relative(base, f)).substring(ROOT.length()), f);
+					}
+				}
 			}
 		}
 
@@ -194,6 +200,7 @@ public final class PortableExport {
 			File captures = p.getCanonicalCaptures();
 			if (captures.isDirectory())
 				addPath(captures, ROOT + zipPathInData(captures, "captures"));
+			returnPaths_.put(zipPathInData(captures, "captures"), captures); // also when there is none yet: screenshots made on the stick
 			File mapper = p.getCustomMapperFile();
 			if (mapper != null && mapper.isFile())
 				addPath(mapper, ROOT + zipPathInData(mapper, "profiles"));
@@ -225,6 +232,15 @@ public final class PortableExport {
 				jre = downloadJava(tmp);
 			}
 
+			// alpha 50, for the way back: which profiles went along with how often and how long they were played, and which
+			// folder here each folder of the stick is. What an earlier stick left in this folder does not go along.
+			Map<Integer, Map.Entry<StickReturn.Stats, String>> played = new LinkedHashMap<>();
+			for (Profile p: profiles)
+				played.put(p.getId(), Map.entry(statsOf(p), p.getTitle()));
+			entries_.remove(ROOT + StickReturn.MANIFEST);
+			entries_.remove(ROOT + StickReturn.STATE);
+			generated_.put(ROOT + StickReturn.MANIFEST, StickReturn.manifest(java.util.UUID.randomUUID().toString(), System.currentTimeMillis(), played, returnPaths_, data_, dosroot_));
+
 			total_ = 0;
 			for (File f: entries_.values())
 				total_ += f.length();
@@ -235,6 +251,12 @@ public final class PortableExport {
 		} finally {
 			FileUtils.deleteQuietly(tmp);
 		}
+	}
+
+	/** how often and how long a profile was played, and when last */
+	public static StickReturn.Stats statsOf(Profile p) {
+		java.util.Date last = p.getStats().getLastRun();
+		return new StickReturn.Stats(p.getStats().getRuns(), p.getProfileStats().getPlayTime(), last == null ? 0: last.getTime());
 	}
 
 	/** absolute mount paths into the DOSroot become relative, so the stick works with any drive letter */

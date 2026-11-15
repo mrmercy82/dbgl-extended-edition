@@ -1725,6 +1725,120 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		shell_.close();
 	}
 
+	/**
+	 * Alpha 50: play time, starts, new and changed files (saved games, screenshots) of a USB stick made by the assistant come
+	 * into this installation, after a preview. A file changed on both sides is not touched; a file that is replaced is kept.
+	 */
+	private void doStickReturn() {
+		org.eclipse.swt.widgets.DirectoryDialog dialog = new org.eclipse.swt.widgets.DirectoryDialog(shell_);
+		dialog.setMessage(text_.get("dialog.stickreturn.choose"));
+		String chosen = dialog.open();
+		if (chosen == null)
+			return;
+		File stick = new File(chosen);
+		if (!org.dbgl.util.StickReturn.isStick(stick) && org.dbgl.util.StickReturn.isStick(new File(stick, "DBGL")))
+			stick = new File(stick, "DBGL"); // the drive or the folder above was chosen
+		if (!org.dbgl.util.StickReturn.isStick(stick)) {
+			Mess_.on(shell_).key("dialog.stickreturn.nomanifest").warning();
+			return;
+		}
+		File dataDir = FileLocationService.getInstance().getDataDir();
+		org.dbgl.util.StickReturn.Plan plan;
+		shell_.setCursor(display_.getSystemCursor(SWT.CURSOR_WAIT));
+		try {
+			if (stick.getCanonicalFile().equals(new File(".").getCanonicalFile()) || stick.getCanonicalFile().equals(dataDir.getCanonicalFile())) {
+				Mess_.on(shell_).key("dialog.stickreturn.same").warning();
+				return;
+			}
+			java.util.Map<Integer, String> here = new java.util.HashMap<>();
+			for (Profile p: new ProfileRepository().list(StringUtils.EMPTY, null, dbversionsList_))
+				here.put(p.getId(), p.getTitle());
+			plan = org.dbgl.util.StickReturn.plan(stick, here, dataDir, FileLocationService.getInstance().getDosroot());
+		} catch (IOException | SQLException | RuntimeException e) {
+			Mess_.on(shell_).exception(e).warning();
+			return;
+		} finally {
+			shell_.setCursor(null);
+		}
+		String noState = plan.stateThere() ? StringUtils.EMPTY: "\n\n" + text_.get("dialog.stickreturn.nostate");
+		if (plan.isEmpty() && plan.gone().isEmpty()) {
+			Mess_.on(shell_).txt(text_.get("dialog.stickreturn.nothing") + noState).display();
+			return;
+		}
+		List<String> lines = stickReturnLines(plan);
+		String info = text_.get("dialog.stickreturn.info", new Object[] {stick.getPath(), text_.toString(new java.util.Date(plan.created()))}) + noState;
+		if (plan.stats().isEmpty() && plan.files().isEmpty()) {
+			// nothing to take over, but something to tell (conflicts, profiles that are gone)
+			org.dbgl.gui.controls.ChangePreview.confirm(shell_, info, lines, "dbgl-stick-return");
+			return;
+		}
+		if (!org.dbgl.gui.controls.ChangePreview.confirm(shell_, info, lines, "dbgl-stick-return"))
+			return;
+		File backup = new File(new File(dataDir, org.dbgl.util.VersionBackup.DIR), "stick-return-" + java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")));
+		List<File> failed;
+		List<Integer> taken = new ArrayList<>();
+		shell_.setCursor(display_.getSystemCursor(SWT.CURSOR_WAIT));
+		try {
+			failed = org.dbgl.util.StickReturn.copy(plan, backup);
+			ProfileRepository repo = new ProfileRepository();
+			for (org.dbgl.util.StickReturn.StatChange s: plan.stats()) {
+				repo.addRuns(s.id(), s.runs(), s.lastRun());
+				// as play sessions that end when it was last played on the stick; a session holds 30 days at most
+				long end = s.lastRun() > 0 ? s.lastRun(): System.currentTimeMillis();
+				for (long left = s.seconds(); left > 0; left -= ProfileRepository.MAX_SESSION_SECONDS) {
+					long part = Math.min(left, ProfileRepository.MAX_SESSION_SECONDS);
+					repo.addPlayTime(s.id(), end - (left * 1000), part);
+				}
+				taken.add(s.id());
+				org.dbgl.util.StickReturn.remember(plan, dataDir, taken); // after each profile: what is in is never added again
+			}
+		} catch (SQLException | IOException e) {
+			Mess_.on(shell_).exception(e).warning();
+			return;
+		} finally {
+			shell_.setCursor(null);
+			updateProfilesList(getSelectedProfileIds());
+			displayProfileInformation(true);
+		}
+		StringBuilder done = new StringBuilder(text_.get("dialog.stickreturn.done", new Object[] {plan.files().size() - failed.size(), taken.size()}));
+		if (backup.isDirectory())
+			done.append("\n\n").append(text_.get("dialog.stickreturn.kept", new Object[] {backup.getPath()}));
+		if (!failed.isEmpty())
+			done.append("\n\n").append(text_.get("dialog.stickreturn.failed", new Object[] {failed.stream().limit(15).map(File::getPath).collect(Collectors.joining("\n")) + (failed.size() > 15 ? "\n...": "")}));
+		if (failed.isEmpty())
+			Mess_.on(shell_).txt(done.toString()).display();
+		else
+			Mess_.on(shell_).txt(done.toString()).warning();
+	}
+
+	/** the preview of what comes back from a stick: "+" new, ">" replaces, "!" not touched */
+	private List<String> stickReturnLines(org.dbgl.util.StickReturn.Plan plan) {
+		List<String> lines = new ArrayList<>();
+		if (!plan.stats().isEmpty()) {
+			lines.add("[" + text_.get("dialog.stickreturn.stats") + "]");
+			for (org.dbgl.util.StickReturn.StatChange s: plan.stats())
+				lines.add("+ " + text_.get("dialog.stickreturn.stat", new Object[] {s.title(), String.valueOf(s.runs()), String.format("%d:%02d", s.seconds() / 3600, (s.seconds() % 3600) / 60)}));
+		}
+		List<org.dbgl.util.StickReturn.FileAction> fresh = plan.files().stream().filter(f -> !f.replaces()).toList(), changed = plan.files().stream().filter(f -> f.replaces()).toList();
+		if (!fresh.isEmpty()) {
+			lines.add("[" + text_.get("dialog.stickreturn.new") + ": " + fresh.size() + "]");
+			fresh.forEach(f -> lines.add("+ " + f.to().getPath()));
+		}
+		if (!changed.isEmpty()) {
+			lines.add("[" + text_.get("dialog.stickreturn.changed") + ": " + changed.size() + "]");
+			changed.forEach(f -> lines.add("> " + f.to().getPath()));
+		}
+		if (!plan.conflicts().isEmpty()) {
+			lines.add("[" + text_.get("dialog.stickreturn.conflicts") + ": " + plan.conflicts().size() + "]");
+			plan.conflicts().forEach(f -> lines.add("! " + f.getPath()));
+		}
+		if (!plan.gone().isEmpty()) {
+			lines.add("[" + text_.get("dialog.stickreturn.gone") + "]");
+			plan.gone().forEach(t -> lines.add("! " + t));
+		}
+		return lines;
+	}
+
 	private void doRewriteDosboxConf(DosboxVersion dbversion) {
 		File conf = dbversion.getConfigurationCanonicalFile();
 		if (!FilesUtils.isReadableFile(conf) || !FilesUtils.isReadableFile(dbversion.getCanonicalExecutable())) {
@@ -2352,6 +2466,13 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			@Override
 			public void widgetSelected(SelectionEvent event) {
 				doMakePortable();
+			}
+		}).build();
+		// alpha 50: what was played on such a stick back into this installation
+		MenuItem_.on(profilesMenu).key("dialog.main.menu.stickreturn").image(ImageService.IMG_USB).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				doStickReturn();
 			}
 		}).build();
 		// the tools for all profiles, the statistics at the end

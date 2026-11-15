@@ -3947,4 +3947,117 @@ public class Dbgl0102Tests {
 		assertNull(words.apply(null));
 		assertNull(words.apply("/* dbgl: profiles with problems */"));
 	}
+	/** alpha 50: the way back from a USB stick: play time, new and changed files; what changed on both sides stays */
+	@Test
+	public void testStickReturn() throws Exception {
+		File base = Files.createTempDirectory("dbglstick").toFile();
+		File stick = new File(base, "stick/DBGL"), game = new File(base, "main/games/DOOM"), captures = new File(base, "main/captures/7"), data = new File(base, "main/data");
+		File image = new File(base, "main/images/cd.iso");
+		for (File d: new File[] {new File(stick, "dosroot/DOOM"), new File(stick, "captures/7"), new File(stick, "dosroot/img"), game, captures, data, image.getParentFile()})
+			assertTrue(d.mkdirs());
+		long created = System.currentTimeMillis() - 3_600_000L, old = created - 86_400_000L, later = created + 600_000L;
+		java.util.function.BiConsumer<File, String> write = (f, s) -> {
+			try {
+				Files.writeString(f.toPath(), s, StandardCharsets.UTF_8);
+			} catch (IOException e) {
+				throw new RuntimeException(e);
+			}
+		};
+		// as the stick was made: the same files on both sides, older than the stick
+		String[] names = {"DOOM.EXE", "SAVE0.DSG", "BOTH.DSG", "HERE.CFG", "MOVED.DAT"};
+		for (String n: names) {
+			write.accept(new File(game, n), "as it was " + n);
+			write.accept(new File(stick, "dosroot/DOOM/" + n), "as it was " + n);
+			assertTrue(new File(game, n).setLastModified(old) && new File(stick, "dosroot/DOOM/" + n).setLastModified(old));
+		}
+		write.accept(image, "image");
+		write.accept(new File(stick, "dosroot/img/cd.iso"), "image");
+		assertTrue(image.setLastModified(old) && new File(stick, "dosroot/img/cd.iso").setLastModified(old));
+		// played on the stick: a saved game changed, a new one, a screenshot
+		write.accept(new File(stick, "dosroot/DOOM/SAVE0.DSG"), "played on the stick");
+		assertTrue(new File(stick, "dosroot/DOOM/SAVE0.DSG").setLastModified(later));
+		write.accept(new File(stick, "dosroot/DOOM/SAVE1.DSG"), "new on the stick");
+		write.accept(new File(stick, "captures/7/doom_001.png"), "picture");
+		// changed on both sides
+		write.accept(new File(stick, "dosroot/DOOM/BOTH.DSG"), "stick");
+		write.accept(new File(game, "BOTH.DSG"), "here!");
+		assertTrue(new File(stick, "dosroot/DOOM/BOTH.DSG").setLastModified(later) && new File(game, "BOTH.DSG").setLastModified(later + 5000));
+		// changed only here: stays
+		write.accept(new File(game, "HERE.CFG"), "changed here");
+		assertTrue(new File(game, "HERE.CFG").setLastModified(later));
+		// the same content with another time (a tool that sets the time when it unpacks): no change
+		assertTrue(new File(stick, "dosroot/DOOM/MOVED.DAT").setLastModified(later));
+
+		java.util.Map<Integer, java.util.Map.Entry<org.dbgl.util.StickReturn.Stats, String>> profiles = new java.util.LinkedHashMap<>();
+		profiles.put(7, java.util.Map.entry(new org.dbgl.util.StickReturn.Stats(3, 1000, old), "Doom | the first"));
+		profiles.put(8, java.util.Map.entry(new org.dbgl.util.StickReturn.Stats(1, 50, old), "Gone"));
+		profiles.put(9, java.util.Map.entry(new org.dbgl.util.StickReturn.Stats(0, 0, 0), "Not played"));
+		java.util.Map<String, File> paths = new java.util.LinkedHashMap<>();
+		paths.put("dosroot/DOOM/", game);
+		paths.put("captures/7", captures);
+		paths.put("dosroot/img/cd.iso", image);
+		assertFalse(org.dbgl.util.StickReturn.isStick(stick));
+		Files.write(new File(stick, org.dbgl.util.StickReturn.MANIFEST).toPath(), org.dbgl.util.StickReturn.manifest("stick-1", created, profiles, paths, data, new File(base, "main/games")));
+		assertTrue(org.dbgl.util.StickReturn.isStick(stick));
+		// what lies in the DOSroot is written from there on, what lies elsewhere with its whole path
+		String written = Files.readString(new File(stick, org.dbgl.util.StickReturn.MANIFEST).toPath());
+		assertTrue(written.contains("dosroot/DOOM|@dosroot/DOOM") && written.contains("captures/7|") && !written.contains("@dosroot/cd.iso"));
+		java.util.Map<Integer, String> here = java.util.Map.of(7, "Doom | the first", 8, "Another game with this number", 9, "Not played");
+
+		// DBGL on the stick has not said anything yet: the files only
+		org.dbgl.util.StickReturn.Plan plan = org.dbgl.util.StickReturn.plan(stick, here, data, new File(base, "main/games"));
+		assertFalse(plan.stateThere());
+		assertTrue(plan.stats().isEmpty());
+		assertEquals(3, plan.files().size());
+
+		java.util.Map<Integer, org.dbgl.util.StickReturn.Stats> played = new java.util.LinkedHashMap<>();
+		played.put(7, new org.dbgl.util.StickReturn.Stats(5, 4600, later));
+		played.put(8, new org.dbgl.util.StickReturn.Stats(2, 80, later));
+		played.put(9, new org.dbgl.util.StickReturn.Stats(0, 0, 0));
+		org.dbgl.util.StickReturn.writeState(stick, played);
+		org.dbgl.util.StickReturn.writeState(data, played); // no stick: nothing is written
+		assertFalse(new File(data, org.dbgl.util.StickReturn.STATE).exists());
+
+		plan = org.dbgl.util.StickReturn.plan(stick, here, data, new File(base, "main/games"));
+		assertTrue(plan.stateThere());
+		assertEquals(1, plan.stats().size());
+		assertEquals(7, plan.stats().get(0).id());
+		assertEquals(2, plan.stats().get(0).runs());
+		assertEquals(3600, plan.stats().get(0).seconds());
+		assertEquals("Doom | the first", plan.stats().get(0).title());
+		assertEquals(java.util.List.of("Gone"), plan.gone()); // the number is another profile here now
+		java.util.Map<String, Boolean> actions = new java.util.TreeMap<>();
+		plan.files().forEach(f -> actions.put(f.to().getName(), f.replaces()));
+		assertEquals("{SAVE0.DSG=true, SAVE1.DSG=false, doom_001.png=false}", actions.toString());
+		assertEquals(java.util.List.of(new File(game, "BOTH.DSG")), plan.conflicts());
+
+		File backup = new File(data, "backups/stick-return-test");
+		assertTrue(org.dbgl.util.StickReturn.copy(plan, backup).isEmpty());
+		assertEquals("played on the stick", Files.readString(new File(game, "SAVE0.DSG").toPath()));
+		assertEquals("new on the stick", Files.readString(new File(game, "SAVE1.DSG").toPath()));
+		assertEquals("picture", Files.readString(new File(captures, "doom_001.png").toPath()));
+		assertEquals("here!", Files.readString(new File(game, "BOTH.DSG").toPath()));
+		assertEquals("changed here", Files.readString(new File(game, "HERE.CFG").toPath()));
+		// the file that was replaced is kept, under its path
+		File kept = new File(backup, org.dbgl.util.StickReturn.backupName(new File(game, "SAVE0.DSG")));
+		assertEquals("as it was SAVE0.DSG", Files.readString(kept.toPath()));
+		assertEquals("C/Games/SAVE.DSG", org.dbgl.util.StickReturn.backupName(new File("C:\\Games\\SAVE.DSG")).replaceFirst("^.*?C/", "C/"));
+		org.dbgl.util.StickReturn.remember(plan, data, java.util.List.of(7));
+
+		// again: nothing is added twice, the files are the same now; the conflict is still told
+		plan = org.dbgl.util.StickReturn.plan(stick, here, data, new File(base, "main/games"));
+		assertTrue(plan.stats().isEmpty());
+		assertTrue(plan.files().isEmpty());
+		assertEquals(1, plan.conflicts().size());
+		// played on: only what came since
+		played.put(7, new org.dbgl.util.StickReturn.Stats(6, 5000, later + 1000));
+		org.dbgl.util.StickReturn.writeState(stick, played);
+		plan = org.dbgl.util.StickReturn.plan(stick, here, data, new File(base, "main/games"));
+		assertEquals(1, plan.stats().get(0).runs());
+		assertEquals(400, plan.stats().get(0).seconds());
+		// a folder that is no stick
+		assertFalse(org.dbgl.util.StickReturn.isStick(base));
+		assertNull(org.dbgl.util.StickReturn.Stats.of("nonsense"));
+		org.apache.commons.io.FileUtils.deleteQuietly(base);
+	}
 }
