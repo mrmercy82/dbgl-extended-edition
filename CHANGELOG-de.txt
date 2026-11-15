@@ -48,6 +48,9 @@ Neu
   Rechtsklick "Konfigurationsdatei neu schreiben lassen": Die eigenen
   Einstellungen und [autoexec] bleiben, die bisherige Datei bleibt als
   .bak daneben.
+- Neuer Reiter "Ohne Bilder" neben "Alle Profile": die Profile, die weder
+  Cover noch Screenshot haben. Er wird bei jedem Aufbau neu ermittelt;
+  ein Profil verschwindet daraus, sobald es ein Bild hat.
 - "Filter bearbeiten" zeigt unter der Bedingung ihre Bedeutung in Worten
   (z. B. Titel enthält "JURASSIC" oder Entwickler ist "Apogee"). Die
   Bedingung selbst bleibt, wie sie ist; bei einer von Hand geschriebenen,

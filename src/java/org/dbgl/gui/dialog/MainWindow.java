@@ -4540,6 +4540,8 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 
 	/** the filter clause of the built-in tab with the profiles that have a warning sign; not SQL, handled by listProfiles */
 	private static final String PROBLEMS_FILTER = "/* dbgl: profiles with problems */";
+	// alpha 50: the profiles that have no picture at all (no cover, no screenshot) in their folder of captures
+	private static final String NOIMAGES_FILTER = "/* dbgl: profiles without pictures */";
 
 	/** 'All profiles' first, the user's filters, and 'With problems' last (when the warning signs are turned on) */
 	private List<Filter> allFilters(List<Filter> userFilters) {
@@ -4547,24 +4549,27 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		result.add(0, new Filter(text_.get("dialog.main.allprofiles"), null));
 		if (settings_.getBooleanValue("gui", "profilewarnings"))
 			result.add(new Filter(text_.get("dialog.main.problemprofiles"), PROBLEMS_FILTER));
+		result.add(new Filter(text_.get("dialog.main.noimageprofiles"), NOIMAGES_FILTER));
 		return result;
 	}
 
 	private static boolean isBuiltInFilter(Filter filter) {
-		return (filter.getFilter() == null) || PROBLEMS_FILTER.equals(filter.getFilter());
+		return (filter.getFilter() == null) || PROBLEMS_FILTER.equals(filter.getFilter()) || NOIMAGES_FILTER.equals(filter.getFilter());
 	}
 
 	/** the profiles of the current filter tab; for 'With problems' every profile is checked (once, the result is kept) */
 	private List<Profile> listProfiles() throws SQLException {
-		boolean problems = PROBLEMS_FILTER.equals(filterClause_);
-		List<Profile> list = new ProfileRepository().list(orderingVector_.toClause(), problems ? null: filterClause_, dbversionsList_);
+		boolean problems = PROBLEMS_FILTER.equals(filterClause_), noImages = NOIMAGES_FILTER.equals(filterClause_);
+		List<Profile> list = new ProfileRepository().list(orderingVector_.toClause(), problems || noImages ? null: filterClause_, dbversionsList_);
 		sortByDiskSpace(list);
-		if (!problems)
+		if (!problems && !noImages)
 			return quickSearched(listed_ = list);
 		boolean busy = (shell_ != null) && !shell_.isDisposed();
 		if (busy)
 			shell_.setCursor(display_.getSystemCursor(SWT.CURSOR_WAIT));
 		try {
+			if (noImages) // looked up anew each time the list is built: pictures may have come since
+				return quickSearched(listed_ = list.stream().filter(p -> new ThumbInfo(p.getCapturesString()).getAllThumbs().length == 0).collect(Collectors.toCollection(ArrayList::new)));
 			return quickSearched(listed_ = list.stream().filter(p -> !org.dbgl.util.ProfileWarnings.check(p).isEmpty()).collect(Collectors.toCollection(ArrayList::new)));
 		} finally {
 			if (busy)

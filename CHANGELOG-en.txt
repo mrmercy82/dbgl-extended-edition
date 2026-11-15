@@ -46,6 +46,9 @@ New
   versions" has "Have the configuration file written again" on right
   click for it: your settings and [autoexec] stay, the file as it was is
   kept next to it as .bak.
+- New tab "Without pictures" next to "All profiles": the profiles that
+  have neither cover nor screenshot. It is found anew each time the list
+  is built; a profile leaves it as soon as it has a picture.
 - "Edit filter" shows the meaning of the condition in words below it
   (e.g. Title contains "JURASSIC" or Developer is "Apogee"). The
   condition itself stays as it is; for one written by hand that DBGL
