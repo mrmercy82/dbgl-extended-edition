@@ -3322,7 +3322,10 @@ public class Dbgl0102Tests {
 		Files.writeString(written.toPath(), conf083.replace("(0.83.0)", "(0.83.1)"), StandardCharsets.UTF_8);
 		assertTrue(org.dbgl.util.ProfileChecks.staging0831(DosboxVersionFactory.create("Staging", SettingsService.STAGING_DOSBOX_FAM.title_, "0.83.0", false, true, false, null, dir.getPath(), "", "",
 			written.getPath())));
+		long writtenBefore = written.lastModified();
 		Files.writeString(written.toPath(), conf083, StandardCharsets.UTF_8);
+		// same length, and on a fast machine written within the same millisecond: DBGL tells a changed file by time and size
+		assertTrue(written.setLastModified(writtenBefore + 2000));
 		assertFalse(org.dbgl.util.ProfileChecks.staging0831(DosboxVersionFactory.create("Staging", SettingsService.STAGING_DOSBOX_FAM.title_, "0.83.0", false, true, false, null, dir.getPath(), "", "",
 			written.getPath())));
 		// test 17: values written in the file of a profile that are the same as in its DOSBox version: read from the file, DBGL
