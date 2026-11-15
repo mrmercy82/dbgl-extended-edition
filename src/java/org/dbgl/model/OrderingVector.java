@@ -58,6 +58,8 @@ public class OrderingVector {
 
 		@Override
 		public String toString() {
+			if (column_ == SERIES_COLUMN)
+				return GAME_LIST_ORDER[column_] + (ascending_ ? " ASC NULLS LAST, ": " DESC NULLS LAST, ") + SERIES_PART_ORDER + (ascending_ ? " ASC": " DESC");
 			return GAME_LIST_ORDER[(column_ == 21) ? 9: column_] + (ascending_ ? " ASC": " DESC"); // order by db id
 		}
 	}
@@ -66,7 +68,14 @@ public class OrderingVector {
 	private static final String[] GAME_LIST_ORDER = {"LOWER(GAM.TITLE)", "GAM.SETUP", "LOWER(DEV.NAME)", "LOWER(PUBL.NAME)", "LOWER(GEN.NAME)", "YR.YEAR", "LOWER(STAT.STAT)", "GAM.FAVORITE", "GAM.ID",
 			"GAM.DBVERSION_ID", "LOWER(CUST1.VALUE)", "LOWER(CUST2.VALUE)", "LOWER(CUST3.VALUE)", "LOWER(CUST4.VALUE)", "LOWER(GAM.CUSTOM5)", "LOWER(GAM.CUSTOM6)", "LOWER(GAM.CUSTOM7)",
 			"LOWER(GAM.CUSTOM8)", "GAM.CUSTOM9", "GAM.CUSTOM10", "LOWER(GAM.CAPTURES)", "", "GAM.STATS_CREATED", "GAM.STATS_LASTMODIFY", "GAM.STATS_LASTRUN", "GAM.STATS_LASTSETUP", "GAM.STATS_RUNS",
-			"GAM.STATS_SETUPS", "LOWER(GAM.CUSTOM11)", "LOWER(GAM.CUSTOM12)", "LOWER(GAM.CUSTOM13)", "LOWER(GAM.CUSTOM14)", "GAM.STATS_PLAYTIME"};
+			"GAM.STATS_SETUPS", "LOWER(GAM.CUSTOM11)", "LOWER(GAM.CUSTOM12)", "LOWER(GAM.CUSTOM13)", "LOWER(GAM.CUSTOM14)", "GAM.STATS_PLAYTIME",
+			// alpha 49: the series (profiles without one last when ascending), in it by part
+			"(SELECT LOWER(SER.NAME) FROM SERIES SER WHERE SER.GAME_ID = GAM.ID)",
+			// alpha 49: the disk space is not in the database: the list is sorted by it afterwards (MainWindow.listProfiles)
+			"GAM.ID"};
+	public static final int DISK_COLUMN = 34;
+	private static final int SERIES_COLUMN = 33;
+	private static final String SERIES_PART_ORDER = "(SELECT SER.PART FROM SERIES SER WHERE SER.GAME_ID = GAM.ID)";
 
 	private final List<ColumnOrder> vector_;
 

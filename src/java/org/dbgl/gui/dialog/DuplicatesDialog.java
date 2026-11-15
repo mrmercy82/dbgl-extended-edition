@@ -83,7 +83,7 @@ public class DuplicatesDialog extends SizeControlledButtonDialog<Integer> {
 			col.setText(text_.get(keys[i]));
 			col.setWidth(widths[i]);
 		}
-		org.eclipse.swt.graphics.Color gray = shell_.getDisplay().getSystemColor(SWT.COLOR_DARK_GRAY);
+		org.eclipse.swt.graphics.Color gray = org.dbgl.gui.controls.DarkTheme.textColor(shell_.getDisplay(), SWT.COLOR_DARK_GRAY);
 		for (DuplicateProfiles.Group g: groups_) {
 			TableItem head = new TableItem(table, SWT.NONE);
 			head.setText(0, g.program());

@@ -223,7 +223,7 @@ public final class DFendProfConverter {
 			String dos = null;
 			int best = -1;
 			for (String[] d: drives) {
-				String root = StringUtils.removeEnd(new File(d[1]).getPath(), File.separator);
+				String root = org.apache.commons.lang3.Strings.CS.removeEnd(new File(d[1]).getPath(), File.separator);
 				String path = host.getPath();
 				if (path.toLowerCase().startsWith(root.toLowerCase() + File.separator) && (root.length() > best)) {
 					String rest = path.substring(root.length() + 1).replace(File.separatorChar, '\\');

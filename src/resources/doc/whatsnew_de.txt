@@ -15,6 +15,40 @@ Extended Edition (Quellcode, Downloads, Fehler melden):
 https://github.com/mrmercy82/dbgl-extended-edition
 
 
+WICHTIG: BALD IST JAVA 21 NÖTIG
+-------------------------------
+  Eine der nächsten Versionen von DBGL Extended Edition benötigt Java 21 und
+  startet mit einem älteren Java nicht mehr. Bitte Java rechtzeitig
+  aktualisieren, z. B. mit Eclipse Temurin 21:
+  https://adoptium.net/temurin/releases/?version=21
+  Läuft DBGL mit einem älteren Java, weist es beim Start darauf hin.
+
+
+DAS NEUESTE IN 0.101 ALPHA 49
+-----------------------------
+  - DOSBox Staging 0.83.1 wird unterstützt; der dort weggefallene Wert
+    "auto" für Tastatur und Land wird erkannt und erklärt.
+  - Einstellungen aus einer anderen DOSBox-Konfiguration übernehmen: die
+    eigenen Einstellungen der alten Datei in die neue, mit Vorschau.
+  - Profile auf eine andere DOSBox-Version umstellen: Vorschau auch im
+    Profileditor, geerbte Werte je Profil, Vergleich zweier Versionen,
+    Abschlussmeldung mit Hinweis auf "Rückgängig".
+  - Spielereihen: Profile einer Reihe gehören zusammen, in der Liste und
+    als Stapel im TV-Modus.
+  - Schnellsuche (F3) und die neue Spalte "Speicherplatz".
+  - "Sicherungen verwalten": alle Sicherungen in einer Liste, zum Sperren,
+    Löschen und Wiederherstellen.
+  - "DOSBox herunterladen": ein Fenster mit allen Versionen und dem
+    Zielordner.
+  - "Profile prüfen": Dateien ohne Profil, Hinweis zur Maus bei Windows 95
+    in DOSBox-X; Warnzeichen auch in der Kachel- und Boxenansicht.
+  - Berichte speichern als Text, als Webseite in Farbe oder als PDF.
+  - Jede Einstellung erklärt sich in einem Tooltip; Dunkelmodus weiter
+    verbessert.
+  - Aufgeräumter Hauptordner: Texte in "docs", Protokolle in "logs",
+    Zwischenspeicher in "cache".
+
+
 DAS NEUESTE IN 0.101 ALPHA 48
 -----------------------------
   - TV-Modus (F11): die Spiele als große Cover im Vollbild, bedienbar mit

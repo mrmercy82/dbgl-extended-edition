@@ -109,6 +109,12 @@ public class ProfileFactory {
 	 * Used when duplicating a Profile
 	 */
 	public static Profile createCopy(Profile prof) {
+		Profile copy = createCopyWithoutSeries(prof);
+		copy.setSeries(prof.getSeries(), prof.getSeriesPart()); // alpha 49
+		return copy;
+	}
+
+	private static Profile createCopyWithoutSeries(Profile prof) {
 		return create(prof.getTitle(), prof.isFavorite(), prof.getDeveloper(), prof.getPublisher(), prof.getGenre(), prof.getYear(), prof.getStatus(), prof.getNotes(), prof.getCustomStrings().clone(),
 			prof.getCustomInts().clone(), prof.getLinks().clone(), prof.getCapturesString(), prof.getSetupString(), prof.getSetupParams(), prof.getAltExeStrings().clone(),
 			prof.getAltExeParams().clone(), new ArrayList<>(prof.getNativeCommands()), prof.getDosboxVersion());

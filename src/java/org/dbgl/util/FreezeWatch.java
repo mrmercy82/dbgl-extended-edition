@@ -151,6 +151,7 @@ public final class FreezeWatch {
 		}
 		File file = new File(dir, "freeze-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")) + ".txt");
 		try {
+			Files.createDirectories(dir.toPath());
 			Files.writeString(file.toPath(), sb, StandardCharsets.UTF_8);
 			System.err.println("DBGL not answering: written to " + file);
 			return true;

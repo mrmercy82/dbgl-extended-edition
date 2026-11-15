@@ -1,6 +1,6 @@
 # Ant output
 build_ant/
-dist/
+/dist/
 # IDE
 .idea/
 *.iml

@@ -73,6 +73,8 @@ public class SwitchDosboxVersionDialog extends SizeControlledButtonDialog<Boolea
 	private Font bold_;
 	private Table choices_;
 	private org.eclipse.swt.widgets.Button markers_;
+	/** alpha 49: "Preview" and "Compare versions": off, like "Switch", until a DOSBox version to switch to is chosen */
+	private org.eclipse.swt.widgets.Button previewButton_, compareButton_;
 	/** what the user ticked in the preview, by {@link SwitchChoices.Choice#key()}; not in it: the default */
 	private final java.util.Map<String, Boolean> keep_ = new java.util.HashMap<>();
 	private Font font_;
@@ -107,6 +109,11 @@ public class SwitchDosboxVersionDialog extends SizeControlledButtonDialog<Boolea
 		reportBeforeOverview_ = null;
 		if ((overviewButton_ != null) && !overviewButton_.isDisposed())
 			overviewButton_.setText(text_.get("dialog.switchdosbox.overview"));
+	}
+
+	/** alpha 49: below each profile, what it takes from the configuration of the new DOSBox version (nothing of it is in its file) */
+	private static boolean showInherited() {
+		return org.dbgl.service.SettingsService.getInstance().getBooleanValue("switchdosbox", "showinherited");
 	}
 
 	private static boolean fullFile() {
@@ -254,6 +261,18 @@ public class SwitchDosboxVersionDialog extends SizeControlledButtonDialog<Boolea
 				toggleOverview();
 			}
 		}).ctrl();
+		// alpha 49: below each profile what it inherits from the new DOSBox version (remembered; off: only said once at the top);
+		// in a line of its own: next to the other controls it pushed the button out of the window
+		org.eclipse.swt.widgets.Button inheritedBox = new org.eclipse.swt.widgets.Button(countRow, SWT.CHECK);
+		inheritedBox.setText(text_.get("dialog.switchdosbox.showinherited"));
+		inheritedBox.setToolTipText(text_.get("dialog.switchdosbox.showinherited.tooltip"));
+		inheritedBox.setLayoutData(new GridData(SWT.BEGINNING, SWT.CENTER, false, false, 3, 1));
+		inheritedBox.setSelection(showInherited());
+		inheritedBox.addListener(SWT.Selection, e -> {
+			org.dbgl.service.SettingsService.getInstance().setBooleanValue("switchdosbox", "showinherited", inheritedBox.getSelection());
+			if (lastWasPreview_)
+				run(true);
+		});
 		int wide = 0; // as wide as the longer of its two texts, so that nothing moves when it changes
 		for (String key: new String[] {"dialog.switchdosbox.overview", "dialog.switchdosbox.preview"}) {
 			overviewButton_.setText(text_.get(key));
@@ -299,9 +318,9 @@ public class SwitchDosboxVersionDialog extends SizeControlledButtonDialog<Boolea
 				best = i;
 		if (!dbversions_.isEmpty()) {
 			from_.select(best);
-			to_.select(dbversions_.size() - 1);
-			if ((selected_ != null) && (to_.getSelectionIndex() == best) && (dbversions_.size() > 1))
-				to_.select(dbversions_.size() - 2);
+			// alpha 49: "to" is the same as "from" at first, and nothing can be started: the DOSBox version to switch to is
+			// chosen, not proposed (before: the last of the list, whatever that was - a 0.74 for profiles of DOSBox Staging)
+			to_.select(best);
 			for (int i = 0; i < dbversions_.size(); i++)
 				if (dbversions_.get(i).getId() == targetId_)
 					to_.select(i);
@@ -337,18 +356,21 @@ public class SwitchDosboxVersionDialog extends SizeControlledButtonDialog<Boolea
 			}
 		}).ctrl();
 		preview.moveAbove(first);
+		previewButton_ = (org.eclipse.swt.widgets.Button)preview;
 		shell_.setDefaultButton((org.eclipse.swt.widgets.Button)preview); // looking first is what Enter does
 		if ((first.getLayoutData() instanceof GridData fd) && (fd.widthHint > 0)) { // as wide as Switch and Cancel
 			GridData pd = preview.getLayoutData() instanceof GridData g ? g: new GridData();
 			pd.widthHint = Math.max(fd.widthHint, preview.computeSize(SWT.DEFAULT, SWT.DEFAULT).x);
 			preview.setLayoutData(pd);
 		}
-		Button_.on(okCancelButtons_).text().key("dialog.switchdosbox.compare").tooltip("dialog.switchdosbox.compare.tooltip").listen(new SelectionAdapter() {
-			@Override
-			public void widgetSelected(SelectionEvent event) {
-				compareVersions();
-			}
-		}).ctrl();
+		compareButton_ = (org.eclipse.swt.widgets.Button)Button_.on(okCancelButtons_).text().key("dialog.switchdosbox.compare").tooltip("dialog.switchdosbox.compare.tooltip")
+				.listen(new SelectionAdapter() {
+					@Override
+					public void widgetSelected(SelectionEvent event) {
+						compareVersions();
+					}
+				}).ctrl();
+		updateButtons();
 		Button_.on(otherButtons_).text().key("dialog.switchdosbox.savereport").listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
@@ -397,6 +419,9 @@ public class SwitchDosboxVersionDialog extends SizeControlledButtonDialog<Boolea
 
 	private void setAllChoices(boolean keep) {
 		for (TableItem item: choices_.getItems()) {
+			// "keep all" is about what the profiles lose; a value of the DOSBox version is kept only when ticked by hand
+			if (keep && (((SwitchChoices.Choice)item.getData()).kind() == SwitchChoices.Kind.INHERITED))
+				continue;
 			item.setChecked(keep);
 			keep_.put(((SwitchChoices.Choice)item.getData()).key(), keep);
 		}
@@ -424,6 +449,19 @@ public class SwitchDosboxVersionDialog extends SizeControlledButtonDialog<Boolea
 			return '[' + c.section() + "] " + c.item();
 		String where = "[autoexec] " + text_.get("dialog.template.customcommand" + (c.autoexecSection() + 1));
 		return c.afterExit() ? where + " (" + text_.get("dialog.switchdosbox.afterexit") + ')': where;
+	}
+
+	/** the values the profiles take from their DOSBox version, at the top of the list: one line for all profiles */
+	private void addInherited(DosboxVersion orig, List<SwitchChoices.Choice> inherited) {
+		int at = 0;
+		for (SwitchChoices.Choice c: inherited) {
+			if (java.util.Arrays.stream(choices_.getItems()).anyMatch(i -> ((SwitchChoices.Choice)i.getData()).key().equals(c.key())))
+				continue; // the same from another old DOSBox version
+			TableItem item = new TableItem(choices_, SWT.NONE, at++);
+			item.setText(new String[] {text_.get("dialog.switchdosbox.inherited", new Object[] {orig.getTitle()}), where(c), c.oldText(), c.newText()});
+			item.setChecked(keeps(c));
+			item.setData(c);
+		}
 	}
 
 	private void addChoices(Profile prof, List<SwitchChoices.Choice> choices) {
@@ -492,7 +530,29 @@ public class SwitchDosboxVersionDialog extends SizeControlledButtonDialog<Boolea
 		}
 		else
 			count_.setText(text_.get("dialog.switchdosbox.count2", new Object[] {profilesOf(dbversions_.get(from_.getSelectionIndex())).size(), profiles_.size()}));
+		if (!canRun())
+			count_.setText(count_.getText() + "  " + text_.get("dialog.switchdosbox.choosetarget"));
 		count_.getParent().layout();
+		updateButtons();
+	}
+
+	/** alpha 49: whether there is anything to switch: another DOSBox version chosen, or profiles written for another one */
+	private boolean canRun() {
+		if ((from_.getSelectionIndex() < 0) || (to_.getSelectionIndex() < 0))
+			return false;
+		if (writtenFor() != null)
+			return true;
+		DosboxVersion dst = dbversions_.get(to_.getSelectionIndex());
+		return selected_ == null ? from_.getSelectionIndex() != to_.getSelectionIndex(): selectedProfiles().stream().anyMatch(p -> p.getDosboxVersion().getId() != dst.getId());
+	}
+
+	private void updateButtons() {
+		boolean go = canRun();
+		for (org.eclipse.swt.widgets.Button b: new org.eclipse.swt.widgets.Button[] {previewButton_, okButton_})
+			if ((b != null) && !b.isDisposed())
+				b.setEnabled(go);
+		if ((compareButton_ != null) && !compareButton_.isDisposed())
+			compareButton_.setEnabled((from_.getSelectionIndex() >= 0) && (from_.getSelectionIndex() != to_.getSelectionIndex()));
 	}
 
 	private void run(boolean preview) {
@@ -570,11 +630,44 @@ public class SwitchDosboxVersionDialog extends SizeControlledButtonDialog<Boolea
 			}
 		}
 		int changed = 0, failed = 0;
+		// alpha 49: what the new DOSBox version says otherwise than the old one, once per old version: the profiles take it
+		// from there unless they have a value of their own
+		java.util.Map<Integer, List<SwitchChoices.Choice>> inheritedBy = new java.util.HashMap<>();
 		try {
 			for (Profile prof: profiles) {
-				report.append("== ").append(prof.getTitle()).append(" (").append(prof.getId()).append(')').append(Text.DELIMITER);
 				DosboxVersion orig = prof.getDosboxVersion();
+				List<SwitchChoices.Choice> inherited = List.of();
+				if ((writtenFor == null) && (orig != null)) {
+					if (!inheritedBy.containsKey(orig.getId())) {
+						List<SwitchChoices.Choice> found = new ArrayList<>();
+						try {
+							for (DosboxVersion v: new DosboxVersion[] {orig, dst})
+								if (v.getConfiguration().getSectionNames().length == 0)
+									v.resetAndLoadConfiguration();
+							found = SwitchChoices.inherited(orig, dst);
+						} catch (IOException e) {
+							// not readable: told for the profile below
+						}
+						inheritedBy.put(orig.getId(), found);
+						if (!found.isEmpty()) {
+							report.append("= ").append(text_.get("dialog.switchdosbox.report.inherited", new Object[] {dst.getTitle(), orig.getTitle()})).append(Text.DELIMITER);
+							List<String> lines = org.dbgl.util.ProfileReports.aligned(found.stream().map(c -> new String[] {where(c), c.oldText(), c.newText()}).toList());
+							int widest = lines.stream().mapToInt(String::length).max().orElse(0);
+							for (int n = 0; n < found.size(); n++)
+								report.append("=    ").append(keeps(found.get(n)) ? StringUtils.rightPad(lines.get(n), widest) + "   [" + text_.get("dialog.switchdosbox.report.kept") + "]": lines.get(n))
+										.append(Text.DELIMITER);
+							report.append(Text.DELIMITER);
+							if (preview)
+								addInherited(orig, found);
+						}
+					}
+					inherited = inheritedBy.get(orig.getId());
+				}
+				report.append("== ").append(prof.getTitle()).append(" (").append(prof.getId()).append(')').append(Text.DELIMITER);
 				try {
+					// alpha 49: what the file of the profile says itself (a value the same as in the old DOSBox version is not among
+					// the settings DBGL holds, yet its line goes from the file)
+					List<String[]> goneInFile = org.dbgl.util.ProfileChecks.gone0831InFile(prof.getConfigurationCanonicalFile(), dst);
 					String warnings = prof.resetAndLoadConfiguration();
 					String before = prof.getConfiguration().toString(null);
 					String autoexecRead = prof.getConfiguration().getAutoexec().toString(false, null);
@@ -589,6 +682,16 @@ public class SwitchDosboxVersionDialog extends SizeControlledButtonDialog<Boolea
 					// lost when switched away from this kind of DOSBox before: offered again
 					java.util.Properties memory = org.dbgl.util.SwitchMemory.load(prof.getId());
 					choices.addAll(org.dbgl.util.SwitchMemory.restoresFrom(memory, prof));
+					// alpha 49: to DOSBox Staging 0.83.1: "auto" for keyboard and country is no value there any more
+					List<String[]> gone = org.dbgl.util.ProfileChecks.removeGone0831(prof);
+					// test 17: a value written in the file, the same as in the old DOSBox version and another one in the new: it stays
+					List<String[]> written = org.dbgl.util.ProfileChecks.keepWrittenValues(prof.getConfigurationCanonicalFile(), orig, prof);
+					// alpha 49: what the profile only takes from the new DOSBox version (not in its file before or after)
+					for (SwitchChoices.Choice c: SwitchChoices.applyInherited(prof, inherited, this::keeps))
+						written.add(new String[] {where(c), c.oldText(), c.newText()});
+					// (a value written in its file that was put back above is its own again: not inherited)
+					List<SwitchChoices.Choice> takes = showInherited() ? new ArrayList<>(SwitchChoices.inheritedBy(before, inherited, this::keeps)): new ArrayList<>();
+					takes.removeIf(c -> prof.getConfiguration().hasValue(c.section(), c.item()));
 					String afterSwitch = prof.getConfiguration().toString(null);
 					List<SwitchChoices.Choice> kept = SwitchChoices.apply(prof, choices, this::keeps, markers_.getSelection(), preview);
 					boolean asWritten = autoexecSame && choices.stream().filter(c -> c.kind() == SwitchChoices.Kind.AUTOEXEC).allMatch(this::keeps);
@@ -605,13 +708,25 @@ public class SwitchDosboxVersionDialog extends SizeControlledButtonDialog<Boolea
 							diff.add("+ " + text_.get("dialog.switchdosbox.report.restored") + ": " + where(c) + "=" + c.oldText());
 						else
 							diff.add("= " + text_.get("dialog.switchdosbox.report.kept") + ": " + where(c) + " " + c.oldText());
+					for (String[] w: written)
+						diff.add("= " + text_.get("dialog.switchdosbox.report.kept") + ": " + w[0] + "=" + w[1] + "  (" + dst.getTitle() + ": " + w[2] + ")");
+					for (String[] g: goneInFile)
+						if (gone.stream().noneMatch(x -> x[0].equalsIgnoreCase(g[0]))) {
+							diff.add("- " + g[0] + "=" + g[1]);
+							gone.add(g);
+						}
 					if (preview)
 						addChoices(prof, choices);
-					if (diff.isEmpty())
+					if (diff.isEmpty() && takes.isEmpty())
 						report.append("   ").append(text_.get("dialog.switchdosbox.report.nochanges")).append(Text.DELIMITER);
-					else
+					else if (!diff.isEmpty())
 						changed++;
 					diff.forEach(l -> report.append("   ").append(l).append(Text.DELIMITER));
+					// not counted as a change: the file of the profile stays as it is
+					SwitchChoices.inheritedLines(takes, c -> text_.get("dialog.switchdosbox.report.inherits", new Object[] {dst.getTitle(), c.oldText()}))
+						.forEach(l -> report.append("   ").append(l).append(Text.DELIMITER));
+					for (String[] g: gone)
+						report.append("   ! ").append(text_.get("dialog.checkprofiles.autogone0831", new Object[] {g[0], g[1]})).append(Text.DELIMITER);
 					if (asWritten && choices.stream().anyMatch(c -> c.kind() == SwitchChoices.Kind.AUTOEXEC))
 						report.append("   = ").append(text_.get("dialog.switchdosbox.report.autoexecaswritten")).append(Text.DELIMITER);
 					if (StringUtils.isNotBlank(warnings))
@@ -652,6 +767,9 @@ public class SwitchDosboxVersionDialog extends SizeControlledButtonDialog<Boolea
 			if (selected_ != null) // the profiles now use the new DOSBox version
 				from_.select(to_.getSelectionIndex());
 			updateCount();
+			// alpha 49: said in a window of its own that it is done, and how it is taken back
+			Mess_.on(shell_).key("dialog.switchdosbox.done", new Object[] {dst.getTitle(), text_.get("dialog.switchdosbox.report.summary", new Object[] {profiles.size(), changed, failed})})
+					.display();
 		}
 	}
 
@@ -663,9 +781,10 @@ public class SwitchDosboxVersionDialog extends SizeControlledButtonDialog<Boolea
 		int offset = 0;
 		for (String line: text.split("\n", -1)) {
 			String t = line.replace("\r", "").trim();
-			org.eclipse.swt.graphics.Color c = t.startsWith("- ") ? d.getSystemColor(SWT.COLOR_DARK_RED): t.startsWith("+ ") ? d.getSystemColor(SWT.COLOR_DARK_GREEN)
-				: t.startsWith("= ") ? d.getSystemColor(SWT.COLOR_DARK_GRAY): t.startsWith("! ") ? d.getSystemColor(SWT.COLOR_DARK_YELLOW)
-				: (t.startsWith("[") && t.endsWith("]")) ? d.getSystemColor(SWT.COLOR_DARK_GRAY): null;
+			org.eclipse.swt.graphics.Color c = t.startsWith("- ") ? org.dbgl.gui.controls.DarkTheme.textColor(d, SWT.COLOR_DARK_RED): t.startsWith("+ ") ? org.dbgl.gui.controls.DarkTheme.textColor(d, SWT.COLOR_DARK_GREEN)
+				: t.startsWith("= ") ? org.dbgl.gui.controls.DarkTheme.textColor(d, SWT.COLOR_DARK_GRAY): t.startsWith("! ") ? org.dbgl.gui.controls.DarkTheme.textColor(d, SWT.COLOR_DARK_YELLOW)
+				: t.startsWith("> ") ? org.dbgl.gui.controls.DarkTheme.textColor(d, SWT.COLOR_DARK_CYAN)
+				: (t.startsWith("[") && t.endsWith("]")) ? org.dbgl.gui.controls.DarkTheme.textColor(d, SWT.COLOR_DARK_GRAY): null;
 			if (t.startsWith("== ")) {
 				org.eclipse.swt.custom.StyleRange r = new org.eclipse.swt.custom.StyleRange(offset, line.length(), null, null);
 				r.font = bold_;
@@ -722,20 +841,10 @@ public class SwitchDosboxVersionDialog extends SizeControlledButtonDialog<Boolea
 		return result;
 	}
 
+	/** alpha 49: as text, as a web page in the colors of this window, or as PDF; the file name with date and time */
 	private void saveReport() {
 		if (StringUtils.isBlank(report_.getText()))
 			return;
-		FileDialog dialog = new FileDialog(shell_, SWT.SAVE);
-		dialog.setFilterExtensions(new String[] {"*.txt", "*.*"});
-		dialog.setFileName("dbgl-switch-report.txt");
-		dialog.setOverwrite(true);
-		String file = dialog.open();
-		if (file != null) {
-			try {
-				Files.writeString(new File(file).toPath(), report_.getText(), StandardCharsets.UTF_8);
-			} catch (IOException e) {
-				Mess_.on(shell_).exception(e).warning();
-			}
-		}
+		org.dbgl.gui.controls.ReportSave.menu(shell_, "dbgl-switch-report", shell_.getText(), report_::getText, () -> org.dbgl.gui.controls.ReportSave.html(report_, shell_.getText()));
 	}
 }

@@ -73,6 +73,66 @@ public final class ToolbarCustomizer {
 	}
 
 	/** @return the order in the setting (keys, lines, the start of the second bar), null if there is none (as built) */
+	/**
+	 * alpha 49: the order as built with the second bar beginning at another button
+	 *
+	 * @param defaults keys, LINE and RIGHT as built
+	 * @return the order, null if the button is not in it
+	 */
+	public static List<String> splitAt(List<String> defaults, String firstOfSecondBar) {
+		List<String> plan = new ArrayList<>(defaults);
+		plan.remove(RIGHT);
+		int at = plan.indexOf(firstOfSecondBar);
+		if (at < 0)
+			return null;
+		// no line where the bars meet now
+		while ((at > 0) && LINE.equals(plan.get(at - 1))) {
+			plan.remove(at - 1);
+			at--;
+		}
+		plan.add(at, RIGHT);
+		return plan;
+	}
+
+	/** so much shorter the first row may be for ending at a line between two groups of buttons */
+	static final int SPLIT_AT_LINE_WITHIN = 120;
+
+	/**
+	 * alpha 49: the button at which a row of buttons is best broken into two rows that both fit: the latest one, so the first
+	 * row is as full as it gets. A line between two groups is the better place, but only if the first row stays nearly as full
+	 * (test 15, a window 1440 wide: the row ended at the last line that fit, 300 pixels before the edge, with the next four
+	 * buttons in the second row).
+	 *
+	 * @param widths per button or line its width, and 1 for a line
+	 * @param keys the key of each button (null for a line)
+	 * @return the key of the first button of the second row, null if no place makes both rows fit
+	 */
+	public static String bestSplit(List<int[]> widths, List<String> keys, int room) {
+		int total = 0;
+		for (int[] w: widths)
+			total += w[0];
+		String atLine = null, anywhere = null;
+		int atLineWidth = 0, anywhereWidth = 0;
+		int before = 0;
+		for (int i = 0; i < widths.size(); i++) {
+			if ((i > 0) && (keys.get(i) != null) && (widths.get(i)[1] == 0)) {
+				// the second row begins with this button; a line right before it belongs to neither row
+				boolean line = widths.get(i - 1)[1] == 1;
+				int first = before - (line ? widths.get(i - 1)[0]: 0), second = total - before;
+				if ((first > 0) && (first <= room) && (second <= room)) {
+					anywhere = keys.get(i);
+					anywhereWidth = first;
+					if (line) {
+						atLine = keys.get(i);
+						atLineWidth = first;
+					}
+				}
+			}
+			before += widths.get(i)[0];
+		}
+		return (atLine != null) && (atLineWidth >= anywhereWidth - SPLIT_AT_LINE_WITHIN) ? atLine: anywhere;
+	}
+
 	public static List<String> tokens(String setting) {
 		if ((setting == null) || setting.isBlank())
 			return null;

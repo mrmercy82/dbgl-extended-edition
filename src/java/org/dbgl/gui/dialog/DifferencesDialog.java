@@ -77,6 +77,14 @@ public class DifferencesDialog extends SizeControlledButtonDialog<Object> {
 		return this;
 	}
 
+	/** alpha 49: one more entry in the menu of "Save report" that does something of its own (e.g. open the print window) */
+	private final java.util.Map<String, Runnable> menuActions_ = new java.util.LinkedHashMap<>();
+
+	public DifferencesDialog withMenuAction(String name, Runnable action) {
+		menuActions_.put(name, action);
+		return this;
+	}
+
 	public DifferencesDialog withAction(String key, java.util.function.Function<Shell, String> action) {
 		actionKey_ = key;
 		action_ = action;
@@ -138,6 +146,11 @@ public class DifferencesDialog extends SizeControlledButtonDialog<Object> {
 			item.setText(n + " (*." + x + ")");
 			item.addListener(SWT.Selection, e -> saveAs(x));
 		});
+		menuActions_.forEach((n, action) -> {
+			org.eclipse.swt.widgets.MenuItem item = new org.eclipse.swt.widgets.MenuItem(menu, SWT.PUSH);
+			item.setText(n);
+			item.addListener(SWT.Selection, e -> action.run());
+		});
 		org.eclipse.swt.graphics.Point at = shell_.getDisplay().getCursorLocation();
 		menu.setLocation(at.x, at.y);
 		menu.setVisible(true);
@@ -163,6 +176,9 @@ public class DifferencesDialog extends SizeControlledButtonDialog<Object> {
 		try {
 			String content = export == null ? content_: exports_.get(export).get();
 			java.nio.file.Files.writeString(new java.io.File(file).toPath(), content, java.nio.charset.StandardCharsets.UTF_8);
+			// alpha 49: as after the export of the list of profiles: look at it right away?
+			if (org.dbgl.gui.controls.Mess_.on(shell_).key("dialog.report.confirm.view", new Object[] {file}).confirm())
+				org.dbgl.util.SystemUtils.openForBrowsing(file, shell_);
 		} catch (RuntimeException | java.io.IOException e) {
 			org.dbgl.gui.controls.Mess_.on(shell_).exception(e).warning();
 		}

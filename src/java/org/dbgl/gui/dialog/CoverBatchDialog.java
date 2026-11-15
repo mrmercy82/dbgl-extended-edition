@@ -228,7 +228,7 @@ public class CoverBatchDialog extends SizeControlledButtonDialog<Integer> {
 			} else {
 				item.setText(2, f.error() != null ? text_.get("dialog.coverbatch.error", new Object[] {f.error()})
 						: f.game() != null ? text_.get("dialog.coverbatch.nocover", new Object[] {f.game().getTitle()}): text_.get("dialog.coverbatch.notfound"));
-				item.setForeground(shell_.getDisplay().getSystemColor(SWT.COLOR_DARK_GRAY));
+				item.setForeground(org.dbgl.gui.controls.DarkTheme.textColor(shell_.getDisplay(), SWT.COLOR_DARK_GRAY));
 			}
 		}
 		updateSummary();

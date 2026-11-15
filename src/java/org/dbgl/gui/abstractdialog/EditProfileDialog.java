@@ -107,6 +107,19 @@ public abstract class EditProfileDialog<T> extends EditConfigurableDialog<T> {
 		}
 	}
 
+	/** alpha 49: series and part on the Info page (filled from an online source if empty) */
+	protected org.eclipse.swt.widgets.Combo series_;
+	protected org.eclipse.swt.widgets.Spinner seriesPart_;
+
+	/** alpha 49: the names of the game series there are */
+	private static List<String> seriesNames() {
+		try {
+			return new org.dbgl.model.repository.ProfileRepository().listSeriesNames();
+		} catch (java.sql.SQLException e) {
+			return new java.util.ArrayList<>();
+		}
+	}
+
 	protected Composite createInfoPage(TemplateProfileBase configurable, Composite parent, boolean focusOnTitle) {
 		Composite composite = createPage("dialog.template.tab.info", parent, 6);
 
@@ -124,8 +137,16 @@ public abstract class EditProfileDialog<T> extends EditConfigurableDialog<T> {
 			metaControls_).init(configurable).getCombo();
 		year_ = Chain.on(composite).lbl(l -> l.key("dialog.profile.year")).cmb(c -> c.horSpan(2).autoSelect(yearsList_)).profile(Profile::getYear, Profile::setYear).build(metaControls_).init(configurable).getCombo();
 
+		// alpha 49: the game series ("Commander Keen") with the names there are, and the part in it (0: none)
+		org.eclipse.swt.widgets.Combo series = series_ = Chain.on(composite).lbl(l -> l.key("dialog.profile.series")).cmb(c -> c.horSpan(2).editable().items(seriesNames())).profile(Profile::getSeriesName,
+			Profile::setSeriesName).build(metaControls_).init(configurable).getCombo();
+		series.setToolTipText(text_.get("dialog.profile.series.tooltip"));
+		seriesPart_ = Chain.on(composite).lbl(l -> l.key("dialog.profile.seriespart")).spn(s -> s.min(0).max(999)).profile(Profile::getSeriesPartString, Profile::setSeriesPartString).build(metaControls_).init(
+			configurable).getSpinner();
+		new org.eclipse.swt.widgets.Label(composite, SWT.NONE); // the part is narrow: the third cell of its half stays empty
+
 		// alpha 48: as wide as the page allows, not as wide as the longest name in the list (the page had to be scrolled sideways)
-		for (org.eclipse.swt.widgets.Combo combo: new org.eclipse.swt.widgets.Combo[] {developer_, publisher_, genre_, year_})
+		for (org.eclipse.swt.widgets.Combo combo: new org.eclipse.swt.widgets.Combo[] {developer_, publisher_, genre_, year_, series})
 			if (combo.getLayoutData() instanceof GridData data) {
 				data.widthHint = 100;
 				data.horizontalAlignment = SWT.FILL;
@@ -169,13 +190,23 @@ public abstract class EditProfileDialog<T> extends EditConfigurableDialog<T> {
 		notes_.setFont(stringToFont(display_, settings_.getValues("gui", "notesfont"), notes_.getFont()));
 		notes_.addDisposeListener(e -> notes_.getFont().dispose());
 		// below the notes: play time, sessions and the last one (of a profile that exists already)
-		if ((configurable instanceof Profile prof) && (prof.getId() >= 0) && (prof.getProfileStats() != null) && settings_.getBooleanValue("gui", "showplaytimeininfo")) {
+		// alpha 49: before it the disk space of the game folder; each can be turned off in the settings
+		String infoLines = "";
+		if ((configurable instanceof Profile prof) && (prof.getId() >= 0)) {
+			if (settings_.getBooleanValue("gui", "showdiskspaceininfo"))
+				infoLines = org.dbgl.util.DiskUsage.line(prof, text_);
+			if ((prof.getProfileStats() != null) && settings_.getBooleanValue("gui", "showplaytimeininfo")) {
+				String play = org.dbgl.util.ProfileReports.playInfo(prof, text_);
+				infoLines = infoLines.isEmpty() || play.isBlank() ? infoLines + play: infoLines + "\n" + play;
+			}
+		}
+		if (!infoLines.isBlank()) {
 			new org.eclipse.swt.widgets.Label(composite, SWT.NONE);
 			org.eclipse.swt.widgets.Label playInfo = new org.eclipse.swt.widgets.Label(composite, SWT.WRAP);
 			GridData playInfoData = new GridData(SWT.FILL, SWT.CENTER, true, false, 5, 1);
 			playInfoData.widthHint = 200; // wraps if needed, does not make the page wider
 			playInfo.setLayoutData(playInfoData);
-			playInfo.setText(org.dbgl.util.ProfileReports.playInfo(prof, text_));
+			playInfo.setText(infoLines);
 		}
 		
 		limitTextFields(composite);

@@ -182,7 +182,7 @@ public class ExtrasDialog extends SizeControlledButtonDialog<Integer> {
 					over.add(p);
 			});
 			for (int i = 0; i < rows_.size(); i++)
-				table.getItem(i).setForeground(1, over.contains(rows_.get(i).profile()) ? shell_.getDisplay().getSystemColor(SWT.COLOR_RED): null);
+				table.getItem(i).setForeground(1, over.contains(rows_.get(i).profile()) ? org.dbgl.gui.controls.DarkTheme.textColor(shell_.getDisplay(), SWT.COLOR_RED): null);
 			summary.setText(over.isEmpty() ? found: found + "\n" + text_.get("dialog.extras.toomany", new Object[] {over.size()}));
 			contents_.layout(true, true);
 		};

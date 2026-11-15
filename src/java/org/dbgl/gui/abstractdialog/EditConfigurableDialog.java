@@ -91,7 +91,8 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 	protected Button setButton_, dosRadio_, booterRadio_;
 	protected org.eclipse.swt.widgets.List mountingpointsList_;
 
-	private Button switchButton_, ipx_;
+	protected Button switchButton_;
+	private Button ipx_;
 	private Text ipxNet_;
 
 	/** the settings of the DOSBox version without a field of their own, on the pages of their topic */
@@ -134,14 +135,26 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 				}
 				if (!part.isDisposed())
 					part.dispose();
-				display.timerExec(5, next[0]);
+				again(display, next[0]);
 			} catch (RuntimeException ex) {
 				ex.printStackTrace();
 				if (!shell.isDisposed())
 					shell.dispose();
 			}
 		};
-		display.timerExec(5, next[0]);
+		again(display, next[0]);
+	}
+
+	/**
+	 * The next part: on Windows after 5 ms, as before. Elsewhere (GTK) queued behind what else waits for the window: there
+	 * timers that follow each other at once keep everything queued with asyncExec waiting until the last part is gone - on a
+	 * slow computer more than 10 seconds, which DBGL then took for a freeze (alpha 49).
+	 */
+	private static void again(Display display, Runnable next) {
+		if (org.dbgl.util.SystemUtils.IS_WINDOWS)
+			display.timerExec(5, next);
+		else
+			display.asyncExec(next);
 	}
 
 	private static int collectParts(Composite composite, java.util.Deque<Control> parts) {
@@ -561,7 +574,7 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 			for (String item: own.getItemNames(section)) {
 				String value = own.getValue(section, item);
 				if (StringUtils.isBlank(value) || ExtraSettings.DBGL_MANAGED_SETTINGS.contains(section.toLowerCase() + '/' + item.toLowerCase())
-						|| StringUtils.equals(StringUtils.strip(value), StringUtils.strip(dosboxConf.getValue(section, item))))
+						|| org.apache.commons.lang3.Strings.CS.equals(StringUtils.strip(value), StringUtils.strip(dosboxConf.getValue(section, item))))
 					continue;
 				values.computeIfAbsent(section.toLowerCase(), k -> new LinkedHashMap<>()).put(item, value);
 			}
@@ -2324,7 +2337,12 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		Composite composite = createPage("dialog.template.tab.audio", "dialog.template.tab.innova", parent, 1);
 		Group innovaExpGroup = Group_.on(composite).layoutData(new GridData(SWT.FILL, SWT.FILL, true, false)).layout(new GridLayout(2, false)).key(
 			"dialog.template.tab.experimentaloptions").build();
-		Chain.on(innovaExpGroup).lbl(l -> l.key("dialog.template.innovaenable")).but(b -> b.tooltip("dialog.template.innovaenable.tooltip")).section("innova", "innovation").item("innova", "innovation").build(metaControls_).init(configurable);
+		// alpha 49: DOSBox Staging 0.83.1 has three values (off, on, entertainer), not a switch: a list, so "entertainer" stays
+		if (org.dbgl.util.ProfileChecks.staging0831(configurable.getDosboxVersion()))
+			Chain.on(innovaExpGroup).lbl(l -> l.key("dialog.template.innovaenable")).cmb(c -> c.tooltip("dialog.template.innovaenable3.tooltip").items(new String[] {"off", "on", "entertainer"}))
+					.section("innovation").item("innovation").build(metaControls_).init(configurable);
+		else
+			Chain.on(innovaExpGroup).lbl(l -> l.key("dialog.template.innovaenable")).but(b -> b.tooltip("dialog.template.innovaenable.tooltip")).section("innova", "innovation").item("innova", "innovation").build(metaControls_).init(configurable);
 		Chain.on(innovaExpGroup).lbl(l -> l.key("dialog.template.innovamodel")).cmb(c -> c.tooltip("dialog.template.innovamodel.tooltip").items("profile", "innovamodel_staging0810")).section("innovation").item("sidmodel").build(metaControls_).init(configurable);
 		Chain.on(innovaExpGroup).lbl(l -> l.key("dialog.template.innovarate")).cmb(c -> c.tooltip("dialog.template.innovarate.tooltip").items("profile", "innovarate_x20240301")).section("innova").item("samplerate").build(metaControls_).init(configurable);
 		Chain.on(innovaExpGroup).lbl(l -> l.key("dialog.template.innovaport")).cmb(c -> c.tooltip("dialog.template.innovaport.tooltip").items("profile", configurable.innovaportSectionItem()).dynItem(GenerationAwareConfigurable::innovaportSectionItem))

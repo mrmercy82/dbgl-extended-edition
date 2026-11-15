@@ -42,6 +42,7 @@ final class WinSubclass {
 
 	private static final int WM_WINDOWPOSCHANGING = 0x0046, WM_NCDESTROY = 0x0082, WM_NCCALCSIZE = 0x0083, WM_NCHITTEST = 0x0084, WM_NCPAINT = 0x0085;
 	private static final int BM_SETSTYLE = 0x00F4, BS_TYPEMASK = 0x000F, BS_OWNERDRAW = 0x000B;
+	private static final int WM_ENABLE = 0x000A, WM_SETTEXT = 0x000C;
 	private static final int HTNOWHERE = 0, HTCLIENT = 1, HTBORDER = 18;
 
 	private record Entry(long oldProc, Control control, int lineHeight, boolean ownerDraw, long comboHandle) {
@@ -97,6 +98,108 @@ final class WinSubclass {
 		return instance_;
 	}
 
+	/**
+	 * Test 15: the empty boxes of a table or tree with check boxes were white inside in dark mode (Windows draws them as in
+	 * light mode). The pictures of the empty boxes in the list of the control are replaced by dark ones; the ticked ones
+	 * (blue, white tick) stay. Not tried out where DBGL is built: if anything is not as expected, the boxes stay as they are.
+	 */
+	static void darkCheckBoxes(Control c) {
+		WinSubclass w = get();
+		if ((w == null) || c.isDisposed())
+			return;
+		try {
+			boolean table = c instanceof org.eclipse.swt.widgets.Table;
+			Method send = w.os_.getMethod("SendMessage", long.class, int.class, long.class, long.class);
+			// LVM_GETIMAGELIST / TVM_GETIMAGELIST, the list of the states (LVSIL_STATE, TVSIL_STATE)
+			long list = (Long)send.invoke(null, handle(c), table ? 0x1002: 0x1108, 2L, 0L);
+			if (list == 0)
+				return;
+			int[] cx = new int[1], cy = new int[1];
+			if (!(Boolean)w.os_.getMethod("ImageList_GetIconSize", long.class, int[].class, int[].class).invoke(null, list, cx, cy) || (cx[0] < 8) || (cy[0] < 8))
+				return;
+			// test 18: SWT makes the boxes anew when the rows get pictures or another height (the list of covers: the empty boxes
+			// were white again). Looked at whenever the control is drawn: a new list of boxes gets the dark ones again.
+			c.setData(BOXES_DONE, new long[] {list, cx[0], cy[0]});
+			if (c.getData(BOXES_WATCHED) == null) {
+				c.setData(BOXES_WATCHED, Boolean.TRUE);
+				c.addListener(org.eclipse.swt.SWT.Paint, e -> {
+					if (boxesChanged(c))
+						c.getDisplay().asyncExec(() -> darkCheckBoxes(c));
+				});
+			}
+			int count = (Integer)w.os_.getMethod("ImageList_GetImageCount", long.class).invoke(null, list);
+			// as SWT fills the list: a table has empty, ticked, empty, mixed and the same four greyed; a tree has nothing, empty,
+			// ticked, empty, mixed
+			if (count != (table ? 8: 5))
+				return;
+			Method replace = w.os_.getMethod("ImageList_Replace", long.class, int.class, long.class, long.class);
+			org.eclipse.swt.graphics.RGB bg = c.getBackground().getRGB();
+			for (int index: table ? new int[] {0, 2, 4, 6}: new int[] {1, 3}) {
+				boolean greyed = table && (index >= 4);
+				long bitmap = w.box(cx[0], cy[0], colorRef(bg), greyed ? 0x00606060: 0x009A9A9A, colorRef(DarkTheme.fieldBackground.getRGB()));
+				if (bitmap != 0) {
+					replace.invoke(null, list, index, bitmap, 0L);
+					w.deleteObject_.invoke(null, bitmap);
+				}
+			}
+			c.redraw();
+		} catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
+			// as they are
+		}
+	}
+
+	private static final String BOXES_DONE = "dbgl.darkboxes", BOXES_WATCHED = "dbgl.darkboxes.watched";
+
+	/** the control has another list of boxes (or boxes of another size) than the one that was made dark */
+	private static boolean boxesChanged(Control c) {
+		WinSubclass w = get();
+		if ((w == null) || c.isDisposed() || !(c.getData(BOXES_DONE) instanceof long[] done))
+			return false;
+		try {
+			long list = (Long)w.os_.getMethod("SendMessage", long.class, int.class, long.class, long.class).invoke(null, handle(c),
+				c instanceof org.eclipse.swt.widgets.Table ? 0x1002: 0x1108, 2L, 0L);
+			if (list == 0)
+				return false;
+			int[] cx = new int[1], cy = new int[1];
+			w.os_.getMethod("ImageList_GetIconSize", long.class, int[].class, int[].class).invoke(null, list, cx, cy);
+			return (list != done[0]) || (cx[0] != done[1]) || (cy[0] != done[2]);
+		} catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
+			return false;
+		}
+	}
+
+	private static int colorRef(org.eclipse.swt.graphics.RGB rgb) {
+		return (rgb.blue << 16) | (rgb.green << 8) | rgb.red;
+	}
+
+	/** a bitmap with an empty box in its middle (the caller deletes it), 0 if it cannot be made */
+	private long box(int width, int height, int background, int border, int inner) throws ReflectiveOperationException {
+		Method getDC = os_.getMethod("GetDC", long.class), createDC = os_.getMethod("CreateCompatibleDC", long.class);
+		Method createBitmap = os_.getMethod("CreateCompatibleBitmap", long.class, int.class, int.class), select = os_.getMethod("SelectObject", long.class, long.class);
+		Method deleteDC = os_.getMethod("DeleteDC", long.class), setRect = os_.getMethod("SetRect", rect_, int.class, int.class, int.class, int.class);
+		long screen = (Long)getDC.invoke(null, 0L);
+		if (screen == 0)
+			return 0;
+		long dc = (Long)createDC.invoke(null, screen), bitmap = (Long)createBitmap.invoke(null, screen, width, height);
+		if ((dc != 0) && (bitmap != 0)) {
+			long old = (Long)select.invoke(null, dc, bitmap);
+			int size = Math.max(7, Math.round(Math.min(width, height) * 13 / 16f)), x = (width - size) / 2, y = (height - size) / 2;
+			int[][] rects = {{0, 0, width, height, background}, {x, y, x + size, y + size, border}, {x + 1, y + 1, x + size - 1, y + size - 1, inner}};
+			for (int[] r: rects) {
+				Object rect = rect_.getConstructor().newInstance();
+				setRect.invoke(null, rect, r[0], r[1], r[2], r[3]);
+				long brush = (Long)createBrush_.invoke(null, r[4]);
+				fillRect_.invoke(null, dc, rect, brush);
+				deleteObject_.invoke(null, brush);
+			}
+			select.invoke(null, dc, old);
+		}
+		if (dc != 0)
+			deleteDC.invoke(null, dc);
+		releaseDC_.invoke(null, 0L, screen);
+		return bitmap;
+	}
+
 	/** a one-line text field, or an editable drop-down: its text in the middle */
 	static void centerText(Control c) {
 		WinSubclass w = get();
@@ -107,6 +210,11 @@ final class WinSubclass {
 			if (c instanceof Combo) {
 				combo = hwnd;
 				hwnd = (Long)w.getWindow_.invoke(null, hwnd, 5 /* GW_CHILD: the edit field */);
+			} else if (c instanceof org.eclipse.swt.widgets.Spinner) {
+				// alpha 49: the field with the number is a window of its own next to the arrows
+				java.lang.reflect.Field text = org.eclipse.swt.widgets.Spinner.class.getDeclaredField("hwndText");
+				text.setAccessible(true);
+				hwnd = text.getLong(c);
 			}
 			if (hwnd == 0)
 				return;
@@ -196,8 +304,19 @@ final class WinSubclass {
 			if (e.comboHandle() != 0 && msg == WM_WINDOWPOSCHANGING && lParam != 0)
 				middleOfCombo(e, lParam);
 			long result = (Long)call_.invoke(null, e.oldProc(), hwnd, (int)msg, wParam, lParam);
-			if (e.ownerDraw())
+			if (e.ownerDraw()) {
+				// test 17: a button DBGL draws itself kept its look when it was enabled or disabled, until the mouse moved over it
+				// ("Next: preview" in "Check profiles" stayed dark). Windows draws such a button anew only when told to.
+				if ((msg == WM_ENABLE) || (msg == WM_SETTEXT) || (msg == BM_SETSTYLE)) {
+					Control c = e.control();
+					if ((c != null) && !c.isDisposed())
+						c.getDisplay().asyncExec(() -> {
+							if (!c.isDisposed())
+								c.redraw();
+						});
+				}
 				return result;
+			}
 			if (msg == WM_NCCALCSIZE && lParam != 0)
 				center(e, lParam);
 			else if (msg == WM_NCPAINT)

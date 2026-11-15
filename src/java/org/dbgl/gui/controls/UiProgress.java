@@ -72,6 +72,7 @@ public final class UiProgress implements AutoCloseable {
 		bar_.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
 		bar_.setMaximum(total_);
 		shell_.addListener(SWT.Close, e -> e.doit = false);
+		DarkTheme.window(shell_); // alpha 49: dark in the dark mode
 		shell_.pack();
 		org.eclipse.swt.graphics.Point size = shell_.getSize();
 		size.x = Math.max(size.x, 360);

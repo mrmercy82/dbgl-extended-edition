@@ -167,7 +167,9 @@ public final class DosboxInstaller {
 
 	/**
 	 * Unpack a .zip (in Java) or a .tar.xz/.tar.gz (with the tar of the system) into dir. Existing files are only replaced when
-	 * overwrite is true, and configuration files (*.conf) never: they may hold the user's settings.
+	 * overwrite is true, and configuration files (*.conf) never: they may hold the user's settings. Alpha 49: an archive that has
+	 * everything in one folder ("dosbox-staging-v0.83.0/...") is unpacked without that folder, so that DOSBox does not end up in
+	 * "dosbox-staging-0.83.0/dosbox-staging-v0.83.0".
 	 *
 	 * @return the number of existing files that were kept
 	 */
@@ -175,12 +177,24 @@ public final class DosboxInstaller {
 		File tmp = Files.createTempDirectory("dbgl-unpack").toFile();
 		try {
 			extract(archive, tmp);
-			return copyTree(tmp.toPath(), dir.toPath(), overwrite);
+			return copyTree(contentRoot(tmp).toPath(), dir.toPath(), overwrite);
 		} finally {
 			try (Stream<Path> files = Files.walk(tmp.toPath())) {
 				files.sorted(java.util.Comparator.reverseOrder()).map(Path::toFile).forEach(File::delete);
 			}
 		}
+	}
+
+	/** the folder the files of an unpacked archive are in: dir itself, or the one folder that is all it contains (also nested) */
+	static File contentRoot(File dir) {
+		File root = dir;
+		for (int depth = 0; depth < 3; depth++) {
+			File[] entries = root.listFiles();
+			if ((entries == null) || (entries.length != 1) || !entries[0].isDirectory())
+				break;
+			root = entries[0];
+		}
+		return root;
 	}
 
 	/** @return true if dir exists and contains anything */

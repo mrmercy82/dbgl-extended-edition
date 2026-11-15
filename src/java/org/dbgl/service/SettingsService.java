@@ -45,10 +45,10 @@ public class SettingsService {
 	public static final String LATEST_SUPPORTED_DOSBOX_RELEASE = SUPPORTED_DOSBOX_RELEASES.get(SUPPORTED_DOSBOX_RELEASES.size() - 1);
 
 	public static final DosboxFamily OFFICIAL_DOSBOX_FAM = new DosboxFamily("Official", SUPPORTED_DOSBOX_RELEASES);
-	public static final DosboxFamily SVN_DOSBOX_FAM = new DosboxFamily("DOSBox SVN", Arrays.asList("r4483"));
+	public static final DosboxFamily SVN_DOSBOX_FAM = new DosboxFamily("DOSBox SVN", Arrays.asList("r4483", "r4494")); // alpha 49: r4494, the same settings as r4483
 	public static final DosboxFamily DAUM_DOSBOX_FAM = new DosboxFamily("DOSBox Daum", Arrays.asList("2015.01.25"));
 	public static final DosboxFamily ECE_DOSBOX_FAM = new DosboxFamily("DOSBox ECE", Arrays.asList("r4482")); 
-	public static final DosboxFamily STAGING_DOSBOX_FAM = new DosboxFamily("DOSBox Staging", Arrays.asList("0.81.0", "0.81.1", "0.81.2", "0.82.0", "0.82.1", "0.82.2", "0.83.0"));
+	public static final DosboxFamily STAGING_DOSBOX_FAM = new DosboxFamily("DOSBox Staging", Arrays.asList("0.81.0", "0.81.1", "0.81.2", "0.82.0", "0.82.1", "0.82.2", "0.83.0", "0.83.1"));
 	public static final DosboxFamily DOSBOX_X_DOSBOX_FAM = new DosboxFamily("DOSBox-X", Arrays.asList("0.82.20", "2024.03.01", "2024.07.01", "2024.10.01", "2024.12.04", "2025.01.01", "2025.02.01",
 		"2025.05.03", "2025.10.07", "2025.12.01", "2026.01.02", "2026.03.29", "2026.05.02", "2026.06.02", "2026.07.02", "2026.08.02", "2026.08.31", "2026.10.01"));
 	
@@ -233,6 +233,8 @@ public class SettingsService {
 		settings_.setValue("gui", "differencesdialog_height", "460");
 		settings_.setValue("gui", "shortcutsdialog_width", "620"); // alpha 48
 		settings_.setValue("gui", "shortcutsdialog_height", "640");
+		settings_.setValue("gui", "compareversionsdialog_width", "900"); // alpha 49: two DOSBox versions compared (context menu of a DOSBox version)
+		settings_.setValue("gui", "compareversionsdialog_height", "640");
 		settings_.setValue("gui", "documentdialog_width", "780"); // alpha 48: changelog and what is new
 		settings_.setValue("gui", "documentdialog_height", "720");
 		settings_.setValue("gui", "textinputdialog_width", "480");
@@ -253,6 +255,8 @@ public class SettingsService {
 		// alpha 48
 		settings_.setValue("gui", "newimagedialog_width", "560");
 		settings_.setValue("gui", "newimagedialog_height", "300");
+		settings_.setValue("gui", "seriesdialog_width", "600"); // alpha 49
+		settings_.setValue("gui", "seriesdialog_height", "560");
 		settings_.setValue("gui", "deviationsdialog_width", "720");
 		settings_.setValue("gui", "deviationsdialog_height", "480");
 		settings_.setValue("gui", "controllerdialog_width", "820");
@@ -333,6 +337,10 @@ public class SettingsService {
 		settings_.setValue("gui", "column31width", "70");
 		settings_.setValue("gui", "column32width", "70");
 		settings_.setValue("gui", "column33width", "70");
+		settings_.setValue("gui", "column34width", "160"); // alpha 49: the game series
+		settings_.setValue("gui", "column35width", "90"); // alpha 49: the disk space of the game folder
+		for (int i = 1; i <= 35; i++)
+			settings_.setValue("gui", "column" + i + "align", "0"); // alpha 49: 0 as built, 1 left, 2 centred, 3 right
 		settings_.setValue("gui", "column1visible", true);
 		settings_.setValue("gui", "column2visible", true);
 		settings_.setValue("gui", "column3visible", true);
@@ -366,6 +374,8 @@ public class SettingsService {
 		settings_.setValue("gui", "column31visible", false);
 		settings_.setValue("gui", "column32visible", false);
 		settings_.setValue("gui", "column33visible", false);
+		settings_.setValue("gui", "column34visible", false);
+		settings_.setValue("gui", "column35visible", false);
 		settings_.setValue("gui", "column2_1width", "300");
 		settings_.setValue("gui", "column2_2width", "250");
 		settings_.setValue("gui", "column2_3width", "250");
@@ -392,6 +402,11 @@ public class SettingsService {
 		settings_.setValue("gui", "screenshotscolumnstretch", false);
 		settings_.setValue("gui", "screenshotscolumnkeepaspectratio", false);
 		settings_.setValue("gui", "screenshotsvisible", true);
+		// alpha 49: the screenshots below the profiles per view (0 as chosen with the button, 1 shown, 2 hidden), and what was chosen
+		settings_.setValue("gui", "screenshots_list", 0);
+		settings_.setValue("gui", "screenshots_tiles", 0);
+		settings_.setValue("gui", "screenshots_boxes", 0);
+		settings_.setValue("gui", "screenshotsmanual", "");
 		settings_.setValue("gui", "screenshotsmaxzoompercentage", "300");
 		settings_.setValue("gui", "screenshotsmaxwidth", "1920");
 		settings_.setValue("gui", "screenshotsmaxheight", "1440");
@@ -464,6 +479,8 @@ public class SettingsService {
 		settings_.setValue("checkprofiles", "dismissed", ""); // messages of "Check profiles" hidden for good: just these (keys, space separated)
 		settings_.setValue("checkprofiles", "dismissedkinds", ""); // ... and all of these kinds
 		settings_.setValue("checkprofiles", "previewfull", false); // the preview shows all of each file, not only what changes
+		settings_.setValue("gui", "oldfilesasked", false); // alpha 49: asked whether to put files of earlier versions in order
+		settings_.setValue("switchdosbox", "showinherited", false); // alpha 49: below each profile what it inherits from the new DOSBox version
 		settings_.setValue("switchdosbox", "sort", "name"); // the profiles in "Switch DOSBox version": by title or by profile ID
 		settings_.setValue("checkprofiles", "previewsort", "name"); // the games in the previews: by title ("name") or by profile ID ("id")
 		settings_.setValue("profile", "charsetkeepalways", false); // files in Windows-1252 (umlauts) kept so without asking (CharsetQuestion)
@@ -483,6 +500,13 @@ public class SettingsService {
 		settings_.setValue("gui", "viewsize_boxes", 1);
 		settings_.setValue("gui", "viewhintshown", false);
 		settings_.setValue("gui", "tvhintshown", false); // alpha 48: the TV mode told about once
+		settings_.setValue("gui", "updatehintshown", false); // alpha 49: the offer to turn the update check on was answered
+		settings_.setValue("gui", "javahintshown", ""); // alpha 49: the version of DBGL the hint about Java 21 was closed in
+		settings_.setValue("gui", "backupscolumnwidths", ""); // alpha 49: the window of the backups: its columns as the user left them
+		settings_.setValue("gui", "backupscolumnorder", "");
+		settings_.setValue("gui", "backupsautolock", ""); // alpha 49: the kinds of backups that are always locked
+		settings_.setValue("gui", "toolbarautoreset", false); // alpha 49: an order of the toolbar from before the automatic second row was reset
+		settings_.setValue("gui", "toolbarresethint", false); // alpha 49: the hint about that reset is still to be shown
 		settings_.setValue("gui", "toolbarlayout", ""); // alpha 48: the order of the toolbar buttons chosen by the user (empty: as built)
 		settings_.setValue("gui", "extrasexpand", "changed");
 		settings_.setValue("gui", "extrasexpandonextraspages", false);
@@ -490,7 +514,13 @@ public class SettingsService {
 		settings_.setValue("gui", "extrasexpandmax", 0); // alpha 48: groups with at most this many settings start open (0: off)
 		settings_.setValue("gui", "showplaytimeininfo", true); // alpha 48: play time below the notes on the Info page
 		settings_.setValue("gui", "showplaytimeinnotes", true); // alpha 48: play time below the notes of the main window
+		settings_.setValue("gui", "tvsort", "0"); // alpha 49: the order of the games in the TV mode (0: as in the list)
 		settings_.setValue("gui", "showplaytimeintv", true); // alpha 48: play time below the chosen game in the TV mode
+		// alpha 49: the disk space of the game folder in the same three places, before the play time
+		settings_.setValue("gui", "showdiskspaceininfo", true);
+		settings_.setValue("gui", "showdiskspaceinnotes", true);
+		settings_.setValue("gui", "showdiskspaceintv", true);
+		settings_.setValue("gui", "tvstacks", true); // alpha 49: the games of a series as one stack in the TV mode
 		settings_.setValue("dosbox", "ownsavestates", true); // alpha 48: DOSBox-X: the saved states of each game in its own folder
 		settings_.setValue("gui", "tvfilter", ""); // alpha 48: TV mode, the games shown and the last one chosen
 		settings_.setValue("gui", "tvlastprofile", "");

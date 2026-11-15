@@ -285,11 +285,16 @@ public abstract class SizeControlledPagedDialog<T> extends SizeControlledButtonD
 		TreeItem treeItem = parentItem == null ? new TreeItem(tree_, SWT.NONE): new TreeItem(parentItem, SWT.NONE);
 		treeItem.setData(key);
 		treeItem.setText(TextService.getInstance().get(key));
-		if (withImage) {
-			String name = key.substring(key.lastIndexOf('.') + 1);
-			// alpha 48: a dark icon (DOSBox) has a grey one for the dark mode
+		// alpha 49: every page has a symbol, also the pages below the main ones, all drawn in the style of the toolbar
+		// (alpha 48: one with lighter lines for the dark mode)
+		String name = key.substring(key.lastIndexOf('.') + 1);
+		if (withImage || (getClass().getResource("/img/bs/" + name + ".png") != null)) {
 			String img = "bs/" + name + (org.dbgl.gui.controls.DarkTheme.forced() && getClass().getResource("/img/bs/" + name + "_dark.png") != null ? "_dark": "") + ".png";
-			treeItem.setImage(ImageService.getResourceImage(getParent().getDisplay(), img));
+			org.eclipse.swt.graphics.Image image = ImageService.getResourceImage(getParent().getDisplay(), img);
+			if (image != null) {
+				treeItem.setImage(image);
+				treeItem.addDisposeListener(e -> image.dispose());
+			}
 		}
 		return treeItem;
 	}

@@ -78,6 +78,34 @@ public class SystemUtils {
 		}
 	}
 
+	/**
+	 * alpha 49: the folder of a file opened in the file manager with that file marked (Windows: Explorer, macOS: Finder);
+	 * where the file manager cannot be told so, or there is no such file, its folder is opened as before.
+	 */
+	public static void showInFolder(File file, Shell shell) {
+		File dir = (file != null) && file.isDirectory() ? file: file == null ? null: file.getParentFile();
+		if ((file != null) && file.exists()) {
+			String[] command = showInFolderCommand(file, IS_WINDOWS, IS_OSX);
+			if (command != null) {
+				try {
+					new ProcessBuilder(command).start();
+					return;
+				} catch (IOException | RuntimeException e) {
+					// the folder then
+				}
+			}
+		}
+		if ((dir != null) && dir.isDirectory())
+			openDirForViewing(dir, shell);
+	}
+
+	/** the command that opens the folder of a file with the file marked, or null where there is none */
+	public static String[] showInFolderCommand(File file, boolean windows, boolean osx) {
+		if (windows)
+			return new String[] {"explorer.exe", "/select," + file.getAbsolutePath()};
+		return osx ? new String[] {"open", "-R", file.getAbsolutePath()}: null;
+	}
+
 	public static void openDirForViewing(File file, Shell shell) {
 		file = new File(Strings.CS.appendIfMissing(file.getPath(), File.separator + "."));
 		try {

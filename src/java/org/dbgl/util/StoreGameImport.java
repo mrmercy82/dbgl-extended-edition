@@ -416,6 +416,42 @@ public final class StoreGameImport {
 	 * @return a new profile (not saved yet) for this game and DOSBox version: settings the DOSBox version does not know are left
 	 *         out, so that its own values count
 	 */
+	/** where DOSBox-X has what DOSBox SVN-Daum and DOSBox ECE keep elsewhere: {section, setting} there, {section, setting} in DOSBox-X */
+	static final String[][] TO_DOSBOX_X = {{"dosbox", "vmemsize", "video", "vmemsize"}, {"pci", "voodoo", "voodoo", "voodoo_card"}, {"glide", "lfb", "voodoo", "lfb"}};
+
+	/**
+	 * alpha 49: settings of a DOSBox SVN-Daum or DOSBox ECE configuration that DOSBox-X has under another name: the video
+	 * memory ([dosbox] vmemsize -> [video] vmemsize), the 3dfx card ([pci] voodoo -> [voodoo] voodoo_card) and the access to
+	 * its frame buffer ([glide] lfb -> [voodoo] lfb). Only what the game's configuration changed against the defaults of its
+	 * own DOSBox is taken, like the other settings: the rest is left to DOSBox-X. [glide] glide is not among them: "true" is
+	 * the default of Daum (it needs a Glide library on this computer), "emu" and "false" are what DOSBox-X does by default.
+	 *
+	 * @param header the first line of the configuration, which names the DOSBox it is of
+	 * @return "section|setting" in DOSBox-X and the value; empty for a configuration of another DOSBox
+	 */
+	public static Map<String, String> forDosboxX(String header, String conf) {
+		Map<String, String> result = new LinkedHashMap<>();
+		String list = ConfTakeover.listFor(header == null ? "": header);
+		if (!"dosbox-daum".equals(list) && !"dosbox-ece".equals(list))
+			return result;
+		Map<String, String> defaults = ConfTakeover.shipped(list), values = new java.util.HashMap<>();
+		String section = "";
+		for (String l: conf.split("\\r?\\n")) {
+			String t = l.trim();
+			int eq = t.indexOf('=');
+			if (t.startsWith("[") && t.endsWith("]"))
+				section = t.substring(1, t.length() - 1).trim().toLowerCase(Locale.ROOT);
+			else if ((eq > 0) && !t.startsWith("#") && !section.equals("autoexec"))
+				values.put(section + "|" + t.substring(0, eq).trim().toLowerCase(Locale.ROOT), t.substring(eq + 1).trim());
+		}
+		for (String[] m: TO_DOSBOX_X) {
+			String value = values.get(m[0] + "|" + m[1]), usual = defaults.get(m[0] + "\n" + m[1]);
+			if (StringUtils.isNotBlank(value) && ((usual == null) || java.util.Arrays.stream(usual.split(" \\|\\| ")).noneMatch(u -> ConfTakeover.same(u, value))))
+				result.put(m[2] + "|" + m[3], value.toLowerCase(Locale.ROOT));
+		}
+		return result;
+	}
+
 	public static Profile toProfile(Found f, DosboxVersion version, ITextService text) throws IOException {
 		Profile p = ProfileFactory.create(version, null);
 		p.setTitle(f.title());
@@ -441,6 +477,13 @@ public final class StoreGameImport {
 		// the settings are those of the DOSBox the game came with (mostly 0.74, Steam's X-COM 0.72): converted like when
 		// switching a profile (e.g. cycles -> cpu_cycles for Staging), settings the DOSBox version does not have are left out
 		p.alterToDosboxVersionGeneration(generationOf(f), version);
+		// alpha 49: what DOSBox-X keeps in another section than the DOSBox the game came with (video memory, 3dfx card)
+		if (org.dbgl.service.SettingsService.DOSBOX_X_DOSBOX_FAM.title_.equals(version.getFamily())) {
+			File last = f.confs().get(f.confs().size() - 1);
+			String header = read(last).lines().findFirst().orElse("");
+			for (Map.Entry<String, String> e: forDosboxX(header, prepared.conf()).entrySet())
+				p.getConfiguration().setValue(StringUtils.substringBefore(e.getKey(), "|"), StringUtils.substringAfter(e.getKey(), "|"), e.getValue());
+		}
 		// "-ide 2m" puts a CD on the IDE bus, for Windows 95 booted from a hard disk image; only DOSBox-X has that
 		if (!org.dbgl.service.SettingsService.DOSBOX_X_DOSBOX_FAM.title_.equals(version.getFamily()))
 			for (org.dbgl.model.conf.mount.Mount m: p.getConfiguration().getAutoexec().getMountingpoints())

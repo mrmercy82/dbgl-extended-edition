@@ -74,6 +74,16 @@ public class FileLocationService {
 	private static final String[] SHADER_EXTS = {"fx"};
 	private static final String XSL_EXT = "xsl";
 
+	/** alpha 49: the folder with the screenshots of all profiles */
+	public File getCapturesDir() {
+		return capturesDir_;
+	}
+
+	/** alpha 49: the folder exported lists go to by default */
+	public File getExportDir() {
+		return exportDir_;
+	}
+
 	private final File dataDir_, profilesDir_, templatesDir_, capturesDir_, dosrootDir_, exportDir_, xslDir_, dosboxDir_, tmpInstDir_, shadersDir_;
 
 	private FileLocationService() {

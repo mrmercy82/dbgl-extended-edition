@@ -216,6 +216,7 @@ public final class ProfileWarnings {
 
 	public static void forget(int profileId) {
 		CACHE.remove(profileId);
+		DiskUsage.forget(profileId); // alpha 49: changed or run: the size of its game folder is found again
 	}
 
 	/** all checked again (e.g. after something was hidden for good in "Check profiles") */

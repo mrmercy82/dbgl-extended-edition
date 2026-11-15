@@ -210,6 +210,7 @@ public final class UpdateBackupQuestion {
 		sizer.start();
 		showTotal.run();
 
+		DarkTheme.window(dlg); // alpha 49
 		dlg.pack();
 		Rectangle area = shell.getMonitor().getClientArea();
 		org.eclipse.swt.graphics.Point size = dlg.getSize();

@@ -260,7 +260,7 @@ public class DFendReloadedImportThread extends UIThread<File> {
 			String section = StringUtils.substringBeforeLast(k, "."), item = StringUtils.substringAfterLast(k, ".");
 			if (item.equalsIgnoreCase("captures") || item.equalsIgnoreCase("capture_dir"))
 				return; // DBGL keeps the captures itself
-			if ((defaults != null) && StringUtils.equalsIgnoreCase(StringUtils.trim(defaults.getValue(section, item)), StringUtils.trim(v)))
+			if ((defaults != null) && org.apache.commons.lang3.Strings.CI.equals(StringUtils.trim(defaults.getValue(section, item)), StringUtils.trim(v)))
 				return; // a default value, nothing lost
 			if (!after.containsKey(k) && !targetConf.hasValue(section, item) && !newValues.contains(v))
 				lost.add(item + "=" + v);

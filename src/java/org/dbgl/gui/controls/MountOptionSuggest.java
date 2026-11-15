@@ -175,6 +175,7 @@ public final class MountOptionSuggest {
 						accept();
 					}
 				});
+				DarkTheme.window(shell_); // alpha 49: the list dark in the dark mode
 			}
 			table_.removeAll();
 			org.dbgl.service.ITextService text = TextService.getInstance();
@@ -184,7 +185,7 @@ public final class MountOptionSuggest {
 			if (options.isEmpty()) {
 				TableItem none = new TableItem(table_, SWT.NONE);
 				none.setText(text.get("dialog.mount.opt.none"));
-				none.setForeground(field_.getDisplay().getSystemColor(SWT.COLOR_WIDGET_DARK_SHADOW));
+				none.setForeground(DarkTheme.forced() ? DarkTheme.dimForeground: field_.getDisplay().getSystemColor(SWT.COLOR_WIDGET_DARK_SHADOW));
 			} else {
 				table_.setSelection(0);
 			}

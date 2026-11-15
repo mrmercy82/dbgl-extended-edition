@@ -4,6 +4,120 @@ DBGL Extended Edition - Änderungen seit 0.100 beta 17
 Grundlage: DBGL 0.100 beta 17 von Ronald Blankendaal (https://dbgl.org), Quellcode.
 
 
+0.101 alpha 49 (2026-11-15)
+---------------------------
+Wichtig
+- Bald ist Java 21 nötig: Eine der nächsten Versionen von DBGL Extended
+  Edition benötigt Java 21 und startet mit einem älteren Java nicht mehr.
+  Läuft DBGL mit einem älteren Java, zeigt es ab jetzt beim Start einen
+  Hinweis. Java 21 gibt es z. B. als Eclipse Temurin:
+  https://adoptium.net/temurin/releases/?version=21
+- Bitte immer das ganze Update entpacken, nicht nur dbgl.jar: Es bringt
+  neue Bibliotheken im Ordner lib mit. Die Textdateien liegen jetzt im
+  Ordner "docs", die Anleitung heißt update-readme.txt. Findet DBGL nach
+  dem Update noch die alten Textdateien oder Diagnosedateien im
+  Hauptordner, fragt es einmal, ob es aufräumen soll, und nennt jede
+  Datei; andere Dateien werden nicht angefasst.
+
+Neu
+- DOSBox Staging 0.83.1 wird unterstützt. Dort gibt es den Wert "auto" für
+  "keyboard_layout", "country" und "language" nicht mehr (und "native" für
+  "locale_period"): "Profile prüfen" meldet solche Profile und entfernt
+  den Wert auf Wunsch, beim Umstellen auf 0.83.1 fällt er weg, die
+  Vorschau zeigt es. "innovation" hat drei Werte (off, on, entertainer).
+- DOSBox SVN r4494 steht in der Versionsliste.
+- Einstellungen aus einer anderen DOSBox-Konfiguration übernehmen (Reiter
+  "DOSBox-Versionen", Rechtsklick): DBGL vergleicht zwei
+  Konfigurationsdateien. Angehakt ist, was in der älteren Datei selbst
+  geändert wurde; ihre alten Standardwerte bleiben ohne Haken, damit neue
+  Standards erhalten bleiben. Auch die Befehle aus [autoexec] lassen sich
+  übernehmen. Vor dem Speichern zeigt eine Vorschau die Änderungen; die
+  Kommentare der Datei bleiben, vorher wird eine Kopie angelegt. Für
+  DOSBox Staging werden ältere Einstellungen umbenannt und umgerechnet
+  (z. B. "windowresolution" zu "window_size", "true" zu "on").
+- Profile auf eine andere DOSBox-Version umstellen:
+  - Ein Wert, der in der Profildatei steht und dem Standard der alten
+    Version gleicht, bleibt jetzt im Profil. Bisher ging er verloren,
+    wenn die neue Version dort einen anderen Wert hat.
+  - Die Vorschau zeigt oben, wo die neue Version andere Werte hat als die
+    alte; angehakt behalten die Profile den bisherigen Wert. Mit "Geerbte
+    Werte je Profil zeigen" steht das auch unter jedem Profil.
+  - Die Zielversion wird gewählt, nicht vorgeschlagen; bis dahin sind
+    "Vorschau" und "Umstellen" ausgegraut. Nach dem Umstellen sagt ein
+    Fenster, dass es abgeschlossen ist und wie es sich rückgängig machen
+    lässt.
+  - Auch im Profileditor kommt vor der Umstellung eine Vorschau.
+  - Reiter "DOSBox-Versionen", Rechtsklick > "Mit anderer Version
+    vergleichen" listet die Unterschiede zweier Konfigurationen.
+- Spielereihen: Ein Profil kann zu einer Reihe gehören (Felder "Reihe" und
+  "Teil", Spalte und Filter in der Profilliste). Profile >
+  "Spielereihen vorschlagen..." erkennt Reihen an den Titeln. Im TV-Modus
+  liegen die Spiele einer Reihe als Stapel. Die Reihe wird beim Export
+  und Import mitgenommen und von IGDB übernommen. Die Datenbank bleibt
+  für DBGL 0.100 beta 17 lesbar.
+- Schnellsuche (Lupe in der Symbolleiste oder F3): ein Feld über der
+  Liste, das beim Tippen filtert.
+- Neue Spalte "Speicherplatz" mit der Größe des Spielordners; die
+  Statistik nennt den Speicherplatz der Spiele, Bildschirmfotos und
+  Profildateien.
+- Datei > "Sicherungen verwalten...": alle Sicherungen von DBGL in einer
+  Liste, zum Sperren, Löschen und Wiederherstellen; "Ordner öffnen"
+  markiert die gewählte Sicherung im Dateimanager.
+- TV-Modus: Y/F öffnet ein Menü mit Favoriten, Sortierung und Genres. Die
+  Info-Seite zeigt Bildschirmfotos und blättert mit den Pfeiltasten zum
+  nächsten Spiel.
+- "DOSBox herunterladen": ein Fenster mit allen angebotenen Versionen und
+  dem Ordner, in dem die Dateien danach liegen.
+- "Profile prüfen": meldet Konfigurationsdateien im Profilordner ohne
+  Profil und verschiebt sie auf Wunsch in einen Unterordner. Meldet
+  Profile, die in DOSBox-X ein eigenes System starten (z. B. Windows 95),
+  ohne die Maus automatisch einzufangen, mit Lösung zum Anhaken.
+  Warnzeichen jetzt auch in der Kachel- und Boxenansicht.
+- Berichte und Vorschauen lassen sich überall als Text, als Webseite in
+  Farbe oder als PDF speichern; der Dateiname enthält Datum und Uhrzeit.
+- Menü DOSBox > "Protokoll des letzten DOSBox-Starts...".
+- Einstellungen: jede Option erklärt sich in einem Tooltip; Ausrichtung je
+  Spalte der Profilliste; Bildschirmfotos je Ansicht ein- oder ausblenden.
+- "GOG- und Steam-Spiele importieren": Aus einer Konfiguration von DOSBox
+  SVN-Daum oder DOSBox ECE kommen Videospeicher und 3dfx-Karte in ein
+  Profil für DOSBox-X mit.
+
+Verbessert
+- Einstellungen neu geordnet, "Farben" heißt "Themes".
+- Symbolleiste: Solange alles passt, stehen alle Knöpfe in einer Zeile; im
+  schmalen Fenster bricht sie in zwei Zeilen um. Damit das bei allen
+  wirkt, wird eine früher angepasste Reihenfolge einmalig auf den
+  Standard zurückgesetzt (ausgeblendete Knöpfe bleiben ausgeblendet).
+- Profileditor: eigenes Symbol für jede Seite im Baum; in der Titelleiste
+  steht die DOSBox-Version des Profils.
+- Fenster tragen das Symbol ihres Menüeintrags, auch alle Fenster von
+  "DOSBox herunterladen".
+- Dunkelmodus: Fortschrittsfenster und Rückfragen sind dunkel, farbige
+  Schrift in Vorschauen und Berichten ist lesbar; unter Windows sehen
+  Knöpfe, Zahlenfelder und Ankreuzkästchen in Listen richtig aus.
+- Profilliste exportieren: erst das Format wählen, dann speichern.
+- Hauptordner aufgeräumt: Zwischenspeicher in "cache", Diagnosedateien in
+  "logs".
+- Protokollfenster von DOSBox: Zeilen werden gesammelt verarbeitet statt
+  einzeln. Schreibt DOSBox mehrere tausend gleiche Zeilen auf einmal
+  (Windows 95 beim Herunterfahren in DOSBox-X), kann DBGL unter Windows
+  weiterhin einige Sekunden nicht reagieren; das folgt in alpha 50.
+
+Fehler behoben
+- "DOSBox herunterladen": Die Dateien landen direkt im gewählten Ordner,
+  nicht mehr in einem weiteren Unterordner.
+- Umstellen auf eine andere DOSBox-Version: Ein früher gemerkter Wert
+  wurde zum Wiederherstellen angeboten, obwohl die DOSBox-Version
+  dasselbe sagt ("ems=true" gegenüber "ems = on").
+- "Profile prüfen": Ein außerhalb von DBGL geändertes Profil bekommt sein
+  Warnzeichen gleich nach der Prüfung, nicht erst nach einem Neustart.
+
+Sicherheit und Pflege
+- Bibliothek JSON-java auf 20260814 aktualisiert (CVE-2026-59171), dazu
+  commons-lang3 3.22.0, commons-io 2.22.0, commons-text 1.15.0 und jsoup
+  1.23.2. Die ersetzten alten Fassungen löscht DBGL beim nächsten Start.
+
+
 0.101 alpha 48 (2026-11-14)
 ---------------------------
 Fehler behoben

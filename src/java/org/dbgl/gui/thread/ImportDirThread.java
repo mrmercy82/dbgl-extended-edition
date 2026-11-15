@@ -79,6 +79,7 @@ public class ImportDirThread extends UIThread<GameDirEntry> {
 			prof.setYear(entry.webProfile_.getYear());
 		if (settings_.getBooleanValue(engine_.getSimpleName(), "set_genre"))
 			prof.setGenre(entry.webProfile_.getGenre());
+		prof.adoptSeries(entry.webProfile_.getSeries(), entry.webProfile_.getTitle()); // alpha 49
 		if (settings_.getBooleanValue(engine_.getSimpleName(), "set_link")) {
 			Link[] links = new Link[Profile.NR_OF_LINK_TITLES];
 			for (int i = 0; i < Profile.NR_OF_LINK_TITLES; i++) {

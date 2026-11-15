@@ -178,7 +178,7 @@ public class ReplaceValuesDialog extends SizeControlledButtonDialog<Integer> {
 					unknown++;
 					continue;
 				}
-				if (matches(old, from.getText()) && !StringUtils.equals(old.trim(), to.getText().trim())) {
+				if (matches(old, from.getText()) && !org.apache.commons.lang3.Strings.CS.equals(old.trim(), to.getText().trim())) {
 					changes_.add(new Change(p, old));
 					TableItem ti = new TableItem(table, SWT.NONE);
 					ti.setText(new String[] {p.getTitle(), old, to.getText().trim()});

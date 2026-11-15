@@ -110,16 +110,42 @@ public final class ProfileReports {
 	 * What changes between two DOSBox versions: settings the newer one no longer has, settings that are new, and settings with
 	 * another default value. Both configurations must be loaded.
 	 */
+	/**
+	 * Test 18: the lines of a report in columns, so that names, values and arrows stand below each other (the reports are shown
+	 * in a font with letters of one width).
+	 *
+	 * @param rows the setting and its value ("[sdl] output", "opengl"), or the setting, its value before and after
+	 * @return "[sdl] output  = opengl", or "[sdl] output  opengl  ->  texture"; a very long name or value is not filled up
+	 */
+	public static List<String> aligned(List<String[]> rows) {
+		// test 18: "[sdl] output" as two columns, so that the names of the settings stand below each other too
+		java.util.regex.Pattern where = java.util.regex.Pattern.compile("^(\\[[^\\]]+\\]) (.+)$");
+		int section = rows.stream().map(r -> where.matcher(r[0])).filter(java.util.regex.Matcher::matches).mapToInt(m -> m.group(1).length()).filter(n -> n <= 24).max().orElse(0);
+		rows = rows.stream().map(r -> {
+			java.util.regex.Matcher m = where.matcher(r[0]);
+			String[] copy = r.clone();
+			if (m.matches())
+				copy[0] = StringUtils.rightPad(m.group(1), section) + " " + m.group(2);
+			return copy;
+		}).toList();
+		int name = rows.stream().mapToInt(r -> r[0].length()).filter(n -> n <= 60).max().orElse(0);
+		int value = rows.stream().filter(r -> r.length > 2).mapToInt(r -> r[1].length()).filter(n -> n <= 36).max().orElse(0);
+		List<String> result = new ArrayList<>();
+		for (String[] r: rows)
+			result.add(r.length > 2 ? StringUtils.rightPad(r[0], name) + "  " + StringUtils.rightPad(r[1], value) + "  ->  " + r[2]: StringUtils.rightPad(r[0], name) + "  = " + r[1]);
+		return result;
+	}
+
 	public static String compareVersions(Configuration from, String fromTitle, Configuration to, String toTitle, ITextService text) {
-		List<String> gone = new ArrayList<>(), added = new ArrayList<>(), changed = new ArrayList<>();
+		List<String[]> gone = new ArrayList<>(), added = new ArrayList<>(), changed = new ArrayList<>();
 		for (String s: from.getSectionNames()) {
 			if (s.equalsIgnoreCase("autoexec"))
 				continue;
 			for (String i: from.getItemNames(s)) {
 				if (!to.hasValue(s, i))
-					gone.add("[" + s + "] " + i + " = " + from.getValue(s, i));
+					gone.add(new String[] {"[" + s + "] " + i, StringUtils.defaultString(from.getValue(s, i))});
 				else if (!Objects.equals(StringUtils.strip(from.getValue(s, i)), StringUtils.strip(to.getValue(s, i))))
-					changed.add("[" + s + "] " + i + ": " + from.getValue(s, i) + "  ->  " + to.getValue(s, i));
+					changed.add(new String[] {"[" + s + "] " + i, StringUtils.defaultString(from.getValue(s, i)), StringUtils.defaultString(to.getValue(s, i))});
 			}
 		}
 		for (String s: to.getSectionNames()) {
@@ -127,14 +153,14 @@ public final class ProfileReports {
 				continue;
 			for (String i: to.getItemNames(s))
 				if (!from.hasValue(s, i))
-					added.add("[" + s + "] " + i + " = " + to.getValue(s, i));
+					added.add(new String[] {"[" + s + "] " + i, StringUtils.defaultString(to.getValue(s, i))});
 		}
 		String nl = System.lineSeparator();
 		StringBuilder sb = new StringBuilder(text.get("dialog.switchdosbox.compare.title", new Object[] {fromTitle, toTitle})).append(nl).append(nl);
 		Object[][] parts = {{"dialog.switchdosbox.compare.gone", gone}, {"dialog.switchdosbox.compare.added", added}, {"dialog.switchdosbox.compare.changed", changed}};
 		for (Object[] part: parts) {
 			@SuppressWarnings("unchecked")
-			List<String> lines = (List<String>)part[1];
+			List<String> lines = aligned((List<String[]>)part[1]);
 			Object[] args = part[0].equals("dialog.switchdosbox.compare.added") ? new Object[] {toTitle, lines.size()}: new Object[] {lines.size()};
 			sb.append(text.get((String)part[0], args)).append(nl);
 			lines.forEach(l -> sb.append("   ").append(l).append(nl));
@@ -203,6 +229,8 @@ public final class ProfileReports {
 		final List<Long> bars_ = new ArrayList<>();
 		boolean inSection_ = false;
 		boolean overview_ = false;
+		final List<String> sections_ = new ArrayList<>(); // alpha 49: for the links at the top that jump to the sections
+		static final String NAV_MARK = "<!--nav-->";
 
 		HtmlOut(String title, String lang) {
 			sb_.append("<!DOCTYPE html>\n<html lang=\"").append(html(lang)).append("\"><head><meta charset=\"utf-8\"><title>").append(html(title)).append("</title>\n");
@@ -210,9 +238,13 @@ public final class ProfileReports {
 					.append("h1{font-size:1.5em}h2{font-size:1.1em;margin-top:2em;border-bottom:1px solid #ccc;padding-bottom:4px}")
 					.append("table{border-collapse:collapse;width:100%}td{padding:2px 8px 2px 0;vertical-align:middle;white-space:nowrap}td.n{text-align:right;color:#555;width:1%}")
 					.append("td.l{white-space:normal}td.b{width:35%}div.bar{height:12px;background:#4a7fb5;border-radius:2px;min-width:1px}")
-					.append("ul.o{list-style:none;padding:0}ul.o li{padding:2px 0}footer{margin-top:3em;color:#888;font-size:.85em}")
+					.append("ul.o{list-style:none;padding:0}ul.o li{padding:2px 0}footer{margin-top:3em;color:#888;font-size:.85em}footer a{color:inherit}")
+					.append("nav{margin:1em 0;line-height:1.9}nav a{margin-right:1.2em;white-space:nowrap}h2 a.t{float:right;text-decoration:none;font-weight:normal;color:#888}")
+					// alpha 49: printed (or saved as PDF from the print window): no links to jump, the bars in colour, no row or heading torn apart
+					.append("@media print{body{max-width:none;margin:0;background:#fff;color:#000}nav,h2 a.t{display:none}tr{break-inside:avoid}h2{break-after:avoid}")
+					.append("div.bar{background:#4a7fb5;-webkit-print-color-adjust:exact;print-color-adjust:exact}td.n{color:#333}footer a{text-decoration:none}}")
 					.append("@media(prefers-color-scheme:dark){body{background:#1e1e1e;color:#ddd}td.n{color:#aaa}h2{border-color:#444}div.bar{background:#6f9fd8}}</style></head><body>\n");
-			sb_.append("<h1>").append(html(title)).append("</h1>\n");
+			sb_.append("<h1 id=\"top\">").append(html(title)).append("</h1>\n").append(NAV_MARK);
 		}
 
 		public void line(String line) {
@@ -260,7 +292,8 @@ public final class ProfileReports {
 
 		public void section(String title) {
 			flush();
-			sb_.append("<h2>").append(html(title)).append("</h2>\n");
+			sections_.add(title);
+			sb_.append("<h2 id=\"s").append(sections_.size()).append("\">").append(html(title)).append("<a class=\"t\" href=\"#top\" title=\"\u2191\">\u2191</a></h2>\n");
 			inSection_ = true;
 		}
 
@@ -281,9 +314,20 @@ public final class ProfileReports {
 			bars_.add(-1L);
 		}
 
-		String finish(String footer) {
+		/** @param url alpha 49: where the name at the bottom leads (the page of the Extended Edition) */
+		String finish(String footer, String url) {
 			flush();
-			sb_.append("<footer>").append(html(footer)).append("</footer>\n</body></html>\n");
+			sb_.append("<footer><a href=\"").append(html(url)).append("\">").append(html(footer)).append("</a></footer>\n</body></html>\n");
+			StringBuilder nav = new StringBuilder();
+			if (sections_.size() > 1) {
+				nav.append("<nav>");
+				for (int i = 0; i < sections_.size(); i++)
+					nav.append("<a href=\"#s").append(i + 1).append("\">").append(html(sections_.get(i))).append("</a> ");
+				nav.append("</nav>\n");
+			}
+			int at = sb_.indexOf(NAV_MARK);
+			if (at >= 0)
+				sb_.replace(at, at + NAV_MARK.length(), nav.toString());
 			return sb_.toString();
 		}
 	}
@@ -355,7 +399,7 @@ public final class ProfileReports {
 			java.util.Locale locale, java.util.Date now) {
 		HtmlOut out = new HtmlOut(text.get("dialog.statistics.title"), locale.getLanguage());
 		statistics(out, profiles, sessions, text, locale, now);
-		return out.finish("DBGL " + org.dbgl.constants.Constants.EDITION_NAME);
+		return out.finish("DBGL " + org.dbgl.constants.Constants.EDITION_NAME, org.dbgl.constants.Constants.EDITION_URL);
 	}
 
 	/** the same as a table for a spreadsheet (since alpha 45) */
@@ -366,12 +410,17 @@ public final class ProfileReports {
 		return out.toString();
 	}
 
+	/** alpha 49: lines shown right below the date of the report (the disk space; found by the window that asks for the report) */
+	public static volatile List<String> overviewExtra;
+
 	private static final int[] W9 = {9}, W22 = {22}, W9_22 = {9, 22}, W7_9 = {7, 9}, W7 = {7};
 
 	private static void statistics(Out out, List<Profile> profiles, List<org.dbgl.model.repository.ProfileRepository.PlaySession> sessions, ITextService text,
 			java.util.Locale locale, java.util.Date now) {
 		DateFormat df = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT, locale);
 		out.line(text.get("dialog.statistics.reportdate", new Object[] {df.format(now)}));
+		if (overviewExtra != null) // alpha 49: the disk space, at the very top
+			overviewExtra.forEach(out::line);
 		if (out instanceof TextOut)
 			out.line("");
 
@@ -645,5 +694,92 @@ public final class ProfileReports {
 			plan.unknown().forEach(l -> sb.append("   ").append(l).append(NL));
 		}
 		return sb.toString();
+	}
+
+	private static final String PAGE_STYLE = "body{background:#fff;color:#111;margin:16px}pre{font-family:Consolas,\"DejaVu Sans Mono\",monospace;font-size:13px;line-height:1.35;margin:0}"
+			+ ".del{color:#b00020}.add{color:#17731a}.same,.sec{color:#767676}.warn{color:#a35f00}.prof{font-weight:bold}";
+
+	private static StringBuilder pageStart(String title) {
+		return new StringBuilder("<!DOCTYPE html>\n<html><head><meta charset=\"utf-8\"><title>").append(escapeHtml(title)).append("</title>\n<style>").append(PAGE_STYLE)
+				.append("</style></head><body>\n<pre>");
+	}
+
+	/**
+	 * alpha 49: a report of lines as a page in colors, by how a line begins: "- " (gone) red, "+ " (new) green, "= " (kept),
+	 * "i " (for information), a section and a comment gray, "! " and "!! " (a warning) orange, "== " (a profile) bold.
+	 * Fixed colors on white, whatever the theme of DBGL: the page is read and printed elsewhere.
+	 */
+	public static String reportHtml(String report, String title) {
+		StringBuilder b = pageStart(title);
+		for (String line: report.replace("\r\n", "\n").replace('\r', '\n').split("\n", -1)) {
+			String t = line.trim();
+			String kind = t.startsWith("== ") ? "prof": t.startsWith("- ") ? "del": t.startsWith("+ ") ? "add": t.startsWith("= ") || t.startsWith("i  ") || t.startsWith("#") ? "same"
+					: t.startsWith("! ") || t.startsWith("!! ") ? "warn": (t.startsWith("[") && t.endsWith("]")) ? "sec": null;
+			if (kind == null)
+				b.append(escapeHtml(line));
+			else
+				b.append("<span class=\"").append(kind).append("\">").append(escapeHtml(line)).append("</span>");
+			b.append('\n');
+		}
+		return b.append("</pre>\n</body></html>\n").toString();
+	}
+
+	/**
+	 * alpha 49: the color for paper of a color of the window (which is lighter in the dark theme): by its hue one of the fixed
+	 * colors of the page - red, orange, green, blue-green, violet - or gray for a color without hue; null for none (r &lt; 0).
+	 */
+	public static String printColor(int r, int g, int b) {
+		if ((r < 0) || (g < 0) || (b < 0))
+			return null;
+		int max = Math.max(r, Math.max(g, b)), min = Math.min(r, Math.min(g, b));
+		if (max - min < 40)
+			return "#767676";
+		double d = max - min, hue = max == r ? ((g - b) / d) % 6: max == g ? (b - r) / d + 2: (r - g) / d + 4;
+		hue = (hue * 60 + 360) % 360;
+		return (hue < 20) || (hue >= 330) ? "#b00020": hue < 70 ? "#a35f00": hue < 165 ? "#17731a": hue < 265 ? "#0b6e75": "#6a3fa0";
+	}
+
+	/**
+	 * alpha 49: a text with the colors and weights it has in a window as a page: the parts of it that have a style, each
+	 * {start, length, red, green, blue (-1: no color), bold (1 or 0)}; the colors by {@link #printColor}, on white.
+	 */
+	public static String styledHtml(String text, List<int[]> ranges, String title) {
+		StringBuilder b = pageStart(title);
+		List<int[]> sorted = new ArrayList<>(ranges);
+		sorted.sort(java.util.Comparator.comparingInt(r -> r[0]));
+		int at = 0;
+		for (int[] r: sorted) {
+			int start = Math.max(at, Math.min(r[0], text.length())), end = Math.max(start, Math.min(r[0] + r[1], text.length()));
+			String color = printColor(r[2], r[3], r[4]);
+			boolean bold = r[5] != 0;
+			b.append(escapeHtml(plainLines(text.substring(at, start))));
+			if ((end > start) && ((color != null) || bold))
+				b.append("<span style=\"").append(color == null ? "": "color:" + color).append((color != null) && bold ? ";": "").append(bold ? "font-weight:bold": "").append("\">")
+						.append(escapeHtml(plainLines(text.substring(start, end)))).append("</span>");
+			else
+				b.append(escapeHtml(plainLines(text.substring(start, end))));
+			at = end;
+		}
+		b.append(escapeHtml(plainLines(text.substring(at))));
+		if ((b.length() > 0) && (b.charAt(b.length() - 1) != '\n'))
+			b.append('\n');
+		return b.append("</pre>\n</body></html>\n").toString();
+	}
+
+	private static String plainLines(String s) {
+		return s.replace("\r\n", "\n").replace('\r', '\n');
+	}
+
+	/**
+	 * alpha 49: a page that opens the print window of the browser when it is shown ("Save as PDF" there); the browser proposes
+	 * the title of the page as the name of the PDF file, so the title is that name (with date and time, like the other reports).
+	 */
+	public static String forPrinting(String html, String name) {
+		return html.replaceFirst("<title>[^<]*</title>", "<title>" + java.util.regex.Matcher.quoteReplacement(escapeHtml(name)) + "</title>").replace("</body>",
+			"<script>window.addEventListener('load',function(){window.print();});</script>\n</body>");
+	}
+
+	private static String escapeHtml(String s) {
+		return s == null ? "": s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;");
 	}
 }

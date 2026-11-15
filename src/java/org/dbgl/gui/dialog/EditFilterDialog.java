@@ -256,6 +256,11 @@ public class EditFilterDialog extends SizeControlledTabbedDialog<Filter> {
 						values.add(new TreeNodeItem(String.valueOf(p.getCustomStrings()[idx]), "GAM.CUSTOM" + c + "='" + p.getCustomStrings()[idx] + "'", "GAM.CUSTOM" + c));
 					}
 					break;
+				case 33: // alpha 49: the game series (profiles of one, whatever the part)
+					for (Profile p: profilesList_)
+						if (StringUtils.isNotBlank(p.getSeries()))
+							values.add(new TreeNodeItem(p.getSeries(), "GAM.ID IN (SELECT SER.GAME_ID FROM SERIES SER WHERE SER.NAME='" + p.getSeries().replace("'", "''") + "')", null));
+					break;
 				default:
 			}
 			for (TreeNodeItem v: values) {

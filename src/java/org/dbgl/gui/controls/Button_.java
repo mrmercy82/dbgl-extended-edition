@@ -134,6 +134,19 @@ public final class Button_ {
 							case DOC:
 								filterNames = new String[] {FilesUtils.ALL_FILTER};
 								filterExts = new String[] {FilesUtils.ALL_FILTER};
+								// alpha 49: saving (e.g. the list of profiles): the name that stands in the field is filled in, and its
+								// file type is the first one to choose
+								File named = new File(rawFilterPath);
+								if (builder.browseSave_ && !named.isDirectory() && !named.getName().isBlank()) {
+									String name = named.getName();
+									dialog.setFileName(name);
+									int dot = name.lastIndexOf('.');
+									if ((dot > 0) && (dot < name.length() - 1)) {
+										String type = "*" + name.substring(dot);
+										filterNames = new String[] {type, FilesUtils.ALL_FILTER};
+										filterExts = new String[] {type, FilesUtils.ALL_FILTER};
+									}
+								}
 								break;
 							case EXE:
 							case DOSBOXEXE:
@@ -204,6 +217,11 @@ public final class Button_ {
 							control.setText(result);
 							if ((builder.browseCanonicalType_ == CanonicalType.DOSBOX) && (altControl != null)) {
 								File confFile = new File(result, FileLocationService.DOSBOX_CONF_STRING);
+								// alpha 49: no dosbox.conf in the folder, but the file DOSBox-X or DOSBox Staging keeps there
+								if (!confFile.isFile())
+									for (String own: new String[] {"dosbox-x.conf", "dosbox-staging.conf"})
+										if (new File(result, own).isFile())
+											confFile = new File(result, own);
 								String confText = new FileLocation(confFile.getPath(), builder.canonicalizer_).getFile().getPath();
 								altControl.setText(confText);
 							} else if ((builder.browseCanonicalType_ == CanonicalType.CDIMAGE) && (combo != null) && (filenames != null)) {

@@ -107,7 +107,7 @@ public class GenerationAwareConfigurable extends Configurable {
 				return Generation.staging_0810;
 			else if (Strings.CS.equalsAny(ver, "0.82.0", "0.82.1", "0.82.2"))
 				return Generation.staging_0820;
-			else if (Strings.CS.equalsAny(ver, "0.83.0"))
+			else if (Strings.CS.equalsAny(ver, "0.83.0", "0.83.1")) // alpha 49: 0.83.1, a maintenance release (same settings)
 				return Generation.staging_0830;
 			// versions DBGL doesn't list (yet), e.g. bugfix releases: use the generation of the nearest known version
 			Matcher m = STAGING_VERSION_PATRN.matcher(StringUtils.defaultString(ver));

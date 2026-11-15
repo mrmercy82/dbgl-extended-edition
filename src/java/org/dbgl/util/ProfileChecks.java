@@ -67,11 +67,35 @@ public final class ProfileChecks {
 	 * (no effect, nothing instead), "manual" (replaced by a setting with other values: to be set by hand). Those that still
 	 * work ("windowresolution", "glshader", "cycles") are not listed.
 	 */
-	record OldSetting(String section, String item, String newSection, String newItem, String kind) {
+	public record OldSetting(String section, String item, String newSection, String newItem, String kind) {
 	}
 
 	/** a deprecated setting in a profile: what to do with it, and for a rename the value it gets (null: none) */
 	public record StagingChange(OldSetting old, String value, String newValue) {
+	}
+
+	/**
+	 * Alpha 49, for "Take over settings": what DOSBox Staging 0.83 made of an older setting.
+	 * 
+	 * @return the kind (see {@link OldSetting}), the section and the name of the setting that took its place (null: none) and
+	 *         the value that one gets for the given value (null: none, or to be set by hand); null for any other setting
+	 */
+	public static String[] stagingSuccessor(String section, String item, String value) {
+		for (OldSetting old: STAGING_083_DEPRECATED)
+			if (old.section().equalsIgnoreCase(section) && old.item().equalsIgnoreCase(item))
+				return new String[] {old.kind(), old.newSection(), old.newItem(), converted(old, StringUtils.defaultString(value).trim())};
+		return null;
+	}
+
+	/** the value the new setting gets for the value of the old one (null: none) */
+	private static String converted(OldSetting o, String value) {
+		return switch (o.kind()) {
+			case "rename" -> value;
+			case "disney" -> Boolean.parseBoolean(value) || value.equals("1") || value.equalsIgnoreCase("on") ? "disney": null;
+			// "builtin_dos_mouse_driver=true" is no value of DOSBox Staging 0.83 (found with DBConfWS, alpha 46)
+			case "onoff" -> Boolean.parseBoolean(value) || value.equals("1") || value.equalsIgnoreCase("on") || value.equalsIgnoreCase("yes") ? "on": "off";
+			default -> null;
+		};
 	}
 
 	static final List<OldSetting> STAGING_083_DEPRECATED = List.of(
@@ -107,16 +131,135 @@ public final class ProfileChecks {
 			if (!conf.hasValue(o.section(), o.item()) || ((dbConf != null) && dbConf.hasValue(o.section(), o.item())))
 				continue; // not in the profile, or the DOSBox version still has it in its configuration
 			String value = StringUtils.defaultString(conf.getValue(o.section(), o.item())).trim();
-			String newValue = switch (o.kind()) {
-				case "rename" -> value;
-				case "disney" -> Boolean.parseBoolean(value) || value.equals("1") || value.equalsIgnoreCase("on") ? "disney": null;
-				// "builtin_dos_mouse_driver=true" is no value of DOSBox Staging 0.83 (found with DBConfWS, alpha 46)
-				case "onoff" -> Boolean.parseBoolean(value) || value.equals("1") || value.equalsIgnoreCase("on") || value.equalsIgnoreCase("yes") ? "on": "off";
-				default -> null;
-			};
+			String newValue = converted(o, value);
+			// test 15: "keyboardlayout = auto" for 0.83.1: not renamed to "keyboard_layout = auto", a value that is gone there
+			if ((newValue != null) && staging0831(prof.getDosboxVersion()) && GONE_0831.stream()
+					.anyMatch(g -> g[0].equalsIgnoreCase(o.newSection()) && g[1].equalsIgnoreCase(o.newItem()) && g[2].equalsIgnoreCase(newValue))) {
+				result.add(new StagingChange(new OldSetting(o.section(), o.item(), null, null, "autogone"), value, null));
+				continue;
+			}
 			result.add(new StagingChange(o, value, newValue));
 		}
+		// alpha 49: DOSBox Staging 0.83.1 removed the value "auto" of keyboard_layout and country (it no longer guesses them from
+		// the host system): such a value goes, then what the configuration of the DOSBox version says counts
+		// (also "native" of locale_period: with the configuration of 0.83.1 at hand - it takes nothing from the host system now)
+		if (staging0831(prof.getDosboxVersion())) {
+			for (String[] gone: GONE_0831)
+				if (!gone[1].equals("language") && conf.hasValue(gone[0], gone[1]) && gone[2].equalsIgnoreCase(StringUtils.trimToEmpty(conf.getValue(gone[0], gone[1]))))
+					result.add(new StagingChange(new OldSetting(gone[0], gone[1], null, null, "autogone"), gone[2], null));
+		}
 		return result;
+	}
+
+	/** section, setting and the value DOSBox Staging 0.83.1 no longer has (language: never in a profile, only in its own file) */
+	static final List<String[]> GONE_0831 = List.of(new String[] {"dos", "keyboard_layout", "auto"}, new String[] {"dos", "country", "auto"},
+		new String[] {"dos", "locale_period", "native"}, new String[] {"dosbox", "language", "auto"});
+
+	/**
+	 * Test 16: a profile switched from DOSBox Staging 0.83.0 to 0.83.1 kept "keyboard_layout = auto", a value 0.83.1 no longer
+	 * knows (the preview said "no changes"). For a profile of 0.83.1 or newer such values go, also under their old names; then
+	 * what the configuration of the DOSBox version says counts.
+	 *
+	 * @return what was removed: the setting ("[dos] keyboard_layout") and its value
+	 */
+	public static List<String[]> removeGone0831(Profile prof) {
+		List<String[]> result = new ArrayList<>();
+		if (!staging0831(prof.getDosboxVersion()))
+			return result;
+		for (StagingChange ch: stagingChanges(prof))
+			if (ch.old().kind().equals("autogone") && applyStagingChange(prof, ch.old().section(), ch.old().item()))
+				result.add(new String[] {"[" + ch.old().section() + "] " + ch.old().item(), ch.value()});
+		return result;
+	}
+
+	/**
+	 * Test 16: "keyboard_layout = auto" written in the file of a profile of 0.83.0 is not among its settings in DBGL (the same
+	 * as in the configuration of 0.83.0, and DBGL keeps only what differs), so the preview of the switch to 0.83.1 said
+	 * nothing about it, though the line is gone from the file afterwards. What the file itself says, for the preview.
+	 *
+	 * @return the settings in the file with a value DOSBox Staging 0.83.1 no longer knows: the setting and its value; none if
+	 *         the DOSBox version is an older one
+	 */
+	public static List<String[]> gone0831InFile(File conf, DosboxVersion target) {
+		List<String[]> result = new ArrayList<>();
+		if (!staging0831(target) || (conf == null) || !conf.isFile())
+			return result;
+		try {
+			ProfileFindings.ConfText text = ProfileFindings.ConfText.of(new String(java.nio.file.Files.readAllBytes(conf.toPath()), java.nio.charset.StandardCharsets.ISO_8859_1));
+			List<String[]> all = new ArrayList<>(GONE_0831);
+			all.add(new String[] {"dos", "keyboardlayout", "auto"}); // the old name
+			for (String[] gone: all)
+				if (!gone[1].equals("language") && gone[2].equalsIgnoreCase(StringUtils.trimToEmpty(text.get(gone[0], gone[1]))))
+					result.add(new String[] {"[" + gone[0] + "] " + gone[1], gone[2]});
+		} catch (java.io.IOException e) {
+			// not readable: nothing to tell
+		}
+		return result;
+	}
+
+	/**
+	 * Test 17: a value written in the file of a profile that is the same as in the configuration of its DOSBox version is not
+	 * among the settings DBGL holds for the profile (it keeps only what differs). Switched to a DOSBox version of the same
+	 * kind that has another value there, the profile silently took that one ("memsize = 16" in the file, 16 in the old
+	 * version, 32 in the new one: 32 from then on). Such values are put back, so the game runs with what its file said.
+	 *
+	 * @param file     the file of the profile as it was before the switch
+	 * @param old      the DOSBox version before the switch
+	 * @param prof     the profile, switched to its new DOSBox version (of the same generation: across generations the
+	 *                 settings are converted, nothing is put back then)
+	 * @return what was put back: the setting ("[dosbox] memsize"), its value and the value of the new DOSBox version
+	 */
+	public static List<String[]> keepWrittenValues(File file, DosboxVersion old, Profile prof) {
+		List<String[]> result = new ArrayList<>();
+		DosboxVersion now = prof.getDosboxVersion();
+		if ((file == null) || !file.isFile() || (old == null) || (now == null) || (org.dbgl.model.entity.GenerationAwareConfigurable.determineGen(old) != org.dbgl.model.entity.GenerationAwareConfigurable.determineGen(now)) || prof.keepsAllSettings())
+			return result;
+		try {
+			String text = new String(java.nio.file.Files.readAllBytes(file.toPath()), java.nio.charset.StandardCharsets.ISO_8859_1);
+			Configuration conf = prof.getConfiguration(), oldConf = old.getConfiguration(), nowConf = now.getConfiguration();
+			for (String[] s: ConfTakeover.settings(text).values()) {
+				if (conf.hasValue(s[0], s[1]) || !oldConf.hasValue(s[0], s[1]) || !nowConf.hasValue(s[0], s[1]))
+					continue; // a setting of the profile as before, or one the DOSBox versions do not both have
+				String oldValue = StringUtils.trimToEmpty(oldConf.getValue(s[0], s[1])), nowValue = StringUtils.trimToEmpty(nowConf.getValue(s[0], s[1]));
+				if (!ConfTakeover.same(oldValue, s[2]) || ConfTakeover.same(nowValue, s[2]))
+					continue; // not left out for being the same as in the old version, or the same in the new one too
+				if (staging0831(now) && GONE_0831.stream().anyMatch(g -> g[0].equalsIgnoreCase(s[0]) && g[1].equalsIgnoreCase(s[1]) && g[2].equalsIgnoreCase(s[2])))
+					continue; // "auto": no value of 0.83.1
+				conf.setValue(s[0], s[1], s[2]);
+				result.add(new String[] {"[" + s[0] + "] " + s[1], s[2], nowValue});
+			}
+		} catch (java.io.IOException e) {
+			// not readable: as before
+		}
+		return result;
+	}
+
+	/** @return true for a value this DOSBox version no longer knows ("auto" for the keyboard layout of DOSBox Staging 0.83.1) */
+	public static boolean gone0831Value(DosboxVersion db, String section, String item, String value) {
+		return staging0831(db) && GONE_0831.stream().anyMatch(g -> g[0].equalsIgnoreCase(section) && g[1].equalsIgnoreCase(item) && g[2].equalsIgnoreCase(StringUtils.trimToEmpty(value)));
+	}
+
+	/** @return true for DOSBox Staging 0.83.1 and newer */
+	public static boolean staging0831(DosboxVersion db) {
+		if ((db == null) || !StringUtils.defaultString(db.getFamily()).toLowerCase(Locale.ROOT).contains("staging"))
+			return false;
+		if (atLeast0831(db.getVersion()))
+			return true;
+		// test 15: the version chosen in DBGL may lag behind (the DOSBox version of 0.83.0 pointed to the folder of 0.83.1):
+		// then what the configuration file says it was written by counts
+		File conf = db.getConfigurationCanonicalFile();
+		if ((conf == null) || !conf.isFile())
+			return false;
+		if (CONF_0831.size() > 50)
+			CONF_0831.clear();
+		return CONF_0831.computeIfAbsent(conf.getPath() + '|' + conf.lastModified() + '|' + conf.length(), k -> atLeast0831(DosboxVersionDetector.versionOfConf(conf)));
+	}
+
+	private static final java.util.Map<String, Boolean> CONF_0831 = new java.util.concurrent.ConcurrentHashMap<>();
+
+	private static boolean atLeast0831(String version) {
+		java.util.regex.Matcher m = Pattern.compile("^\\d+(?:\\.\\d+)*").matcher(StringUtils.trimToEmpty(version));
+		return m.find() && (DosboxUpdateChecker.compareVersions(m.group(), "0.83.1") >= 0);
 	}
 
 	/**
@@ -573,6 +716,7 @@ public final class ProfileChecks {
 			String kind = ch.old().kind().equals("disney") && (ch.newValue() == null) ? "removed": ch.old().kind(); // disney=false: nothing instead
 			switch (kind) {
 				case "removed" -> result.add(new Problem("removedsetting", old));
+				case "autogone" -> result.add(new Problem("autogone0831", old, ch.value()));
 				case "manual" -> result.add(new Problem("replacedsetting", old, "[" + ch.old().newSection() + "] " + ch.old().newItem()));
 				default -> result.add(new Problem("renamedsetting", old, "[" + ch.old().newSection() + "] " + ch.old().newItem() + (ch.newValue() == null ? "" : " = " + ch.newValue())));
 			}
@@ -1075,6 +1219,11 @@ public final class ProfileChecks {
 		boolean skipped = "overwrite".equalsIgnoreCase(StringUtils.trim(db.getConfiguration().getValue("dosbox", "autoexec_section")));
 		for (String line: runDosboxAutoexec(db, skipped).programs())
 			result.add(new Problem("dosboxconfprogram", db.getTitle(), db.getConfigurationCanonicalFile().getName(), line));
+		// alpha 49: a configuration kept from 0.83.0 for DOSBox Staging 0.83.1: "auto" is no value there any more
+		if (staging0831(db))
+			for (String[] gone: GONE_0831)
+				if (gone[2].equalsIgnoreCase(StringUtils.trimToEmpty(db.getConfiguration().getValue(gone[0], gone[1]))))
+					result.add(new Problem("dosboxconfauto0831", db.getTitle(), db.getConfigurationCanonicalFile().getName(), "[" + gone[0] + "] " + gone[1], gone[2]));
 		return result;
 	}
 
@@ -1481,5 +1630,82 @@ public final class ProfileChecks {
 				&& !"overwrite".equalsIgnoreCase(StringUtils.trim(db.getConfiguration().getValue("dosbox", "autoexec_section"))))
 			result.add(new Problem("dosboxconfexit", db.getTitle(), conf.getName()));
 		return result;
+	}
+
+	/** the folder inside the profile folder that files without a profile are moved to */
+	public static final String ORPHANS_DIR = "orphaned";
+	private static final Pattern OWN_CONF_NAME = Pattern.compile("\\d+\\.conf", Pattern.CASE_INSENSITIVE);
+
+	/**
+	 * alpha 49: configuration files in the profile folder that no profile uses any more (e.g. left over when a profile was
+	 * removed without its file, or from another database). Only files named as DBGL names them ("109.conf") and only those
+	 * directly in the folder: nothing else there is DBGL's to judge.
+	 *
+	 * @param used the configuration files of ALL profiles of the database
+	 * @return the files, by their number
+	 */
+	public static List<File> orphanConfs(File profilesDir, java.util.Collection<File> used) {
+		List<File> result = new ArrayList<>();
+		File[] files = profilesDir == null ? null: profilesDir.listFiles(f -> f.isFile() && OWN_CONF_NAME.matcher(f.getName()).matches());
+		if (files == null)
+			return result;
+		Set<String> taken = new java.util.HashSet<>();
+		for (File f: used)
+			if (f != null)
+				taken.add(canonicalOrAbsolute(f).getPath().toLowerCase(Locale.ROOT));
+		for (File f: files)
+			if (!taken.contains(canonicalOrAbsolute(f).getPath().toLowerCase(Locale.ROOT)))
+				result.add(f);
+		result.sort(java.util.Comparator.comparingLong((File f) -> Long.parseLong(StringUtils.substringBefore(f.getName(), "."))));
+		return result;
+	}
+
+	private static File canonicalOrAbsolute(File f) {
+		try {
+			return f.getCanonicalFile();
+		} catch (IOException e) {
+			return f.getAbsoluteFile();
+		}
+	}
+
+	/**
+	 * alpha 49: moves files without a profile into the folder ORPHANS_DIR of the profile folder; nothing is deleted, a file
+	 * of the same name already there keeps its place (the new one gets the time in its name).
+	 *
+	 * @return the files as they are now
+	 */
+	public static List<File> moveOrphans(List<File> files, File profilesDir) throws IOException {
+		File dir = new File(profilesDir, ORPHANS_DIR);
+		Files.createDirectories(dir.toPath());
+		List<File> moved = new ArrayList<>();
+		String stamp = new java.text.SimpleDateFormat("yyyyMMdd-HHmmss").format(new java.util.Date());
+		for (File f: files) {
+			File target = new File(dir, f.getName());
+			for (int n = 0; target.exists(); n++)
+				target = new File(dir, FilenameUtils.getBaseName(f.getName()) + "." + stamp + (n == 0 ? "": "-" + n) + ".conf");
+			Files.move(f.toPath(), target.toPath());
+			moved.add(target);
+		}
+		return moved;
+	}
+
+	private static final Pattern BOOT_LINE = Pattern.compile("(?i)@?boot(\\s.*)?");
+
+	/**
+	 * alpha 49: a profile for DOSBox-X that boots another system (Windows 95 from a hard disk image, a DOS from a floppy
+	 * image) while the mouse is not captured on its own: inside the booted system the mouse does not move until it is
+	 * captured (Ctrl+F10), since DOSBox-X by default passes it on only then (mouse_emulation=locked) and its "autolock" is off
+	 * by default. Not told when the mouse is passed on anyway (mouse_emulation always or integration).
+	 */
+	public static boolean bootWithoutMouseCapture(Profile prof) {
+		DosboxVersion db = prof.getDosboxVersion();
+		if ((db == null) || !org.dbgl.service.SettingsService.DOSBOX_X_DOSBOX_FAM.title_.equals(db.getFamily()))
+			return false;
+		Configuration conf = prof.getCombinedConfiguration();
+		String lock = StringUtils.trimToEmpty(conf.getValue("sdl", "autolock")).toLowerCase(Locale.ROOT);
+		String emulation = StringUtils.trimToEmpty(conf.getValue("sdl", "mouse_emulation")).toLowerCase(Locale.ROOT);
+		if (lock.equals("true") || lock.equals("on") || emulation.equals("always") || emulation.equals("integration"))
+			return false;
+		return prof.getConfiguration().getAutoexec().toString().lines().anyMatch(l -> BOOT_LINE.matcher(l.trim()).matches());
 	}
 }

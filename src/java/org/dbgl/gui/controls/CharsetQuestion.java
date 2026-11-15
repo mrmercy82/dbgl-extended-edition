@@ -149,6 +149,7 @@ public final class CharsetQuestion {
 		// "always keep" only goes with keeping (converting stays a choice made each time)
 		always.addListener(SWT.Selection, e -> convertButton.setEnabled(!always.getSelection()));
 
+		DarkTheme.window(dlg); // alpha 49
 		dlg.pack();
 		Rectangle area = shell.getMonitor().getClientArea();
 		org.eclipse.swt.graphics.Point size = dlg.getSize();

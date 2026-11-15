@@ -85,6 +85,65 @@ public final class EditionUpdater {
 		return (jar != null) && jar.getParentFile().canWrite() && jar.canWrite();
 	}
 
+	/** "json-20250517.jar" -> "json": the name of a library without its version; the name itself if it has none ("swtwin64.jar") */
+	static String libraryStem(String jarName) {
+		return jarName.replaceFirst("(?i)\\.jar$", "").replaceFirst("[-_][0-9].*$", "");
+	}
+
+	/**
+	 * Alpha 49: libraries an update replaced by a newer version under another name ("json-20250517.jar" by
+	 * "json-20260814.jar") stay in the lib folder, as an update only adds files.
+	 *
+	 * @param wanted the libraries dbgl.jar names in its manifest
+	 * @param present the .jar files in the lib folder
+	 * @return those of present that are an older or other version of a wanted one; never a library dbgl.jar does not know at all
+	 */
+	public static List<String> supersededLibraries(java.util.Collection<String> wanted, java.util.Collection<String> present) {
+		java.util.Set<String> stems = new java.util.HashSet<>();
+		for (String w: wanted)
+			if (!libraryStem(w).equals(w.replaceFirst("(?i)\\.jar$", "")))
+				stems.add(libraryStem(w).toLowerCase(Locale.ROOT)); // only libraries with a version in their name
+		List<String> result = new ArrayList<>();
+		for (String p: present)
+			if (p.toLowerCase(Locale.ROOT).endsWith(".jar") && !wanted.contains(p) && stems.contains(libraryStem(p).toLowerCase(Locale.ROOT)))
+				result.add(p);
+		java.util.Collections.sort(result);
+		return result;
+	}
+
+	/**
+	 * Alpha 49: delete the libraries in the lib folder that a newer version replaced (see supersededLibraries); they are not
+	 * loaded, so they can be deleted while DBGL runs. Only when started from a dbgl.jar whose libraries are all there.
+	 *
+	 * @return the names of the files deleted
+	 */
+	public static List<String> removeSupersededLibraries() {
+		List<String> removed = new ArrayList<>();
+		File jar = runningJar();
+		if (jar == null)
+			return removed;
+		try (java.util.jar.JarFile jf = new java.util.jar.JarFile(jar)) {
+			String classPath = jf.getManifest() == null ? null: jf.getManifest().getMainAttributes().getValue("Class-Path");
+			File lib = new File(jar.getParentFile(), "lib");
+			String[] present = lib.list();
+			if ((classPath == null) || (present == null))
+				return removed;
+			List<String> wanted = new ArrayList<>();
+			for (String entry: classPath.trim().split("\\s+"))
+				if (entry.startsWith("lib/") && entry.endsWith(".jar"))
+					wanted.add(entry.substring(4));
+			for (String name: supersededLibraries(wanted, List.of(present))) {
+				// the newer one must be there: never take away the only version
+				boolean newerThere = wanted.stream().anyMatch(w -> libraryStem(w).equalsIgnoreCase(libraryStem(name)) && new File(lib, w).isFile());
+				if (newerThere && new File(lib, name).delete())
+					removed.add(name);
+			}
+		} catch (IOException | RuntimeException e) {
+			e.printStackTrace();
+		}
+		return removed;
+	}
+
 	/** the folder for the downloads and the files to install */
 	public static File workDir() {
 		return new File(org.dbgl.service.FileLocationService.getInstance().getDataDir(), "update");

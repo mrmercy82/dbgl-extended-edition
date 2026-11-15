@@ -53,7 +53,7 @@ public final class Deviations {
 			for (String item: own.getItemNames(section)) {
 				String value = own.getValue(section, item);
 				String def = dosboxConf.getValue(section, item);
-				if (StringUtils.equals(value, def) || ExtraSettings.DBGL_MANAGED_SETTINGS.contains(section + '/' + item))
+				if (org.apache.commons.lang3.Strings.CS.equals(value, def) || ExtraSettings.DBGL_MANAGED_SETTINGS.contains(section + '/' + item))
 					continue;
 				result.add(new Entry(section, item, value, def));
 			}

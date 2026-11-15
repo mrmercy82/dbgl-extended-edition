@@ -119,6 +119,7 @@ public final class VersionBackup {
 			List<File> sorted = new ArrayList<>(Arrays.asList(all));
 			sorted.sort(Comparator.comparingLong(File::lastModified).reversed());
 			// and the oldest one: the data as it was before the first update (before alpha 46 it went after three updates)
+			sorted.removeIf(BackupCatalog::isLocked); // alpha 49: locked ones stay, and are not among those counted
 			for (int i = KEEP; i < sorted.size() - 1; i++)
 				Files.deleteIfExists(sorted.get(i).toPath());
 		}

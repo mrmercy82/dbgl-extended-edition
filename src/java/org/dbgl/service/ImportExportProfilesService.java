@@ -178,6 +178,17 @@ public class ImportExportProfilesService {
 
 			Profile profile = ProfileFactory.create(title, favorite, developer, publisher, genre, year, status, notes, customString, customInt, link, linkTitle, setup, setupParams, altExe,
 				altExeParams, nativeCommands, dosboxVersion, confFile);
+			// alpha 49: the game series, if the export has it (older DBGL versions neither write nor read these two)
+			String series = XmlUtils.getTextValue(metainfo, "series");
+			if (StringUtils.isNotBlank(series)) {
+				int part = 0;
+				try {
+					part = Integer.parseInt(java.util.Objects.toString(XmlUtils.getTextValue(metainfo, "series-part"), "0").trim());
+				} catch (NumberFormatException e) {
+					// no part then
+				}
+				profile.setSeries(series, part);
+			}
 			GamePackEntry impProfile = new GamePackEntry(id, profile, packageData, captures, mapperfile, gameDir, fullConfig, incrConfig);
 
 			packageData.getEntries().add(impProfile);
@@ -275,6 +286,11 @@ public class ImportExportProfilesService {
 		XmlUtils.addCDataElement(meta, "status", profile.getStatus());
 		XmlUtils.addElement(meta, "favorite", String.valueOf(profile.isFavorite()));
 		XmlUtils.addCDataElement(meta, "notes", XmlUtils.cleanEolnForXml(profile.getNotes()));
+		// alpha 49: the game series; only for profiles in one, so that other exports stay as they were
+		if (StringUtils.isNotBlank(profile.getSeries())) {
+			XmlUtils.addCDataElement(meta, "series", profile.getSeries());
+			XmlUtils.addElement(meta, "series-part", String.valueOf(profile.getSeriesPart()));
+		}
 		int fields = Profile.NR_OF_CUSTOM_STRING_DROPDOWNS + Profile.NR_OF_CUSTOM_STRING_FIELDS_1;
 		for (int i = 0; i < fields; i++) {
 			XmlUtils.addCDataElement(meta, "custom" + (i + 1), profile.getCustomStrings()[i]);

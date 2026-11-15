@@ -90,6 +90,13 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 
 	private static final int EDITABLE_COLUMN = 0;
 
+	/** alpha 49: opens the window that arranges the toolbar of the main window (given by it; null: no button for it) */
+	private static java.util.function.Consumer<Shell> toolbarCustomizer_;
+
+	public static void setToolbarCustomizer(java.util.function.Consumer<Shell> customizer) {
+		toolbarCustomizer_ = customizer;
+	}
+
 	private int lastOptionSelection = -1;
 	private final String[] columnNames_;
 
@@ -146,16 +153,18 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 
 		// alpha 48: settings of the profile editor
 		Group editorGroup = Group_.on(generalComposite).layout(new GridLayout(3, false)).key("dialog.settings.profileeditor").build();
+		// alpha 49: in this order: play time, manuals and extras, unsupported settings, then all about the groups of "More settings"
+		Button showDiskSpace = Chain.on(editorGroup).lbl(l -> l.key("dialog.settings.showdiskspaceininfo")).but(b -> b.horSpan(2).select(settings_.getBooleanValue("gui", "showdiskspaceininfo"))).button();
 		Button showPlayTime = Chain.on(editorGroup).lbl(l -> l.key("dialog.settings.showplaytimeininfo")).but(b -> b.horSpan(2).select(settings_.getBooleanValue("gui", "showplaytimeininfo"))).button();
-		Button hideUnsupported = Chain.on(editorGroup).lbl(l -> l.key("dialog.settings.hideunsupportedsettings")).but(b -> b.horSpan(2).select(settings_.getBooleanValue("gui", "hideunsupportedsettings"))).button();
 		Button findExtras = Chain.on(editorGroup).lbl(l -> l.key("dialog.settings.findextras")).but(b -> b.horSpan(2).tooltip("dialog.settings.findextras.tooltip")
 				.select(settings_.getBooleanValue(org.dbgl.util.ExtrasFinder.SECTION, org.dbgl.util.ExtrasFinder.ON_ADD))).button();
-		Spinner extrasExpandMax = Chain.on(editorGroup).lbl(l -> l.key("dialog.settings.extrasexpandmax")).spn(s -> s.min(0).max(99).tooltip("dialog.settings.extrasexpandmax.tooltip").select(settings_.getIntValue("gui", "extrasexpandmax"))).lbl(l -> l.key("dialog.settings.extrasexpandmax.unit")).spinner();
+		Button hideUnsupported = Chain.on(editorGroup).lbl(l -> l.key("dialog.settings.hideunsupportedsettings")).but(b -> b.horSpan(2).select(settings_.getBooleanValue("gui", "hideunsupportedsettings"))).button();
 		String[] expandModes = {"collapsed", "always", "changed"};
 		Combo extrasExpand = Chain.on(editorGroup).lbl(l -> l.key("dialog.settings.extrasexpand")).cmb(c -> c.horSpan(2).items(new String[] {text_.get("dialog.settings.extrasexpand.collapsed"),
 			text_.get("dialog.settings.extrasexpand.always"), text_.get("dialog.settings.extrasexpand.changed")}).select(Math.max(0, Arrays.asList(expandModes).indexOf(settings_.getValue("gui", "extrasexpand"))))).combo();
-		Button extrasCount = Chain.on(editorGroup).lbl(l -> l.key("dialog.settings.extrascountchanges")).but(b -> b.horSpan(2).select(settings_.getBooleanValue("gui", "extrascountchanges"))).button();
+		Spinner extrasExpandMax = Chain.on(editorGroup).lbl(l -> l.key("dialog.settings.extrasexpandmax")).spn(s -> s.min(0).max(99).tooltip("dialog.settings.extrasexpandmax.tooltip").select(settings_.getIntValue("gui", "extrasexpandmax"))).lbl(l -> l.key("dialog.settings.extrasexpandmax.unit")).spinner();
 		Button extrasOnExtrasPages = Chain.on(editorGroup).lbl(l -> l.key("dialog.settings.extrasexpandonextraspages")).but(b -> b.horSpan(2).tooltip("dialog.settings.extrasexpandonextraspages.tooltip").select(settings_.getBooleanValue("gui", "extrasexpandonextraspages"))).button();
+		Button extrasCount = Chain.on(editorGroup).lbl(l -> l.key("dialog.settings.extrascountchanges")).but(b -> b.horSpan(2).select(settings_.getBooleanValue("gui", "extrascountchanges"))).button();
 		java.util.List<WebSearchEngine> engines = SettingsService.availableWebSearchEngines();
 		WebSearchEngine currentEngine = WebSearchEngine.getBySimpleName(settings_.getValue("gui", "searchengine"));
 		Combo defaultEngine = Chain.on(editorGroup).lbl(l -> l.key("dialog.settings.defaultsearchengine")).cmb(c -> c.horSpan(2).tooltip("dialog.settings.defaultsearchengine.tooltip")
@@ -193,11 +202,23 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 		boolean allSettingsBefore = org.dbgl.util.FullConfProfiles.enabled();
 		Button allSettings = Chain.on(profileDefGroup).lbl(l -> l.key("dialog.settings.allsettings.new")).but(b -> b.horSpan(2).select(allSettingsBefore)).button();
 		org.eclipse.swt.widgets.Label allSettingsWarning = new org.eclipse.swt.widgets.Label(profileDefGroup, SWT.WRAP);
-		GridData warningData = new GridData(SWT.BEGINNING, SWT.BEGINNING, false, false, 3, 1);
-		warningData.widthHint = 640;
+		GridData warningData = new GridData(SWT.FILL, SWT.BEGINNING, true, false, 3, 1);
+		warningData.widthHint = 300; // alpha 49: as wide as the window lets it be, wrapped to that width
 		allSettingsWarning.setLayoutData(warningData);
 		allSettingsWarning.setText(text_.get("dialog.settings.allsettings.warning"));
-		allSettingsWarning.setForeground(shell_.getDisplay().getSystemColor(SWT.COLOR_DARK_RED));
+		allSettingsWarning.setForeground(org.dbgl.gui.controls.DarkTheme.textColor(shell_.getDisplay(), SWT.COLOR_DARK_RED));
+		// the height a wrapped text needs depends on its width: taken from the group whenever that changes
+		profileDefGroup.addListener(SWT.Resize, e -> {
+			int width = profileDefGroup.getClientArea().width - 16;
+			if ((width > 100) && (Math.abs(warningData.widthHint - width) > 4)) {
+				warningData.widthHint = width;
+				profileDefGroup.getParent().layout(true, true);
+			}
+		});
+
+		// alpha 49: the automatic backup right below the automatic updates, "Send to" at the very bottom
+		backupGroup.moveBelow(updatesGroup);
+		sendToGroup.moveBelow(profileDefGroup);
 
 		// alpha 48: all groups of this tab as wide as the widest
 		for (org.eclipse.swt.widgets.Control c: generalComposite.getChildren())
@@ -214,12 +235,32 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 		Table visibleColumnsTable = Table_.on(visColumnsGroup).check().build();
 		TableColumn column1 = new TableColumn(visibleColumnsTable, SWT.NONE);
 		column1.setWidth(350);
+		// alpha 49: how the text stands in each column of the profile list; a click changes it
+		column1.setText(text_.get("dialog.settings.columnname"));
+		TableColumn column2 = new TableColumn(visibleColumnsTable, SWT.NONE);
+		column2.setWidth(240);
+		column2.setText(text_.get("dialog.settings.columnalign"));
+		visibleColumnsTable.setHeaderVisible(true);
+		String[] alignNames = {text_.get("dialog.settings.columnalign.default"), text_.get("dialog.settings.columnalign.left"), text_.get("dialog.settings.columnalign.center"),
+				text_.get("dialog.settings.columnalign.right")};
+		int[] aligns = new int[columnNames_.length];
 		TableItem[] visibleColumns = new TableItem[columnNames_.length];
 		for (int i = 0; i < columnNames_.length; i++) {
 			visibleColumns[i] = new TableItem(visibleColumnsTable, SWT.BORDER);
 			visibleColumns[i].setText(columnNames_[allColumnIds.get(i)]);
 			visibleColumns[i].setChecked(settings_.getBooleanValue("gui", "column" + (allColumnIds.get(i) + 1) + "visible"));
+			aligns[i] = Math.max(0, Math.min(3, settings_.getIntValue("gui", "column" + (allColumnIds.get(i) + 1) + "align")));
+			visibleColumns[i].setText(1, alignNames[aligns[i]]);
 		}
+		visibleColumnsTable.addListener(SWT.MouseDown, e -> {
+			for (int i = 0; i < visibleColumns.length; i++) {
+				if (visibleColumns[i].getBounds(1).contains(e.x, e.y)) {
+					aligns[i] = (aligns[i] + 1) % alignNames.length;
+					visibleColumns[i].setText(1, alignNames[aligns[i]]);
+					break;
+				}
+			}
+		});
 
 		TableEditor editor = new TableEditor(visibleColumnsTable);
 		editor.horizontalAlignment = SWT.LEFT;
@@ -295,9 +336,27 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 
 		// alpha 48: what the list of profiles and the area below it show
 		Group overviewGroup = Group_.on(guiComposite).layout(new GridLayout(2, false)).layoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 4, 1)).key("dialog.settings.profileoverview").build();
+		Button showDiskSpaceInNotes = Chain.on(overviewGroup).lbl(l -> l.key("dialog.settings.showdiskspaceinnotes")).but(b -> b.select(settings_.getBooleanValue("gui", "showdiskspaceinnotes"))).button();
 		Button showPlayTimeInNotes = Chain.on(overviewGroup).lbl(l -> l.key("dialog.settings.showplaytimeinnotes")).but(b -> b.select(settings_.getBooleanValue("gui", "showplaytimeinnotes"))).button();
 		Button profileHints = Chain.on(overviewGroup).lbl(l -> l.key("dialog.settings.profilehints")).but(b -> b.tooltip("dialog.settings.profilehints.tooltip").select(settings_.getBooleanValue("gui", "profilehints"))).button();
 		Button profileWarnings = Chain.on(overviewGroup).lbl(l -> l.key("dialog.settings.profilewarnings")).but(b -> b.tooltip("dialog.settings.profilewarnings.tooltip").select(settings_.getBooleanValue("gui", "profilewarnings"))).button();
+		// alpha 49: the screenshots below the profiles, per view: as chosen with the button in the toolbar, always shown, always hidden
+		String[] shotRules = {text_.get("dialog.settings.screenshots.asis"), text_.get("dialog.settings.screenshots.show"), text_.get("dialog.settings.screenshots.hide")};
+		String[] shotKeys = {"screenshots_list", "screenshots_tiles", "screenshots_boxes"};
+		Combo[] shotCombos = new Combo[3];
+		for (int i = 0; i < 3; i++) {
+			String shotLabel = "dialog.settings.screenshots." + new String[] {"list", "tiles", "boxes"}[i];
+			shotCombos[i] = Chain.on(overviewGroup).lbl(l -> l.key(shotLabel)).cmb(c -> c.items(shotRules)).combo();
+			shotCombos[i].select(Math.max(0, Math.min(2, settings_.getIntValue("gui", shotKeys[i]))));
+		}
+		// alpha 49: the window that arranges the toolbar (else only in the menu of a right click on the toolbar)
+		if (toolbarCustomizer_ != null) {
+			Button customize = new Button(overviewGroup, SWT.PUSH);
+			customize.setText(text_.get("dialog.main.tb.customize"));
+			customize.setToolTipText(text_.get("dialog.settings.tip.customizetoolbar"));
+			customize.setLayoutData(new GridData(SWT.BEGINNING, SWT.CENTER, false, false, 2, 1));
+			customize.addListener(SWT.Selection, e -> toolbarCustomizer_.accept(shell_));
+		}
 
 		// alpha 48: the TV mode: where its key hints are, the names and colours of the four buttons of the controller
 		Group tvGroup = Group_.on(guiComposite).layout(new GridLayout(6, false)).layoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 4, 1)).key("dialog.settings.tv").build();
@@ -353,6 +412,13 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 				}
 			});
 		}
+		// alpha 49: the disk space of the chosen game
+		Label tvDiskLabel = new Label(tvGroup, SWT.NONE);
+		tvDiskLabel.setText(TextService.getInstance().get("dialog.settings.tv.diskspace"));
+		tvDiskLabel.setLayoutData(new GridData(SWT.BEGINNING, SWT.CENTER, false, false, 3, 1));
+		Button tvDiskSpace = new Button(tvGroup, SWT.CHECK);
+		tvDiskSpace.setSelection(settings_.getBooleanValue("gui", "showdiskspaceintv"));
+		tvDiskSpace.setLayoutData(new GridData(SWT.BEGINNING, SWT.CENTER, false, false, 3, 1));
 		// alpha 48: the play time below the chosen game
 		Label tvPlayLabel = new Label(tvGroup, SWT.NONE);
 		tvPlayLabel.setText(TextService.getInstance().get("dialog.settings.tv.playtime"));
@@ -360,6 +426,13 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 		Button tvPlayTime = new Button(tvGroup, SWT.CHECK);
 		tvPlayTime.setSelection(settings_.getBooleanValue("gui", "showplaytimeintv"));
 		tvPlayTime.setLayoutData(new GridData(SWT.BEGINNING, SWT.CENTER, false, false, 3, 1));
+		// alpha 49: the games of a series as one stack
+		Label tvStacksLabel = new Label(tvGroup, SWT.NONE);
+		tvStacksLabel.setText(TextService.getInstance().get("dialog.settings.tv.stacks"));
+		tvStacksLabel.setLayoutData(new GridData(SWT.BEGINNING, SWT.CENTER, false, false, 3, 1));
+		Button tvStacks = new Button(tvGroup, SWT.CHECK);
+		tvStacks.setSelection(settings_.getBooleanValue("gui", "tvstacks"));
+		tvStacks.setLayoutData(new GridData(SWT.BEGINNING, SWT.CENTER, false, false, 3, 1));
 
 		Font notesFont = stringToFont(shell_.getDisplay(), settings_.getValues("gui", "notesfont"), port.getFont());
 
@@ -445,12 +518,15 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 		ownFrames.setToolTipText(TextService.getInstance().get("dialog.settings.theme.ownframes.tooltip"));
 		ownFrames.setSelection(settings_.getBooleanValue("gui", "darkownframes"));
 		ownFrames.setLayoutData(new GridData(SWT.BEGINNING, SWT.CENTER, false, false, 2, 1));
-		ownFrames.setEnabled(org.dbgl.util.SystemUtils.IS_WINDOWS);
+		// alpha 49: only the dark mode uses them (dark, or as the system: that may be dark)
+		Runnable ownFramesState = () -> ownFrames.setEnabled(org.dbgl.util.SystemUtils.IS_WINDOWS && ((themeSelector.getSelectionIndex() == 1) || (themeSelector.getSelectionIndex() == 2)));
+		ownFramesState.run();
+		themeSelector.addListener(SWT.Selection, e -> ownFramesState.run());
 
 		// alpha 48: the row of small groups right below the profile overview, the screenshots after them
 		for (Group g: new Group[] {buttonsGroup, linkingGroup, notesGroup, themeGroup})
 			g.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false)); // the same height in their row
-		buttonsGroup.moveBelow(tvGroup);
+		buttonsGroup.moveAbove(overviewGroup); // alpha 49: controls, links, information and colours at the very top
 		linkingGroup.moveBelow(buttonsGroup);
 		notesGroup.moveBelow(linkingGroup);
 		themeGroup.moveBelow(notesGroup);
@@ -565,6 +641,7 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 		Composite envComposite = createTabWithComposite("dialog.settings.tab.environment", new GridLayout());
 		moveTabToFront(guiComposite);
 		moveTabToFront(generalComposite); // alpha 48: General first, then GUI
+		moveTab(enginesComposite, 3); // test 15: the game databases after the profile overview
 
 		Group envGroup = Group_.on(envComposite).layoutData(new GridData(SWT.FILL, SWT.FILL, true, true)).layout(new GridLayout(2, false)).key("dialog.settings.environment").build();
 		Button enableEnv = Chain.on(envGroup).lbl(l -> l.key("dialog.settings.enableenvironment")).but(b -> b.select(settings_.getBooleanValue("environment", "use"))).button();
@@ -577,6 +654,9 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 				envValues.setEnabled(enableEnv.getSelection());
 			}
 		});
+
+		// alpha 49: every option tells in a tooltip what it does
+		applyTips(shell_, tips());
 
 		createOkCancelButtons(new SelectionAdapter() {
 			@Override
@@ -636,7 +716,12 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 				settings_.setBooleanValue("gui", "extrasexpandonextraspages", extrasOnExtrasPages.getSelection());
 				settings_.setBooleanValue("gui", "extrascountchanges", extrasCount.getSelection());
 				settings_.setBooleanValue("gui", "showplaytimeininfo", showPlayTime.getSelection());
+				settings_.setBooleanValue("gui", "showdiskspaceininfo", showDiskSpace.getSelection());
+				settings_.setBooleanValue("gui", "showdiskspaceinnotes", showDiskSpaceInNotes.getSelection());
+				settings_.setBooleanValue("gui", "showdiskspaceintv", tvDiskSpace.getSelection());
 				settings_.setBooleanValue("gui", "showplaytimeinnotes", showPlayTimeInNotes.getSelection());
+				for (int i = 0; i < 3; i++)
+					settings_.setIntValue("gui", shotKeys[i], Math.max(0, shotCombos[i].getSelectionIndex()));
 				settings_.setIntValue("gui", "extrasexpandmax", extrasExpandMax.getSelection());
 				if (defaultEngine.getSelectionIndex() >= 0)
 					settings_.setValue("gui", "searchengine", engines.get(defaultEngine.getSelectionIndex()).getSimpleName());
@@ -652,6 +737,7 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 					changeAllSettings(allSettings.getSelection());
 				for (int i = 0; i < columnNames_.length; i++) {
 					settings_.setBooleanValue("gui", "column" + (i + 1) + "visible", visibleColumns[allColumnIds.indexOf(i)].getChecked());
+					settings_.setIntValue("gui", "column" + (i + 1) + "align", aligns[allColumnIds.indexOf(i)]);
 				}
 				settings_.setBooleanValue("gui", "autosortonupdate", autosort.getSelection());
 				for (int i = 0; i < Constants.EDIT_COLUMN_NAMES_1; i++) {
@@ -676,6 +762,7 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 				settings_.setBooleanValue("gui", "darkownframes", ownFrames.getSelection());
 				settings_.setIntValue("gui", "tvhints", tvHints.getSelectionIndex());
 				settings_.setBooleanValue("gui", "showplaytimeintv", tvPlayTime.getSelection());
+				settings_.setBooleanValue("gui", "tvstacks", tvStacks.getSelection());
 				for (int i = 0; i < 4; i++) {
 					String label = tvLabels[i].getText().strip();
 					settings_.setValue("gui", "tvbutton" + (i + 1), label.isEmpty() ? org.dbgl.gui.tv.TvMode.DEFAULT_BUTTONS[i]: label);
@@ -749,6 +836,7 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 			private boolean haveColumnsBeenChanged() {
 				for (int i = 0; i < columnNames_.length; i++)
 					if ((settings_.getBooleanValue("gui", "column" + (allColumnIds.get(i) + 1) + "visible") != visibleColumns[i].getChecked())
+							|| (settings_.getIntValue("gui", "column" + (allColumnIds.get(i) + 1) + "align") != aligns[i])
 							|| !columnNames_[allColumnIds.get(i)].equals(visibleColumns[i].getText()))
 						return true;
 				return false;
@@ -864,6 +952,73 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 
 	/** alpha 48: this tab first (at the left); the one shown at first stays the same */
 	/** alpha 48: the labels in the first column of the groups as wide as the widest, so their controls stand in one column */
+	/** alpha 49: the options that had no tooltip: the key of the label and the tooltip that explains it */
+	private static final String[][] TIPS = {{"languagecountry", "language"}, {"edition.prereleases2", "prereleases"}, {"hidestatuswindow", "hidestatuswindow"},
+			{"detectfailedstart", "detectfailedstart"}, {"checkversionsatstartup", "checkversions"}, {"checkbeforestart", "checkbeforestart"}, {"unknownlines.mode", "unknownlines"},
+			{"showplaytimeininfo", "playtimeininfo"}, {"hideunsupportedsettings", "hideunsupported"}, {"extrasexpand", "extrasexpand"}, {"extrascountchanges", "extrascount"},
+			{"autobackup.when", "autobackupwhen"}, {"autobackup.keep", "autobackupkeep"}, {"enableport", "enableport"}, {"port", "port"}, {"configfile", "configfile"},
+			{"captures", "captures"}, {"allsettings.new", "allsettings"}, {"autosort", "autosort"}, {"showplaytimeinnotes", "playtimeinnotes"}, {"height", "height"},
+			{"screenshotsfilename", "screenshotsfilename"}, {"screenshotscolumnstretch", "columnstretch"}, {"screenshotscolumnkeepaspectratio", "columnkeepaspect"},
+			{"display", "display"}, {"linking.tofile", "linking"}, {"font", "font"}, {"theme", "theme"}, {"apikey", "apikey"}, {"screenscraper.user", "screenscraper"},
+			{"screenscraper.password", "screenscraper"}, {"igdb.clientid", "igdb"}, {"igdb.clientsecret", "igdb"}, {"settitle", "setfield"}, {"setdeveloper", "setfield"},
+			{"setpublisher", "setfield"}, {"setyear", "setfield"}, {"setgenre", "setfield"}, {"setlink", "setlink"}, {"setrank", "setrank"}, {"setdescription", "setdescription"},
+			{"choosecoverart", "choosecoverart"}, {"allregionscoverart", "allregions"}, {"choosescreenshot", "choosescreenshot"}, {"multieditmaxcoverart", "multieditmax"},
+			{"multieditmaxscreenshot", "multieditmax"}, {"platformfilter", "platformfilter"}, {"enableenvironment", "environment"}, {"environmentvariables", "environment"},
+			{"screenshots.list", "screenshotsrule"}, {"screenshots.tiles", "screenshotsrule"}, {"screenshots.boxes", "screenshotsrule"}, {"tv.stacks", "tvstacks"},
+			{"tv.playtime", "tvplaytime"}, {"showdiskspaceininfo", "diskspace"}, {"showdiskspaceinnotes", "diskspace"}, {"tv.diskspace", "diskspace"}, {"tv.hints", "tvhints"}, {"tv.button", "tvbutton"}, {"options", "options"}, {"values", "values"}};
+
+	/** alpha 49: the text of each such label (what is filled in later, like the name of an archive, as a gap) and its tooltip */
+	private List<String[]> tips() {
+		List<String[]> result = new ArrayList<>();
+		for (String[] tip: TIPS) {
+			String label = text_.get("dialog.settings." + tip[0], new Object[] {"\u0001"});
+			int gap = label.indexOf('\u0001');
+			result.add(new String[] {gap < 0 ? label: label.substring(0, gap), gap < 0 ? null: label.substring(gap + 1), text_.get("dialog.settings.tip." + tip[1])});
+		}
+		return result;
+	}
+
+	/** alpha 49: the tooltip of a label with this text, or null: the whole text, or its beginning and end around what was filled in */
+	public static String tipFor(String label, List<String[]> tips) {
+		for (String[] tip: tips) {
+			if (tip[1] == null ? label.equals(tip[0]): ((label.length() > tip[0].length() + tip[1].length()) && label.startsWith(tip[0]) && label.endsWith(tip[1])))
+				return tip[2];
+		}
+		return null;
+	}
+
+	/**
+	 * alpha 49: gives the labels that have no tooltip theirs, and the same one to what the label stands for: the fields and buttons that follow it up to the next label. What has a
+	 * tooltip of its own keeps it.
+	 */
+	private static void applyTips(Composite parent, List<String[]> tips) {
+		String current = null;
+		Control[] children = parent.getChildren();
+		for (int i = 0; i < children.length; i++) {
+			Control control = children[i];
+			if (control instanceof Label) {
+				String text = ((Label)control).getText();
+				current = control.getToolTipText();
+				if ((current == null) && StringUtils.isNotBlank(text) && (text.length() < 120)) {
+					current = tipFor(text, tips);
+					// a label of an option that explains itself in its own tooltip: the same one, or that of the field it follows ("... entries")
+					if ((current == null) && (i + 1 < children.length) && !(children[i + 1] instanceof Label))
+						current = children[i + 1].getToolTipText();
+					if ((current == null) && (i > 0) && !(children[i - 1] instanceof Label))
+						current = children[i - 1].getToolTipText();
+					if (current != null)
+						control.setToolTipText(current);
+				}
+			} else if ((control instanceof Composite) && (((Composite)control).getChildren().length > 0)) {
+				// a group or another container with options of its own
+				current = null;
+				applyTips((Composite)control, tips);
+			} else if ((current != null) && (control.getToolTipText() == null)) {
+				control.setToolTipText(current);
+			}
+		}
+	}
+
 	private static void alignFirstColumns(Composite... groups) {
 		java.util.List<org.eclipse.swt.widgets.Label> labels = new java.util.ArrayList<>();
 		for (Composite group: groups) {
@@ -884,12 +1039,17 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 	}
 
 	private void moveTabToFront(Composite composite) {
+		moveTab(composite, 0);
+	}
+
+	/** @param index the place the tab gets (the others move on) */
+	private void moveTab(Composite composite, int index) {
 		CTabItem item = getTabItemByComposite(composite);
-		if ((item == null) || (tabFolder_.indexOf(item) == 0))
+		if ((item == null) || (tabFolder_.indexOf(item) == index) || (index >= tabFolder_.getItemCount()))
 			return;
 		CTabItem selected = tabFolder_.getSelection();
 		org.eclipse.swt.widgets.Control control = item.getControl();
-		CTabItem moved = new CTabItem(tabFolder_, item.getStyle(), 0);
+		CTabItem moved = new CTabItem(tabFolder_, item.getStyle(), index);
 		moved.setText(item.getText());
 		moved.setImage(item.getImage());
 		moved.setToolTipText(item.getToolTipText());

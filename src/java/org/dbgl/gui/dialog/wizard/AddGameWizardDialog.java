@@ -492,6 +492,7 @@ public class AddGameWizardDialog extends WizardDialog<Profile> {
 						profile_.setYear(thisGame.getYear());
 					if (settings_.getBooleanValue(engine.getSimpleName(), "set_genre"))
 						profile_.setGenre(thisGame.getGenre());
+					profile_.adoptSeries(thisGame.getSeries(), thisGame.getTitle()); // alpha 49
 					if (settings_.getBooleanValue(engine.getSimpleName(), "set_link"))
 						profile_.getLinks()[0] = new Link(text_.get("dialog.profile.searchengine.link.maininfo", new String[] {engine.getName()}), thisGame.getUrl());
 					if (settings_.getBooleanValue(engine.getSimpleName(), "set_description"))

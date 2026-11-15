@@ -70,6 +70,11 @@ public final class PortableDialog {
 	}
 
 	public static void open(Shell parent, List<Profile> all, Set<Integer> chosen) {
+		open(parent, all, chosen, null);
+	}
+
+	/** @param show the id of the profile the list scrolls to (null: stays at the top) */
+	public static void open(Shell parent, List<Profile> all, Set<Integer> chosen, Integer show) {
 		ITextService text = TextService.getInstance();
 		Display display = parent.getDisplay();
 		Shell dlg = new Shell(parent, SWT.DIALOG_TRIM | SWT.APPLICATION_MODAL | SWT.RESIZE);
@@ -104,6 +109,10 @@ public final class PortableDialog {
 		tableData.heightHint = 300;
 		tableData.widthHint = 430;
 		table.setLayoutData(tableData);
+		if (org.dbgl.gui.controls.DarkTheme.forced()) { // alpha 49: the headings dark as well
+			table.setHeaderBackground(org.dbgl.gui.controls.DarkTheme.tableHeaderBackground);
+			table.setHeaderForeground(org.dbgl.gui.controls.DarkTheme.tableHeaderForeground);
+		}
 		TableColumn titleCol = new TableColumn(table, SWT.NONE);
 		titleCol.setText(text.get("dialog.main.profiles.column.title"));
 		titleCol.setWidth(270);
@@ -118,6 +127,19 @@ public final class PortableDialog {
 			item.setText(new String[] {p.getTitle(), String.valueOf(p.getId()), ""});
 			item.setData(p);
 			item.setChecked(chosen.contains(p.getId()));
+		}
+		if (show != null) {
+			for (TableItem item: table.getItems()) {
+				if ((item.getData() instanceof Profile p) && (p.getId() == show)) {
+					parent.getDisplay().asyncExec(() -> { // once the window is laid out
+						if (!table.isDisposed() && !item.isDisposed()) {
+							table.setSelection(item);
+							table.showItem(item);
+						}
+					});
+					break;
+				}
+			}
 		}
 		Button allButton = new Button(profilesGroup, SWT.PUSH);
 		allButton.setText(text.get("button.all"));
@@ -142,6 +164,10 @@ public final class PortableDialog {
 		partsData.heightHint = 300;
 		partsData.widthHint = 440;
 		parts.setLayoutData(partsData);
+		if (org.dbgl.gui.controls.DarkTheme.forced()) {
+			parts.setHeaderBackground(org.dbgl.gui.controls.DarkTheme.tableHeaderBackground);
+			parts.setHeaderForeground(org.dbgl.gui.controls.DarkTheme.tableHeaderForeground);
+		}
 		TableColumn partCol = new TableColumn(parts, SWT.NONE);
 		partCol.setText(text.get("dialog.portable.column.part"));
 		partCol.setWidth(345); // alpha 48: with room for the box in front

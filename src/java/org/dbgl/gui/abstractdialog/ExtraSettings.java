@@ -471,7 +471,7 @@ public final class ExtraSettings {
 			for (Control c: e.getValue().getChildren()) {
 				if (!(c instanceof Group group) || (group.getData(GROUP_KEY) == null))
 					continue;
-				boolean hit = Stream.of(group.getChildren()).anyMatch(x -> (x instanceof Label l) && (StringUtils.containsIgnoreCase(l.getText(), s) || StringUtils.containsIgnoreCase(org.dbgl.gui.LongToolTips.textOf(l), s)));
+				boolean hit = Stream.of(group.getChildren()).anyMatch(x -> (x instanceof Label l) && (org.apache.commons.lang3.Strings.CI.contains(l.getText(), s) || org.apache.commons.lang3.Strings.CI.contains(org.dbgl.gui.LongToolTips.textOf(l), s)));
 				if (hit && !Boolean.TRUE.equals(expanded_.get(group.getData(GROUP_KEY)))) {
 					expanded_.put((String)group.getData(GROUP_KEY), true);
 					changed = true;

@@ -76,6 +76,9 @@ public final class SwitchMemory {
 				Files.deleteIfExists(f.toPath());
 				return;
 			}
+			// alpha 49: the same as in the file: left as it is (every switch wrote all files anew, with the time of the switch)
+			if (f.isFile() && load(profileId).equals(memory))
+				return;
 			f.getParentFile().mkdirs();
 			// sorted: the same content gives the same file
 			Properties sorted = new Properties() {
@@ -143,7 +146,9 @@ public final class SwitchMemory {
 			String[] k = key.split("\\|", 3);
 			if ((k.length != 3) || !k[0].equals(String.valueOf(fam)) || conf.hasValue(k[1], k[2]) || !dosbox.hasValue(k[1], k[2]))
 				return;
-			if (StringUtils.trim(dosbox.getValue(k[1], k[2])).equalsIgnoreCase(value.trim()))
+			// "true" and "on" are the same to DOSBox, as "false" and "off" (alpha 49: "ems=true" was offered again for a
+			// DOSBox version that says "ems = on", in every switch and without any effect)
+			if (ConfTakeover.same(StringUtils.trimToEmpty(dosbox.getValue(k[1], k[2])), value.trim()))
 				return;
 			result.add(new SwitchChoices.Choice(prof.getId(), SwitchChoices.Kind.RESTORE, k[1], k[2], value, null, -1, false));
 		});

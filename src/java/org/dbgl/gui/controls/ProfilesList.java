@@ -303,6 +303,12 @@ public class ProfilesList {
 		if ((columnIds[colIndex] == 20) || (columnIds[colIndex] == 1) || (columnIds[colIndex] == 7)) { // screenshot; alpha 48: tick of setup, star of favourite
 			column.setAlignment(SWT.CENTER);
 		}
+		if (columnIds[colIndex] == org.dbgl.model.OrderingVector.DISK_COLUMN) // alpha 49: sizes
+			column.setAlignment(SWT.RIGHT);
+		// alpha 49: or as chosen in the settings (0: as above)
+		int align = settings.getIntValue("gui", "column" + (columnIds[colIndex] + 1) + "align");
+		if ((align >= 1) && (align <= 3))
+			column.setAlignment(align == 1 ? SWT.LEFT: align == 2 ? SWT.CENTER: SWT.RIGHT);
 		column.addSelectionListener(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
@@ -466,6 +472,25 @@ public class ProfilesList {
 			table_.setSelection(indices);
 		else
 			gallery_.setSelection(IntStream.of(indices).mapToObj(group_::getItem).filter(Objects::nonNull).toArray(GalleryItem[]::new));
+	}
+
+	/** alpha 49: scrolls so that the (first) chosen profile is in view */
+	/** alpha 49: the selected profile as the first row shown (as far as the list can be scrolled) */
+	public void showSelectionAtTop() {
+		if ((type_ == ProfilesListType.TABLE) && (table_.getSelectionIndex() >= 0))
+			table_.setTopIndex(table_.getSelectionIndex());
+		else
+			showSelection();
+	}
+
+	public void showSelection() {
+		if (type_ == ProfilesListType.TABLE) {
+			table_.showSelection();
+		} else {
+			GalleryItem[] items = gallery_.getSelection();
+			if (items.length > 0)
+				gallery_.showItem(items[0]);
+		}
 	}
 
 	public int getItemCount() {

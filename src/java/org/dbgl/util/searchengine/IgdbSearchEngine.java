@@ -181,10 +181,25 @@ public class IgdbSearchEngine extends WebSearchEngine {
 	@Override
 	public WebProfile getEntryDetailedInformation(WebProfile entry) throws IOException {
 		JSONArray games = query("games", "fields name,first_release_date,summary,total_rating,url,genres.name,platforms.name,involved_companies.company.name,"
-				+ "involved_companies.developer,involved_companies.publisher; where id = " + entry.getGameId() + ";");
+				+ "involved_companies.developer,involved_companies.publisher,collections.name,franchises.name; where id = " + entry.getGameId() + ";");
 		if (!games.isEmpty())
 			parseDetails(entry, games.getJSONObject(0));
 		return entry;
+	}
+
+	/** alpha 49: the series of a game: its first collection ("Space Quest"), else its first franchise; "" if it has none */
+	static String series(JSONObject g) {
+		for (String field: new String[] {"collections", "franchises"}) {
+			JSONArray array = g.optJSONArray(field);
+			if (array != null)
+				for (int i = 0; i < array.length(); i++) {
+					JSONObject o = array.optJSONObject(i);
+					String name = o == null ? "": o.optString("name", "").strip();
+					if (!name.isEmpty())
+						return name;
+				}
+		}
+		return "";
 	}
 
 	public static void parseDetails(WebProfile entry, JSONObject g) {
@@ -208,6 +223,7 @@ public class IgdbSearchEngine extends WebSearchEngine {
 				if (c.optBoolean("publisher") && !publishers.contains(name))
 					publishers.add(name);
 			}
+		entry.setSeries(series(g));
 		entry.setDeveloperName(String.join(", ", developers));
 		entry.setPublisherName(String.join(", ", publishers));
 	}

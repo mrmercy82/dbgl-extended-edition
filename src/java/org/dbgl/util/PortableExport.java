@@ -670,6 +670,7 @@ public final class PortableExport {
 		try (Connection con = DriverManager.getConnection(url, "sa", ""); Statement st = con.createStatement()) {
 			st.executeUpdate("DELETE FROM NATIVECOMMANDS WHERE GAME_ID IS NOT NULL AND GAME_ID NOT IN (" + in + ")");
 			st.executeUpdate("DELETE FROM PLAYSESSIONS WHERE GAME_ID NOT IN (" + in + ")");
+			st.executeUpdate("DELETE FROM SERIES WHERE GAME_ID NOT IN (" + in + ")"); // alpha 49: the game series of the others
 			st.executeUpdate("DELETE FROM LOG WHERE ENTITY_TYPE = " + org.dbgl.model.entity.LogEntry.EntityType.PROFILE.ordinal() + " AND ENTITY_ID NOT IN (" + in + ")");
 			st.executeUpdate("DELETE FROM GAMES WHERE ID NOT IN (" + in + ")");
 			try (PreparedStatement ps = con.prepareStatement("UPDATE GAMES SET LINK1 = ?, LINK2 = ?, LINK3 = ?, LINK4 = ?, LINK5 = ?, LINK6 = ?, LINK7 = ?, LINK8 = ?, SETUP = ?, ALT1 = ?, ALT2 = ? WHERE ID = ?")) {

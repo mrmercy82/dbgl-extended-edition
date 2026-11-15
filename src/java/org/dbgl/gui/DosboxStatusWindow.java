@@ -76,7 +76,16 @@ public class DosboxStatusWindow {
 		"Write [0-9a-f]+ to rom at|unknown SCSI BIOS call|unknown call AX=|NVRAM write .* not implemented|GDC: .*Unknown command|PIC:ICW4|PEGC warning|port [0-9a-f]+h unknown command|MMIO attempt to write FONT ROM|PC-98 memcpy:|Segment limit violation|Limit check|DISPLAY: Unknown video mode",
 		Pattern.CASE_INSENSITIVE);
 	// numbers and addresses differ between otherwise equal lines
-	private static final Pattern NUMBERS_PATRN = Pattern.compile("(?i)0x[0-9a-f]+|\\b[0-9a-f]*[0-9][0-9a-f]*\\b");
+	// (alpha 49: also a hexadecimal value of four or eight letters without a digit, "Write ffff to rom at ...")
+	private static final Pattern NUMBERS_PATRN = Pattern.compile("(?i)0x[0-9a-f]+|\\b[0-9a-f]*[0-9][0-9a-f]*\\b|\\b[a-f]{4}(?:[a-f]{4})?\\b");
+	/** alpha 49: lines of DOSBox not yet shown, and whether showing them is under way (see {@link #append}) */
+	private final java.util.concurrent.ConcurrentLinkedQueue<String> pending_ = new java.util.concurrent.ConcurrentLinkedQueue<>();
+	private final java.util.concurrent.atomic.AtomicBoolean draining_ = new java.util.concurrent.atomic.AtomicBoolean();
+
+	/** the key by which consecutive lines count as the same: the line without "LOG:", every number replaced */
+	public static String similarityKey(String line) {
+		return NUMBERS_PATRN.matcher(line.replaceFirst("^\\s*LOG:\\s*", "")).replaceAll("#");
+	}
 
 	/** DOSBox ending within this time most likely means that starting the game failed */
 	public static final long QUICK_EXIT_MILLIS = 5000;
@@ -167,7 +176,82 @@ public class DosboxStatusWindow {
 		return TextService.getInstance().get(key);
 	}
 
+	private static volatile DosboxStatusWindow last_;
+
+	/**
+	 * Test 15: the status window is gone at once when DOSBox ends without a problem, and with it what DOSBox said. The
+	 * messages of the last start (of this run of DBGL) in a window that stays, to read, copy or save.
+	 *
+	 * @return false if DOSBox has not been started yet
+	 */
+	public static boolean showLast(Shell parent) {
+		DosboxStatusWindow last = last_;
+		if (last == null)
+			return false;
+		Shell dlg = new Shell(parent, SWT.SHELL_TRIM | SWT.APPLICATION_MODAL);
+		dlg.setText(text("dialog.statuswindow.last"));
+		org.dbgl.gui.abstractdialog.BaseDialog.inheritWindowImage(dlg, parent);
+		dlg.setLayout(new GridLayout(4, false));
+		DarkTheme.window(dlg);
+		org.eclipse.swt.widgets.Text log = new org.eclipse.swt.widgets.Text(dlg, SWT.MULTI | SWT.READ_ONLY | SWT.V_SCROLL | SWT.H_SCROLL | SWT.BORDER);
+		GridData logData = new GridData(SWT.FILL, SWT.FILL, true, true, 4, 1);
+		logData.widthHint = 900;
+		logData.heightHint = 500;
+		log.setLayoutData(logData);
+		Font font = new Font(parent.getDisplay(), SystemUtils.IS_WINDOWS ? "Consolas": (SystemUtils.IS_OSX ? "Menlo": "Monospace"), 9, SWT.NORMAL);
+		log.setFont(font);
+		dlg.addDisposeListener(e -> font.dispose());
+		String content = last.rawLog_.toString();
+		log.setText(content);
+		Label space = new Label(dlg, SWT.NONE);
+		space.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+		Button copy = new Button(dlg, SWT.PUSH), save = new Button(dlg, SWT.PUSH), close = new Button(dlg, SWT.PUSH);
+		copy.setText(text("dialog.statuswindow.copy"));
+		save.setText(text("dialog.statuswindow.save"));
+		close.setText(text("dialog.statuswindow.close"));
+		for (Button b: new Button[] {copy, save, close}) {
+			GridData data = new GridData(SWT.END, SWT.CENTER, false, false);
+			data.widthHint = Math.max(110, b.computeSize(SWT.DEFAULT, SWT.DEFAULT).x + 16);
+			b.setLayoutData(data);
+		}
+		copy.addListener(SWT.Selection, e -> {
+			Clipboard clipboard = new Clipboard(dlg.getDisplay());
+			try {
+				String chosen = log.getSelectionCount() > 0 ? log.getSelectionText(): content;
+				if (!chosen.isEmpty())
+					clipboard.setContents(new Object[] {chosen}, new Transfer[] {TextTransfer.getInstance()});
+			} finally {
+				clipboard.dispose();
+			}
+		});
+		save.addListener(SWT.Selection, e -> {
+			FileDialog dialog = new FileDialog(dlg, SWT.SAVE);
+			dialog.setFilterExtensions(new String[] {"*.txt", "*.log", "*.*"});
+			dialog.setFileName("dosbox-log-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss", Locale.ROOT)) + ".txt");
+			dialog.setOverwrite(true);
+			String file = dialog.open();
+			if (file != null) {
+				try {
+					Files.writeString(new File(file).toPath(), content, StandardCharsets.UTF_8);
+				} catch (IOException ex) {
+					Mess_.on(dlg).exception(ex).warning();
+				}
+			}
+		});
+		close.addListener(SWT.Selection, e -> dlg.close());
+		dlg.setDefaultButton(close);
+		DarkTheme.apply(dlg);
+		dlg.pack();
+		Rectangle area = parent.getMonitor().getClientArea(), around = parent.getBounds();
+		org.eclipse.swt.graphics.Point size = dlg.getSize();
+		dlg.setLocation(Math.max(area.x, Math.min(around.x + (around.width - size.x) / 2, area.x + area.width - size.x)),
+			Math.max(area.y, Math.min(around.y + (around.height - size.y) / 2, area.y + area.height - size.y)));
+		dlg.open();
+		return true;
+	}
+
 	private void create() {
+		last_ = this;
 		shell_ = new Shell(display_, SWT.SHELL_TRIM);
 		shell_.setText(TITLE);
 		// a window of its own in the taskbar: the DBGL symbol
@@ -388,20 +472,40 @@ public class DosboxStatusWindow {
 		return (shell_ == null) || shell_.isDisposed() || (text_ == null) || text_.isDisposed();
 	}
 
-	/** may be called from any thread */
+	/**
+	 * May be called from any thread. Alpha 49: the lines are collected and shown together, all that have come by then in one
+	 * go and painted once. Before, each line was a task of its own for the window: when DOSBox wrote thousands of lines at
+	 * once (Windows 95 shutting down in DOSBox-X: 5300 lines "Write ... to rom"), DBGL did not answer for more than ten seconds.
+	 */
 	public void append(String line) {
 		if (display_.isDisposed())
 			return;
-		display_.asyncExec(() -> {
-			if (isGone())
-				return;
-			addOutputLine(line);
-		});
+		pending_.add(line);
+		if (draining_.compareAndSet(false, true))
+			display_.asyncExec(this::showPending);
+	}
+
+	private void showPending() {
+		draining_.set(false); // a line that comes from now on asks for the next round
+		if (isGone()) {
+			pending_.clear();
+			return;
+		}
+		String line = pending_.poll();
+		if (line == null)
+			return;
+		text_.setRedraw(false);
+		try {
+			for (; line != null; line = pending_.poll())
+				addOutputLine(line);
+		} finally {
+			text_.setRedraw(true);
+		}
 	}
 
 	/** consecutive lines that only differ in numbers are shown once, with a counter */
 	private void addOutputLine(String line) {
-		String key = NUMBERS_PATRN.matcher(line.replaceFirst("^\\s*LOG:\\s*", "")).replaceAll("#");
+		String key = similarityKey(line);
 		if (key.equals(lastKey_)) {
 			rawLog_.append(line).append(System.lineSeparator());
 			repeatCount_++;

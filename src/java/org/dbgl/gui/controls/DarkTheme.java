@@ -91,6 +91,17 @@ public class DarkTheme {
 	}
 
 	/**
+	 * alpha 49: a window made without BaseDialog (progress bars, questions, the list of suggestions) dark in the dark mode: its
+	 * own background and everything in it; called once it is built, before it is sized
+	 */
+	public static void window(org.eclipse.swt.widgets.Shell shell) {
+		if (!forced() || (shell == null) || shell.isDisposed())
+			return;
+		shell.setBackground(dialogBackground);
+		apply(shell);
+	}
+
+	/**
 	 * alpha 48: in the dark mode, the controls below that still have the light colours of the system (made without the builders of
 	 * DBGL, e.g. pages that scroll): the background of their parent, light text, dark fields. Colours set on purpose stay.
 	 */
@@ -132,10 +143,50 @@ public class DarkTheme {
 				readable(c); // e.g. dark red warnings: lighter, so that they can be read on grey
 			if ((org.dbgl.util.SystemUtils.IS_WINDOWS || Boolean.getBoolean("dbgl.ownframes")) && ownFrames())
 				paintOwnFrames(c);
+			// test 16: the header of every table and tree dark (it was done table by table, and missing in "Check profiles")
+			if (c instanceof org.eclipse.swt.widgets.Table table) {
+				table.setHeaderBackground(tableHeaderBackground);
+				table.setHeaderForeground(tableHeaderForeground);
+			} else if (c instanceof org.eclipse.swt.widgets.Tree tree) {
+				tree.setHeaderBackground(tableHeaderBackground);
+				tree.setHeaderForeground(tableHeaderForeground);
+			}
+			// test 15: empty check boxes in tables and trees were white inside (after the colours are set: SWT makes the
+			// boxes anew when the background changes)
+			if (org.dbgl.util.SystemUtils.IS_WINDOWS && ((c instanceof org.eclipse.swt.widgets.Table) || (c instanceof org.eclipse.swt.widgets.Tree))
+					&& ((c.getStyle() & org.eclipse.swt.SWT.CHECK) != 0)) {
+				WinSubclass.darkCheckBoxes(c);
+				d.asyncExec(() -> WinSubclass.darkCheckBoxes(c));
+			}
 			if (c instanceof org.eclipse.swt.widgets.Composite comp)
 				for (org.eclipse.swt.widgets.Control child: comp.getChildren())
 					todo.add(child);
 		}
+	}
+
+	private static final java.util.Map<Integer, Color> TEXT_COLORS = new java.util.HashMap<>();
+
+	/**
+	 * Test 17: the red of lines that go (and the other colours of the previews and reports) is the dark one of the system,
+	 * hard to read on the dark background. In dark mode the lighter colours of the preview of "Take over settings" are used
+	 * everywhere; in light mode the colour of the system as before.
+	 *
+	 * @param systemColor one of SWT.COLOR_RED, COLOR_DARK_RED, COLOR_DARK_GREEN, COLOR_DARK_GRAY, COLOR_DARK_CYAN,
+	 *                    COLOR_DARK_YELLOW, COLOR_DARK_BLUE, COLOR_DARK_MAGENTA
+	 */
+	public static Color textColor(org.eclipse.swt.widgets.Display display, int systemColor) {
+		if (!forced())
+			return display.getSystemColor(systemColor);
+		return TEXT_COLORS.computeIfAbsent(systemColor, k -> switch (k) {
+			case org.eclipse.swt.SWT.COLOR_RED, org.eclipse.swt.SWT.COLOR_DARK_RED -> HIGH_CONTRAST ? new Color(255, 110, 110): new Color(255, 130, 130);
+			case org.eclipse.swt.SWT.COLOR_GREEN, org.eclipse.swt.SWT.COLOR_DARK_GREEN -> HIGH_CONTRAST ? new Color(90, 255, 90): new Color(120, 215, 120);
+			case org.eclipse.swt.SWT.COLOR_DARK_GRAY, org.eclipse.swt.SWT.COLOR_GRAY -> HIGH_CONTRAST ? new Color(200, 200, 200): new Color(150, 150, 150);
+			case org.eclipse.swt.SWT.COLOR_CYAN, org.eclipse.swt.SWT.COLOR_DARK_CYAN -> HIGH_CONTRAST ? new Color(0, 255, 255): new Color(110, 200, 210);
+			case org.eclipse.swt.SWT.COLOR_YELLOW, org.eclipse.swt.SWT.COLOR_DARK_YELLOW -> HIGH_CONTRAST ? new Color(255, 255, 0): new Color(225, 200, 110);
+			case org.eclipse.swt.SWT.COLOR_BLUE, org.eclipse.swt.SWT.COLOR_DARK_BLUE -> new Color(130, 170, 255);
+			case org.eclipse.swt.SWT.COLOR_MAGENTA, org.eclipse.swt.SWT.COLOR_DARK_MAGENTA -> new Color(220, 150, 220);
+			default -> display.getSystemColor(k);
+		});
 	}
 
 	/** a text colour with less than 4.5:1 against its background (WCAG AA) is made lighter, keeping its hue */
@@ -218,6 +269,8 @@ public class DarkTheme {
 		} else if (c instanceof org.eclipse.swt.widgets.Text t && (t.getStyle() & org.eclipse.swt.SWT.MULTI) == 0 && (t.getStyle() & org.eclipse.swt.SWT.BORDER) != 0) {
 			c.setData(PAINTED, Boolean.TRUE);
 			centerText(t);
+		} else if (c instanceof org.eclipse.swt.widgets.Spinner) {
+			centerText(c); // alpha 49: the number of a spinner too (test 11: it stood at the top of its field)
 		}
 	}
 

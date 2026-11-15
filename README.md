@@ -20,6 +20,11 @@ See [`src/resources/doc/whatsnew_en.txt`](src/resources/doc/whatsnew_en.txt) (al
 > [!WARNING]
 > **This is an alpha. Back up your complete DBGL folder and all your DOSBox folders before installing** – copy the whole folder(s) somewhere else. If anything goes wrong, put the copy back and everything is as before.
 
+> [!IMPORTANT]
+> **Java 21 will be needed soon.** One of the next versions of DBGL Extended Edition needs Java 21 and will not start with an older Java. Please update Java in time, e.g. with [Eclipse Temurin 21](https://adoptium.net/temurin/releases/?version=21). When DBGL runs with an older Java, it says so at start.
+>
+> *Deutsch:* **Bald ist Java 21 nötig.** Eine der nächsten Versionen von DBGL Extended Edition benötigt Java 21 und startet mit einem älteren Java nicht mehr. Bitte Java rechtzeitig aktualisieren, z. B. mit Eclipse Temurin 21. Läuft DBGL mit einem älteren Java, weist es beim Start darauf hin.
+
 - **Update an existing DBGL 0.100 beta 17 (or an earlier 0.101 alpha Extended Edition):** back up your DBGL folder and all your DOSBox folders first, then unzip `dbgl-<version>-update.zip` from the [releases](https://github.com/mrmercy82/dbgl-extended-edition/releases) over your DBGL folder. Profiles, database and settings are kept.
 - **From source:** `ant` with the `build.xml` in this folder (Java 21 or later), or apply `dbgl-0100beta17-to-<version>.patch` to the original 0.100 beta 17 source.
 

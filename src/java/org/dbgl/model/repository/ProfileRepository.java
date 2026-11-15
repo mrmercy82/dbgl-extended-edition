@@ -92,6 +92,12 @@ public class ProfileRepository extends LoggingRepository<Profile> {
 	/** one time a profile was played: when DOSBox started and how long it ran, in seconds */
 	public record PlaySession(int profileId, java.util.Date started, int seconds) {
 	}
+	// alpha 49: game series, in a table of their own (see DatabaseService)
+	private static final String READ_SERIES_QRY = "SELECT GAME_ID, NAME, PART FROM SERIES";
+	private static final String DEL_SERIES_QRY = "DELETE FROM SERIES WHERE GAME_ID = ?";
+	private static final String ADD_SERIES_QRY = "INSERT INTO SERIES(GAME_ID, NAME, PART) VALUES(?, ?, ?)";
+	private static final String LIST_SERIES_NAMES_QRY = "SELECT DISTINCT NAME FROM SERIES ORDER BY LOWER(NAME)";
+	private static final String REMOVED_SERIES_WHERE = " FROM SERIES WHERE GAME_ID NOT IN (SELECT ID FROM GAMES)";
 	private static final String REGISTER_SETUP_QRY = "UPDATE GAMES SET STATS_LASTSETUP = CURRENT_TIMESTAMP, STATS_SETUPS = (STATS_SETUPS + 1) WHERE ID = ?";
 
 	public ProfileRepository() {
@@ -206,6 +212,7 @@ public class ProfileRepository extends LoggingRepository<Profile> {
 			List<Profile> profilesList = new ArrayList<>();
 			while (rs.next())
 				profilesList.add(toProfile(con, rs, dosboxVersions));
+			readSeries(con, profilesList);
 			return profilesList;
 		} catch (SQLException e) {
 			e.printStackTrace();
@@ -356,12 +363,86 @@ public class ProfileRepository extends LoggingRepository<Profile> {
 			profile.setCapturesInConfig();
 			profile.updateMapperFileInConfigByIdentifiers();
 		}
+		writeSeries(transaction, profile.getId(), profile.getSeries(), profile.getSeriesPart());
+	}
+
+	/** alpha 49: the series of the profiles just read (one query for all) */
+	private static void readSeries(Connection con, List<Profile> profiles) throws SQLException {
+		java.util.Map<Integer, Object[]> series = new java.util.HashMap<>();
+		try (Statement stmt = con.createStatement(); ResultSet rs = stmt.executeQuery(READ_SERIES_QRY)) {
+			while (rs.next())
+				series.put(rs.getInt(1), new Object[] {rs.getString(2), rs.getInt(3)});
+		}
+		for (Profile p: profiles) {
+			Object[] s = series.get(p.getId());
+			p.setSeries(s == null ? "": (String)s[0], s == null ? 0: (Integer)s[1]);
+		}
+	}
+
+	/** the series of a profile as it is to be: null leaves it as it is (not read), "" takes the profile out of its series */
+	private static void writeSeries(Transaction transaction, int profileId, String name, int part) throws SQLException {
+		if (name == null)
+			return;
+		try (PreparedStatement del = transaction.prepareStatement(DEL_SERIES_QRY)) {
+			del.setInt(1, profileId);
+			del.executeUpdate();
+		}
+		if (name.isBlank())
+			return;
+		try (PreparedStatement add = transaction.prepareStatement(ADD_SERIES_QRY)) {
+			add.setInt(1, profileId);
+			add.setString(2, StringUtils.left(name.strip(), 256));
+			add.setInt(3, Math.max(0, part));
+			add.executeUpdate();
+		}
+	}
+
+	/** alpha 49: put a profile into a series (or take it out with ""), nothing else of it is touched (not its configuration file) */
+	public void setSeries(Profile profile, String name, int part) throws SQLException {
+		try (Transaction transaction = dbService_.startTransaction()) {
+			writeSeries(transaction, profile.getId(), StringUtils.defaultString(name), part);
+			transaction.commit();
+		} catch (SQLException e) {
+			e.printStackTrace();
+			throw new SQLException(TextService.getInstance().get("database.error.query", new Object[] {"update series of profile"}));
+		}
+		profile.setSeries(StringUtils.defaultString(name), part);
+	}
+
+	/** a profile of a series, for the menu of its parts */
+	public record SeriesMember(int id, String title, int part) {
+	}
+
+	/** @return the profiles of a series, by part and title */
+	public List<SeriesMember> listSeriesMembers(String series) throws SQLException {
+		List<SeriesMember> members = new ArrayList<>();
+		try (Connection con = dbService_.getConnection();
+				java.sql.PreparedStatement stmt = con.prepareStatement(
+					"SELECT GAM.ID, GAM.TITLE, SER.PART FROM SERIES SER JOIN GAMES GAM ON GAM.ID = SER.GAME_ID WHERE LOWER(SER.NAME) = LOWER(?) ORDER BY CASE WHEN SER.PART = 0 THEN 1 ELSE 0 END, SER.PART, LOWER(GAM.TITLE)")) {
+			stmt.setString(1, series);
+			try (ResultSet rs = stmt.executeQuery()) {
+				while (rs.next())
+					members.add(new SeriesMember(rs.getInt(1), rs.getString(2), rs.getInt(3)));
+			}
+		}
+		return members;
+	}
+
+	/** @return the names of all series, sorted */
+	public List<String> listSeriesNames() throws SQLException {
+		List<String> names = new ArrayList<>();
+		try (Connection con = dbService_.getConnection(); Statement stmt = con.createStatement(); ResultSet rs = stmt.executeQuery(LIST_SERIES_NAMES_QRY)) {
+			while (rs.next())
+				names.add(rs.getString(1));
+		}
+		return names;
 	}
 
 	public void remove(Profile profile, boolean removeConfig, boolean removeCustomMapper, boolean removeCaptures) throws SQLException {
 		try (Transaction transaction = dbService_.startTransaction()) {
 			actionOnEntity(transaction, DEL_NTVCMD_QRY, "remove profile native commands", profile);
 			actionOnEntity(transaction, DEL_SESSIONS_QRY, "remove profile play sessions", profile);
+			actionOnEntity(transaction, DEL_SERIES_QRY, "remove profile series", profile);
 			actionOnEntity(transaction, DEL_QRY, "remove profile", profile);
 			log(transaction, LogEntry.Event.REMOVE, LogEntry.EntityType.PROFILE, profile);
 			if (removeConfig) {
@@ -478,6 +559,7 @@ public class ProfileRepository extends LoggingRepository<Profile> {
 	public void removeRemovedProfileData() throws SQLException {
 		try (Transaction transaction = dbService_.startTransaction(); Statement stmt = transaction.createStatement()) {
 			stmt.executeUpdate("DELETE" + REMOVED_SESSIONS_WHERE);
+			stmt.executeUpdate("DELETE" + REMOVED_SERIES_WHERE); // alpha 49: of profiles removed with an older DBGL
 			stmt.executeUpdate("DELETE" + REMOVED_LOG_WHERE);
 			transaction.commit();
 		}
@@ -520,8 +602,11 @@ public class ProfileRepository extends LoggingRepository<Profile> {
 		try (Connection con = dbService_.getConnection(); PreparedStatement stmt = con.prepareStatement(READ_BY_ID_QRY)) {
 			stmt.setInt(1, profileId);
 			try (ResultSet resultset = stmt.executeQuery()) {
-				if (resultset.next())
-					return toProfile(con, resultset, dosboxVersions);
+				if (resultset.next()) {
+					Profile profile = toProfile(con, resultset, dosboxVersions);
+					readSeries(con, List.of(profile));
+					return profile;
+				}
 			}
 		} catch (SQLException e) {
 			e.printStackTrace();

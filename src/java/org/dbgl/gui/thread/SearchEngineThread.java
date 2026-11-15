@@ -83,6 +83,8 @@ public class SearchEngineThread extends UIThread<Profile> {
 						prof.setYear(thisGame.getYear());
 					if (settings.getBooleanValue(engine_.getSimpleName(), "set_genre"))
 						prof.setGenre(thisGame.getGenre());
+					if (prof.getSeries() != null)
+						prof.adoptSeries(thisGame.getSeries(), thisGame.getTitle()); // alpha 49: only for a profile without a series
 					if (settings.getBooleanValue(engine_.getSimpleName(), "set_link")) {
 						prof.setLinkDestination(0, thisGame.getUrl());
 						prof.setLinkTitle(0, text_.get("dialog.profile.searchengine.link.maininfo", new String[] {engine_.getName()}));

@@ -43,6 +43,8 @@ public final class BackupService {
 	private static final String PROFILES_DIR = "profiles/";
 	private static final String TEMPLATES_DIR = "templates/";
 	private static final String SETTINGS = "settings.conf";
+	/** alpha 49: how the comment of the zip file begins; the version of DBGL that made the backup follows */
+	public static final String COMMENT = "DBGL Extended Edition ";
 
 	private BackupService() {
 	}
@@ -54,6 +56,7 @@ public final class BackupService {
 			DatabaseService.getInstance().backupTo(new File(tmp, "db"));
 			int count = 0;
 			try (ZipOutputStream zip = new ZipOutputStream(Files.newOutputStream(zipFile.toPath()))) {
+				zip.setComment(COMMENT + org.dbgl.constants.Constants.PROGRAM_VERSION); // alpha 49: the window of the backups shows it
 				count += addDir(zip, new File(tmp, "db"), DB_DIR);
 				count += addDir(zip, FileLocationService.getInstance().getProfilesDir(), PROFILES_DIR);
 				count += addDir(zip, FileLocationService.getInstance().getTemplatesDir(), TEMPLATES_DIR);
@@ -100,8 +103,14 @@ public final class BackupService {
 		File[] all = dir.listFiles((d, n) -> n.startsWith("dbgl-backup-") && n.endsWith(".zip"));
 		if (all != null) {
 			java.util.Arrays.sort(all, java.util.Comparator.comparing(File::getName).reversed());
-			for (int i = Math.max(1, keep); i < all.length; i++)
-				Files.deleteIfExists(all[i].toPath());
+			// alpha 49: locked ones stay, and are not among those counted
+			int kept = 0;
+			for (File f: all) {
+				if (org.dbgl.util.BackupCatalog.isLocked(f))
+					continue;
+				if (++kept > Math.max(1, keep))
+					Files.deleteIfExists(f.toPath());
+			}
 		}
 		return zip;
 	}

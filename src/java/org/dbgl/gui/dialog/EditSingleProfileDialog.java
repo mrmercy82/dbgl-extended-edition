@@ -104,7 +104,8 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 		focusOnTitle_ = focusOnTitle;
 
 		editing_ = profile_ != null;
-		windowImage_ = editing_ ? ImageService.IMG_TB_EDIT: ImageService.IMG_TB_NEW; // the symbols of the toolbar
+		// editing: the symbol of the toolbar; a new profile: the one of the menu entry (alpha 49, chosen by the maintainer)
+		windowImage_ = editing_ ? ImageService.IMG_TB_EDIT: ImageService.IMG_NEW;
 	}
 
 	@Override
@@ -148,12 +149,16 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 
 	@Override
 	protected String getDialogTitle() {
+		String title;
 		if (editing_)
-			return text_.get("dialog.profile.title.edit", new Object[] {profile_.getTitle(), profile_.getId()});
+			title = text_.get("dialog.profile.title.edit", new Object[] {profile_.getTitle(), profile_.getId()});
 		else if (sendTo_ != null)
-			return text_.get("dialog.profile.title.send", new Object[] {sendTo_});
+			title = text_.get("dialog.profile.title.send", new Object[] {sendTo_});
 		else
-			return text_.get("dialog.profile.title.add");
+			title = text_.get("dialog.profile.title.add");
+		// test 17: with the DOSBox version the profile uses (its title), also after it was changed in the dialog
+		DosboxVersion version = profile_ == null ? null: profile_.getDosboxVersion();
+		return (version == null) || StringUtils.isBlank(version.getTitle()) ? title: title + "  \u2013  " + version.getTitle();
 	}
 
 	@Override
@@ -273,8 +278,77 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 		return true;
 	}
 
+	/**
+	 * alpha 49: before the profile is switched to another DOSBox version in the editor, what that changes: the preview of the
+	 * other switches, for this one profile (worked out on a copy; the profile itself as the fields say it now).
+	 *
+	 * @return true to switch, false to leave the DOSBox version as it is
+	 */
+	private boolean previewDosboxSwitch(DosboxConfAction action, DosboxVersion newDosboxVersion) {
+		DosboxVersion old = profile_.getDosboxVersion();
+		try {
+			try (org.dbgl.gui.controls.UiProgress progress = new org.dbgl.gui.controls.UiProgress(shell_, text_.get("dialog.profile.working"), pagesToCompute() + 2)) {
+				computeAllPages(profile_, progress);
+				updateConfigurableByControls(profile_);
+				progress.step();
+				newDosboxVersion.resetAndLoadConfiguration();
+			}
+			List<String> lines = switchPreviewLines(profile_, old, newDosboxVersion, action == DosboxConfAction.SWITCH, text_);
+			String info = text_.get("dialog.profile.switchpreview", new Object[] {profile_.getTitle(), old.getTitle(), newDosboxVersion.getTitle()});
+			return org.dbgl.gui.controls.ChangePreview.confirm(shell_, info, lines, "dbgl-switch-preview");
+		} catch (IOException | RuntimeException e) {
+			Mess_.on(getParent()).exception(e).warning();
+			return false;
+		}
+	}
+
+	/**
+	 * What switching a profile to another DOSBox version changes, as the lines of a preview. Nothing is changed in the profile.
+	 *
+	 * @param ownOnly true: only the own settings of the profile are kept ("Set"), false: all its values ("Keep all")
+	 */
+	public static List<String> switchPreviewLines(Profile profile, DosboxVersion old, DosboxVersion now, boolean ownOnly, org.dbgl.service.ITextService text) throws IOException {
+		// (a profile that is new has no ID yet: the copy without one)
+		Profile copy = org.dbgl.model.factory.ProfileFactory.createCopy(profile);
+		copy.setConfiguration(new org.dbgl.model.conf.Configuration(profile.getConfiguration()));
+		String before = copy.getConfiguration().toString(null);
+		List<String[]> gone = new ArrayList<>();
+		if (ownOnly) {
+			copy.switchToDosboxVersion(now);
+			gone = org.dbgl.util.ProfileChecks.removeGone0831(copy);
+		} else {
+			copy.setToDosboxVersion(now);
+		}
+		List<String> lines = new ArrayList<>(SwitchDosboxVersionDialog.grouped(before, copy.getConfiguration().toString(null)));
+		// "auto" for keyboard and country, which DOSBox Staging 0.83.1 no longer knows: said, also when the switch itself dropped it
+		for (String[] s: org.dbgl.util.ConfTakeover.settings(before).values())
+			if (org.dbgl.util.ProfileChecks.gone0831Value(now, s[0], s[1], s[2]) && !copy.getConfiguration().hasValue(s[0], s[1])
+					&& gone.stream().noneMatch(g -> g[0].equalsIgnoreCase("[" + s[0] + "] " + s[1])))
+				gone.add(new String[] {"[" + s[0] + "] " + s[1], s[2]});
+		for (String[] g: gone)
+			lines.add("! " + text.get("dialog.checkprofiles.autogone0831", new Object[] {g[0], g[1]}));
+		// what the profile only takes from the new DOSBox version: nothing of it is in its file
+		List<org.dbgl.util.SwitchChoices.Choice> takes = ownOnly ? new ArrayList<>(org.dbgl.util.SwitchChoices.inheritedBy(before, org.dbgl.util.SwitchChoices.inherited(old, now), c -> false))
+				: new ArrayList<>();
+		takes.removeIf(c -> copy.getConfiguration().hasValue(c.section(), c.item()));
+		lines.addAll(org.dbgl.util.SwitchChoices.inheritedLines(takes, c -> text.get("dialog.switchdosbox.report.inherits", new Object[] {now.getTitle(), c.oldText()})));
+		if (lines.isEmpty())
+			lines.add(text.get("dialog.switchdosbox.report.nochanges"));
+		return lines;
+	}
+
 	@Override
 	protected void doPerformDosboxConfAction(DosboxConfAction action, DosboxVersion newDosboxVersion) {
+		// alpha 49: switching to another DOSBox version is shown first, and only done when wanted
+		if (((action == DosboxConfAction.SWITCH) || (action == DosboxConfAction.SET)) && (profile_.getDosboxVersion() != null)
+				&& (profile_.getDosboxVersion().getId() != newDosboxVersion.getId()) && !previewDosboxSwitch(action, newDosboxVersion)) {
+			for (int i = 0; i < dbversionsList_.size(); i++)
+				if (dbversionsList_.get(i).getId() == profile_.getDosboxVersion().getId())
+					dbversionCombo_.select(i);
+			setButton_.setEnabled(false);
+			switchButton_.setEnabled(false);
+			return;
+		}
 		StringBuilder warningsLog = new StringBuilder();
 		// all pages are built first and the values taken over: that takes a moment, so with a progress bar
 		try (org.dbgl.gui.controls.UiProgress progress = new org.dbgl.gui.controls.UiProgress(shell_, text_.get("dialog.profile.working"), pagesToCompute() + 4 + controlsUpdateSteps())) {
@@ -292,6 +366,10 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 				org.dbgl.util.SwitchChoices.Snapshot before = org.dbgl.util.SwitchChoices.before(profile_);
 				org.dbgl.model.entity.GenerationAwareConfigurable.Generation from = profile_.getGeneration();
 				warningsLog.append(profile_.switchToDosboxVersion(newDosboxVersion));
+				// alpha 49: as "Switch all profiles of a DOSBox version" does it: "auto" for keyboard and country goes for DOSBox
+				// Staging 0.83.1 (it no longer knows the value)
+				for (String[] gone: org.dbgl.util.ProfileChecks.removeGone0831(profile_))
+					warningsLog.append(text_.get("dialog.checkprofiles.autogone0831", new Object[] {gone[0], gone[1]})).append('\n');
 				if (editing_) {
 					// lost when switched away from this kind of DOSBox before: back again; what it loses now: remembered when saved
 					if (switchMemory_ == null)
@@ -325,6 +403,7 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 
 			uiProgress_ = progress;
 			updateControlsByConfigurable(profile_);
+			shell_.setText(getDialogTitle()); // the DOSBox version in the title
 		} catch (IOException e) {
 			Mess_.on(getParent()).exception(e).warning();
 			return;
@@ -433,6 +512,14 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 										year_.setText(profExt.getYear());
 									if (settings_.getBooleanValue(engine.getSimpleName(), "set_genre"))
 										genre_.setText(profExt.getGenre());
+									// alpha 49: the series the source names, only into an empty field; undo empties it again
+									boolean seriesFilled = (series_ != null) && series_.getText().isBlank() && !profExt.getSeries().isBlank();
+									if (seriesFilled) {
+										series_.setText(profExt.getSeries());
+										if (seriesPart_.getSelection() == 0)
+											seriesPart_.setSelection(org.dbgl.util.SeriesSuggester.parse(profExt.getTitle()).part());
+									}
+									engineToolItem.setData("seriesFilled", seriesFilled ? series_.getText(): null);
 									if (settings_.getBooleanValue(engine.getSimpleName(), "set_link")) {
 										link_[0].setText(profExt.getUrl());
 										linkTitle_[0].setText(text_.get("dialog.profile.searchengine.link.maininfo",
@@ -568,6 +655,11 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 						publisher_.setText(orgProf.getPublisherName());
 						year_.setText(orgProf.getYear());
 						genre_.setText(orgProf.getGenre());
+						if ((engineToolItem.getData("seriesFilled") instanceof String filled) && (series_ != null) && filled.equals(series_.getText())) {
+							series_.setText("");
+							seriesPart_.setSelection(0);
+						}
+						engineToolItem.setData("seriesFilled", null);
 						link_[0].setText(orgProf.getUrl());
 						linkTitle_[0].setText(orgProf.getPlatform());
 						notes_.setText(orgProf.getNotes());
@@ -712,7 +804,7 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 		warningData.widthHint = 560;
 		warning.setLayoutData(warningData);
 		warning.setText(text_.get("dialog.profile.allsettings.warning"));
-		warning.setForeground(display_.getSystemColor(SWT.COLOR_DARK_RED));
+		warning.setForeground(org.dbgl.gui.controls.DarkTheme.textColor(display_, SWT.COLOR_DARK_RED));
 		keepAll.addListener(SWT.Selection, e -> {
 			// take over what is in the dialog first, then fill in (on) or take out what equals the DOSBox configuration (off)
 			try (org.dbgl.gui.controls.UiProgress progress = new org.dbgl.gui.controls.UiProgress(shell_, text_.get("dialog.profile.working"), pagesToCompute() + 3 + controlsUpdateSteps())) {

@@ -147,9 +147,11 @@ public class Dbgl0102Tests {
 		assertEquals("0.74-3", r.version_);
 		r = DosboxVersionDetector.parse("DOSBox version SVN, copyright 2002-2021 DOSBox Team.");
 		assertEquals(SettingsService.SVN_DOSBOX_FAM.title_, r.family_);
-		assertEquals("r4483", r.version_);
+		assertEquals("r4494", r.version_); // no revision named: the newest one DBGL knows (alpha 49: r4494)
 		r = DosboxVersionDetector.parse("DOSBox version 0.74-SVN-r4483, copyright 2002-2021 DOSBox Team.");
 		assertEquals(SettingsService.SVN_DOSBOX_FAM.title_, r.family_);
+		assertEquals("r4483", r.version_);
+		assertEquals("r4494", DosboxVersionDetector.parse("DOSBox version 0.74-SVN-r4494, copyright 2002-2021 DOSBox Team.").version_);
 		r = DosboxVersionDetector.parse("DOSBox ECE version r4482, copyright 2002-2021 DOSBox Team.");
 		assertEquals(SettingsService.ECE_DOSBOX_FAM.title_, r.family_);
 		assertEquals("r4482", r.version_);
@@ -1195,6 +1197,180 @@ public class Dbgl0102Tests {
 		assertEquals("0.101", org.dbgl.util.EditionUpdateChecker.newest(withFinal, "0.101alpha30", true).version());
 	}
 
+	/** alpha 49: headings shown in red, and the name suggested for an exported list of profiles */
+	@Test
+	public void testImportantHeadingAndListExportName() {
+		assertTrue(org.dbgl.gui.dialog.DocumentDialog.important("Wichtig"));
+		assertTrue(org.dbgl.gui.dialog.DocumentDialog.important("IMPORTANT: JAVA 21 WILL BE NEEDED SOON"));
+		assertTrue(org.dbgl.gui.dialog.DocumentDialog.important("  WICHTIG: BALD IST JAVA 21 NÖTIG"));
+		assertFalse(org.dbgl.gui.dialog.DocumentDialog.important("Neu"));
+		assertFalse(org.dbgl.gui.dialog.DocumentDialog.important("Fixed"));
+		// the changelog of this version starts with such a heading, and names the page Java 21 comes from
+		for (String doc: new String[] {"changelog_de.txt", "changelog_en.txt", "whatsnew_de.txt", "whatsnew_en.txt"}) {
+			String text;
+			try (java.io.InputStream in = org.dbgl.gui.dialog.DocumentDialog.class.getResourceAsStream("/doc/" + doc)) {
+				text = new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+			} catch (java.io.IOException e) {
+				throw new IllegalStateException(e);
+			}
+			assertTrue(doc, org.dbgl.gui.dialog.DocumentDialog.blocks(text).stream().anyMatch(b -> (b.kind() != org.dbgl.gui.dialog.DocumentDialog.Kind.BULLET)
+					&& (b.kind() != org.dbgl.gui.dialog.DocumentDialog.Kind.PARAGRAPH) && org.dbgl.gui.dialog.DocumentDialog.important(b.text())));
+			assertTrue(doc, text.contains("https://adoptium.net/temurin/releases/?version=21"));
+		}
+
+		assertEquals("html", org.dbgl.gui.dialog.MainWindow.listExportEnding("fancy_html"));
+		assertEquals("csv", org.dbgl.gui.dialog.MainWindow.listExportEnding("simple_CSV"));
+		assertEquals("txt", org.dbgl.gui.dialog.MainWindow.listExportEnding("txt"));
+		assertEquals("dbgllist-2026-11-04_09-05.html", org.dbgl.gui.dialog.MainWindow.listExportName("html", java.time.LocalDateTime.of(2026, 11, 4, 9, 5, 59)));
+	}
+
+	/** alpha 49: the quick search above the list: every word must be found, in the title or the other columns, in any case */
+	@Test
+	public void testQuickSearch() {
+		String[][] games = {{"Commander Keen 4", "id Software", "Action", "1991", ""}, {"Wing Commander", "Origin", "Simulation", "1990", "Wing Commander"},
+				{"Ultima VIII: Pagan", "Origin", "Role-Playing (RPG)", "1994", "Ultima"}, {"Doom", "id Software", "Action", "1993", ""}};
+		List<org.dbgl.model.aggregate.Profile> all = new java.util.ArrayList<>();
+		for (int i = 0; i < games.length; i++) {
+			org.dbgl.model.aggregate.Profile p = new org.dbgl.model.aggregate.Profile();
+			p.setId(i);
+			p.setTitle(games[i][0]);
+			p.setDeveloper(games[i][1]);
+			p.setGenre(games[i][2]);
+			p.setYear(games[i][3]);
+			p.setSeries(games[i][4], 0);
+			all.add(p);
+		}
+		java.util.function.Function<String, String> ids = s -> org.dbgl.gui.dialog.MainWindow.quickSearched(all, s).stream().map(p -> String.valueOf(p.getId())).collect(java.util.stream.Collectors.joining(","));
+		assertEquals("0,1,2,3", ids.apply(""));
+		assertEquals("0,1,2,3", ids.apply("   "));
+		assertEquals("0,1", ids.apply("commander"));
+		assertEquals("0", ids.apply("KEEN  comm"));
+		assertEquals("1,2", ids.apply("origin"));
+		assertEquals("2", ids.apply("origin 1994"));
+		assertEquals("0,3", ids.apply("action id"));
+		assertEquals("2", ids.apply("ultima")); // title and series
+		assertEquals("", ids.apply("keen 1993"));
+	}
+
+	/** alpha 49: libraries replaced by a newer version are found in the lib folder; others stay */
+	@Test
+	public void testSupersededLibraries() {
+		List<String> wanted = List.of("commons-io-2.20.0.jar", "json-20260814.jar", "gallery_1.0.0.202509131601.jar", "hsqldb-2.7.4.jar", "swtwin64.jar", "jersey-2.48.jar");
+		List<String> present = List.of("commons-io-2.20.0.jar", "json-20250517.jar", "json-20260814.jar", "gallery_1.0.0.202001010000.jar", "gallery_1.0.0.202509131601.jar", "hsqldb-2.7.4.jar",
+			"swtwin64.jar", "swtlin64.jar", "jersey-2.47.jar", "jersey-2.48.jar", "my-own-1.0.jar", "jsoup-1.21.2.jar", "commons-io-extra.txt", "JSON-20240303.JAR");
+		assertEquals("[JSON-20240303.JAR, gallery_1.0.0.202001010000.jar, jersey-2.47.jar, json-20250517.jar]", org.dbgl.util.EditionUpdater.supersededLibraries(wanted, present).toString());
+		// nothing wanted with a version: nothing to remove, whatever is there
+		assertEquals("[]", org.dbgl.util.EditionUpdater.supersededLibraries(List.of("swtwin64.jar"), present).toString());
+	}
+
+	/** alpha 49: the series IGDB names goes into a profile without one; the part comes from the title */
+	@Test
+	public void testSeriesFromOnlineSource() {
+		org.dbgl.model.WebProfile w = new org.dbgl.model.WebProfile();
+		org.dbgl.util.searchengine.IgdbSearchEngine.parseDetails(w,
+			new org.json.JSONObject("{\"name\":\"Space Quest III\",\"collections\":[{\"id\":5,\"name\":\"Space Quest\"}],\"franchises\":[{\"id\":9,\"name\":\"Sierra\"}]}"));
+		assertEquals("Space Quest", w.getSeries());
+		org.dbgl.util.searchengine.IgdbSearchEngine.parseDetails(w, new org.json.JSONObject("{\"name\":\"X\",\"franchises\":[{\"name\":\"Star Wars\"}]}"));
+		assertEquals("Star Wars", w.getSeries());
+		org.dbgl.util.searchengine.IgdbSearchEngine.parseDetails(w, new org.json.JSONObject("{\"name\":\"X\",\"collections\":[7]}"));
+		assertEquals("", w.getSeries());
+
+		org.dbgl.model.aggregate.Profile p = new org.dbgl.model.aggregate.Profile();
+		p.adoptSeries("Space Quest", "Space Quest III: The Pirates of Pestulon");
+		assertEquals("Space Quest 3", p.getSeriesLabel());
+		p.adoptSeries("Other", "Other 5");
+		assertEquals("Space Quest 3", p.getSeriesLabel());
+		org.dbgl.model.aggregate.Profile q = new org.dbgl.model.aggregate.Profile();
+		q.adoptSeries("  ", "Doom II");
+		assertEquals("", q.getSeriesLabel());
+		q.adoptSeries("Doom", "Doom");
+		assertEquals("Doom", q.getSeriesLabel());
+	}
+
+	/** alpha 49: game series suggested from the titles */
+	@Test
+	public void testSeriesSuggester() {
+		java.util.function.Function<String, String> parse = t -> {
+			org.dbgl.util.SeriesSuggester.Parsed p = org.dbgl.util.SeriesSuggester.parse(t);
+			return p.base() + "|" + p.part();
+		};
+		assertEquals("Commander Keen|4", parse.apply("Commander Keen 4: Secret of the Oracle"));
+		assertEquals("Space Quest|3", parse.apply("Space Quest III: The Pirates of Pestulon"));
+		assertEquals("King's Quest|6", parse.apply("King's Quest VI - Heir Today, Gone Tomorrow"));
+		assertEquals("Commander Keen|5", parse.apply("Commander Keen Episode 5"));
+		assertEquals("Doom|2", parse.apply("Doom II (v1.9) [Floppy]"));
+		assertEquals("Doom|0", parse.apply("Doom"));
+		assertEquals("SimCity 2000|0", parse.apply("SimCity 2000")); // not a part
+		assertEquals("FIFA 96|0", parse.apply("FIFA 96"));
+		assertEquals("1942|0", parse.apply("1942"));
+		assertEquals("Wing Commander|0", parse.apply("Wing Commander: Privateer"));
+		assertEquals("Ultima|7", parse.apply("Ultima VII"));
+		assertEquals("Lemmings|0", parse.apply("Lemmings"));
+
+		String[] titles = {"Doom", "Doom II", "Commander Keen 4: Secret of the Oracle", "Commander Keen 5", "commander keen 6", "Lemmings", "SimCity 2000", "Wing Commander: Privateer",
+				"Wing Commander: Armada", "Wing Commander 2", "The Secret of Monkey Island", "Monkey Island 2: LeChuck's Revenge", "Tetris", "Tetris", "Ultima VII", "Ultima 8", "Ultima Underworld"};
+		List<org.dbgl.model.aggregate.Profile> profiles = new java.util.ArrayList<>();
+		for (int i = 0; i < titles.length; i++) {
+			org.dbgl.model.aggregate.Profile p = new org.dbgl.model.aggregate.Profile();
+			p.setId(i);
+			p.setTitle(titles[i]);
+			p.setSeries("", 0);
+			profiles.add(p);
+		}
+		java.util.function.Function<List<org.dbgl.model.aggregate.Profile>, String> show = list -> org.dbgl.util.SeriesSuggester.suggest(list).stream().map(
+			s -> s.series() + "=" + s.members().stream().map(m -> m.profile().getId() + ":" + m.part()).collect(java.util.stream.Collectors.joining(","))).collect(
+				java.util.stream.Collectors.joining(" | "));
+		// Doom is part 1; the two Tetris are duplicates, no series; the Wing Commanders without a number keep 0; Monkey Island
+		// alone ("The Secret of ..." has another name) is none; a title starting with the name of a series joins it
+		assertEquals("Commander Keen=2:4,3:5,4:6 | Doom=0:1,1:2 | Ultima=14:7,15:8,16:0 | Wing Commander=9:2,8:0,7:0", show.apply(profiles));
+
+		// the number later in the title, as a word, as "2.0" or raised; the series named after a subtitle
+		assertEquals("Star Wars: Rebel Assault|2", parse.apply("Star Wars: Rebel Assault II - The Hidden Empire (CD)"));
+		assertEquals("Might and Magic|1", parse.apply("Might and Magic: Book One - Secret of the Inner Sanctum"));
+		assertEquals("The Elder Scrolls|2", parse.apply("The Elder Scrolls: Chapter II - Daggerfall"));
+		assertEquals("Comanche|2", parse.apply("Comanche 2.0"));
+		assertEquals("Vision|2", parse.apply("Vision\u00b2: Aufbruch ins Weltall"));
+		assertEquals("Area One|0", parse.apply("Area One")); // a number as a word only after "Book", "Part", ...
+		String[] more = {"Pagan: Ultima VIII: Gold Edition", "Ultima IV: Quest of the Avatar", "Star Wars: Rebel Assault", "Star Wars: Rebel Assault II - The Hidden Empire", "Star Wars: Dark Forces",
+				"Star Wars: X-Wing (CD)", "Pro Pinball: The Web", "Pro Pinball: Timeshock!", "Wing Commander", "Wing Commander II: Vengeance of the Kilrathi", "Wing Commander Academy",
+				"Wing Commander: Armada", "Ishar: Legend of the Fortress", "Ishar 2: Messengers of Doom", "Red Baron", "Red Baron: Mission Builder", "Sid Meier's Civilization",
+				"Sid Meier's Colonization", "Prince of Persia", "Prince of Destiny", "Master of Magic", "Master of Orion", "Jurassic Park", "Jurassic Park (CD-ROM)", "Dark Seed", "Dark Universe"};
+		List<org.dbgl.model.aggregate.Profile> others = new java.util.ArrayList<>();
+		for (int i = 0; i < more.length; i++) {
+			org.dbgl.model.aggregate.Profile p = new org.dbgl.model.aggregate.Profile();
+			p.setId(i);
+			p.setTitle(more[i]);
+			p.setSeries("", 0);
+			others.add(p);
+		}
+		assertEquals("Ishar=12:1,13:2 | Pro Pinball=6:0,7:0 | Star Wars=4:0,5:0 | Star Wars: Rebel Assault=2:1,3:2 | Ultima=1:4,0:8 | Wing Commander=8:1,9:2,10:0,11:0 | Red Baron=14:0,15:0"
+				+ " | Sid Meier's=16:0,17:0",
+			show.apply(others));
+		// sure: the first six; found by the first words alone: the last two, not ticked in the window
+		assertEquals("[true, true, true, true, true, true, false, false]", org.dbgl.util.SeriesSuggester.suggest(others).stream().map(s -> s.sure()).toList().toString());
+
+		// no numbers in the titles: the parts by year, if the years differ and the genre is shared
+		String[][] dated = {{"Ravenloft: Stone Prophet", "1995", "Role-Playing (RPG)"}, {"Ravenloft: Strahd's Possession", "1994", "Role-Playing (RPG)"}, {"Star Wars: Dark Forces", "1995", "Action"},
+				{"Star Wars: TIE Fighter", "1994", "Simulation"}, {"X-COM: UFO Defense", "1994", "Strategy"}, {"X-COM: Terror from the Deep", "", "Strategy"},
+				{"Pro Pinball: The Web", "1995", "Simulation, Pinball"}, {"Pro Pinball: Timeshock!", "1997", "Pinball"}, {"Wizardry: A", "1990", "RPG"}, {"Wizardry: B", "1990", "RPG"}};
+		List<org.dbgl.model.aggregate.Profile> datedProfiles = new java.util.ArrayList<>();
+		for (int i = 0; i < dated.length; i++) {
+			org.dbgl.model.aggregate.Profile p = new org.dbgl.model.aggregate.Profile();
+			p.setId(i);
+			p.setTitle(dated[i][0]);
+			p.setYear(dated[i][1]);
+			p.setGenre(dated[i][2]);
+			p.setSeries("", 0);
+			datedProfiles.add(p);
+		}
+		assertEquals("Pro Pinball=6:1,7:2 | Ravenloft=1:1,0:2 | Star Wars=2:0,3:0 | Wizardry=8:0,9:0 | X-COM=5:0,4:0", show.apply(datedProfiles));
+
+		// a series there is takes one more part, and keeps its name; its profiles are not suggested again
+		profiles.get(2).setSeries("Commander Keen", 4);
+		profiles.get(3).setSeries("Commander Keen", 5);
+		assertTrue(show.apply(profiles), show.apply(profiles).startsWith("Commander Keen=4:6 | Doom="));
+	}
+
 	/** alpha 48: the order of the toolbar chosen by the user, made whole against what DBGL builds */
 	@Test
 	public void testToolbarLayout() {
@@ -1803,7 +1979,7 @@ public class Dbgl0102Tests {
 		String[][] cases = {
 			{"MZ..DOSBox ECE r4482 compiled..\0mapper-ECE.map\0", SettingsService.ECE_DOSBOX_FAM.title_, "r4482"},
 			{"MZ..DOSBox version %s\0mapper-SVN-Daum.map\0", SettingsService.DAUM_DOSBOX_FAM.title_, "2015.01.25"},
-			{"MZ..DOSBox version %s\0mapper-SVN.map\0", SettingsService.SVN_DOSBOX_FAM.title_, "r4483"},
+			{"MZ..DOSBox version %s\0mapper-SVN.map\0", SettingsService.SVN_DOSBOX_FAM.title_, "r4494"},
 			{"MZ..DOSBox version %s\0mapper-0.74-3.map\0", SettingsService.OFFICIAL_DOSBOX_FAM.title_, "0.74-3"}};
 		for (String[] c: cases) {
 			Files.write(exe.toPath(), c[0].getBytes(StandardCharsets.ISO_8859_1));
@@ -1879,8 +2055,12 @@ public class Dbgl0102Tests {
 		org.dbgl.util.DosboxInstaller.unpack(zip, target, false);
 		assertEquals("dosbox.exe", org.dbgl.util.DosboxInstaller.findExecutable(target).getName());
 		// existing files stay unless overwriting was confirmed, configuration files always stay
-		File exe = new File(target, "dosbox-staging-v0.83.0/dosbox.exe");
-		File conf = new File(target, "dosbox-staging-v0.83.0/dosbox.conf");
+		// alpha 49: the one folder all of the archive is in is left out
+		File exe = new File(target, "dosbox.exe");
+		assertTrue(exe.isFile());
+		assertTrue(new File(target, "resources/shaders/x.glsl").isFile());
+		assertFalse(new File(target, "dosbox-staging-v0.83.0").exists());
+		File conf = new File(target, "dosbox.conf");
 		Files.writeString(exe.toPath(), "old");
 		Files.writeString(conf.toPath(), "[cpu]\ncycles=max\n");
 		assertEquals(2, org.dbgl.util.DosboxInstaller.unpack(zip, target, false)); // dosbox.exe and the shader stay
@@ -2356,6 +2536,15 @@ public class Dbgl0102Tests {
 		assertEquals("ide", org.dbgl.util.StoreGameImport.needsDosboxX(e)); // the import recommends DOSBox-X for it
 		assertTrue(ep.getConfiguration().getAutoexec().toString(), ep.getConfiguration().getAutoexec().toString().contains("boot -l C")); // the hard disk by its drive, not the file again
 		assertNull(org.dbgl.util.StoreGameImport.needsDosboxX(duke));
+		// alpha 49: what DOSBox-X has elsewhere than Daum and ECE (video memory, 3dfx card), if the game changed it
+		String daum = "# This is the configuration file for DOSBox SVN-Daum. (Please use the latest version of DOSBox)";
+		assertEquals("{video|vmemsize=4, voodoo|voodoo_card=opengl}", org.dbgl.util.StoreGameImport.forDosboxX(daum,
+			"[dosbox]\nvmemsize=4\nmemsize=512\n\n[pci]\nvoodoo=OpenGL\n\n[glide]\nglide=emu\nlfb=full\nsplash=true\n\n[autoexec]\nvmemsize=9\n").toString());
+		assertEquals("{voodoo|lfb=none}", org.dbgl.util.StoreGameImport.forDosboxX(daum, "[dosbox]\r\nvmemsize = 2\r\n[pci]\r\nvoodoo=auto\r\n[glide]\r\nglide=true\r\nlfb=none\r\n").toString());
+		assertEquals("{voodoo|voodoo_card=false}", org.dbgl.util.StoreGameImport.forDosboxX("# This is the configuration file for DOSBox ECE r4482. (Please use the latest version of DOSBox)",
+			"[pci]\nvoodoo=false\n[glide]\nlfb=full_noaux\n").toString());
+		assertTrue(org.dbgl.util.StoreGameImport.forDosboxX("# This is the configurationfile for DOSBox 0.74. (Please use the latest version of DOSBox)", "[dosbox]\nvmemsize=4\n").isEmpty());
+		assertTrue(org.dbgl.util.StoreGameImport.forDosboxX(null, "[pci]\nvoodoo=opengl\n").isEmpty());
 		// for Staging 0.83: the CD image and the hard disk image for booting both become MOUNT
 		ep.adaptImageMountsToDosbox();
 		assertEquals("mount", ((org.dbgl.model.conf.mount.ImageMount)em.get(0)).getCommand().toLowerCase());
@@ -2365,8 +2554,20 @@ public class Dbgl0102Tests {
 		// and back: switched to DOSBox-X, both are IMGMOUNT again, with everything the hard disk image needs
 		org.dbgl.model.aggregate.DosboxVersion vx = DosboxVersionFactory.create("DOSBox-X", SettingsService.DOSBOX_X_DOSBOX_FAM.title_, "2025.10.07", false, true, false, null,
 			"dosboxx", "", "", "dosboxx/dosbox-x.conf");
+		// alpha 49: for Staging nothing about the mouse is said (it is DOSBox-X that passes the mouse on only when captured)
+		assertFalse(org.dbgl.util.ProfileChecks.bootWithoutMouseCapture(ep));
 		ep.setDosboxVersion(vx);
 		assertTrue(ep.adaptImageMountsToDosbox());
+		// alpha 49: DOSBox-X boots Windows 95 and does not capture the mouse on its own: said, until one of the two is set
+		assertTrue(org.dbgl.util.ProfileChecks.bootWithoutMouseCapture(ep));
+		ep.getConfiguration().setValue("sdl", "mouse_emulation", "always");
+		assertFalse(org.dbgl.util.ProfileChecks.bootWithoutMouseCapture(ep));
+		ep.getConfiguration().setValue("sdl", "mouse_emulation", "locked");
+		assertTrue(org.dbgl.util.ProfileChecks.bootWithoutMouseCapture(ep));
+		ep.getConfiguration().setValue("sdl", "autolock", "true");
+		assertFalse(org.dbgl.util.ProfileChecks.bootWithoutMouseCapture(ep));
+		ep.getConfiguration().removeValue("sdl", "autolock");
+		ep.getConfiguration().removeValue("sdl", "mouse_emulation");
 		assertEquals("imgmount", ((org.dbgl.model.conf.mount.ImageMount)em.get(0)).getCommand().toLowerCase());
 		assertEquals("imgmount", ((org.dbgl.model.conf.mount.ImageMount)em.get(1)).getCommand().toLowerCase());
 		auto = ep.getConfiguration().getAutoexec().toString();
@@ -2878,5 +3079,690 @@ public class Dbgl0102Tests {
 		} finally {
 			org.apache.commons.io.FileUtils.deleteQuietly(tmp);
 		}
+	}
+
+	/** alpha 49: DOSBox Staging 0.83.1: known, same settings as 0.83.0, but "auto" is no value of keyboard_layout and country any more */
+	@Test
+	public void testConfTakeover() throws Exception {
+		String ref = Files.readString(new File(DATA_DIR, "dosbox-staging-0.83.0.conf").toPath(), StandardCharsets.UTF_8).replace("\r\n", "\n");
+		String german = Files.readString(new File(DATA_DIR, "dosbox-staging-0.83.0-de.conf").toPath(), StandardCharsets.UTF_8);
+		// the defaults of 0.83.0 come from the list of DBGL: also for a file with German comments
+		assertEquals(193, org.dbgl.util.ConfTakeover.shipped("staging-0.83.0").size());
+		assertEquals(193, org.dbgl.util.ConfTakeover.shipped("staging-0.83.1").size());
+		assertEquals(172, org.dbgl.util.ConfTakeover.shipped("staging-0.82.2").size());
+		assertEquals(64, org.dbgl.util.ConfTakeover.shipped("dosbox-0.74-3").size());
+		assertEquals("staging-0.82.2", org.dbgl.util.ConfTakeover.listFor("# This is the configuration file for DOSBox Staging (0.82.0)."));
+		assertEquals("staging-0.83.1", org.dbgl.util.ConfTakeover.listFor("# Dies ist die Konfigurationsdatei für dosbox-staging (0.83.1)."));
+		assertEquals("dosbox-0.74-3", org.dbgl.util.ConfTakeover.listFor("# This is the configuration file for DOSBox 0.74-2. (Please use the latest version of DOSBox)"));
+		assertEquals("dosbox-x", org.dbgl.util.ConfTakeover.listFor("# This is the configuration file for DOSBox-X 2026.10.01. (Please use the latest version of DOSBox-X)"));
+		assertEquals("dosbox-daum", org.dbgl.util.ConfTakeover.listFor("# This is the configuration file for DOSBox SVN-Daum. (Please use the latest version of DOSBox)"));
+		assertEquals("dosbox-ece", org.dbgl.util.ConfTakeover.listFor("# This is the configuration file for DOSBox ECE. (Please use the latest version of DOSBox)"));
+		assertNull(org.dbgl.util.ConfTakeover.listFor("# This is the configuration file for DOSBox Pure."));
+		assertEquals("dosbox-svn", org.dbgl.util.ConfTakeover.listFor("# This is the configuration file for DOSBox SVN. (Please use the latest version of DOSBox)"));
+		assertEquals(66, org.dbgl.util.ConfTakeover.shipped("dosbox-svn").size());
+		assertEquals(108, org.dbgl.util.ConfTakeover.shipped("dosbox-ece").size());
+		// DOSBox ECE with more memory and a scaler, into DOSBox Staging: the memory is taken over, the scaler is gone there
+		List<org.dbgl.util.ConfTakeover.Row> fromEce = org.dbgl.util.ConfTakeover.compare(Files.readString(new File(DATA_DIR, "dosbox-ece-r4482.conf").toPath(), StandardCharsets.ISO_8859_1),
+			Files.readString(new File(DATA_DIR, "dosbox-staging-0.83.0.conf").toPath(), StandardCharsets.UTF_8));
+		assertTrue(fromEce.toString(), fromEce.stream().anyMatch(r -> r.item().equals("memsize") && r.oldValue().equals("512") && r.preselected()));
+		assertTrue(fromEce.stream().anyMatch(r -> r.item().equals("scaler") && (r.state() == org.dbgl.util.ConfTakeover.State.REMOVED)));
+		assertTrue(fromEce.stream().noneMatch(r -> r.item().equals("mapperfile") || (r.state() == org.dbgl.util.ConfTakeover.State.UNKNOWN)));
+		assertTrue(org.dbgl.util.ConfTakeover.shipped("dosbox-x").size() > 800);
+		assertTrue(org.dbgl.util.ConfTakeover.shipped("dosbox-daum").size() > 400);
+		// DOSBox-X and SVN-Daum as they come: nothing of them is a change of the user (not the hundreds of settings the other
+		// DOSBox does not have, not the name of the mapper file); only what was changed shows
+		String daum = Files.readString(new File(DATA_DIR, "dosbox-daum-2015.01.25.conf").toPath(), StandardCharsets.ISO_8859_1);
+		String dosboxX = Files.readString(new File(DATA_DIR, "dosbox-x-2026.10.01.conf").toPath(), StandardCharsets.ISO_8859_1);
+		for (String[] pair: new String[][] {{daum, ref}, {dosboxX, ref}, {daum, dosboxX}, {dosboxX, daum}}) {
+			List<org.dbgl.util.ConfTakeover.Row> none = org.dbgl.util.ConfTakeover.compare(pair[0], pair[1]);
+			assertTrue(none.toString(), none.stream().noneMatch(r -> r.preselected() || !r.selectable()));
+		}
+		// the language of DOSBox Staging ("de") is no file of translations of DOSBox-X: shown, not chosen
+		assertTrue(org.dbgl.util.ConfTakeover.compare(ref.replace("\nlanguage = auto", "\nlanguage = de"), dosboxX).stream()
+				.anyMatch(r -> r.item().equals("language") && (r.state() == org.dbgl.util.ConfTakeover.State.NOT_LISTED) && !r.preselected()));
+		List<org.dbgl.util.ConfTakeover.Row> changedX = org.dbgl.util.ConfTakeover.compare(
+			dosboxX.replaceFirst("(?m)^output( *)= *default", "output$1= ttf").replaceFirst("(?m)^memsize( *)= *16", "memsize$1= 64").replaceFirst("(?m)^cycles( *)= *auto", "cycles$1= fixed 20000"), ref);
+		assertEquals(changedX.toString(), 2, changedX.stream().filter(org.dbgl.util.ConfTakeover.Row::preselected).count()); // not "ttf" of its setup
+		assertTrue(changedX.stream().anyMatch(r -> r.item().equals("cpu_cycles") && r.oldValue().equals("20000") && r.preselected()));
+		assertTrue(changedX.stream().anyMatch(r -> r.item().equals("memsize") && r.oldValue().equals("64") && r.preselected()));
+		assertEquals("", org.dbgl.util.ConfTakeover.defaultIn("File (empty by default)."));
+		assertEquals("off", org.dbgl.util.ConfTakeover.defaultIn("Web server (disabled by default)."));
+		assertTrue(org.dbgl.util.ConfTakeover.shipped("staging-9.9.9").isEmpty());
+		// the older file: fullscreen and the sensitivity changed, commands in [autoexec]
+		String older = ref.replace("\nfullscreen = off", "\nfullscreen = true").replace("\nmouse_sensitivity = 100", "\nmouse_sensitivity = 55 98") + "mount c /games\nc:\n";
+		// the newer file, as 0.83.1 writes it: other defaults, a setting less, its version in the name of the mapper file
+		String newer = ref.replace("(0.83.0)", "(0.83.1)").replace("\nblocksize = 512", "\nblocksize = 1024").replace("\nkeyboard_layout = auto", "\nkeyboard_layout = us")
+				.replace("mapper-sdl2-0.83.0.map", "mapper-sdl2-0.83.1.map").replace("\nvoodoo_threads = auto", "").replace("\n", "\r\n");
+		assertFalse(ref.replace("\n", "\r\n").equals(newer));
+		List<org.dbgl.util.ConfTakeover.Row> rows = org.dbgl.util.ConfTakeover.compare(older, newer);
+		java.util.Map<String, org.dbgl.util.ConfTakeover.State> states = new java.util.LinkedHashMap<>();
+		rows.forEach(r -> states.put(r.item(), r.state()));
+		assertEquals(org.dbgl.util.ConfTakeover.State.OWN, states.get("fullscreen"));
+		assertEquals(org.dbgl.util.ConfTakeover.State.OWN, states.get("mouse_sensitivity"));
+		assertEquals(org.dbgl.util.ConfTakeover.State.OLD_DEFAULT, states.get("blocksize")); // the newer default stays
+		assertEquals(org.dbgl.util.ConfTakeover.State.OLD_DEFAULT, states.get("keyboard_layout")); // "auto" is not taken over
+		assertEquals(org.dbgl.util.ConfTakeover.State.AUTOEXEC, states.get(""));
+		assertFalse(states.toString(), states.containsKey("mapperfile")); // each version names its own file
+		assertFalse(states.toString(), states.containsKey("voodoo_threads")); // gone, but it was the default anyway
+		assertEquals(states.toString(), 5, states.size());
+		assertEquals(3, rows.stream().filter(org.dbgl.util.ConfTakeover.Row::preselected).count());
+		// the same from a file with German comments ("on" and "true" are one value)
+		String olderGerman = german.replace("\r\n", "\n").replaceAll("\nfullscreen *= *\\S+", "\nfullscreen = on");
+		assertTrue(org.dbgl.util.ConfTakeover.compare(olderGerman, newer).stream()
+				.anyMatch(r -> r.item().equals("fullscreen") && (r.state() == org.dbgl.util.ConfTakeover.State.OWN) && r.newValue().equals("off")));
+		assertTrue(org.dbgl.util.ConfTakeover.compare(olderGerman, newer).stream().noneMatch(r -> r.state() == org.dbgl.util.ConfTakeover.State.UNKNOWN));
+		// a version of DOSBox Staging DBGL has no list for: the English comments say the defaults
+		assertEquals(org.dbgl.util.ConfTakeover.State.OLD_DEFAULT, org.dbgl.util.ConfTakeover.compare(ref.replace("(0.83.0)", "(0.84.7)"), newer).stream()
+				.filter(r -> r.item().equals("blocksize")).findFirst().get().state());
+		assertEquals("opengl", org.dbgl.util.ConfTakeover.defaultIn("Rendering backend ('opengl' by default). Only"));
+		assertEquals("0", org.dbgl.util.ConfTakeover.defaultIn("Number of display (0 by default)."));
+		assertEquals("", org.dbgl.util.ConfTakeover.defaultIn("Path (unset by default)."));
+		assertNull(org.dbgl.util.ConfTakeover.defaultIn("(standardmäßig 'opengl')"));
+		// a file that does not say which DOSBox wrote it: nothing known about its defaults; what became of older settings
+		String classic = "[sdl]\nfullscreen=true\nsensitivity=150\nfulldouble=true\npriority = higher normal\nfullresolution=1280x1024\ncapture_mouse=seamless middlegame\n"
+				+ "[mixer]\nblocksize=1024\n[speaker]\ndisney=true\n[mouse]\ndos_mouse_driver=false\n";
+		List<org.dbgl.util.ConfTakeover.Row> fromClassic = org.dbgl.util.ConfTakeover.compare(classic, ref);
+		assertEquals(fromClassic.toString(), 9, fromClassic.size());
+		assertEquals(org.dbgl.util.ConfTakeover.State.UNKNOWN, fromClassic.get(0).state());
+		assertEquals("mouse_sensitivity", fromClassic.get(1).item()); // under its new name, in its new section
+		assertEquals("mouse", fromClassic.get(1).section());
+		assertEquals("[sdl] sensitivity", fromClassic.get(1).from());
+		assertEquals(org.dbgl.util.ConfTakeover.State.MISSING, fromClassic.get(2).state()); // fulldouble: not known to DBGL
+		assertFalse(fromClassic.get(2).selectable());
+		assertEquals(org.dbgl.util.ConfTakeover.State.REMOVED, fromClassic.get(3).state()); // priority
+		assertEquals(org.dbgl.util.ConfTakeover.State.MANUAL, fromClassic.get(4).state()); // fullresolution
+		assertEquals("[sdl] fullscreen_mode", fromClassic.get(4).from());
+		assertFalse(fromClassic.get(4).selectable());
+		assertEquals("[mouse] mouse_capture=seamless", "[" + fromClassic.get(5).section() + "] " + fromClassic.get(5).item() + "=" + fromClassic.get(5).oldValue());
+		assertEquals("blocksize", fromClassic.get(6).item());
+		assertEquals("lpt_dac=disney", fromClassic.get(7).item() + "=" + fromClassic.get(7).oldValue());
+		assertEquals("builtin_dos_mouse_driver=off", fromClassic.get(8).item() + "=" + fromClassic.get(8).oldValue());
+		String fromClassicApplied = org.dbgl.util.ConfTakeover.apply(ref, fromClassic);
+		assertTrue(fromClassicApplied.contains("\nmouse_capture = seamless\n") && fromClassicApplied.contains("\nlpt_dac = disney\n"));
+		assertFalse(fromClassicApplied.contains("priority") || fromClassicApplied.contains("fulldouble"));
+		// a target that is not DOSBox Staging: no guess about what became of a setting
+		assertTrue(org.dbgl.util.ConfTakeover.compare("[sdl]\nsensitivity=150\npriority=higher,normal\n", "[sdl]\nfullscreen=false\n[mouse]\nmouse_sensitivity=100\n").stream()
+				.allMatch(r -> r.state() == org.dbgl.util.ConfTakeover.State.MISSING));
+		// a file of 0.82 written on Windows, set out in columns: the sound buffer of Windows is no change of the user
+		String win082 = "# This is the configuration file for DOSBox Staging (0.82.2).\r\n[sdl]\r\nfullscreen          = true\r\npriority            = auto auto\r\n"
+				+ "[mixer]\r\nblocksize  = 1024\r\nnegotiate  = false\r\n[dos]\r\nver = 6.22\r\n";
+		List<org.dbgl.util.ConfTakeover.Row> from082 = org.dbgl.util.ConfTakeover.compare(win082, ref);
+		assertEquals(from082.toString(), 4, from082.size());
+		assertEquals(org.dbgl.util.ConfTakeover.State.OWN, from082.get(0).state()); // fullscreen
+		assertEquals(org.dbgl.util.ConfTakeover.State.OLD_DEFAULT, from082.get(1).state()); // blocksize: the default on Windows
+		assertEquals(org.dbgl.util.ConfTakeover.State.OLD_DEFAULT, from082.get(2).state()); // negotiate
+		assertEquals(org.dbgl.util.ConfTakeover.State.OWN, from082.get(3).state()); // ver
+		// a file of DOSBox 0.74: its own defaults are known; what DOSBox Staging takes in another form is written in that form
+		String classic074 = "# This is the configurationfile for DOSBox 0.74. (Please use the latest version of DOSBox)\n[sdl]\nfullscreen=true\nwindowresolution=960x600\n"
+				+ "output=surface\nmapperfile=mapper-0.74.map\n[dosbox]\nlanguage=german-0.74.lang\nmemsize=32\n[render]\naspect=true\nscaler=advinterp2x\n"
+				+ "[cpu]\ncore=dynamic\ncycles=max\n[mixer]\nrate=44100\nprebuffer=20\n[gus]\ngus=true\n[autoexec]\n# Lines in this section will be run at startup.\nmount c c:\\games\n";
+		java.util.Map<String, String> from074 = new java.util.LinkedHashMap<>();
+		List<org.dbgl.util.ConfTakeover.Row> rows074 = org.dbgl.util.ConfTakeover.compare(classic074, ref);
+		rows074.forEach(r -> from074.put(r.item(), r.oldValue() + " " + r.state() + (r.preselected() ? " x": "")));
+		assertEquals("on OWN x", from074.get("fullscreen"));
+		assertEquals("960x600 OWN x", from074.get("window_size"));
+		assertEquals("surface OLD_DEFAULT", from074.get("output"));
+		assertFalse(from074.toString(), from074.containsKey("mapperfile"));
+		assertEquals("de OWN x", from074.get("language"));
+		assertEquals("32 OWN x", from074.get("memsize"));
+		assertEquals("on OWN x", from074.get("aspect"));
+		assertEquals("advinterp2x REMOVED", from074.get("scaler"));
+		assertEquals("dynamic OWN x", from074.get("core"));
+		assertEquals("max OWN x", from074.get("cpu_cycles"));
+		assertEquals("44100 OLD_DEFAULT", from074.get("rate"));
+		assertFalse(from074.toString(), from074.containsKey("prebuffer")); // 20 here as there
+		assertEquals("on OWN x", from074.get("gus"));
+		assertEquals(from074.toString(), 12, from074.size()); // and [autoexec]
+		assertEquals("german-0.74.lang", rows074.stream().filter(r -> r.item().equals("language")).findFirst().get().from());
+		String applied074 = org.dbgl.util.ConfTakeover.apply(ref, rows074.stream().filter(org.dbgl.util.ConfTakeover.Row::preselected).toList());
+		assertTrue(applied074.contains("\nlanguage = de\n") && applied074.contains("\ncpu_cycles = max\n") && applied074.contains("\naspect = on\n"));
+		assertTrue(applied074.endsWith("\nmount c c:\\games\n"));
+		assertFalse(applied074.contains("Lines in this section will be run")); // the comment of the older file is not taken
+		assertEquals("de", org.dbgl.util.ConfTakeover.languageCode("C:\\DOSBox\\german-0.74.lang"));
+		assertNull(org.dbgl.util.ConfTakeover.languageCode("klingon.lang"));
+		assertEquals(org.dbgl.util.ConfTakeover.State.MANUAL, org.dbgl.util.ConfTakeover.compare("[cpu]\ncycles=auto 5000 80% limit 20000\n", ref).get(0).state());
+		// taken over into a file set out in columns: the line keeps its form
+		assertEquals("[sdl]\r\nfullscreen          = on\r\n", org.dbgl.util.ConfTakeover.apply("[sdl]\r\nfullscreen          = false\r\n",
+			org.dbgl.util.ConfTakeover.compare("[sdl]\nfullscreen=on\n", "[sdl]\r\nfullscreen          = false\r\n")));
+		// taking over: the lines keep their form, the comments and the line ends stay
+		String result = org.dbgl.util.ConfTakeover.apply(newer, rows.stream().filter(org.dbgl.util.ConfTakeover.Row::preselected).toList());
+		assertTrue(result.contains("\r\nfullscreen = on\r\n"));
+		assertTrue(result.contains("\r\nmouse_sensitivity = 55 98\r\n"));
+		assertTrue(result.contains("\r\nblocksize = 1024\r\n")); // not chosen
+		assertTrue(result.endsWith("\r\nmount c /games\r\nc:\r\n"));
+		assertFalse(result.replace("\r\n", "").contains("\n"));
+		assertEquals(newer.split("\r\n").length + 3, result.split("\r\n").length); // the empty line at the end, and the two commands
+		assertTrue(result.contains("[autoexec]\r\n\r\n# Each line in this section")); // the comment of the section stays
+		assertTrue(org.dbgl.util.ConfTakeover.compare(older, result).stream().noneMatch(org.dbgl.util.ConfTakeover.Row::preselected));
+		// test 16: the preview: the lines that change below their section, or the whole file
+		List<org.dbgl.util.ProfileFindings.DiffLine> shortPreview = org.dbgl.util.ConfTakeover.preview(newer, result, false);
+		StringBuilder shown = new StringBuilder();
+		shortPreview.forEach(l -> shown.append(l.kind()).append(l.text()).append('|'));
+		assertEquals(" [sdl]|-fullscreen = off|+fullscreen = on| [mouse]|-mouse_sensitivity = 100|+mouse_sensitivity = 55 98| [autoexec]|+mount c /games|+c:|", shown.toString());
+		List<org.dbgl.util.ProfileFindings.DiffLine> fullPreview = org.dbgl.util.ConfTakeover.preview(newer, result, true);
+		assertEquals(4, fullPreview.stream().filter(l -> l.kind() == '+').count());
+		assertEquals(2, fullPreview.stream().filter(l -> l.kind() == '-').count());
+		assertTrue(org.dbgl.util.ConfTakeover.preview(newer, newer, false).isEmpty());
+		// [autoexec] replaced, not added to; a file without the section gets one
+		assertTrue(org.dbgl.util.ConfTakeover.withAutoexec("[sdl]\na=1\n[autoexec]\n# comment\nold\n", List.of("# other comment", "new")).endsWith("[autoexec]\n# comment\nnew\n"));
+		assertEquals("[sdl]\na=1\n\n[autoexec]\nnew\n", org.dbgl.util.ConfTakeover.withAutoexec("[sdl]\na=1\n", List.of("new")));
+		// written with a copy of the file as it was
+		File dir = Files.createTempDirectory("dbgltakeover").toFile();
+		File conf = new File(dir, "dosbox-staging.conf");
+		Files.write(conf.toPath(), newer.getBytes(StandardCharsets.UTF_8));
+		File backup = org.dbgl.util.ConfTakeover.write(conf, org.dbgl.util.ConfTakeover.apply(org.dbgl.util.ConfTakeover.read(conf), rows));
+		assertEquals(newer, Files.readString(backup.toPath(), StandardCharsets.UTF_8));
+		assertTrue(backup.getName().startsWith("dosbox-staging.conf.") && backup.getName().endsWith(".bak"));
+		assertTrue(Files.readString(conf.toPath(), StandardCharsets.UTF_8).contains("\r\nkeyboard_layout = auto\r\n")); // all rows: also the old default
+		org.apache.commons.io.FileUtils.deleteDirectory(dir);
+	}
+
+	@Test
+	public void testStaging0831() throws Exception {
+		assertTrue(SettingsService.STAGING_DOSBOX_FAM.versions_.contains("0.83.1"));
+		assertEquals(Generation.staging_0830, gen(SettingsService.STAGING_DOSBOX_FAM.title_, "0.83.1"));
+		String conf083 = Files.readString(new File(DATA_DIR, "dosbox-staging-0.83.0.conf").toPath(), StandardCharsets.UTF_8);
+		File confFile = new File(DATA_DIR, "dosbox-staging-0.83.0.conf");
+		org.dbgl.model.aggregate.DosboxVersion[] versions = new org.dbgl.model.aggregate.DosboxVersion[3];
+		String[] numbers = {"0.83.0", "0.83.1", "0.84.0 (abc12)"};
+		for (int i = 0; i < 3; i++) {
+			versions[i] = DosboxVersionFactory.create("DOSBox Staging " + numbers[i], SettingsService.STAGING_DOSBOX_FAM.title_, numbers[i], false, true, false, null, "staging", "", "",
+				"staging/dosbox.conf");
+			// as 0.83.1 writes its configuration: a value instead of "auto"
+			versions[i].loadConfigurationData(GenericTextService.getInstance(),
+				i == 0 ? conf083: conf083.replace("keyboard_layout = auto", "keyboard_layout = us").replace("country = auto", "country = 1"), confFile);
+		}
+		assertFalse(org.dbgl.util.ProfileChecks.staging0831(versions[0]));
+		assertTrue(org.dbgl.util.ProfileChecks.staging0831(versions[1]));
+		assertTrue(org.dbgl.util.ProfileChecks.staging0831(versions[2]));
+		assertFalse(org.dbgl.util.ProfileChecks.staging0831(DosboxVersionFactory.create("X", "DOSBox-X", "2026.10.01", false, true, false, null, "x", "", "", "x/dosbox.conf")));
+		for (int i = 0; i < 2; i++) {
+			org.dbgl.model.aggregate.Profile profile = org.dbgl.model.factory.ProfileFactory.create(versions[i], null);
+			profile.getConfiguration().setValue("dos", "keyboard_layout", "auto");
+			profile.getConfiguration().setValue("dos", "country", "49");
+			profile.getConfiguration().setValue("dos", "locale_period", "modern"); // a value that stays (only "native" went)
+			List<org.dbgl.util.ProfileChecks.StagingChange> changes = org.dbgl.util.ProfileChecks.stagingChanges(profile);
+			if (i == 0) {
+				assertTrue(changes.toString(), changes.isEmpty()); // 0.83.0 knows "auto"
+			} else {
+				assertEquals(1, changes.size()); // only the setting that says auto
+				assertTrue(org.dbgl.util.ProfileChecks.applyStagingChange(profile, "dos", "keyboard_layout"));
+				assertFalse(profile.getConfiguration().hasValue("dos", "keyboard_layout")); // gone: the value of the DOSBox version counts
+				assertEquals("49", profile.getConfiguration().getValue("dos", "country")); // a real value stays
+				assertTrue(org.dbgl.util.ProfileChecks.stagingChanges(profile).isEmpty());
+			}
+			// test 15: the old name with "auto": for 0.83.0 renamed to keyboard_layout = auto, for 0.83.1 the value goes
+			org.dbgl.model.aggregate.Profile oldName = org.dbgl.model.factory.ProfileFactory.create(versions[i], null);
+			oldName.getConfiguration().setValue("dos", "keyboardlayout", "auto");
+			List<org.dbgl.util.ProfileChecks.StagingChange> renamed = org.dbgl.util.ProfileChecks.stagingChanges(oldName);
+			assertEquals(1, renamed.size());
+			assertEquals(i == 0 ? "rename": "autogone", renamed.get(0).old().kind());
+			assertTrue(org.dbgl.util.ProfileChecks.applyStagingChange(oldName, "dos", "keyboardlayout"));
+			assertFalse(oldName.getConfiguration().hasValue("dos", "keyboardlayout"));
+			assertEquals(i == 0, oldName.getConfiguration().hasValue("dos", "keyboard_layout"));
+			// another value under the old name is renamed for both
+			oldName.getConfiguration().setValue("dos", "keyboardlayout", "gr");
+			assertEquals("rename", org.dbgl.util.ProfileChecks.stagingChanges(oldName).get(0).old().kind());
+		}
+		// test 16: a profile switched from 0.83.0 to 0.83.1: "auto" goes with the switch, other values stay
+		org.dbgl.model.aggregate.Profile switched = org.dbgl.model.factory.ProfileFactory.create(versions[0], null);
+		switched.getConfiguration().setValue("dos", "keyboard_layout", "auto");
+		switched.getConfiguration().setValue("dos", "country", "49");
+		assertTrue(org.dbgl.util.ProfileChecks.removeGone0831(switched).isEmpty()); // 0.83.0: nothing to do
+		switched.setDosboxVersion(versions[1]);
+		List<String[]> goneNow = org.dbgl.util.ProfileChecks.removeGone0831(switched);
+		assertEquals(1, goneNow.size());
+		assertEquals("[dos] keyboard_layout=auto", goneNow.get(0)[0] + "=" + goneNow.get(0)[1]);
+		assertFalse(switched.getConfiguration().hasValue("dos", "keyboard_layout"));
+		assertEquals("49", switched.getConfiguration().getValue("dos", "country"));
+		assertTrue(org.dbgl.util.ProfileChecks.removeGone0831(switched).isEmpty());
+		// test 15: the version chosen in DBGL says 0.83.0, its configuration file was written by 0.83.1: that one counts
+		File dir = Files.createTempDirectory("dbgl0831").toFile();
+		File written = new File(dir, "dosbox.conf");
+		Files.writeString(written.toPath(), conf083.replace("(0.83.0)", "(0.83.1)"), StandardCharsets.UTF_8);
+		assertTrue(org.dbgl.util.ProfileChecks.staging0831(DosboxVersionFactory.create("Staging", SettingsService.STAGING_DOSBOX_FAM.title_, "0.83.0", false, true, false, null, dir.getPath(), "", "",
+			written.getPath())));
+		Files.writeString(written.toPath(), conf083, StandardCharsets.UTF_8);
+		assertFalse(org.dbgl.util.ProfileChecks.staging0831(DosboxVersionFactory.create("Staging", SettingsService.STAGING_DOSBOX_FAM.title_, "0.83.0", false, true, false, null, dir.getPath(), "", "",
+			written.getPath())));
+		// test 17: values written in the file of a profile that are the same as in its DOSBox version: read from the file, DBGL
+		// does not hold them. Switched to 0.83.1 with other values there: "memsize = 16" stays, "auto" is told as gone
+		File newDir = new File(dir, "new");
+		newDir.mkdirs();
+		File newConf = new File(newDir, "dosbox.conf");
+		Files.writeString(newConf.toPath(), conf083.replace("(0.83.0)", "(0.83.1)").replaceFirst("(?m)^memsize = 16", "memsize = 32").replace("keyboard_layout = auto", "keyboard_layout = gr"),
+			StandardCharsets.UTF_8);
+		org.dbgl.model.aggregate.DosboxVersion oldVersion = DosboxVersionFactory.create("Old", SettingsService.STAGING_DOSBOX_FAM.title_, "0.83.0", false, true, false, null, dir.getPath(), "", "",
+			written.getPath());
+		org.dbgl.model.aggregate.DosboxVersion newVersion = DosboxVersionFactory.create("New", SettingsService.STAGING_DOSBOX_FAM.title_, "0.83.1", false, true, false, null, newDir.getPath(), "", "",
+			newConf.getPath());
+		oldVersion.setId(9001);
+		newVersion.setId(9002);
+		oldVersion.resetAndLoadConfiguration();
+		newVersion.resetAndLoadConfiguration();
+		File profileFile = new File(dir, "profile.conf");
+		Files.writeString(profileFile.toPath(), "[dosbox]\nmemsize = 16\n[dos]\nkeyboard_layout = auto\n[cpu]\ncore = normal\n[autoexec]\n", StandardCharsets.UTF_8);
+		org.dbgl.model.aggregate.Profile fromFile = org.dbgl.model.factory.ProfileFactory.create(oldVersion, null);
+		fromFile.setConfigurationFileLocation(profileFile.getPath());
+		fromFile.resetAndLoadConfiguration();
+		assertFalse(fromFile.getConfiguration().hasValue("dosbox", "memsize")); // the same as in the DOSBox version: not held
+		assertEquals("normal", fromFile.getConfiguration().getValue("cpu", "core"));
+		assertTrue(org.dbgl.util.ProfileChecks.gone0831InFile(profileFile, oldVersion).isEmpty());
+		List<String[]> inFile = org.dbgl.util.ProfileChecks.gone0831InFile(profileFile, newVersion);
+		assertEquals(1, inFile.size());
+		assertEquals("[dos] keyboard_layout=auto", inFile.get(0)[0] + "=" + inFile.get(0)[1]);
+		assertTrue(org.dbgl.util.ProfileChecks.keepWrittenValues(profileFile, oldVersion, fromFile).isEmpty()); // not switched: nothing to do
+		fromFile.switchToDosboxVersion(newVersion);
+		assertTrue(org.dbgl.util.ProfileChecks.removeGone0831(fromFile).isEmpty());
+		List<String[]> keptValues = org.dbgl.util.ProfileChecks.keepWrittenValues(profileFile, oldVersion, fromFile);
+		assertEquals(1, keptValues.size());
+		assertEquals("[dosbox] memsize=16 (32)", keptValues.get(0)[0] + "=" + keptValues.get(0)[1] + " (" + keptValues.get(0)[2] + ")");
+		assertEquals("16", fromFile.getConfiguration().getValue("dosbox", "memsize"));
+		assertFalse(fromFile.getConfiguration().hasValue("dos", "keyboard_layout")); // "auto" is not put back
+		assertTrue(org.dbgl.util.ProfileChecks.keepWrittenValues(profileFile, oldVersion, fromFile).isEmpty());
+		// test 18: what the profiles take from their DOSBox version and the new one has otherwise: memsize, not "auto" (no
+		// value of 0.83.1); kept in a profile only when chosen, and only where the profile has no value of its own
+		List<org.dbgl.util.SwitchChoices.Choice> inherited = org.dbgl.util.SwitchChoices.inherited(oldVersion, newVersion);
+		assertEquals(1, inherited.size());
+		assertEquals("dosbox.memsize 16 -> 32", inherited.get(0).section() + "." + inherited.get(0).item() + " " + inherited.get(0).oldText() + " -> " + inherited.get(0).newText());
+		assertFalse(inherited.get(0).defaultKeep());
+		assertTrue(org.dbgl.util.SwitchChoices.inherited(oldVersion, oldVersion).isEmpty());
+		assertTrue(org.dbgl.util.SwitchChoices.inherited(oldVersion, DosboxVersionFactory.create("X", "DOSBox-X", "2026.10.01", false, true, false, null, "x", "", "", "x/dosbox.conf")).isEmpty());
+		org.dbgl.model.aggregate.Profile plain = org.dbgl.model.factory.ProfileFactory.create(oldVersion, null);
+		plain.switchToDosboxVersion(newVersion);
+		assertTrue(org.dbgl.util.SwitchChoices.applyInherited(plain, inherited, c -> false).isEmpty());
+		assertFalse(plain.getConfiguration().hasValue("dosbox", "memsize")); // not chosen: 32 from the new version
+		assertEquals(1, org.dbgl.util.SwitchChoices.applyInherited(plain, inherited, c -> true).size());
+		assertEquals("16", plain.getConfiguration().getValue("dosbox", "memsize"));
+		org.dbgl.model.aggregate.Profile own = org.dbgl.model.factory.ProfileFactory.create(oldVersion, null);
+		own.getConfiguration().setValue("dosbox", "memsize", "8");
+		own.switchToDosboxVersion(newVersion);
+		assertTrue(org.dbgl.util.SwitchChoices.applyInherited(own, inherited, c -> true).isEmpty());
+		assertEquals("8", own.getConfiguration().getValue("dosbox", "memsize")); // its own value stays
+		org.apache.commons.io.FileUtils.deleteDirectory(dir);
+	}
+
+	/** alpha 49: where the toolbar is broken into two rows */
+	@Test
+	public void testToolbarSplit() {
+		// test 18: the window opened with a toolbar button gets the picture of the menu entry of the same function
+		assertEquals("new.png", org.dbgl.gui.abstractdialog.BaseDialog.menuPicture(org.dbgl.service.ImageService.IMG_TB_NEW));
+		assertEquals("about.png", org.dbgl.gui.abstractdialog.BaseDialog.menuPicture(org.dbgl.service.ImageService.IMG_TB_ABOUT));
+		assertEquals(org.dbgl.service.ImageService.IMG_TB_SETTINGS, org.dbgl.gui.abstractdialog.BaseDialog.menuPicture(org.dbgl.service.ImageService.IMG_TB_SETTINGS));
+		assertEquals(org.dbgl.service.ImageService.IMG_TB_ADDGAMEWIZARD, org.dbgl.gui.abstractdialog.BaseDialog.menuPicture(org.dbgl.service.ImageService.IMG_TB_ADDGAMEWIZARD));
+		assertEquals(org.dbgl.service.ImageService.IMG_USB, org.dbgl.gui.abstractdialog.BaseDialog.menuPicture(org.dbgl.service.ImageService.IMG_USB));
+		assertNull(org.dbgl.gui.abstractdialog.BaseDialog.menuPicture(null));
+		// a b | c d | e : each button 100 wide, a line 10
+		List<int[]> widths = Arrays.asList(new int[] {100, 0}, new int[] {100, 0}, new int[] {10, 1}, new int[] {100, 0}, new int[] {100, 0}, new int[] {10, 1}, new int[] {100, 0});
+		List<String> keys = Arrays.asList("a", "b", null, "c", "d", null, "e");
+		assertEquals("e", org.dbgl.gui.controls.ToolbarCustomizer.bestSplit(widths, keys, 450)); // the first row as full as it gets
+		assertEquals("e", org.dbgl.gui.controls.ToolbarCustomizer.bestSplit(widths, keys, 410));
+		assertEquals("c", org.dbgl.gui.controls.ToolbarCustomizer.bestSplit(widths, keys, 400)); // a b | c d does not fit: a b, then c d | e
+		assertEquals("c", org.dbgl.gui.controls.ToolbarCustomizer.bestSplit(widths, keys, 310));
+		assertNull(org.dbgl.gui.controls.ToolbarCustomizer.bestSplit(widths, keys, 300)); // c d | e needs 310
+		assertNull(org.dbgl.gui.controls.ToolbarCustomizer.bestSplit(widths, keys, 150));
+		// test 15: a wide group after the last line that fits: the row goes on into the group rather than ending far from the edge
+		List<int[]> wide = Arrays.asList(new int[] {100, 0}, new int[] {10, 1}, new int[] {300, 0}, new int[] {300, 0}, new int[] {300, 0});
+		List<String> wideKeys = Arrays.asList("a", null, "b", "c", "d");
+		assertEquals("d", org.dbgl.gui.controls.ToolbarCustomizer.bestSplit(wide, wideKeys, 720)); // a | b c, then d
+		assertEquals("c", org.dbgl.gui.controls.ToolbarCustomizer.bestSplit(wide, wideKeys, 700)); // a | b, then c d
+		assertNull(org.dbgl.gui.controls.ToolbarCustomizer.bestSplit(wide, wideKeys, 500));
+		// the toolbar of test 15 at 1440: the first row ended after "random game" (1141), it can go on to "boxes" (1351)
+		int[] real = {82, 76, 74, 71, -12, 78, 106, -12, 100, 71, -12, 46, 86, 50, -12, 86, 55, -12, 100, -12, 66, 35, 53, 44, 100, -12, 90, 73, -12, 61, 91, -12, 45};
+		List<int[]> realWidths = new java.util.ArrayList<>();
+		List<String> realKeys = new java.util.ArrayList<>();
+		for (int i = 0; i < real.length; i++) {
+			realWidths.add(new int[] {Math.abs(real[i]), real[i] < 0 ? 1: 0});
+			realKeys.add(real[i] < 0 ? null: "k" + i);
+		}
+		assertEquals("k24", org.dbgl.gui.controls.ToolbarCustomizer.bestSplit(realWidths, realKeys, 1430)); // the detail view starts the second row
+		assertEquals("k20", org.dbgl.gui.controls.ToolbarCustomizer.bestSplit(realWidths, realKeys, 1250)); // near enough to a line: there
+		List<String> built = Arrays.asList("a", "b", "|", "c", ">", "d", "|", "e");
+		assertEquals("[a, b, >, c, d, |, e]", org.dbgl.gui.controls.ToolbarCustomizer.splitAt(built, "c").toString());
+		assertEquals("[a, b, |, c, d, >, e]", org.dbgl.gui.controls.ToolbarCustomizer.splitAt(built, "e").toString());
+		assertEquals("[a, b, |, c, >, d, |, e]", org.dbgl.gui.controls.ToolbarCustomizer.splitAt(built, "d").toString());
+		assertNull(org.dbgl.gui.controls.ToolbarCustomizer.splitAt(built, "x"));
+	}
+
+	/** alpha 49: the backups in the window that manages them: kind and version from the name, locked ones stay */
+	@Test
+	public void testBackupCatalog() throws Exception {
+		org.dbgl.util.BackupCatalog.Kind auto = org.dbgl.util.BackupCatalog.Kind.AUTO;
+		String[][] names = {{"dbgl-backup-20261114-153000.zip", "AUTO", ""}, {"dbgl-backup-2026-11-14.zip", "MANUAL", ""},
+				{"before-0.101alpha49-from-0.101alpha48-20261114-153000.zip", "VERSION", "0.101alpha48"}, {"before-0.101alpha49-from-older-20261114-153000.zip", "VERSION", "older"},
+				{"dbgl-backup-before-update-0.101alpha48-2026-11-14_15-30.zip", "UPDATE_DATA", "0.101alpha48"}, {"dbgl-program-0.101alpha48-2026-11-14_15-30.zip", "UPDATE_PROGRAM", "0.101alpha48"},
+				{"dbgl-full-backup-before-update-0.101alpha48-2026-11-14_15-30.zip", "FULL", "0.101alpha48"}, {"dbgl-ee-0.101alpha49-update.zip", "INSTALLER", "ee-0.101alpha49"}};
+		for (String[] n: names) {
+			org.dbgl.util.BackupCatalog.Kind kind = org.dbgl.util.BackupCatalog.kindOf(n[0]);
+			assertEquals(n[0], n[1], String.valueOf(kind));
+			assertEquals(n[0], n[2], org.dbgl.util.BackupCatalog.versionInName(n[0], kind));
+		}
+		assertNull(org.dbgl.util.BackupCatalog.kindOf("holiday.zip"));
+		assertEquals("0.101 alpha 48", org.dbgl.util.BackupCatalog.pretty("0.101alpha48"));
+		assertEquals("0.101 alpha 49", org.dbgl.util.BackupCatalog.pretty("ee-0.101alpha49"));
+		assertEquals("0.101 alpha 48", org.dbgl.util.BackupCatalog.pretty("0.101 alpha 48"));
+		assertEquals("older", org.dbgl.util.BackupCatalog.pretty("older"));
+		assertNull(org.dbgl.util.BackupCatalog.kindOf("dbgl-backup-20261114-153000.zip.part"));
+		assertTrue(auto.restorable());
+		assertFalse(org.dbgl.util.BackupCatalog.Kind.FULL.restorable());
+		File dir = Files.createTempDirectory("backups").toFile();
+		try {
+			File a = new File(dir, "dbgl-backup-20261101-100000.zip"), b = new File(dir, "dbgl-backup-20261102-100000.zip"), other = new File(dir, "notes.txt");
+			for (File f: new File[] {a, b, other})
+				Files.write(f.toPath(), new byte[123]);
+			assertTrue(a.setLastModified(1000000L));
+			assertTrue(b.setLastModified(2000000L));
+			List<org.dbgl.util.BackupCatalog.Backup> list = org.dbgl.util.BackupCatalog.list(List.of(dir));
+			assertEquals(2, list.size());
+			assertEquals(b, list.get(0).file()); // the newest first
+			assertEquals(123, list.get(0).size());
+			assertFalse(list.get(0).locked());
+			org.dbgl.util.BackupCatalog.setLocked(a, true);
+			assertTrue(org.dbgl.util.BackupCatalog.isLocked(a));
+			assertTrue(org.dbgl.util.BackupCatalog.list(List.of(dir)).get(1).locked());
+			assertFalse(org.dbgl.util.BackupCatalog.delete(a)); // locked: stays
+			assertTrue(a.isFile());
+			assertTrue(org.dbgl.util.BackupCatalog.delete(b));
+			assertFalse(b.exists());
+			org.dbgl.util.BackupCatalog.setLocked(a, false);
+			assertFalse(new File(dir, org.dbgl.util.BackupCatalog.LOCKED).exists()); // no list of nothing
+			assertTrue(org.dbgl.util.BackupCatalog.delete(a));
+			assertTrue(other.isFile()); // not ours: never touched
+		} finally {
+			org.apache.commons.io.FileUtils.deleteQuietly(dir);
+		}
+	}
+
+	/** alpha 49: the disk space of a game folder and how it is written; the tooltips of the settings */
+	@Test
+	public void testDiskUsageAndSettingsTips() throws Exception {
+		java.util.Locale de = java.util.Locale.GERMAN, en = java.util.Locale.ENGLISH;
+		assertEquals("0 B", org.dbgl.util.DiskUsage.format(0, en));
+		assertEquals("0 B", org.dbgl.util.DiskUsage.format(-5, en));
+		assertEquals("1023 B", org.dbgl.util.DiskUsage.format(1023, en));
+		assertEquals("1 KB", org.dbgl.util.DiskUsage.format(1024, en));
+		assertEquals("740 KB", org.dbgl.util.DiskUsage.format(740 * 1024, en));
+		assertEquals("1.5 MB", org.dbgl.util.DiskUsage.format(1536 * 1024, en));
+		assertEquals("1,5 MB", org.dbgl.util.DiskUsage.format(1536 * 1024, de));
+		assertEquals("4 MB", org.dbgl.util.DiskUsage.format(4L << 20, de));
+		assertEquals("250 MB", org.dbgl.util.DiskUsage.format((250L << 20) + (300L << 10), en));
+		assertEquals("1.2 GB", org.dbgl.util.DiskUsage.format((long)(1.2 * (1L << 30)), en));
+		assertEquals("2048 TB", org.dbgl.util.DiskUsage.format(1L << 51, null));
+		File tmp = Files.createTempDirectory("disk").toFile();
+		try {
+			Files.write(new File(tmp, "a.bin").toPath(), new byte[1000]);
+			File sub = new File(tmp, "sub/deeper");
+			assertTrue(sub.mkdirs());
+			Files.write(new File(sub, "b.bin").toPath(), new byte[2345]);
+			assertEquals(3345, org.dbgl.util.DiskUsage.folderSize(tmp, () -> false));
+			assertEquals(0, org.dbgl.util.DiskUsage.folderSize(new File(tmp, "missing"), () -> false));
+		} finally {
+			org.apache.commons.io.FileUtils.deleteQuietly(tmp);
+		}
+		// one folder with many games mounted as C: (dosroot): each game counts its own folder in it
+		String sep = File.separator, root = sep + "dos", other = sep + "games";
+		java.util.Map<Integer, String[]> mounted = new java.util.LinkedHashMap<>();
+		mounted.put(1, new String[] {root, "KEEN"});
+		mounted.put(2, new String[] {root, "DOOM"});
+		mounted.put(3, new String[] {root, ""}); // started from dosroot itself
+		mounted.put(4, new String[] {other + sep + "ULTIMA", "BIN"}); // a folder of its own, the program in a folder of it
+		mounted.put(5, new String[] {other + sep + "shared", "A"});
+		mounted.put(6, new String[] {other + sep + "shared", "B"});
+		mounted.put(7, new String[] {"", ""});
+		assertEquals("{1=" + root + sep + "KEEN, 2=" + root + sep + "DOOM, 3=" + root + ", 4=" + other + sep + "ULTIMA, 5=" + other + sep + "shared" + sep + "A, 6=" + other + sep
+				+ "shared" + sep + "B, 7=}", org.dbgl.util.DiskUsage.gameFolders(mounted, java.util.Set.of(), root).toString());
+		// a single profile of a shared folder, the other one found before
+		mounted.clear();
+		mounted.put(8, new String[] {other + sep + "shared", "C"});
+		assertEquals("{8=" + other + sep + "shared" + sep + "C}", org.dbgl.util.DiskUsage.gameFolders(mounted, java.util.Set.of(other + sep + "shared" + sep + "A"), null).toString());
+		assertEquals("{8=" + other + sep + "shared}", org.dbgl.util.DiskUsage.gameFolders(mounted, java.util.Set.of(), null).toString());
+		// the games folders: where the game folders of two or more profiles lie directly; not one inside another
+		assertEquals("[" + root + ", " + other + "]", org.dbgl.util.DiskUsage.rootPaths(List.of(root + sep + "KEEN", root + sep + "DOOM", other + sep + "A", other + sep + "B",
+			sep + "single" + sep + "GAME", root + sep + "KEEN" + sep + "ADDON1", root + sep + "KEEN" + sep + "ADDON2", "")).toString());
+		assertEquals("[]", org.dbgl.util.DiskUsage.rootPaths(List.of(root + sep + "KEEN", other + sep + "A")).toString());
+		File tree = Files.createTempDirectory("disk2").toFile();
+		try {
+			assertTrue(new File(tree, "A/sub").mkdirs());
+			assertTrue(new File(tree, "B").mkdirs());
+			Files.write(new File(tree, "loose.txt").toPath(), new byte[10]);
+			Files.write(new File(tree, "A/a.bin").toPath(), new byte[100]);
+			Files.write(new File(tree, "A/sub/s.bin").toPath(), new byte[1000]);
+			Files.write(new File(tree, "B/b.bin").toPath(), new byte[10000]);
+			String t = tree.getCanonicalPath();
+			File canon = new File(t);
+			assertEquals(11110, org.dbgl.util.DiskUsage.folderSize(canon, false, java.util.Set.of(), () -> false));
+			assertEquals(1110, org.dbgl.util.DiskUsage.folderSize(canon, false, java.util.Set.of(t + sep + "B", t), () -> false)); // without the other game in it
+			assertEquals(10, org.dbgl.util.DiskUsage.folderSize(canon, true, java.util.Set.of(), () -> false)); // dosroot: only its own files
+		} finally {
+			org.apache.commons.io.FileUtils.deleteQuietly(tree);
+		}
+		// the label of an option leads to its tooltip: the whole text, or what stands around a name that was filled in
+		List<String[]> tips = Arrays.asList(new String[] {"Height", null, "tip height"}, new String[] {"\"", "\" links to the page", "tip link"});
+		assertEquals("tip height", org.dbgl.gui.dialog.SettingsDialog.tipFor("Height", tips));
+		assertEquals("tip link", org.dbgl.gui.dialog.SettingsDialog.tipFor("\"Link 1\" links to the page", tips));
+		assertNull(org.dbgl.gui.dialog.SettingsDialog.tipFor("Height of the column", tips));
+		assertNull(org.dbgl.gui.dialog.SettingsDialog.tipFor("\"\" links to the page", tips));
+	}
+
+	/** alpha 49: configuration files in the profile folder that no profile uses: found by DBGL's own names only, moved, never deleted */
+	@Test
+	public void testOrphanConfs() throws Exception {
+		File dir = Files.createTempDirectory("dbgl-orphans").toFile();
+		for (String n: new String[] {"0.conf", "7.conf", "109.conf", "12.CONF", "template.conf", "setup.conf", "7.conf.bak", "x9.conf", "notes.txt"})
+			Files.writeString(new File(dir, n).toPath(), "[cpu]\n# " + n);
+		new File(dir, "history/109").mkdirs();
+		Files.writeString(new File(dir, "history/109/original.conf").toPath(), "x");
+		new File(dir, "55.conf").mkdirs(); // a folder of that name is none
+		java.util.List<File> used = java.util.Arrays.asList(new File(dir, "0.conf"), new File(new File(dir, "history").getParentFile(), "./12.conf"), null, new File(dir, "elsewhere/3.conf"));
+		java.util.List<File> found = org.dbgl.util.ProfileChecks.orphanConfs(dir, used);
+		assertEquals(java.util.List.of("7.conf", "109.conf"), found.stream().map(File::getName).toList()); // by number, not by text
+		assertTrue(org.dbgl.util.ProfileChecks.orphanConfs(new File(dir, "nothing here"), used).isEmpty());
+		assertTrue(org.dbgl.util.ProfileChecks.orphanConfs(null, used).isEmpty());
+
+		java.util.List<org.dbgl.util.ProfileFindings.Finding> told = org.dbgl.util.ProfileFindings.orphans(found, GenericTextService.getInstance());
+		assertEquals(2, told.size());
+		assertTrue(told.get(0).hint() && !told.get(0).fixable() && told.get(0).profile() == null && told.get(0).version() == null);
+		assertEquals(org.dbgl.util.ProfileFindings.ORPHAN, told.get(0).kind());
+		org.junit.Assert.assertNotEquals(told.get(0).dismissKey(), told.get(1).dismissKey());
+
+		File sub = new File(dir, org.dbgl.util.ProfileChecks.ORPHANS_DIR);
+		sub.mkdirs();
+		Files.writeString(new File(sub, "7.conf").toPath(), "moved earlier"); // stays what it is
+		java.util.List<File> moved = org.dbgl.util.ProfileChecks.moveOrphans(found, dir);
+		assertEquals(2, moved.size());
+		assertEquals("moved earlier", Files.readString(new File(sub, "7.conf").toPath()));
+		assertTrue(moved.get(0).getName(), moved.get(0).getName().matches("7\\.\\d{8}-\\d{6}\\.conf"));
+		assertEquals("[cpu]\n# 7.conf", Files.readString(moved.get(0).toPath()));
+		assertEquals(new File(sub, "109.conf"), moved.get(1));
+		assertFalse(new File(dir, "7.conf").exists() || new File(dir, "109.conf").exists());
+		for (String n: new String[] {"0.conf", "12.CONF", "template.conf", "setup.conf", "7.conf.bak", "x9.conf", "notes.txt", "history/109/original.conf"})
+			assertTrue(n, new File(dir, n).isFile()); // everything else where it was
+		assertTrue(org.dbgl.util.ProfileChecks.orphanConfs(dir, used).isEmpty()); // the folder they went to is not looked into
+		org.apache.commons.io.FileUtils.deleteQuietly(dir);
+	}
+
+	/** alpha 49: the report of switching to another DOSBox version saved as a page in the colors of the window */
+	@Test
+	public void testSwitchReportHtml() {
+		String html = org.dbgl.util.ProfileReports.reportHtml("== Doom <II> & more\r\n[cpu]\r\n- cycles=max\r\n+ cpu_cycles=max\r\n= core=auto\r\n! check \"this\"\r\nplain line\r\n  + indented\r\n-not a change", "Title & <b>");
+		assertTrue(html, html.startsWith("<!DOCTYPE html>") && html.contains("<meta charset=\"utf-8\">") && html.contains("<title>Title &amp; &lt;b&gt;</title>"));
+		assertTrue(html, html.contains("<span class=\"prof\">== Doom &lt;II&gt; &amp; more</span>\n"));
+		assertTrue(html, html.contains("<span class=\"sec\">[cpu]</span>\n<span class=\"del\">- cycles=max</span>\n<span class=\"add\">+ cpu_cycles=max</span>\n<span class=\"same\">= core=auto</span>\n"));
+		assertTrue(html, html.contains("<span class=\"warn\">! check &quot;this&quot;</span>\nplain line\n<span class=\"add\">  + indented</span>\n-not a change\n</pre>"));
+		assertFalse(html, html.contains("\r"));
+		assertTrue(org.dbgl.util.ProfileReports.reportHtml("!! missing\ni  for information\n  # a comment", "t").contains("<span class=\"warn\">!! missing</span>\n<span class=\"same\">i  for information</span>\n<span class=\"same\">  # a comment</span>"));
+		// the colors of a window (lighter in the dark theme) as the fixed colors of the page, by their hue
+		assertEquals("#b00020", org.dbgl.util.ProfileReports.printColor(128, 0, 0));
+		assertEquals("#b00020", org.dbgl.util.ProfileReports.printColor(255, 120, 120));
+		assertEquals("#17731a", org.dbgl.util.ProfileReports.printColor(0, 128, 0));
+		assertEquals("#17731a", org.dbgl.util.ProfileReports.printColor(120, 220, 120));
+		assertEquals("#a35f00", org.dbgl.util.ProfileReports.printColor(128, 128, 0));
+		assertEquals("#0b6e75", org.dbgl.util.ProfileReports.printColor(0, 128, 128));
+		assertEquals("#767676", org.dbgl.util.ProfileReports.printColor(128, 128, 128));
+		assertEquals("#767676", org.dbgl.util.ProfileReports.printColor(200, 200, 205));
+		assertNull(org.dbgl.util.ProfileReports.printColor(-1, -1, -1));
+		String styled = org.dbgl.util.ProfileReports.styledHtml("Doom <1>\r\n- a=1\r\n+ a=2\r\nplain\r\n", java.util.List.of(new int[] {17, 5, 120, 220, 120, 0}, new int[] {0, 8, -1, -1, -1, 1},
+			new int[] {10, 5, 255, 120, 120, 1}, new int[] {900, 5, 0, 0, 0, 0}), "T");
+		assertTrue(styled, styled.contains("<pre><span style=\"font-weight:bold\">Doom &lt;1&gt;</span>\n<span style=\"color:#b00020;font-weight:bold\">- a=1</span>\n"
+			+ "<span style=\"color:#17731a\">+ a=2</span>\nplain\n</pre>"));
+		assertFalse(styled, styled.contains("\r"));
+		String print = org.dbgl.util.ProfileReports.forPrinting(styled, "dbgl-switch-report-2026-11-15_12-30");
+		assertTrue(print, print.contains("<title>dbgl-switch-report-2026-11-15_12-30</title>") && print.contains("window.print()") && print.endsWith("</body></html>\n"));
+		assertEquals("dbgl-switch-report-2026-11-15_12-30.html", org.dbgl.gui.controls.ReportSave.name("dbgl-switch-report", "html", java.time.LocalDateTime.of(2026, 11, 15, 12, 30, 59)));
+		assertTrue(org.dbgl.util.ProfileReports.reportHtml("", null).contains("<pre>\n</pre>"));
+	}
+
+	/** alpha 49: a remembered setting is not offered again when the DOSBox version says the same in other words ("true" and "on") */
+	@Test
+	public void testSwitchMemorySameValue() throws Exception {
+		org.dbgl.model.aggregate.DosboxVersion v083 = DosboxVersionFactory.create("DOSBox Staging 0.83.0", SettingsService.STAGING_DOSBOX_FAM.title_, "0.83.0", false, true, false, null,
+			"staging083", "", "", "staging083/dosbox.conf");
+		File dosboxConfFile = new File(DATA_DIR, "dosbox-staging-0.83.0.conf");
+		v083.loadConfigurationData(GenericTextService.getInstance(), Files.readString(dosboxConfFile.toPath(), StandardCharsets.UTF_8), dosboxConfFile);
+		org.dbgl.model.aggregate.Profile profile = org.dbgl.model.factory.ProfileFactory.create(v083, null);
+		int fam = org.dbgl.model.entity.GenerationAwareConfigurable.familyIdx(profile.getGeneration());
+		String on = v083.getConfiguration().getValue("dos", "ems"), off = v083.getConfiguration().getValue("ipx", "ipx");
+		assertTrue(on + " " + off, org.dbgl.util.ConfTakeover.same("true", on) && org.dbgl.util.ConfTakeover.same("false", off));
+		java.util.Properties memory = new java.util.Properties();
+		for (String[] kv: new String[][] {{"dos|ems", "true"}, {"dos|xms", "ON"}, {"ipx|ipx", "false"}, {"dos|umb", " " + v083.getConfiguration().getValue("dos", "umb") + " "}})
+			memory.setProperty(fam + "|" + kv[0], kv[1]);
+		assertTrue(org.dbgl.util.SwitchMemory.restoresFrom(memory, profile).toString(), org.dbgl.util.SwitchMemory.restoresFrom(memory, profile).isEmpty());
+		memory.setProperty(fam + "|dos|ems", "false"); // really another value: offered
+		java.util.List<org.dbgl.util.SwitchChoices.Choice> offered = org.dbgl.util.SwitchMemory.restoresFrom(memory, profile);
+		assertEquals(offered.toString(), 1, offered.size());
+		assertEquals("ems", offered.get(0).item());
+		assertEquals("false", offered.get(0).oldText());
+	}
+
+	/** alpha 49: what a profile only inherits from its new DOSBox version: not what it set itself, not what it keeps */
+	@Test
+	public void testInheritedByProfile() {
+		java.util.List<org.dbgl.util.SwitchChoices.Choice> inherited = java.util.List.of(
+			new org.dbgl.util.SwitchChoices.Choice(0, org.dbgl.util.SwitchChoices.Kind.INHERITED, "cpu", "core", "auto", "dynamic", -1, false),
+			new org.dbgl.util.SwitchChoices.Choice(0, org.dbgl.util.SwitchChoices.Kind.INHERITED, "sdl", "window_size", "default", "960x600", -1, false),
+			new org.dbgl.util.SwitchChoices.Choice(0, org.dbgl.util.SwitchChoices.Kind.INHERITED, "midi", "midiconfig", "", "0", -1, false));
+		// a profile with its own core (also when it is the value of the new version: it did not take it from there)
+		java.util.List<org.dbgl.util.SwitchChoices.Choice> got = org.dbgl.util.SwitchChoices.inheritedBy("[CPU]\r\nCore = dynamic\r\ncpu_cycles=20000\r\n\r\n[autoexec]\r\nmidiconfig=9\r\n", inherited, c -> false);
+		assertEquals(java.util.List.of("window_size", "midiconfig"), got.stream().map(org.dbgl.util.SwitchChoices.Choice::item).toList());
+		// the previous value kept for all profiles (ticked): not inherited
+		got = org.dbgl.util.SwitchChoices.inheritedBy("[cpu]\ncpu_cycles=20000\n", inherited, c -> c.item().equals("core"));
+		assertEquals(java.util.List.of("window_size", "midiconfig"), got.stream().map(org.dbgl.util.SwitchChoices.Choice::item).toList());
+		assertEquals(3, org.dbgl.util.SwitchChoices.inheritedBy(null, inherited, c -> false).size());
+		assertTrue(org.dbgl.util.SwitchChoices.inheritedBy("[cpu]\ncore=auto\n", java.util.List.of(), c -> false).isEmpty());
+	}
+
+	/** alpha 49: the log of DOSBox: lines that differ only in numbers count as the same, hexadecimal values without a digit too */
+	@Test
+	public void testLogSimilarLines() {
+		String a = org.dbgl.gui.DosboxStatusWindow.similarityKey("LOG:  829029616 ERROR CPU:Write 0 to rom at lin=e00a0 phys=e00a0");
+		assertEquals(a, org.dbgl.gui.DosboxStatusWindow.similarityKey("LOG:  829029616 ERROR CPU:Write ffff to rom at lin=e00a2 phys=e00a2"));
+		assertEquals(a, org.dbgl.gui.DosboxStatusWindow.similarityKey("LOG: 1734466030 ERROR CPU:Write 20 to rom at lin=c142347e phys=c247e"));
+		assertEquals(a, org.dbgl.gui.DosboxStatusWindow.similarityKey("LOG: 1 ERROR CPU:Write FFFFFFFF to rom at lin=0xC000 phys=1"));
+		assertEquals("# ERROR CPU:Write # to rom at lin=# phys=#", a);
+		assertFalse(a.equals(org.dbgl.gui.DosboxStatusWindow.similarityKey("LOG:  829029616 ERROR CPU:Read 0 from rom at lin=e00a0 phys=e00a0")));
+		// words stay words
+		assertEquals("MIDI:Opened device:mt32".replace("mt32", "mt32"), org.dbgl.gui.DosboxStatusWindow.similarityKey("LOG: MIDI:Opened device:mt32"));
+		assertEquals("Loaded config file added", org.dbgl.gui.DosboxStatusWindow.similarityKey("Loaded config file added"));
+	}
+
+	/** alpha 49: what a profile inherits, listed like the other values; the file manager command; the preview of a switch in the editor */
+	@Test
+	public void testSwitchPreviewLines() throws Exception {
+		java.util.List<org.dbgl.util.SwitchChoices.Choice> takes = java.util.List.of(
+			new org.dbgl.util.SwitchChoices.Choice(0, org.dbgl.util.SwitchChoices.Kind.INHERITED, "cpu", "core", "auto", "dynamic", -1, false),
+			new org.dbgl.util.SwitchChoices.Choice(0, org.dbgl.util.SwitchChoices.Kind.INHERITED, "sdl", "window_size", "default", "960x600", -1, false),
+			new org.dbgl.util.SwitchChoices.Choice(0, org.dbgl.util.SwitchChoices.Kind.INHERITED, "cpu", "cpu_cycles", "3000", "20000", -1, false));
+		assertEquals(java.util.List.of("[cpu]", "> core=dynamic           from X (auto)", "> cpu_cycles=20000       from X (3000)", "[sdl]", "> window_size=960x600    from X (default)"),
+			org.dbgl.util.SwitchChoices.inheritedLines(takes, c -> "from X (" + c.oldText() + ")"));
+		assertTrue(org.dbgl.util.SwitchChoices.inheritedLines(java.util.List.of(), c -> "").isEmpty());
+
+		org.junit.Assert.assertArrayEquals(new String[] {"explorer.exe", "/select," + new File("a b/x.zip").getAbsolutePath()}, org.dbgl.util.SystemUtils.showInFolderCommand(new File("a b/x.zip"), true, false));
+		org.junit.Assert.assertArrayEquals(new String[] {"open", "-R", new File("x.zip").getAbsolutePath()}, org.dbgl.util.SystemUtils.showInFolderCommand(new File("x.zip"), false, true));
+		assertNull(org.dbgl.util.SystemUtils.showInFolderCommand(new File("x.zip"), false, false));
+
+		assertEquals(org.eclipse.swt.SWT.COLOR_DARK_RED, org.dbgl.gui.controls.ChangePreview.colorOf("   - a=1"));
+		assertEquals(org.eclipse.swt.SWT.COLOR_DARK_GREEN, org.dbgl.gui.controls.ChangePreview.colorOf("+ a=2"));
+		assertEquals(org.eclipse.swt.SWT.COLOR_DARK_CYAN, org.dbgl.gui.controls.ChangePreview.colorOf("> core=dynamic    inherited"));
+		assertEquals(org.eclipse.swt.SWT.COLOR_DARK_GRAY, org.dbgl.gui.controls.ChangePreview.colorOf("[cpu]"));
+		assertEquals(0, org.dbgl.gui.controls.ChangePreview.colorOf("no changes"));
+
+		// a profile of DOSBox Staging 0.83.0 with "auto" for the keyboard, switched to 0.83.1 with other defaults: nothing changes in the profile itself
+		String conf = Files.readString(new File(DATA_DIR, "dosbox-staging-0.83.0.conf").toPath(), StandardCharsets.UTF_8);
+		File dir = Files.createTempDirectory("dbgl-switchpreview").toFile();
+		File c0 = new File(dir, "s0.conf"), c1 = new File(dir, "s1.conf");
+		Files.writeString(c0.toPath(), conf, StandardCharsets.UTF_8);
+		Files.writeString(c1.toPath(), conf.replace("(0.83.0)", "(0.83.1)").replaceFirst("(?m)^core = auto", "core = dynamic"), StandardCharsets.UTF_8);
+		org.dbgl.model.aggregate.DosboxVersion v0 = DosboxVersionFactory.create("DOSBox Staging 0.83.0", SettingsService.STAGING_DOSBOX_FAM.title_, "0.83.0", false, true, false, null, dir.getPath(), "", "", c0.getPath());
+		v0.setId(1);
+		v0.resetAndLoadConfiguration();
+		org.dbgl.model.aggregate.DosboxVersion v1 = DosboxVersionFactory.create("DOSBox Staging 0.83.1", SettingsService.STAGING_DOSBOX_FAM.title_, "0.83.1", false, true, false, null, dir.getPath(), "", "", c1.getPath());
+		v1.setId(2);
+		v1.resetAndLoadConfiguration();
+		org.dbgl.model.aggregate.Profile p = org.dbgl.model.factory.ProfileFactory.create(v0, null);
+		p.getConfiguration().setValue("dos", "keyboard_layout", "auto");
+		p.getConfiguration().setValue("cpu", "cpu_cycles", "20000");
+		String before = p.getConfiguration().toString(null);
+		java.util.List<String> lines = org.dbgl.gui.dialog.EditSingleProfileDialog.switchPreviewLines(p, v0, v1, true, GenericTextService.getInstance());
+		assertEquals(before, p.getConfiguration().toString(null));
+		org.junit.Assert.assertSame(v0, p.getDosboxVersion());
+		assertTrue(lines.toString(), lines.stream().anyMatch(l -> l.startsWith("- ") && l.contains("keyboard_layout")));
+		assertTrue(lines.toString(), lines.stream().anyMatch(l -> l.startsWith("> core=dynamic")));
+		assertTrue(lines.toString(), lines.stream().anyMatch(l -> l.startsWith("! ")));
+		assertFalse(lines.toString(), lines.stream().anyMatch(l -> l.contains("cpu_cycles")));
+		org.apache.commons.io.FileUtils.deleteQuietly(dir);
+	}
+
+	/** alpha 49: files of earlier versions put in order: only the ones DBGL knows by name; the size cache moved to "cache" */
+	@Test
+	public void testOldFiles() throws Exception {
+		File root = Files.createTempDirectory("dbgl-oldfiles").toFile();
+		File program = new File(root, "program"), data = new File(root, "data"), logs = new File(data, "logs");
+		new File(program, "docs").mkdirs();
+		data.mkdirs();
+		for (String n: new String[] {"CHANGELOG-de.txt", "CHANGELOG-en.txt", "NEU-IN-DER-EXTENDED-EDITION.txt", "NEW-IN-EXTENDED-EDITION.txt", "UPDATE-LIESMICH.txt", "COPYING", "readme.txt", "changelog.txt",
+				"dbgl.jar", "freeze-20261115-123133.txt", "docs/changelog-de.txt", "docs/changelog-en.txt", "docs/whats-new-de.txt", "update-readme.txt"})
+			Files.writeString(new File(program, n).toPath(), n);
+		for (String n: new String[] {"freeze-20261114-010203.txt", "freeze-notes.txt", "freeze-20261114-010203.txt.bak", "menubar-check.txt", "toolbar-metrics.txt", "settings.conf", "my-notes.txt",
+				"disksizes.properties"})
+			Files.writeString(new File(data, n).toPath(), n);
+		new File(data, "freeze-20260101-000000.txt").mkdirs(); // a folder of that name is none
+		org.dbgl.util.OldFiles.Found found = org.dbgl.util.OldFiles.find(program, data);
+		assertEquals(java.util.List.of("freeze-20261114-010203.txt", "menubar-check.txt", "toolbar-metrics.txt", "freeze-20261115-123133.txt"), found.toLogs().stream().map(File::getName).toList());
+		// the English "what is new" has no successor in "docs" yet: it stays
+		assertEquals(java.util.List.of("CHANGELOG-de.txt", "CHANGELOG-en.txt", "NEU-IN-DER-EXTENDED-EDITION.txt", "UPDATE-LIESMICH.txt"), found.toDelete().stream().map(File::getName).toList());
+		assertEquals(8, found.all().size());
+		assertTrue(org.dbgl.util.OldFiles.clean(found, logs).isEmpty());
+		assertEquals("freeze-20261115-123133.txt", Files.readString(new File(logs, "freeze-20261115-123133.txt").toPath()));
+		for (String n: new String[] {"freeze-20261114-010203.txt", "menubar-check.txt", "toolbar-metrics.txt"})
+			assertTrue(n, new File(logs, n).isFile() && !new File(data, n).exists());
+		for (String n: new String[] {"NEW-IN-EXTENDED-EDITION.txt", "COPYING", "readme.txt", "changelog.txt", "dbgl.jar", "docs/changelog-de.txt", "docs/changelog-en.txt", "docs/whats-new-de.txt", "update-readme.txt"})
+			assertTrue(n, new File(program, n).isFile());
+		for (String n: new String[] {"freeze-notes.txt", "freeze-20261114-010203.txt.bak", "settings.conf", "my-notes.txt", "disksizes.properties"})
+			assertTrue(n, new File(data, n).isFile());
+		assertFalse(new File(program, "CHANGELOG-de.txt").exists() || new File(program, "NEU-IN-DER-EXTENDED-EDITION.txt").exists());
+		assertTrue(org.dbgl.util.OldFiles.find(program, data).isEmpty()); // nothing left, also not what is in "logs" now
+		// a portable DBGL: program and data in one folder, each file once; without a program folder only the data folder
+		Files.writeString(new File(data, "menubar-check.txt").toPath(), "x");
+		assertEquals(1, org.dbgl.util.OldFiles.find(data, data).toLogs().size());
+		assertEquals(1, org.dbgl.util.OldFiles.find(null, data).all().size());
+		assertTrue(org.dbgl.util.OldFiles.find(null, null).isEmpty());
+		// the old "how to install" stays as long as the new one is not there
+		Files.writeString(new File(program, "UPDATE-LIESMICH.txt").toPath(), "x");
+		new File(program, "update-readme.txt").delete();
+		assertTrue(org.dbgl.util.OldFiles.find(program, null).toDelete().isEmpty());
+		assertEquals(4, org.dbgl.util.OldFiles.DOCS.size());
+
+		// the sizes of the game folders: from the data folder into its folder "cache", once
+		java.lang.reflect.Method file = org.dbgl.util.DiskUsage.class.getDeclaredMethod("file", File.class);
+		file.setAccessible(true);
+		File moved = (File)file.invoke(null, data);
+		assertEquals(new File(new File(data, "cache"), "disksizes.properties"), moved);
+		assertEquals("disksizes.properties", Files.readString(moved.toPath()));
+		assertFalse(new File(data, "disksizes.properties").exists());
+		Files.writeString(new File(data, "disksizes.properties").toPath(), "older");
+		assertEquals(moved, file.invoke(null, data));
+		assertEquals("disksizes.properties", Files.readString(moved.toPath())); // the one in "cache" stays, the other one goes
+		assertFalse(new File(data, "disksizes.properties").exists());
+		org.apache.commons.io.FileUtils.deleteQuietly(root);
 	}
 }

@@ -206,7 +206,7 @@ public class ConfValueOptions {
 	}
 
 	private static Options parseOldStyle(String raw) {
-		String s = StringUtils.removeEnd(raw.trim(), ".");
+		String s = org.apache.commons.lang3.Strings.CS.removeEnd(raw.trim(), ".");
 		Set<String> values = new LinkedHashSet<>();
 		boolean freeForm = false;
 		for (String v: StringUtils.split(s, ',')) {

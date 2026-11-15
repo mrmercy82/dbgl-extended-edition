@@ -68,9 +68,66 @@ public class Profile extends TemplateProfileBase {
 	private FileLocation captures_, setup_;
 	private FileLocation[] altExe_;
 	private ProfileStats profileStats_;
+	/** alpha 49: the game series this profile is part of ("" none; null: not read, left as it is when saving) and its part (0: none) */
+	private String series_;
+	private int seriesPart_;
 
 	public Profile() {
 		super();
+	}
+
+	/** @return the game series ("" if none), null if it was not read from the database */
+	public String getSeries() {
+		return series_;
+	}
+
+	public int getSeriesPart() {
+		return seriesPart_;
+	}
+
+	public void setSeries(String series, int part) {
+		series_ = series == null ? null: series.strip();
+		seriesPart_ = Math.max(0, part);
+	}
+
+	/** for the fields of the profile editor: the name ("" if none or not read) and the part as text ("0": none) */
+	public String getSeriesName() {
+		return series_ == null ? "": series_;
+	}
+
+	public void setSeriesName(String name) {
+		series_ = name == null ? "": name.strip();
+	}
+
+	public String getSeriesPartString() {
+		return String.valueOf(seriesPart_);
+	}
+
+	public void setSeriesPartString(String part) {
+		try {
+			seriesPart_ = Math.max(0, Integer.parseInt(part.strip()));
+		} catch (NumberFormatException | NullPointerException e) {
+			seriesPart_ = 0;
+		}
+		if (series_ == null)
+			series_ = "";
+	}
+
+	/**
+	 * alpha 49: the series an online source names is taken over if this profile has none; the part comes from the title
+	 * ("Space Quest III" -> 3), 0 if it has no number
+	 */
+	public void adoptSeries(String series, String title) {
+		if ((series == null) || series.isBlank() || !getSeriesName().isEmpty())
+			return;
+		setSeries(series, org.dbgl.util.SeriesSuggester.parse(title).part());
+	}
+
+	/** the series with its part as shown in the list: "Commander Keen 4", "" if none */
+	public String getSeriesLabel() {
+		if ((series_ == null) || series_.isEmpty())
+			return "";
+		return seriesPart_ > 0 ? series_ + " " + seriesPart_: series_;
 	}
 
 	public String getDeveloper() {

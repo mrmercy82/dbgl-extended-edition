@@ -63,7 +63,8 @@ public final class MenuBarHover {
 	}
 
 	public static void install(Shell shell) {
-		diagFile_ = new java.io.File(org.dbgl.service.FileLocationService.getInstance().getDataDir(), "menubar-check.txt");
+		diagFile_ = new java.io.File(org.dbgl.util.DosboxLog.logsDir(), "menubar-check.txt"); // alpha 49: in "logs"
+		diagFile_.getParentFile().mkdirs();
 		try {
 			Class<?> os = Class.forName("org.eclipse.swt.internal.win32.OS");
 			long hwnd = org.eclipse.swt.widgets.Control.class.getField("handle").getLong(shell);

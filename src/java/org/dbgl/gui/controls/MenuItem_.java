@@ -42,6 +42,7 @@ public class MenuItem_ {
 		private int pos_ = -1;
 		private String text_;
 		private Image image_;
+		private String path_;
 		private int accelerator_ = -1;
 		private SelectionListener listener_;
 
@@ -61,6 +62,7 @@ public class MenuItem_ {
 
 		public Builder image(String path) {
 			int display = SettingsService.getInstance().getIntValue("gui", "buttondisplay");
+			path_ = path;
 			if (display != 1)
 				image_ = ImageService.getResourceImage(menu_.getDisplay(), path);
 			return this;
@@ -90,8 +92,8 @@ public class MenuItem_ {
 				menuItem.setImage(image_);
 			if (accelerator_ != -1)
 				menuItem.setAccelerator(accelerator_);
-			if (listener_ != null)
-				menuItem.addSelectionListener(listener_);
+			if (listener_ != null) // alpha 49: the windows this entry opens get its symbol in their title bar
+				menuItem.addSelectionListener(org.dbgl.gui.abstractdialog.BaseDialog.withWindowImage(path_, listener_));
 			return menuItem;
 		}
 	}

@@ -81,7 +81,10 @@ public class CheckProfilesDialog extends SizeControlledButtonDialog<Boolean> {
 	/** the games in the list by title (0) or by ID (1); kept while DBGL runs */
 	private static int sortBy_;
 	private org.eclipse.swt.widgets.Combo sort_;
-	private Button onlyFixable_, showHidden_, undismiss_;
+	private Button onlyFixable_, showHidden_, undismiss_, moveOrphans_;
+	/** alpha 49: the configuration files of all profiles of the database (also when only some are checked) */
+	private List<File> allConfs_ = new ArrayList<>();
+	private List<File> orphans_ = new ArrayList<>();
 
 	/** what the last check found (also what is hidden for good: left out when shown) */
 	private ProfileFindings.Result result_found_;
@@ -123,6 +126,7 @@ public class CheckProfilesDialog extends SizeControlledButtonDialog<Boolean> {
 		try {
 			dbversions_ = new DosboxVersionRepository().listAll();
 			profiles_ = new ProfileRepository().list(StringUtils.EMPTY, StringUtils.EMPTY, dbversions_);
+			allConfs_ = profiles_.stream().map(Profile::getConfigurationCanonicalFile).toList();
 			if (selected_ != null)
 				profiles_ = profiles_.stream().filter(p -> selected_.contains(p.getId())).toList();
 			return true;
@@ -244,6 +248,13 @@ public class CheckProfilesDialog extends SizeControlledButtonDialog<Boolean> {
 				switchToDosboxX();
 			}
 		}).ctrl();
+		// alpha 49: only there when the profile folder has configuration files that no profile uses
+		moveOrphans_ = Button_.on(otherButtons_).text().key("dialog.checkprofiles.moveorphans").tooltip("dialog.checkprofiles.moveorphans.tooltip").listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				moveOrphans();
+			}
+		}).ctrl();
 		Button_.on(otherButtons_).text().key("dialog.switchdosbox.savereport").listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
@@ -270,8 +281,12 @@ public class CheckProfilesDialog extends SizeControlledButtonDialog<Boolean> {
 	private void createBoxes() {
 		org.eclipse.swt.widgets.Display d = shell_.getDisplay();
 		int size = Math.max(13, tree_.getItemHeight() - 6);
-		org.eclipse.swt.graphics.RGB bg = tree_.getBackground().getRGB(), sel = d.getSystemColor(SWT.COLOR_LIST_SELECTION).getRGB();
-		org.eclipse.swt.graphics.RGB fg = tree_.getForeground().getRGB();
+		// test 16: in dark mode the tree gets its dark colours only later; the lines of the games and the empty boxes were made
+		// from the light ones (light lines with light text)
+		boolean dark = org.dbgl.gui.controls.DarkTheme.forced();
+		org.eclipse.swt.graphics.RGB bg = dark ? org.dbgl.gui.controls.DarkTheme.inputBackground.getRGB(): tree_.getBackground().getRGB();
+		org.eclipse.swt.graphics.RGB sel = d.getSystemColor(SWT.COLOR_LIST_SELECTION).getRGB();
+		org.eclipse.swt.graphics.RGB fg = dark ? org.dbgl.gui.controls.DarkTheme.defaultForeground.getRGB(): tree_.getForeground().getRGB();
 		boxOff_ = box(d, size, bg, mix(fg, bg, 0.45), null, false);
 		boxOn_ = box(d, size, sel, sel, d.getSystemColor(SWT.COLOR_LIST_SELECTION_TEXT).getRGB(), true);
 		boxSome_ = box(d, size, bg, mix(fg, bg, 0.45), sel, false);
@@ -292,7 +307,9 @@ public class CheckProfilesDialog extends SizeControlledButtonDialog<Boolean> {
 			org.eclipse.swt.graphics.RGB mark, boolean tick) {
 		org.eclipse.swt.graphics.Image img = new org.eclipse.swt.graphics.Image(d, size + 2, size);
 		org.eclipse.swt.graphics.GC gc = new org.eclipse.swt.graphics.GC(img);
-		org.eclipse.swt.graphics.Color cb = new org.eclipse.swt.graphics.Color(d, tree_.getBackground().getRGB()), cf = new org.eclipse.swt.graphics.Color(d, fill),
+		org.eclipse.swt.graphics.Color cb = new org.eclipse.swt.graphics.Color(d,
+			org.dbgl.gui.controls.DarkTheme.forced() ? org.dbgl.gui.controls.DarkTheme.inputBackground.getRGB(): tree_.getBackground().getRGB()),
+				cf = new org.eclipse.swt.graphics.Color(d, fill),
 				cr = new org.eclipse.swt.graphics.Color(d, border), cm = mark == null ? null: new org.eclipse.swt.graphics.Color(d, mark);
 		gc.setAntialias(SWT.ON);
 		gc.setBackground(cb);
@@ -370,6 +387,9 @@ public class CheckProfilesDialog extends SizeControlledButtonDialog<Boolean> {
 				contents_.layout(true);
 			}
 		}
+		// alpha 49: files in the profile folder without a profile (only when all profiles are checked: it is about the folder)
+		orphans_ = selected_ != null ? new ArrayList<>(): org.dbgl.util.ProfileChecks.orphanConfs(org.dbgl.service.FileLocationService.getInstance().getProfilesDir(), allConfs_);
+		result_found_.versions().addAll(ProfileFindings.orphans(orphans_, text_));
 		chooseNew();
 		fillTree();
 	}
@@ -452,21 +472,24 @@ public class CheckProfilesDialog extends SizeControlledButtonDialog<Boolean> {
 		withProblems_ = 0;
 		int hidden = 0;
 
-		List<Finding> versions = new ArrayList<>();
+		List<Finding> versions = new ArrayList<>(), orphans = new ArrayList<>();
 		for (Finding f: result_found_.versions()) {
 			if (isDismissed(f, keys, kinds))
 				dismissedCount_++;
 			else if (hiddenNow_.contains(f.dismissKey()))
 				hidden++;
 			else if (!onlyFixable_.getSelection())
-				versions.add(f);
+				(ProfileFindings.ORPHAN.equals(f.kind()) ? orphans: versions).add(f);
 		}
-		if (!versions.isEmpty()) {
+		// the DOSBox versions, then the files of the profile folder that belong to no profile: each under its own heading
+		for (List<Finding> group: List.of(versions, orphans)) {
+			if (group.isEmpty())
+				continue;
 			TreeItem node = new TreeItem(tree_, SWT.NONE);
-			node.setText(0, text_.get("dialog.checkprofiles.versions"));
-			node.setData(versions);
+			node.setText(0, text_.get(group == orphans ? "dialog.checkprofiles.orphans": "dialog.checkprofiles.versions"));
+			node.setData(group);
 			markGame(node);
-			for (Finding f: versions) {
+			for (Finding f: group) {
 				TreeItem item = new TreeItem(node, SWT.NONE);
 				item.setText(0, oneLine((f.hint() ? "i  ": "!! ") + f.text()));
 				item.setData(f);
@@ -523,6 +546,12 @@ public class CheckProfilesDialog extends SizeControlledButtonDialog<Boolean> {
 			report.append(Text.DELIMITER).append(text_.get("dialog.checkprofiles.dosboxx.summary", new Object[] {result_found_.dosboxX().size()}));
 		reportText_ = report.toString();
 
+		if ((moveOrphans_ != null) && !moveOrphans_.isDisposed() && (moveOrphans_.getVisible() == orphans_.isEmpty())) {
+			moveOrphans_.setVisible(!orphans_.isEmpty());
+			if (moveOrphans_.getLayoutData() instanceof GridData gd)
+				gd.exclude = orphans_.isEmpty();
+			moveOrphans_.getParent().getParent().layout(true, true);
+		}
 		showHidden_.setText(text_.get("dialog.checkprofiles.showhidden", new Object[] {hidden}));
 		showHidden_.setEnabled(hidden > 0);
 		undismiss_.setText(text_.get("dialog.checkprofiles.undismiss", new Object[] {dismissedCount_}));
@@ -1009,7 +1038,7 @@ public class CheckProfilesDialog extends SizeControlledButtonDialog<Boolean> {
 			result_ = Boolean.TRUE;
 			prepare();
 			check();
-			String menu = text_.get("dialog.main.menu.profiles").replace("&", ""), undo = StringUtils.removeEnd(text_.get("dialog.main.menu.undobulk").replace("&", "").trim(), "...");
+			String menu = text_.get("dialog.main.menu.profiles").replace("&", ""), undo = org.apache.commons.lang3.Strings.CS.removeEnd(text_.get("dialog.main.menu.undobulk").replace("&", "").trim(), "...");
 			Mess_.on(shell_).key("dialog.checkprofiles.applied", new Object[] {dialog.changed(), menu, undo}).display();
 		}
 	}
@@ -1031,6 +1060,26 @@ public class CheckProfilesDialog extends SizeControlledButtonDialog<Boolean> {
 			prepare();
 			check();
 		}
+	}
+
+	/** alpha 49: moves the files of the profile folder that belong to no profile into a folder below it; nothing is deleted */
+	private void moveOrphans() {
+		File dir = org.dbgl.service.FileLocationService.getInstance().getProfilesDir();
+		// looked up again: what is moved is what is there now, not what was there when the check ran
+		List<File> now = org.dbgl.util.ProfileChecks.orphanConfs(dir, allConfs_);
+		if (!now.isEmpty()) {
+			if (!Mess_.on(shell_).key("dialog.checkprofiles.moveorphans.confirm", new Object[] {now.size(), new File(dir, org.dbgl.util.ProfileChecks.ORPHANS_DIR).getPath()}).confirm())
+				return;
+			try {
+				org.dbgl.util.ProfileChecks.moveOrphans(now, dir);
+			} catch (IOException e) {
+				Mess_.on(shell_).exception(e).warning();
+			}
+		}
+		orphans_ = org.dbgl.util.ProfileChecks.orphanConfs(dir, allConfs_);
+		Set<String> left = orphans_.stream().map(File::getName).collect(java.util.stream.Collectors.toSet());
+		result_found_.versions().removeIf(f -> ProfileFindings.ORPHAN.equals(f.kind()) && !left.contains(String.valueOf(f.args()[0])));
+		fillTree();
 	}
 
 	/**
@@ -1145,20 +1194,10 @@ public class CheckProfilesDialog extends SizeControlledButtonDialog<Boolean> {
 		return (dot > 0) && (dot >= name.length() - 4);
 	}
 
+	/** alpha 49: as text, as a web page in colors, or as PDF; the file name with date and time */
 	private void saveReport() {
 		if (StringUtils.isBlank(reportText_))
 			return;
-		FileDialog dialog = new FileDialog(shell_, SWT.SAVE);
-		dialog.setFilterExtensions(new String[] {"*.txt", "*.*"});
-		dialog.setFileName("dbgl-profile-check.txt");
-		dialog.setOverwrite(true);
-		String file = dialog.open();
-		if (file != null) {
-			try {
-				Files.writeString(new File(file).toPath(), reportText_, StandardCharsets.UTF_8);
-			} catch (IOException e) {
-				Mess_.on(shell_).exception(e).warning();
-			}
-		}
+		org.dbgl.gui.controls.ReportSave.menu(shell_, "dbgl-profile-check", shell_.getText(), () -> reportText_, () -> org.dbgl.util.ProfileReports.reportHtml(reportText_, shell_.getText()));
 	}
 }

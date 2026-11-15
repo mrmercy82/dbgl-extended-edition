@@ -47,6 +47,10 @@ public class Launcher {
 		System.out.println("Launching DBGL using " + SystemUtils.JVM_ARCH + "-Bit VM " + SystemUtils.JVM_VERSION + " on " + SystemUtils.OS_NAME + " v" + SystemUtils.OS_VERSION + SystemUtils.OS_ARCH
 				+ ", " + HsqlDatabaseProperties.PRODUCT_NAME + " " + HsqlDatabaseProperties.THIS_FULL_VERSION + ", SWT v" + SWT.getVersion() + SWT.getPlatform());
 
+		// alpha 49: older versions of libraries an update replaced (also one unzipped by hand) are deleted
+		for (String name: org.dbgl.util.EditionUpdater.removeSupersededLibraries())
+			System.out.println("Removed replaced library lib/" + name);
+
 		if (SystemUtils.IS_OSX) {
 			Display.setAppName(Constants.PROGRAM_NAME_SHORT);
 			Display.setAppVersion(Constants.PROGRAM_VERSION);
@@ -71,12 +75,67 @@ public class Launcher {
 			java.util.List<String> cmd = org.dbgl.util.EditionUpdater.restartCommand();
 			if (!cmd.isEmpty()) {
 				try {
+					org.eclipse.swt.widgets.Shell waiting = restartNotice();
 					new ProcessBuilder(cmd).directory(new java.io.File(".").getAbsoluteFile()).start();
+					waitForNewStart(waiting);
 				} catch (java.io.IOException e) {
 					System.err.println("DBGL could not start again: " + e);
 				}
 			}
 		}
 		System.exit(0);
+	}
+
+	/**
+	 * Test 15: after the new start (e.g. for another theme) DBGL came up behind the other windows. Windows lets a new program
+	 * come to the front only while the program that started it is in front; the main window is closed by then. So a small
+	 * notice stays open and in front until the new DBGL takes over (or some seconds have passed).
+	 *
+	 * @return the notice, null where it is not needed or cannot be shown
+	 */
+	private static org.eclipse.swt.widgets.Shell restartNotice() {
+		if (!org.dbgl.util.SystemUtils.IS_WINDOWS)
+			return null;
+		try {
+			org.eclipse.swt.widgets.Display display = org.eclipse.swt.widgets.Display.getDefault();
+			org.eclipse.swt.widgets.Shell shell = new org.eclipse.swt.widgets.Shell(display, org.eclipse.swt.SWT.ON_TOP | org.eclipse.swt.SWT.BORDER);
+			org.eclipse.swt.layout.FillLayout layout = new org.eclipse.swt.layout.FillLayout();
+			layout.marginWidth = layout.marginHeight = 18;
+			shell.setLayout(layout);
+			new org.eclipse.swt.widgets.Label(shell, org.eclipse.swt.SWT.CENTER).setText(org.dbgl.service.TextService.getInstance().get("dialog.main.notice.restart"));
+			org.dbgl.gui.controls.DarkTheme.window(shell);
+			org.dbgl.gui.controls.DarkTheme.apply(shell);
+			shell.pack();
+			org.eclipse.swt.graphics.Rectangle area = display.getPrimaryMonitor().getClientArea();
+			shell.setLocation(area.x + (area.width - shell.getSize().x) / 2, area.y + (area.height - shell.getSize().y) / 2);
+			shell.open();
+			shell.forceActive();
+			return shell;
+		} catch (RuntimeException | Error e) {
+			return null;
+		}
+	}
+
+	/** until the notice is no longer in front (the new DBGL has opened its window), 15 seconds at most */
+	private static void waitForNewStart(org.eclipse.swt.widgets.Shell waiting) {
+		if (waiting == null)
+			return;
+		try {
+			org.eclipse.swt.widgets.Display display = waiting.getDisplay();
+			boolean[] done = new boolean[1];
+			waiting.addListener(org.eclipse.swt.SWT.Deactivate, e -> done[0] = true);
+			long end = System.currentTimeMillis() + 15000;
+			while (!done[0] && !waiting.isDisposed() && (System.currentTimeMillis() < end)) {
+				if (!display.readAndDispatch()) {
+					display.timerExec(200, () -> {
+					});
+					display.sleep();
+				}
+			}
+			if (!waiting.isDisposed())
+				waiting.dispose();
+		} catch (RuntimeException | Error e) {
+			// the new DBGL starts all the same
+		}
 	}
 }

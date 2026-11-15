@@ -38,7 +38,9 @@ public final class SwitchChoices {
 
 	/** RESTORE: a setting lost when the profile was switched away from this kind of DOSBox before (see {@link SwitchMemory}) */
 	public enum Kind {
-		AUTOEXEC, SETTING, RESTORE
+		AUTOEXEC, SETTING, RESTORE,
+		/** alpha 49: a value the profiles take from their DOSBox version, which the new DOSBox version has otherwise */
+		INHERITED
 	}
 
 	/**
@@ -93,6 +95,87 @@ public final class SwitchChoices {
 				result.add(new Choice(profile.getId(), Kind.SETTING, section, item, value, now, -1, false));
 		}));
 		return result;
+	}
+
+	/**
+	 * Alpha 49 (test 17): a profile holds only what differs from its DOSBox version; everything else it takes from there. A
+	 * game that needs "memsize = 16" has no such line while its DOSBox version says 16 - and runs with 32 as soon as it is
+	 * switched to a DOSBox version that says 32. What the two versions say differently, to be shown before the switch and kept
+	 * in the profiles if wanted (each a choice for all profiles without a value of their own; not kept unless ticked: new
+	 * defaults are mostly meant to arrive).
+	 *
+	 * @return none for DOSBox versions of different generations (their settings are converted, the values do not compare)
+	 */
+	public static List<Choice> inherited(org.dbgl.model.aggregate.DosboxVersion old, org.dbgl.model.aggregate.DosboxVersion now) {
+		List<Choice> result = new ArrayList<>();
+		if ((old == null) || (now == null) || (old.getId() == now.getId()) || (org.dbgl.model.entity.GenerationAwareConfigurable
+				.determineGen(old) != org.dbgl.model.entity.GenerationAwareConfigurable.determineGen(now)))
+			return result;
+		Configuration a = old.getConfiguration(), b = now.getConfiguration();
+		for (String section: a.getSectionNames())
+			for (String item: a.getItemNames(section)) {
+				if (!b.hasValue(section, item) || item.equalsIgnoreCase("mapperfile"))
+					continue; // each version names its own mapper file
+				String before = org.apache.commons.lang3.StringUtils.trimToEmpty(a.getValue(section, item)), after = org.apache.commons.lang3.StringUtils.trimToEmpty(b.getValue(section, item));
+				if (ConfTakeover.same(before, after) || ProfileChecks.gone0831Value(now, section, item, before))
+					continue; // "auto" cannot be kept for DOSBox Staging 0.83.1
+				result.add(new Choice(0, Kind.INHERITED, section, item, before, after, -1, false));
+			}
+		return result;
+	}
+
+	/**
+	 * alpha 49: what a profile takes from its new DOSBox version without anything changing in its file: the settings the two
+	 * DOSBox versions differ in, that the profile neither set itself before the switch nor keeps the previous value of.
+	 *
+	 * @param before the configuration of the profile as it was before the switch, as text
+	 */
+	public static List<Choice> inheritedBy(String before, List<Choice> inherited, Predicate<Choice> keep) {
+		List<Choice> result = new ArrayList<>();
+		if (inherited.isEmpty())
+			return result;
+		java.util.Collection<String[]> own = ConfTakeover.settings(before == null ? "": before).values();
+		for (Choice c: inherited)
+			if (!keep.test(c) && own.stream().noneMatch(s -> s[0].equalsIgnoreCase(c.section()) && s[1].equalsIgnoreCase(c.item())))
+				result.add(c);
+		return result;
+	}
+
+	/**
+	 * alpha 49: what a profile inherits, as the other values are listed: the section in a line of its own, below it the
+	 * settings with their new value ("> core=dynamic"), and to the right of them, in one column, the note on each (where the
+	 * value comes from and what it was).
+	 */
+	public static List<String> inheritedLines(List<Choice> takes, java.util.function.Function<Choice, String> note) {
+		List<String> lines = new ArrayList<>();
+		int width = takes.stream().mapToInt(c -> (c.item() + "=" + c.newText()).length()).max().orElse(0);
+		List<String> order = takes.stream().map(Choice::section).distinct().toList();
+		List<Choice> sorted = new ArrayList<>(takes);
+		sorted.sort(java.util.Comparator.comparingInt(c -> order.indexOf(c.section()))); // the settings of a section together, sections in the order found
+		String section = null;
+		for (Choice c: sorted) {
+			if (!c.section().equals(section))
+				lines.add("[" + (section = c.section()) + "]");
+			lines.add("> " + org.apache.commons.lang3.StringUtils.rightPad(c.item() + "=" + c.newText(), width) + "    " + note.apply(c));
+		}
+		return lines;
+	}
+
+	/**
+	 * The value of the old DOSBox version put into the profile, for the choices the user ticked and the settings the profile
+	 * has no value of its own for.
+	 *
+	 * @return the choices that were applied to this profile
+	 */
+	public static List<Choice> applyInherited(Profile profile, List<Choice> inherited, Predicate<Choice> keep) {
+		List<Choice> kept = new ArrayList<>();
+		Configuration conf = profile.getConfiguration();
+		for (Choice c: inherited)
+			if (keep.test(c) && !conf.hasValue(c.section(), c.item())) {
+				conf.setValue(c.section(), c.item(), c.oldText());
+				kept.add(c);
+			}
+		return kept;
 	}
 
 	/**

@@ -126,6 +126,9 @@ public class ImageService {
 	public static final String IMG_CONTROLLER = "controller.png";
 	public static final String IMG_KEYBOARD = "keyboard.png"; // alpha 48
 	public static final String IMG_USB = "usb.png"; // alpha 48
+	public static final String IMG_LOCK = "lock.png"; // alpha 49: a locked backup
+	public static final String IMG_BACKUPS = "backups.png"; // alpha 49: File > Manage backups
+	public static final String IMG_NOTICE = "notice.png"; // alpha 49: an exclamation mark, before each hint below the toolbar
 	/** per kind of extra (see ExtrasFinder.Kind): "extra_" + kind in lower case + ".png" */
 	public static final String IMG_EXTRA_PREFIX = "extra_";
 

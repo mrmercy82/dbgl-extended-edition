@@ -119,13 +119,13 @@ public class ProfileHistoryDialog extends SizeControlledButtonDialog<Boolean> {
 					styles.add(new org.eclipse.swt.custom.StyleRange(sb.length(), line.length(), color, null));
 				sb.append(line).append('\n');
 			};
-			add.accept(text_.get("dialog.profilehistory.legend"), d.getSystemColor(SWT.COLOR_DARK_GRAY));
+			add.accept(text_.get("dialog.profilehistory.legend"), org.dbgl.gui.controls.DarkTheme.textColor(d, SWT.COLOR_DARK_GRAY));
 			add.accept("", null);
 			if (lines.stream().noneMatch(l -> l.startsWith("- ") || l.startsWith("+ ")))
 				add.accept(text_.get("dialog.profilehistory.same"), null);
 			else
 				for (String l: lines)
-					add.accept(l, l.startsWith("- ") ? d.getSystemColor(SWT.COLOR_DARK_RED): l.startsWith("+ ") ? d.getSystemColor(SWT.COLOR_DARK_GREEN): d.getSystemColor(SWT.COLOR_DARK_GRAY));
+					add.accept(l, l.startsWith("- ") ? org.dbgl.gui.controls.DarkTheme.textColor(d, SWT.COLOR_DARK_RED): l.startsWith("+ ") ? org.dbgl.gui.controls.DarkTheme.textColor(d, SWT.COLOR_DARK_GREEN): org.dbgl.gui.controls.DarkTheme.textColor(d, SWT.COLOR_DARK_GRAY));
 			diff_.setText(sb.toString());
 			diff_.setStyleRanges(styles.toArray(new org.eclipse.swt.custom.StyleRange[0]));
 		} catch (IOException e) {

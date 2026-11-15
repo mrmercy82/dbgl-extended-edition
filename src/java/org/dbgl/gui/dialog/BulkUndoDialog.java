@@ -136,7 +136,7 @@ public class BulkUndoDialog extends SizeControlledButtonDialog<Set<Integer>> {
 		for (Object[] l: new Object[][] {{"dialog.bulkundo.legend.now", SWT.COLOR_DARK_RED}, {"dialog.bulkundo.legend.back", SWT.COLOR_DARK_GREEN}}) {
 			Label label = new Label(legend, SWT.NONE);
 			label.setText(text_.get((String)l[0]));
-			label.setForeground(d.getSystemColor((Integer)l[1]));
+			label.setForeground(org.dbgl.gui.controls.DarkTheme.textColor(d, (Integer)l[1]));
 		}
 		text_area_ = new StyledText(contents_, SWT.MULTI | SWT.READ_ONLY | SWT.V_SCROLL | SWT.H_SCROLL | SWT.BORDER);
 		text_area_.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
@@ -243,7 +243,7 @@ public class BulkUndoDialog extends SizeControlledButtonDialog<Set<Integer>> {
 			line++;
 			if (e.diff().isEmpty()) {
 				String s = "    " + text_.get("dialog.checkprofiles.nochange");
-				styles.add(range(sb.length(), s.length(), d.getSystemColor(SWT.COLOR_DARK_GRAY), null));
+				styles.add(range(sb.length(), s.length(), org.dbgl.gui.controls.DarkTheme.textColor(d, SWT.COLOR_DARK_GRAY), null));
 				sb.append(s).append('\n');
 				line++;
 			}
@@ -253,10 +253,10 @@ public class BulkUndoDialog extends SizeControlledButtonDialog<Set<Integer>> {
 				boolean section = dl.text().startsWith("[") && dl.text().endsWith("]") && ((dl.kind() == ' ') || (dl.kind() == '~'));
 				String s = section ? "    " + dl.text(): "  " + (dl.kind() == '~' ? ' ': dl.kind()) + " " + dl.text();
 				org.eclipse.swt.graphics.Color c = switch (dl.kind()) {
-					case '-' -> d.getSystemColor(SWT.COLOR_DARK_RED);
-					case '+' -> d.getSystemColor(SWT.COLOR_DARK_GREEN);
-					case ' ' -> section || ProfileFindings.GAP.equals(dl.text()) ? d.getSystemColor(SWT.COLOR_DARK_GRAY): null;
-					default -> section ? d.getSystemColor(SWT.COLOR_DARK_GRAY): d.getSystemColor(SWT.COLOR_DARK_CYAN); // sections gray; '~' (gone without effect) teal
+					case '-' -> org.dbgl.gui.controls.DarkTheme.textColor(d, SWT.COLOR_DARK_RED);
+					case '+' -> org.dbgl.gui.controls.DarkTheme.textColor(d, SWT.COLOR_DARK_GREEN);
+					case ' ' -> section || ProfileFindings.GAP.equals(dl.text()) ? org.dbgl.gui.controls.DarkTheme.textColor(d, SWT.COLOR_DARK_GRAY): null;
+					default -> section ? org.dbgl.gui.controls.DarkTheme.textColor(d, SWT.COLOR_DARK_GRAY): org.dbgl.gui.controls.DarkTheme.textColor(d, SWT.COLOR_DARK_CYAN); // sections gray; '~' (gone without effect) teal
 				};
 				styles.add(range(sb.length(), s.length(), c, null));
 				sb.append(s).append('\n');

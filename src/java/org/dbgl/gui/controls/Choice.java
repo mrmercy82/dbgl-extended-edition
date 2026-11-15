@@ -58,7 +58,7 @@ public final class Choice {
 		Label text = new Label(dlg, SWT.WRAP);
 		text.setText(message);
 		GridData textData = new GridData(SWT.FILL, SWT.BEGINNING, true, false);
-		textData.widthHint = Math.min(520, Math.max(300, text.computeSize(SWT.DEFAULT, SWT.DEFAULT).x));
+		textData.widthHint = Math.min(640, Math.max(300, text.computeSize(SWT.DEFAULT, SWT.DEFAULT).x)); // alpha 49: 640 (520), so that the first line of the update notice fits
 		text.setLayoutData(textData);
 
 		Composite row = new Composite(dlg, SWT.NONE);
@@ -80,6 +80,7 @@ public final class Choice {
 				dlg.setDefaultButton(b);
 		}
 
+		DarkTheme.window(dlg); // alpha 49
 		dlg.pack();
 		Rectangle area = shell.getMonitor().getClientArea(), parent = shell.getBounds();
 		Point size = dlg.getSize();

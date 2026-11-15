@@ -4,6 +4,116 @@ DBGL Extended Edition - Changes since 0.100 beta 17
 Based on DBGL 0.100 beta 17 by Ronald Blankendaal (https://dbgl.org), source code.
 
 
+0.101 alpha 49 (2026-11-15)
+---------------------------
+Important
+- Java 21 will be needed soon: one of the next versions of DBGL Extended
+  Edition needs Java 21 and will not start with an older Java. When DBGL
+  runs with an older Java, it now says so at the start. Java 21 is
+  available e.g. as Eclipse Temurin:
+  https://adoptium.net/temurin/releases/?version=21
+- Please always unzip the whole update, not only dbgl.jar: it comes with
+  new libraries in the folder lib. The text files are now in the folder
+  "docs", the instructions are called update-readme.txt. If DBGL still
+  finds the old text files or diagnostic files in the main folder after
+  the update, it asks once whether to put them in order and names every
+  file; no other file is touched.
+
+New
+- DOSBox Staging 0.83.1 is supported. The value "auto" for
+  "keyboard_layout", "country" and "language" is gone there (and "native"
+  for "locale_period"): "Check profiles" reports such profiles and
+  removes the value if wanted, switching to 0.83.1 drops it, the preview
+  shows it. "innovation" has three values (off, on, entertainer).
+- DOSBox SVN r4494 is in the list of versions.
+- Take over settings from another DOSBox configuration (tab "DOSBox
+  versions", right-click): DBGL compares two configuration files. Ticked
+  is what was changed in the older file; its old defaults stay unticked,
+  so that new defaults are kept. The commands of [autoexec] can be taken
+  over too. Before saving, a preview shows the changes; the comments of
+  the file stay, a copy is made first. For DOSBox Staging older settings
+  are renamed and converted (e.g. "windowresolution" to "window_size",
+  "true" to "on").
+- Switching profiles to another DOSBox version:
+  - A value written in the profile file that is the same as the default
+    of the old version now stays in the profile. Before, it was lost when
+    the new version has another value there.
+  - The preview shows at the top where the new version has other values
+    than the old one; ticked, the profiles keep the previous value. With
+    "Show inherited values per profile" this is also said below each
+    profile.
+  - The version to switch to is chosen, not proposed; until then
+    "Preview" and "Switch" are greyed out. After switching, a window says
+    that it is done and how it can be taken back.
+  - In the profile editor a preview comes before the switch too.
+  - Tab "DOSBox versions", right-click > "Compare with another version"
+    lists the differences between two configurations.
+- Game series: a profile can belong to a series (fields "Series" and
+  "Part", a column and a filter in the profile list). Profiles >
+  "Suggest game series..." finds series by the titles. In TV mode the
+  games of a series lie as a stack. The series is exported and imported
+  and taken from IGDB. The database stays readable for DBGL 0.100 beta 17.
+- Quick search (magnifier in the toolbar or F3): a field above the list
+  that filters while typing.
+- New column "Disk space" with the size of the game folder; the
+  statistics name the disk space of the games, screenshots and profile
+  files.
+- File > "Manage backups...": all backups of DBGL in one list, to lock,
+  delete and restore; "Open folder" marks the chosen backup in the file
+  manager.
+- TV mode: Y/F opens a menu with favorites, sorting and genres. The info
+  page shows screenshots and leafs to the next game with the arrow keys.
+- "Download DOSBox": one window with all versions offered and the folder
+  the files will be in.
+- "Check profiles": reports configuration files in the profile folder
+  without a profile and moves them into a subfolder if wanted. Reports
+  profiles that boot a system of their own in DOSBox-X (e.g. Windows 95)
+  without capturing the mouse automatically, with a solution to tick.
+  Warning signs in the tile and box views too.
+- Reports and previews can be saved everywhere as text, as a web page in
+  colour or as PDF; the file name has date and time.
+- Menu DOSBox > "Log of the last DOSBox start...".
+- Settings: every option explains itself in a tooltip; alignment per
+  column of the profile list; screenshots shown or hidden per view.
+- "Import GOG and Steam games": from a configuration of DOSBox SVN-Daum
+  or DOSBox ECE the video memory and the 3dfx card come along into a
+  profile for DOSBox-X.
+
+Improved
+- Settings reordered, "Colours" is called "Themes".
+- Toolbar: as long as everything fits, all buttons are in one line; in a
+  narrow window it wraps into two lines. So that this works for everyone,
+  an order customized earlier is reset to the default once (hidden
+  buttons stay hidden).
+- Profile editor: a symbol of its own for every page in the tree; the
+  title bar names the DOSBox version of the profile.
+- Windows have the symbol of their menu entry, all windows of "Download
+  DOSBox" too.
+- Dark mode: progress windows and questions are dark, coloured text in
+  previews and reports can be read; on Windows buttons, number fields and
+  check boxes in lists look right.
+- Export profile list: choose the format first, then save.
+- A tidier main folder: the cache in "cache", diagnostic files in "logs".
+- Log window of DOSBox: lines are handled together instead of one by one.
+  When DOSBox writes several thousand equal lines at once (Windows 95
+  shutting down in DOSBox-X), DBGL may still not answer for some seconds
+  on Windows; this follows in alpha 50.
+
+Fixed
+- "Download DOSBox": the files end up directly in the chosen folder, no
+  longer in one more subfolder.
+- Switching to another DOSBox version: a value remembered earlier was
+  offered to be restored although the DOSBox version says the same
+  ("ems=true" against "ems = on").
+- "Check profiles": a profile changed outside DBGL gets its warning sign
+  right after the check, not only after a new start.
+
+Security and maintenance
+- Library JSON-java updated to 20260814 (CVE-2026-59171), also
+  commons-lang3 3.22.0, commons-io 2.22.0, commons-text 1.15.0 and jsoup
+  1.23.2. DBGL deletes the replaced old versions at the next start.
+
+
 0.101 alpha 48 (2026-11-14)
 ---------------------------
 Fixed

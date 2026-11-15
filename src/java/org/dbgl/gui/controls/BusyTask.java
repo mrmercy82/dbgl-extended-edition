@@ -145,6 +145,7 @@ public final class BusyTask {
 		} else {
 			busy.addListener(SWT.Close, e -> e.doit = false);
 		}
+		DarkTheme.window(busy); // alpha 49: dark in the dark mode
 		busy.pack();
 		org.eclipse.swt.graphics.Point size = busy.getSize();
 		size.x = Math.max(size.x, 360);

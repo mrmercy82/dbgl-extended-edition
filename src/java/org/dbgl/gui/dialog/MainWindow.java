@@ -336,9 +336,17 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 
 		display_.asyncExec(this::autoBackupIfDue);
 		display_.asyncExec(this::cleanUpAfterEditionUpdate);
+		applyScreenshotRule(); // alpha 49: shown or hidden as the settings say for this view
+		if (diskSpaceWanted())
+			scheduleDiskUsage(listed_); // alpha 49: the sizes of the game folders not known yet
 		createTvHint(); // alpha 48: once there are profiles
+		createJavaHint(); // alpha 49: a later version will need Java 21
+		createToolbarResetHint(); // alpha 49: once, if the order of the toolbar was reset
+		createUpdateHint(); // alpha 49: once: the automatic update check can be turned on
+		display_.asyncExec(this::offerOldFilesCleanup); // alpha 49: when the window is there
 		// if the window ever stops answering: what DBGL was doing, written to freeze-<date>.txt for a report
-		org.dbgl.util.FreezeWatch.start(display_, org.dbgl.service.FileLocationService.getInstance().getDataDir());
+		// (alpha 49: into the folder "logs", with the logs of DOSBox, not among the data of DBGL)
+		org.dbgl.util.FreezeWatch.start(display_, org.dbgl.util.DosboxLog.logsDir());
 		// alpha 48: an error in one listener must not end the whole user interface (SWT would throw it out of the event loop,
 		// the window then stood still while DBGL kept running): written to the log, DBGL goes on
 		display_.setRuntimeExceptionHandler(e -> {
@@ -568,6 +576,15 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		tbPlan_ = org.dbgl.gui.controls.ToolbarCustomizer.tokens(settings_.getValue("gui", "toolbarlayout"));
 		if ((tbPlan_ != null) && !tbPlan_.contains(org.dbgl.gui.controls.ToolbarCustomizer.RIGHT))
 			tbPlan_.add(org.dbgl.gui.controls.ToolbarCustomizer.RIGHT);
+		// alpha 49: the order as built, but the second bar begins where DBGL found it best for the width of the window
+		tbAuto_ = false;
+		if ((tbPlan_ == null) && (tbAutoSplit_ != null)) {
+			List<String> plan = org.dbgl.gui.controls.ToolbarCustomizer.splitAt(tbDefault_, tbAutoSplit_);
+			if (plan != null) {
+				tbPlan_ = plan;
+				tbAuto_ = true;
+			}
+		}
 		tbDefault_.clear();
 		ToolBar toolBar = createToolBar(toolbarComposite);
 		ToolBar toolBarRight = createToolBar(toolbarComposite);
@@ -636,6 +653,15 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				doEditFilter();
 			}
 		});
+		// alpha 49: the quick search: a field above the list that filters while typing; after the filters
+		searchItem_ = tbStyled(toolBar, SWT.CHECK, "dialog.main.tb.search", ImageService.getResourceImage(shell_.getDisplay(), ImageService.IMG_ZOOM), tip("dialog.main.menu.search"),
+			new SelectionAdapter() {
+				@Override
+				public void widgetSelected(SelectionEvent event) {
+					toggleQuickSearch(((ToolItem)event.widget).getSelection());
+				}
+			});
+		setToolItemLabel(searchItem_, text_.get("dialog.main.tb.search"));
 		tbSeparator(toolBar);
 		createLabelledToolItem(toolBar, "dialog.main.tb.onlineinfo", ImageService.IMG_GLOBE, "dialog.main.onlineinfo", new SelectionAdapter() {
 			@Override
@@ -672,12 +698,19 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			}).build();
 		}
 
+		// alpha 48: the TV mode, alpha 49: first of the views
+		ToolItem tvItem = tbNew(toolBar, SWT.PUSH, "dialog.main.view.tv");
+		tvItem.setImage(ImageService.getResourceImage(shell_.getDisplay(), ImageService.IMG_CONTROLLER));
+		tvItem.setText(text_.get("dialog.main.view.tv"));
+		tvItem.setToolTipText(text_.get("dialog.main.view.tv.tooltip"));
+		tvItem.setData(TB_KEY, "dialog.main.view.tv");
+		tvItem.addListener(SWT.Selection, e -> doTvMode());
 		// List | Tiles | Boxes as labelled buttons, easy to see; the size comes from the arrow next to them or the View menu
 		String[] kindKeys = {"dialog.main.view.list", "dialog.main.view.tiles", "dialog.main.view.boxes"};
 		String[] kindImages = {ImageService.IMG_TABLE, ImageService.IMG_TILES_MEDIUM, ImageService.IMG_BOXES_MEDIUM};
 		for (int k = 0; k < 3; k++) {
 			final int kind = k;
-			viewKindItems_[k] = tbNew(toolBarRight, SWT.RADIO, kindKeys[k]);
+			viewKindItems_[k] = tbNew(toolBar, SWT.RADIO, kindKeys[k]);
 			viewKindItems_[k].setImage(ImageService.getResourceImage(shell_.getDisplay(), kindImages[k]));
 			viewKindItems_[k].setText(text_.get(kindKeys[k]));
 			viewKindItems_[k].setToolTipText(text_.get(kindKeys[k] + ".tooltip"));
@@ -688,14 +721,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			});
 		}
 		viewKindItems_[kindOfView(currentViewIndex())].setSelection(true);
-		// alpha 48: the TV mode, right of the boxes
-		ToolItem tvItem = tbNew(toolBarRight, SWT.PUSH, "dialog.main.view.tv");
-		tvItem.setImage(ImageService.getResourceImage(shell_.getDisplay(), ImageService.IMG_CONTROLLER));
-		tvItem.setText(text_.get("dialog.main.view.tv"));
-		tvItem.setToolTipText(text_.get("dialog.main.view.tv.tooltip"));
-		tvItem.setData(TB_KEY, "dialog.main.view.tv");
-		tvItem.addListener(SWT.Selection, e -> doTvMode());
-		viewSelector_ = tbStyled(toolBarRight, SWT.DROP_DOWN, "dialog.main.tb.viewsize", ImageService.getResourceImage(shell_.getDisplay(), currentViewType.getImage()), text_.get(currentViewType.getDisplayName()),
+		viewSelector_ = tbStyled(toolBar, SWT.DROP_DOWN, "dialog.main.tb.viewsize", ImageService.getResourceImage(shell_.getDisplay(), currentViewType.getImage()), text_.get(currentViewType.getDisplayName()),
 			new SelectionAdapter() {
 				@Override
 				public void widgetSelected(SelectionEvent event) {
@@ -717,23 +743,23 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			});
 		setToolItemLabel(viewSelector_, text_.get(currentViewType.getDisplayName()));
 		viewSelector_.setData(TB_KEY, "dialog.main.tb.viewsize");
-		tbSeparator(toolBarRight);
-		ToolItem displayScreenshots = tbStyled(toolBarRight, SWT.CHECK, "dialog.main.profiles.togglebutton.screenshots", ImageService.getResourceImage(shell_.getDisplay(), ImageService.IMG_SCREENSHOTS),
+		tbSeparator(toolBar);
+		ToolItem displayScreenshots = tbStyled(toolBar, SWT.CHECK, "dialog.main.profiles.togglebutton.screenshots", ImageService.getResourceImage(shell_.getDisplay(), ImageService.IMG_SCREENSHOTS),
 			text_.get("dialog.main.profiles.togglebutton.screenshots"), new SelectionAdapter() {
 				@Override
 				public void widgetSelected(SelectionEvent event) {
 					ToolItem item = (ToolItem)event.widget;
-					((GridData)scrolledCompositeForThumbs_.getLayoutData()).exclude = !item.getSelection();
-					scrolledCompositeForThumbs_.getParent().layout();
-					settings_.setBooleanValue("gui", "screenshotsvisible", item.getSelection());
-					setToolItemLabel(item, text_.get(item.getSelection() ? "dialog.main.tb.screenshots.on": "dialog.main.tb.screenshots.off"));
-					displayProfileInformation(false);
+					// alpha 49: in a view without a rule of its own (settings) this is the choice that is remembered
+					if (screenshotRule() == 0)
+						settings_.setBooleanValue("gui", "screenshotsmanual", item.getSelection());
+					setScreenshotsVisible(item.getSelection());
 				}
 			});
+		screenshotsItem_ = displayScreenshots;
 		displayScreenshots.setSelection(settings_.getBooleanValue("gui", "screenshotsvisible"));
 		displayScreenshots.setData(TB_KEY, "dialog.main.profiles.togglebutton.screenshots");
 		setToolItemLabel(displayScreenshots, text_.get(displayScreenshots.getSelection() ? "dialog.main.tb.screenshots.on": "dialog.main.tb.screenshots.off"));
-		ToolItem displayNotes = tbStyled(toolBarRight, SWT.CHECK, "dialog.main.profiles.togglebutton.notes", ImageService.getResourceImage(shell_.getDisplay(), ImageService.IMG_NOTES),
+		ToolItem displayNotes = tbStyled(toolBar, SWT.CHECK, "dialog.main.profiles.togglebutton.notes", ImageService.getResourceImage(shell_.getDisplay(), ImageService.IMG_NOTES),
 			text_.get("dialog.main.profiles.togglebutton.notes"), new SelectionAdapter() {
 				@Override
 				public void widgetSelected(SelectionEvent event) {
@@ -748,13 +774,14 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		displayNotes.setData(TB_KEY, "dialog.main.profiles.togglebutton.notes");
 		setToolItemLabel(displayNotes, text_.get(displayNotes.getSelection() ? "dialog.main.tb.notes.on": "dialog.main.tb.notes.off"));
 		// statistics and settings at the right, 'About' at the very right
-		tbSeparator(toolBarRight);
-		createLabelledToolItem(toolBarRight, "dialog.main.tb.statistics", ImageService.IMG_STATISTICS, "dialog.main.menu.statistics", new SelectionAdapter() {
+		tbSeparator(toolBar);
+		createLabelledToolItem(toolBar, "dialog.main.tb.statistics", ImageService.IMG_STATISTICS, "dialog.main.menu.statistics", new SelectionAdapter() {
 				@Override
 				public void widgetSelected(SelectionEvent event) {
 					doShowStatistics();
 				}
 			});
+		// alpha 49: the second bar begins here, two buttons before the end (before: at the views)
 		createLabelledToolItem(toolBarRight, "dialog.main.tb.settings", ImageService.IMG_TB_SETTINGS, "dialog.main.menu.adjustsettings", new SelectionAdapter() {
 				@Override
 				public void widgetSelected(SelectionEvent event) {
@@ -773,6 +800,12 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 
 	/** alpha 48: the order and lines the user chose (null: as built), what the code builds (keys, "|" a line, ">" the second bar) */
 	private List<String> tbPlan_;
+	/** alpha 49: true if tbPlan_ is the order as built with the second bar begun by DBGL at tbAutoSplit_ (not an order of the user) */
+	private boolean tbAuto_;
+	/** alpha 49: the button the second bar begins with when two rows are needed (null: as built) */
+	private String tbAutoSplit_;
+	private boolean tbRebuildPending_;
+	private int tbSettledWidth_ = -1;
 	private final List<String> tbDefault_ = new ArrayList<>();
 	private ToolBar tbLeft_, tbRight_;
 
@@ -785,7 +818,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			tbDefault_.add(org.dbgl.gui.controls.ToolbarCustomizer.RIGHT);
 		tbDefault_.add(key);
 		if (tbPlan_ == null)
-			return new ToolItem(defaultBar, style);
+			return new ToolItem(tbLeft_, style); // alpha 49: as built all buttons are in the first bar (see fitToolbars)
 		int pos = tbPlan_.indexOf(key);
 		if (pos < 0) {
 			// not in the user's order (e.g. new in this version): after the button it follows as built, as in the customize window
@@ -820,7 +853,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			toolItem.setToolTipText(text_.get(key));
 		else
 			toolItem.setText(text_.get(key));
-		toolItem.addSelectionListener(listener);
+		toolItem.addSelectionListener(withWindowImage(menuPicture(img), listener)); // test 18: the symbol of the window it opens
 		toolItem.setData(TB_KEY, key);
 		return toolItem;
 	}
@@ -840,7 +873,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			tbDefault_.add(org.dbgl.gui.controls.ToolbarCustomizer.RIGHT);
 		tbDefault_.add(org.dbgl.gui.controls.ToolbarCustomizer.LINE);
 		if (tbPlan_ == null)
-			createSeparatorToolItem(bar, TOOLBAR_SEPARATOR);
+			createSeparatorToolItem(tbLeft_, TOOLBAR_SEPARATOR);
 	}
 
 	/** the lines of the user's order, each after the button before it in the same bar */
@@ -879,20 +912,10 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		MenuItem_.on(menu).key("dialog.main.tb.customize").listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
-				// alpha 48: also the order, lines between the buttons and which are in the second bar
-				org.dbgl.gui.controls.ToolbarCustomizer.Result chosen = org.dbgl.gui.controls.ToolbarCustomizer.ask(shell_, toolbarItems_, new ArrayList<>(tbDefault_),
-					tbPlan_, org.dbgl.gui.controls.ToolbarCustomizer.hidden(settings_.getValue("gui", "toolbarhidden")));
-				if (chosen == null)
-					return;
-				settings_.setValue("gui", "toolbarhidden", String.join(",", chosen.hidden()));
-				settings_.setValue("gui", "toolbarlayout", chosen.layout() == null ? "": String.join(",", chosen.layout()));
-				for (Control c: row.getChildren())
-					c.dispose();
-				createToolbars(row);
-				finishToolbars(row);
-				displayProfileInformation(false);
+				customizeToolbar(shell_, row);
 			}
 		}).build();
+		SettingsDialog.setToolbarCustomizer(parent -> customizeToolbar(parent, row)); // alpha 49: also from a button in the settings
 		row.setMenu(menu);
 		for (Control c: row.getChildren()) {
 			if (!(c instanceof ToolBar bar))
@@ -902,6 +925,10 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				if (item.getData(TB_KEY) instanceof String key) {
 					String label = StringUtils.isNotBlank(item.getText()) ? item.getText(): StringUtils.defaultString(item.getToolTipText());
 					toolbarItems_.add(new org.dbgl.gui.controls.ToolbarCustomizer.Entry(key, label.replace("&", ""), item.getImage()));
+					// alpha 49: a tooltip that says what the button does (before: none, or only its name again)
+					String tipKey = TB_TIPS.get(key);
+					if (tipKey != null)
+						item.setToolTipText(label.replace("&", "").replace("...", "").strip() + " \u2013 " + text_.get("dialog.main.tb.tip." + tipKey));
 					if (hidden.contains(key))
 						item.dispose();
 				}
@@ -927,6 +954,40 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		row.getParent().layout(true, true);
 	}
 
+	/** the window that arranges the toolbar: which buttons, their order, lines between them and which are in the second bar */
+	private void customizeToolbar(Shell parent, Composite row) {
+		if (row.isDisposed())
+			return;
+		org.dbgl.gui.controls.ToolbarCustomizer.Result chosen = org.dbgl.gui.controls.ToolbarCustomizer.ask(parent, toolbarItems_, new ArrayList<>(tbDefault_), tbAuto_ ? null: tbPlan_,
+			org.dbgl.gui.controls.ToolbarCustomizer.hidden(settings_.getValue("gui", "toolbarhidden")));
+		if (chosen == null)
+			return;
+		settings_.setValue("gui", "toolbarhidden", String.join(",", chosen.hidden()));
+		settings_.setValue("gui", "toolbarlayout", chosen.layout() == null ? "": String.join(",", chosen.layout()));
+		rebuildToolbars(row);
+	}
+
+	/** the toolbars made again: after they were arranged, or when the second bar begins elsewhere */
+	private void rebuildToolbars(Composite row) {
+		if (row.isDisposed())
+			return;
+		for (Control c: row.getChildren())
+			c.dispose();
+		createToolbars(row);
+		finishToolbars(row);
+		if ((searchItem_ != null) && !searchItem_.isDisposed())
+			searchItem_.setSelection(quickSearchShown());
+		displayProfileInformation(false);
+	}
+
+	/** alpha 49: the buttons of the toolbar that get a tooltip of their own, and the key of it */
+	private static final java.util.Map<String, String> TB_TIPS = java.util.Map.ofEntries(java.util.Map.entry("dialog.main.addprofile", "add"),
+		java.util.Map.entry("dialog.main.editprofile", "edit"), java.util.Map.entry("dialog.main.removeprofile", "remove"), java.util.Map.entry("dialog.main.runprofile", "run"),
+		java.util.Map.entry("dialog.main.runprofilesetup", "setup"), java.util.Map.entry("dialog.main.addwizard", "wizard"), java.util.Map.entry("dialog.main.tb.portable", "usb"),
+		java.util.Map.entry("dialog.main.tb.addfilter", "addfilter"), java.util.Map.entry("dialog.main.tb.editfilter", "editfilter"), java.util.Map.entry("dialog.main.tb.search", "search"),
+		java.util.Map.entry("dialog.main.tb.checkprofiles", "check"), java.util.Map.entry("dialog.main.tb.statistics", "statistics"),
+		java.util.Map.entry("dialog.main.tb.settings", "settings"));
+
 	private boolean fitting_;
 
 	/**
@@ -941,10 +1002,23 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			return;
 		fitting_ = true;
 		try {
+			// alpha 49: a bar without buttons (everything was put into the other one) takes no room and is not fitted
+			// (test 14: with an empty second bar the names no longer got smaller in a narrow window)
 			List<ToolBar> bars = new ArrayList<>();
-			for (Control c: row.getChildren())
-				if (c instanceof ToolBar bar)
-					bars.add(bar);
+			for (Control c: row.getChildren()) {
+				if (c instanceof ToolBar bar) {
+					boolean empty = bar.getItemCount() == 0;
+					RowData data = new RowData();
+					data.exclude = empty;
+					bar.setLayoutData(data);
+					bar.setVisible(!empty);
+					if (!empty)
+						bars.add(bar);
+				}
+			}
+			if (bars.isEmpty())
+				return;
+			layout.center = true; // alpha 49: bars of different height stand on one line (test 12: the second bar stood higher)
 			int before = row.computeSize(SWT.DEFAULT, SWT.DEFAULT).y;
 			java.util.function.IntSupplier needed = () -> {
 				int n = layout.marginLeft + layout.marginRight + (bars.size() - 1) * layout.spacing;
@@ -952,24 +1026,138 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 					n += bar.computeSize(SWT.DEFAULT, SWT.DEFAULT).x;
 				return n;
 			};
-			int[] percent = {100, 100, 100, 90, 80, 70, 62, 100};
-			for (int level = 0; level < percent.length; level++) {
-				layout.spacing = (level == 0) ? 20: 6;
-				boolean symbolOnly = level == percent.length - 1;
-				for (ToolBar bar: bars) {
-					bar.setFont(toolbarFont(bar, percent[level]));
-					for (ToolItem item: bar.getItems())
-						compactToolItem(item, symbolOnly, level >= 2);
+			// alpha 49: in one row down to names at 80 %; then rather two rows with names that can be read (the first row as
+			// full as it gets: test 15, it may end within a group of buttons) than tiny names; only when two rows are too wide as well, smaller names and at last symbols only.
+			// {size of the names in percent, 0: normal, 1: less space, 2: names without "...", 3: symbols only}
+			int[][] oneRow = {{100, 0}, {100, 1}, {100, 2}, {90, 2}, {80, 2}};
+			int[][] twoRows = {{100, 1}, {100, 2}, {90, 2}, {80, 2}, {70, 2}, {62, 2}, {100, 3}};
+			boolean fits = false;
+			for (int i = 0; (i < oneRow.length) && !fits; i++) {
+				fitStep(bars, layout, oneRow[i]);
+				fits = needed.getAsInt() <= available;
+			}
+			boolean auto = (tbPlan_ == null) || tbAuto_; // not arranged by the user: DBGL chooses where the second bar begins
+			String split = null;
+			boolean oneRowFits = fits;
+			if (!fits) {
+				int room = available - layout.marginLeft - layout.marginRight;
+				for (int i = 0; (i < twoRows.length) && !fits; i++) {
+					fitStep(bars, layout, twoRows[i]);
+					if (auto) {
+						split = toolbarSplit(bars, room);
+						fits = split != null;
+					} else { // as the user arranged it: each bar must fit
+						fits = true;
+						for (ToolBar bar: bars)
+							fits &= bar.computeSize(SWT.DEFAULT, SWT.DEFAULT).x <= room;
+					}
 				}
-				if (needed.getAsInt() <= available)
-					break;
 			}
 			row.layout(true);
 			if (row.computeSize(available, SWT.DEFAULT).y != before)
 				row.getParent().layout(true, true);
+			writeToolbarMetrics(bars);
+			if (auto && !tbRebuildPending_ && (tbSettledWidth_ != available)) {
+				// In one row all buttons are in one bar: two bars next to each other do not stand on one line on Windows
+				// (test 12 to 14: the buttons of the second bar stood higher). In two rows the second bar begins where the
+				// first row is fullest.
+				String now = bars.size() == 2 ? firstKey(bars.get(1)): null;
+				boolean change = split != null ? !split.equals(now): oneRowFits && (now != null);
+				if (change) {
+					tbAutoSplit_ = split;
+					tbSettledWidth_ = available; // once per width: it cannot go back and forth
+					tbRebuildPending_ = true;
+					display_.asyncExec(() -> {
+						tbRebuildPending_ = false;
+						rebuildToolbars(row);
+					});
+				}
+			}
 		} finally {
 			fitting_ = false;
 		}
+	}
+
+	/**
+	 * alpha 49, test versions only (or with -Ddbgl.toolbarmetrics=true): what the toolbars measure, written to
+	 * toolbar-metrics.txt in the data folder - to find out why the buttons of the second bar stand higher on Windows than
+	 * those of the first (not to be seen on Linux)
+	 */
+	private void writeToolbarMetrics(List<ToolBar> bars) {
+		if (!Constants.PROGRAM_VERSION.toLowerCase().contains("test") && !Boolean.getBoolean("dbgl.toolbarmetrics"))
+			return;
+		try {
+			StringBuilder sb = new StringBuilder("DBGL " + Constants.PROGRAM_VERSION + ", " + System.getProperty("os.name") + ", SWT " + SWT.getVersion() + ", zoom "
+					+ org.eclipse.swt.internal.DPIUtil.getDeviceZoom() + "\n");
+			int n = 0;
+			for (ToolBar bar: bars) {
+				sb.append("bar ").append(++n).append(": bounds ").append(bar.getBounds()).append(", preferred ").append(bar.computeSize(SWT.DEFAULT, SWT.DEFAULT)).append(", font ")
+						.append(bar.getFont().getFontData()[0]).append(", rows ").append(bar.getRowCount()).append('\n');
+				if (SystemUtils.IS_WINDOWS) {
+					try {
+						Class<?> os = Class.forName("org.eclipse.swt.internal.win32.OS");
+						java.lang.reflect.Method send = os.getMethod("SendMessage", long.class, int.class, long.class, long.class);
+						long handle = Control.class.getField("handle").getLong(bar);
+						long size = (Long)send.invoke(null, handle, 0x43A, 0L, 0L), pad = (Long)send.invoke(null, handle, 0x456, 0L, 0L);
+						sb.append("   native: button size ").append(size & 0xFFFF).append(" x ").append((size >> 16) & 0xFFFF).append(", padding ").append(pad & 0xFFFF).append(" x ")
+								.append((pad >> 16) & 0xFFFF).append(", extended style 0x").append(Long.toHexString((Long)send.invoke(null, handle, 0x455, 0L, 0L))).append('\n');
+					} catch (ReflectiveOperationException | RuntimeException e) {
+						sb.append("   native: ").append(e).append('\n');
+					}
+				}
+				for (ToolItem item: bar.getItems())
+					sb.append("   ").append((item.getStyle() & SWT.SEPARATOR) != 0 ? "separator": (item.getStyle() & SWT.DROP_DOWN) != 0 ? "dropdown": (item.getStyle() & SWT.CHECK) != 0 ? "check"
+							: (item.getStyle() & SWT.RADIO) != 0 ? "radio": "push").append(" [").append(item.getText()).append("] bounds ").append(item.getBounds()).append(", image ")
+							.append(item.getImage() == null ? "none": String.valueOf(item.getImage().getBounds())).append('\n');
+			}
+			java.nio.file.Files.createDirectories(org.dbgl.util.DosboxLog.logsDir().toPath());
+			java.nio.file.Files.writeString(new File(org.dbgl.util.DosboxLog.logsDir(), "toolbar-metrics.txt").toPath(), sb.toString(), java.nio.charset.StandardCharsets.UTF_8);
+		} catch (IOException | RuntimeException | LinkageError e) {
+			// only a note for finding a fault
+		}
+	}
+
+	private void fitStep(List<ToolBar> bars, RowLayout layout, int[] step) {
+		layout.spacing = (step[1] == 0) ? 20: 6;
+		for (ToolBar bar: bars) {
+			bar.setFont(toolbarFont(bar, step[0]));
+			for (ToolItem item: bar.getItems())
+				compactToolItem(item, step[1] == 3, step[1] >= 2);
+		}
+	}
+
+	private static String firstKey(ToolBar bar) {
+		for (ToolItem item: bar.getItems())
+			if (item.getData(TB_KEY) instanceof String key)
+				return key;
+		return null;
+	}
+
+	/**
+	 * alpha 49: where the second bar should begin so that both bars fit into the window and the first one is as full as it
+	 * gets: at one of the lines between the groups of buttons
+	 *
+	 * @return the key of the button the second bar begins with, null if no place makes both fit
+	 */
+	private String toolbarSplit(List<ToolBar> bars, int room) {
+		List<int[]> widths = new ArrayList<>(); // width, 1 for a line
+		List<String> keys = new ArrayList<>();
+		int pad = 0;
+		for (ToolBar bar: bars) {
+			int sum = 0;
+			if ((bar != bars.get(0)) && !widths.isEmpty() && (bar.getItemCount() > 0)) { // between the bars: a line as built
+				widths.add(new int[] {TOOLBAR_SEPARATOR, 1});
+				keys.add(null);
+			}
+			for (ToolItem item: bar.getItems()) {
+				boolean line = (item.getStyle() & SWT.SEPARATOR) != 0;
+				widths.add(new int[] {item.getWidth(), line ? 1: 0});
+				keys.add(line ? null: (item.getData(TB_KEY) instanceof String key) ? key: null);
+				sum += item.getWidth();
+			}
+			pad = Math.max(pad, bar.computeSize(SWT.DEFAULT, SWT.DEFAULT).x - sum); // what a bar needs around its buttons
+		}
+		return org.dbgl.gui.controls.ToolbarCustomizer.bestSplit(widths, keys, room - pad);
 	}
 
 	private final java.util.Map<Integer, org.eclipse.swt.graphics.Font> toolbarFonts_ = new java.util.HashMap<>();
@@ -1035,6 +1223,8 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		if (Boolean.TRUE.equals(new CheckProfilesDialog(shell_).open())) {
 			updateProfilesList(getSelectedProfileIds());
 			displayProfileInformation(false);
+		} else {
+			refreshMarkers(); // test 15: a profile changed outside DBGL got its warning sign only after a new start
 		}
 	}
 
@@ -1166,6 +1356,115 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		return candidates;
 	}
 
+	/** the ending of the files a list template makes: "fancy_html" -> "html" */
+	public static String listExportEnding(String xslBaseName) {
+		int at = xslBaseName.lastIndexOf('_');
+		return (at < 0 ? xslBaseName: xslBaseName.substring(at + 1)).toLowerCase(java.util.Locale.ROOT);
+	}
+
+	/** the name suggested for an exported list: "dbgllist-2026-11-14_14-32.html" */
+	public static String listExportName(String ending, java.time.LocalDateTime now) {
+		return "dbgllist-" + now.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm")) + "." + ending;
+	}
+
+	/**
+	 * Alpha 49: export the list of the profiles shown, as the report of the statistics is saved: choose the format, then the
+	 * usual window to save a file, with a name that has date and time (it replaces a dialog with a file name to type in).
+	 */
+	private void doExportProfilesList() {
+		FileLocationService locations = FileLocationService.getInstance();
+		if (!locations.hasXslDir()) {
+			Mess_.on(shell_).key("dialog.exportlist.error.noxsldir").fatal();
+			return;
+		}
+		String[] templates = locations.listXslBaseNames();
+		if (templates.length == 0) {
+			Mess_.on(shell_).key("dialog.exportlist.error.noxslfiles").fatal();
+			return;
+		}
+		List<String> names = new ArrayList<>();
+		for (String t: templates)
+			names.add(t + "  (*." + listExportEnding(t) + ")");
+		names.add("XML  (*.xml)");
+		Integer pick = new ChoiceDialog(shell_, text_.get("dialog.exportlist.title"), text_.get("dialog.exportlist.exportfiletype"), names).open();
+		if (pick == null)
+			return;
+		boolean xml = pick >= templates.length;
+		String ending = xml ? "xml": listExportEnding(templates[pick]);
+		FileDialog dialog = new FileDialog(shell_, SWT.SAVE);
+		dialog.setText(text_.get("dialog.exportlist.title"));
+		dialog.setFilterPath(locations.getExportDir().getAbsolutePath());
+		dialog.setFilterExtensions(new String[] {"*." + ending, "*.*"});
+		dialog.setFileName(listExportName(ending, java.time.LocalDateTime.now()));
+		dialog.setOverwrite(true);
+		String file = dialog.open();
+		if (file == null)
+			return;
+		if (!file.toLowerCase().endsWith("." + ending))
+			file += "." + ending;
+		try {
+			File target = new File(file);
+			org.dbgl.service.ImportExportProfilesService.export(profilesList_, null, xml ? null: locations.xslBaseNameToFile(templates[pick]), target);
+			if (Mess_.on(shell_).key("dialog.exportlist.confirm.viewexport").confirm())
+				SystemUtils.openForBrowsing(target.getPath(), shell_);
+		} catch (IOException | javax.xml.transform.TransformerException | javax.xml.parsers.ParserConfigurationException e) {
+			Mess_.on(shell_).exception(e).warning();
+		}
+	}
+
+	/**
+	 * alpha 49: files of earlier versions that have another place now (diagnostic files in the main folder, the four texts of
+	 * the package under their old names): asked once whether to put them in order, with their names; nothing else is touched.
+	 */
+	private void offerOldFilesCleanup() {
+		if (shell_.isDisposed() || settings_.getBooleanValue("gui", "oldfilesasked"))
+			return;
+		File jar = org.dbgl.util.EditionUpdater.runningJar();
+		org.dbgl.util.OldFiles.Found found = org.dbgl.util.OldFiles.find(jar == null ? null: jar.getAbsoluteFile().getParentFile(), FileLocationService.getInstance().getDataDir());
+		if (found.isEmpty())
+			return; // asked when there is something (after the update that brings the new places)
+		settings_.setBooleanValue("gui", "oldfilesasked", true);
+		String names = found.all().stream().map(File::getPath).collect(Collectors.joining("\n"));
+		if (!Mess_.on(shell_).key("dialog.main.oldfiles", new Object[] {names}).confirmUnwrapped())
+			return;
+		List<File> failed = org.dbgl.util.OldFiles.clean(found, org.dbgl.util.DosboxLog.logsDir());
+		if (!failed.isEmpty())
+			Mess_.on(shell_).key("dialog.main.oldfiles.failed", new Object[] {failed.stream().map(File::getPath).collect(Collectors.joining("\n"))}).warning();
+	}
+
+	/** alpha 49: what differs between the configurations of two DOSBox versions, as "Compare versions" of the switch window lists it */
+	private void doCompareDosboxVersions(DosboxVersion from, DosboxVersion to) {
+		try {
+			for (DosboxVersion v: new DosboxVersion[] {from, to})
+				if (v.getConfiguration().getSectionNames().length == 0)
+					v.resetAndLoadConfiguration();
+			String title = text_.get("dialog.switchdosbox.compare.title", new Object[] {from.getTitle(), to.getTitle()});
+			String report = org.dbgl.util.ProfileReports.compareVersions(from.getConfiguration(), from.getTitle(), to.getConfiguration(), to.getTitle(), text_);
+			String base = "dbgl-compare-versions";
+			new DifferencesDialog(shell_, title, report, org.dbgl.gui.controls.ReportSave.name(base, "txt", java.time.LocalDateTime.now()), "compareversionsdialog").withImage(ImageService.IMG_ZOOM)
+					.withExport("html", text_.get("dialog.report.save.html"), () -> org.dbgl.util.ProfileReports.reportHtml(report, title))
+					.withMenuAction(text_.get("dialog.statistics.save.pdf"), () -> org.dbgl.gui.controls.ReportSave.print(shell_, base, () -> org.dbgl.util.ProfileReports.reportHtml(report, title))).open();
+		} catch (IOException e) {
+			Mess_.on(shell_).exception(e).warning();
+		}
+	}
+
+	/** the web page of the statistics written to the export folder and opened in the browser, where it opens the print window */
+	private void printStatistics(String html) {
+		try {
+			// the browser proposes the title of the page as the name of the PDF file: with date and time, like the other reports
+			String name = "dbglstatistics-" + java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm"));
+			File page = new File(FileLocationService.getInstance().getExportDir(), "dbgl-statistics-print.html");
+			// (test 12: a title set by the script was not used; so it is the title of the page itself)
+			String printing = html.replaceFirst("<title>[^<]*</title>", "<title>" + name + "</title>").replace("</body>",
+				"<script>window.addEventListener('load',function(){window.print();});</script>\n</body>");
+			java.nio.file.Files.writeString(page.toPath(), printing, java.nio.charset.StandardCharsets.UTF_8);
+			SystemUtils.openForBrowsing(page.getPath(), shell_);
+		} catch (IOException | RuntimeException e) {
+			Mess_.on(shell_).exception(e).warning();
+		}
+	}
+
 	/** the statistics as a web page (or a CSV table), with the play sessions as they are now */
 	private String statisticsAs(boolean html, List<Profile> all, java.util.Locale locale, java.util.Date now) {
 		try {
@@ -1181,12 +1480,24 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			List<Profile> all = new ProfileRepository().list(StringUtils.EMPTY, StringUtils.EMPTY, dbversionsList_);
 			java.util.Date now = new java.util.Date();
 			java.util.Locale locale = new java.util.Locale(settings_.getValue("locale", "language"), settings_.getValue("locale", "country"));
+			// alpha 49: the disk space at the top, in every form of the report
+			shell_.setCursor(display_.getSystemCursor(SWT.CURSOR_WAIT));
+			List<String> disk;
+			try {
+				disk = diskSpaceLines(all, locale);
+			} finally {
+				shell_.setCursor(null);
+			}
+			org.dbgl.util.ProfileReports.overviewExtra = disk;
 			String report = org.dbgl.util.ProfileReports.statistics(all, new ProfileRepository().listPlaySessions(), text_, locale, now);
-			new DifferencesDialog(shell_, text_.get("dialog.statistics.title"), report, "dbgl-statistics-" + new java.text.SimpleDateFormat("yyyy-MM-dd").format(now) + ".txt",
+			new DifferencesDialog(shell_, text_.get("dialog.statistics.title"), report, "dbgl-statistics-" + new java.text.SimpleDateFormat("yyyy-MM-dd_HH-mm").format(now) + ".txt",
 					"statisticsdialog").withImage(ImageService.IMG_STATISTICS).withAction("dialog.statistics.cleanremoved", s -> cleanRemovedProfileData(s, all, locale))
 					// also as a web page with bars, or as a table for a spreadsheet (the type in the save dialog)
 					.withExport("html", text_.get("dialog.statistics.save.html3"), () -> statisticsAs(true, all, locale, now))
-					.withExport("csv", text_.get("dialog.statistics.save.csv"), () -> statisticsAs(false, all, locale, now)).open();
+					.withExport("csv", text_.get("dialog.statistics.save.csv"), () -> statisticsAs(false, all, locale, now))
+					// alpha 49: as PDF: the web page opened in the browser with its print window ("Save as PDF" there), which
+					// knows the letters of every language
+					.withMenuAction(text_.get("dialog.statistics.save.pdf"), () -> printStatistics(statisticsAs(true, all, locale, now))).open();
 		} catch (SQLException e) {
 			Mess_.on(shell_).exception(e).warning();
 		}
@@ -1472,7 +1783,8 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		shell_.setCursor(display_.getSystemCursor(SWT.CURSOR_WAIT));
 		Thread fetcher = new Thread(() -> {
 			List<DosboxUpdateChecker.Release> releases = DosboxUpdateChecker.latestReleases();
-			display_.asyncExec(() -> {
+			// alpha 49: the windows open when the list has come, after the menu entry is done: they get its symbol all the same
+			display_.asyncExec(org.dbgl.gui.abstractdialog.BaseDialog.withWindowImage(ImageService.IMG_IMPORT, () -> {
 				if (shell_.isDisposed())
 					return;
 				shell_.setCursor(null);
@@ -1480,13 +1792,23 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 					Mess_.on(shell_).key("dialog.main.notice.noreleases").warning();
 					return;
 				}
-				for (DosboxUpdateChecker.Release r: releases) {
-					boolean present = dbversionsList_.stream().anyMatch(v -> v.getFamily().equals(r.family()) && (DosboxUpdateChecker.compareVersions(v.getVersion(), r.version()) >= 0));
-					String question = text_.get("dialog.main.confirm.downloaddosbox", new Object[] {r.family(), r.version()}) + (present ? "\n" + text_.get("dialog.main.notice.alreadyinstalled"): "");
-					if (offerDosboxRelease(r, question))
-						break;
+				// alpha 49: one window with all versions, which are new, and the folder the files end up in (before: a question per
+				// version, and the folder was only known afterwards)
+				java.util.function.Predicate<DosboxUpdateChecker.Release> present = r -> dbversionsList_.stream()
+						.anyMatch(v -> v.getFamily().equals(r.family()) && (DosboxUpdateChecker.compareVersions(v.getVersion(), r.version()) >= 0));
+				if (releases.stream().allMatch(present)) { // nothing new: said, and asked whether to go on at all
+					String names = releases.stream().map(r -> r.family() + " " + r.version()).collect(Collectors.joining(", "));
+					if (!Mess_.on(shell_).key("dialog.dosboxdownload.uptodate", new Object[] {names}).confirm())
+						return;
 				}
-			});
+				org.dbgl.gui.controls.DosboxDownload.Choice choice = org.dbgl.gui.controls.DosboxDownload.open(shell_, releases, present, FileLocationService.getInstance().getDosboxDir());
+				if (choice == null)
+					return;
+				String[] asset = choice.asset();
+				if (((asset.length < 3) || StringUtils.isBlank(asset[2])) && !Mess_.on(shell_).key("dialog.main.confirm.nochecksum", new Object[] {asset[0]}).confirm())
+					return;
+				installDosboxRelease(choice.release(), asset, choice.dir());
+			}));
 		}, "DOSBox releases");
 		fetcher.setDaemon(true);
 		fetcher.start();
@@ -1500,10 +1822,10 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 	 */
 	private boolean offerDosboxRelease(DosboxUpdateChecker.Release r, String question) {
 		String[] asset = org.dbgl.util.DosboxInstaller.chooseAsset(r.assets(), SystemUtils.IS_WINDOWS, SystemUtils.IS_LINUX, System.getProperty("os.arch").toLowerCase().contains("aarch64") || System.getProperty("os.arch").toLowerCase().contains("arm"));
-		MessageBox box = new MessageBox(shell_, SWT.ICON_QUESTION | (asset != null ? SWT.YES | SWT.NO | SWT.CANCEL: SWT.YES | SWT.NO));
-		box.setText(text_.get("dialog.main.title.dosboxrelease", new Object[] {r.family(), r.version()}));
-		box.setMessage(question + "\n\n" + (asset != null ? text_.get("dialog.main.confirm.dosboxrelease.install", new Object[] {asset[0]}): text_.get("dialog.main.confirm.dosboxrelease.page")));
-		int answer = box.open();
+		// alpha 49: asked with DBGL's own window, which is dark in the dark mode
+		int answer = Mess_.on(shell_)
+				.txt(question + "\n\n" + (asset != null ? text_.get("dialog.main.confirm.dosboxrelease.install", new Object[] {asset[0]}): text_.get("dialog.main.confirm.dosboxrelease.page")))
+				.choose(SWT.ICON_QUESTION | (asset != null ? SWT.YES | SWT.NO | SWT.CANCEL: SWT.YES | SWT.NO), text_.get("dialog.main.title.dosboxrelease", new Object[] {r.family(), r.version()}));
 		if ((asset != null) && (answer == SWT.YES)) {
 			// several builds fit (e.g. DOSBox-X: Visual Studio or MinGW, SDL1 or SDL2): let the user pick, the recommended one first
 			boolean arm = System.getProperty("os.arch").toLowerCase().contains("aarch64") || System.getProperty("os.arch").toLowerCase().contains("arm");
@@ -1520,7 +1842,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			}
 			if (((asset.length < 3) || StringUtils.isBlank(asset[2])) && !Mess_.on(shell_).key("dialog.main.confirm.nochecksum", new Object[] {asset[0]}).confirm())
 				return false;
-			installDosboxRelease(r, asset);
+			installDosboxRelease(r, asset, null);
 			return true;
 		}
 		if (((asset != null) && (answer == SWT.NO)) || ((asset == null) && (answer == SWT.YES))) {
@@ -1531,23 +1853,30 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 	}
 
 	/** download and unpack a release into the DOSBox folder, then add it with the DOSBox version dialog */
-	private void installDosboxRelease(DosboxUpdateChecker.Release r, String[] asset) {
+	private void installDosboxRelease(DosboxUpdateChecker.Release r, String[] asset, File chosenDir) {
+		// alpha 49: every window of the download with the symbol of its menu entry, also the progress and what is said at the end
+		org.dbgl.gui.abstractdialog.BaseDialog.withWindowImage(ImageService.IMG_IMPORT, () -> installDosboxReleaseNow(r, asset, chosenDir)).run();
+	}
+
+	private void installDosboxReleaseNow(DosboxUpdateChecker.Release r, String[] asset, File chosenDir) {
 		// where to: a sub folder named after the release in the folder the user picks (DBGL's DOSBox folder by default)
 		String folderName = org.dbgl.util.DosboxInstaller.folderName(r.family(), r.version());
-		DirectoryDialog dirDialog = new DirectoryDialog(shell_);
-		dirDialog.setText(text_.get("dialog.main.title.dosboxrelease", new Object[] {r.family(), r.version()}));
-		dirDialog.setMessage(text_.get("dialog.main.notice.choosedosboxdir", new Object[] {r.family() + " " + r.version(), folderName}));
-		dirDialog.setFilterPath(FileLocationService.getInstance().getDosboxDir().getAbsolutePath());
-		String chosen = dirDialog.open();
-		if (chosen == null)
-			return;
-		File targetDir = new File(chosen).getName().equalsIgnoreCase(folderName) ? new File(chosen): new File(chosen, folderName);
+		File wanted = chosenDir; // alpha 49: chosen in the download window already
+		if (wanted == null) {
+			DirectoryDialog dirDialog = new DirectoryDialog(shell_);
+			dirDialog.setText(text_.get("dialog.main.title.dosboxrelease", new Object[] {r.family(), r.version()}));
+			dirDialog.setMessage(text_.get("dialog.main.notice.choosedosboxdir", new Object[] {r.family() + " " + r.version(), folderName}));
+			dirDialog.setFilterPath(FileLocationService.getInstance().getDosboxDir().getAbsolutePath());
+			String chosen = dirDialog.open();
+			if (chosen == null)
+				return;
+			wanted = org.dbgl.gui.controls.DosboxDownload.targetDir(chosen, r);
+		}
+		final File targetDir = wanted;
 		boolean overwrite = false;
 		if (org.dbgl.util.DosboxInstaller.hasContent(targetDir)) {
-			MessageBox ask = new MessageBox(shell_, SWT.ICON_WARNING | SWT.YES | SWT.NO | SWT.CANCEL);
-			ask.setText(text_.get("dialog.main.title.dosboxrelease", new Object[] {r.family(), r.version()}));
-			ask.setMessage(text_.get("dialog.main.confirm.dosboxdirexists", new Object[] {targetDir.getPath()}));
-			int answer = ask.open();
+			int answer = Mess_.on(shell_).key("dialog.main.confirm.dosboxdirexists", new Object[] {targetDir.getPath()}).choose(SWT.ICON_WARNING | SWT.YES | SWT.NO | SWT.CANCEL,
+				text_.get("dialog.main.title.dosboxrelease", new Object[] {r.family(), r.version()}));
 			if (answer == SWT.CANCEL)
 				return;
 			overwrite = answer == SWT.YES;
@@ -1571,6 +1900,8 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			cancelButton.setEnabled(false);
 		});
 		progressShell.addListener(SWT.Close, e -> cancelled.set(true));
+		DarkTheme.window(progressShell); // alpha 49: dark in the dark mode
+		org.dbgl.gui.abstractdialog.BaseDialog.inheritWindowImage(progressShell, shell_);
 		progressShell.setSize(480, 150);
 		progressShell.setLocation(shell_.getBounds().x + (shell_.getBounds().width - 480) / 2, shell_.getBounds().y + (shell_.getBounds().height - 150) / 2);
 		progressShell.open();
@@ -1603,7 +1934,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			}
 			Exception error = failure;
 			File executable = exe;
-			display_.asyncExec(() -> {
+			display_.asyncExec(org.dbgl.gui.abstractdialog.BaseDialog.withWindowImage(ImageService.IMG_IMPORT, () -> {
 				if (!progressShell.isDisposed())
 					progressShell.dispose();
 				if (shell_.isDisposed())
@@ -1636,7 +1967,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 						displayProfileInformation(false);
 					}
 				}
-			});
+			}));
 		}, "DOSBox download");
 		worker.setDaemon(true);
 		worker.start();
@@ -1664,19 +1995,34 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		}
 	};
 
+	/** alpha 49: the window with the backups DBGL made; one chosen there to restore is restored as by File > Restore backup */
+	private final SelectionAdapter manageBackupsAdapter = new SelectionAdapter() {
+		@Override
+		public void widgetSelected(SelectionEvent event) {
+			File chosen = org.dbgl.gui.controls.BackupManager.open(shell_, uiLocale());
+			if (chosen != null)
+				restoreBackup(chosen.getPath(), false); // asked in that window already
+		}
+	};
+
 	private final SelectionAdapter restoreAdapter = new SelectionAdapter() {
 		@Override
 		public void widgetSelected(SelectionEvent event) {
 			FileDialog dialog = new FileDialog(shell_, SWT.OPEN);
 			dialog.setFilterExtensions(new String[] {"*.zip", "*.*"});
 			String file = dialog.open();
-			if (file == null)
-				return;
+			if (file != null)
+				restoreBackup(file, true);
+		}
+	};
+
+	private void restoreBackup(String file, boolean ask) {
+		{
 			if (!BackupService.isBackup(new File(file))) {
 				Mess_.on(shell_).key("dialog.main.error.nobackup", new Object[] {file}).warning();
 				return;
 			}
-			if (!Mess_.on(shell_).key("dialog.main.confirm.restore", new Object[] {file}).confirm())
+			if (ask && !Mess_.on(shell_).key("dialog.main.confirm.restore", new Object[] {file}).confirm())
 				return;
 			try {
 				BackupService.restore(new File(file));
@@ -1687,7 +2033,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				Mess_.on(shell_).exception(e).warning();
 			}
 		}
-	};
+	}
 
 	/** after restoring a backup, the database is shut down and the settings were replaced: end without saving anything */
 	private boolean restored_;
@@ -1789,7 +2135,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 	}
 
 	private void initColumnIds() {
-		columnNames_ = new String[Constants.RO_COLUMN_NAMES + Constants.EDIT_COLUMN_NAMES + 8 + 1];
+		columnNames_ = new String[Constants.RO_COLUMN_NAMES + Constants.EDIT_COLUMN_NAMES + 8 + 3];
 
 		int c = 0;
 		columnNames_[c++] = text_.get("dialog.main.profiles.column.title");
@@ -1815,6 +2161,8 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		for (int i = 0; i < Constants.EDIT_COLUMN_NAMES_2; i++)
 			columnNames_[c++] = settings_.getValue("gui", "custom" + (i + 1 + Constants.EDIT_COLUMN_NAMES_1));
 		columnNames_[c++] = text_.get("dialog.main.generic.column.playtime");
+		columnNames_[c++] = text_.get("dialog.main.profiles.column.series"); // alpha 49
+		columnNames_[c++] = text_.get("dialog.main.profiles.column.diskspace"); // alpha 49
 
 		columnIds_ = IntStream.range(0, c).filter(x -> settings_.getBooleanValue("gui", "column" + (x + 1) + "visible")).toArray();
 	}
@@ -1874,6 +2222,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			MenuItem_.on(systemMenu).pos(prefsIndex + 2).key("dialog.main.menu.databasecleanup").listen(cleanupAdapter).build();
 			MenuItem_.on(systemMenu).pos(prefsIndex + 3).key("dialog.main.menu.backup").listen(backupAdapter).build();
 			MenuItem_.on(systemMenu).pos(prefsIndex + 4).key("dialog.main.menu.restore").listen(restoreAdapter).build();
+			MenuItem_.on(systemMenu).pos(prefsIndex + 5).key("dialog.backups.menu").listen(manageBackupsAdapter).build();
 		} else {
 			Menu fileMenu = createMenu(appMenuBar, "dialog.main.menu.file");
 			MenuItem_.on(fileMenu).key("dialog.main.menu.adjustsettings").image(ImageService.IMG_TB_SETTINGS).listen(settingsAdapter).build();
@@ -1882,6 +2231,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			MenuItem_.on(fileMenu).build();
 			MenuItem_.on(fileMenu).key("dialog.main.menu.backup").image(ImageService.IMG_TABLEEXPORT).listen(backupAdapter).build();
 			MenuItem_.on(fileMenu).key("dialog.main.menu.restore").image(ImageService.IMG_IMPORT).listen(restoreAdapter).build();
+			MenuItem_.on(fileMenu).key("dialog.backups.menu").image(ImageService.IMG_BACKUPS).listen(manageBackupsAdapter).build();
 			MenuItem_.on(fileMenu).build();
 			MenuItem_.on(fileMenu).key("dialog.main.menu.exit").image(ImageService.IMG_EXIT).listen(quitAdapter).build();
 		}
@@ -1962,7 +2312,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		MenuItem_.on(profilesMenu).key("dialog.main.menu.exportprofileslist").image(ImageService.IMG_TABLEEXPORT).listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
-				new ExportListDialog(shell_, profilesList_).open();
+				doExportProfilesList();
 			}
 		}).build();
 		MenuItem_.on(profilesMenu).build();
@@ -1981,6 +2331,13 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		}).build();
 		// the tools for all profiles, the statistics at the end
 		MenuItem_.on(profilesMenu).build();
+		// alpha 49: game series suggested from the titles
+		MenuItem_.on(profilesMenu).key("dialog.main.menu.series").image(ImageService.IMG_DUPLICATE).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				doSuggestSeries();
+			}
+		}).build();
 		MenuItem_.on(profilesMenu).key("dialog.main.menu.duplicates").image(ImageService.IMG_DUPLICATE).listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
@@ -2041,6 +2398,15 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				}
 			}
 		}).build();
+		// alpha 49: what DOSBox said at its last start (the status window closes when DOSBox ends without a problem)
+		MenuItem_.on(dbversionsMenu).build();
+		MenuItem_.on(dbversionsMenu).key("dialog.main.menu.lastdosboxlog").image(ImageService.IMG_LOG).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				if (!org.dbgl.gui.DosboxStatusWindow.showLast(shell_))
+					Mess_.on(shell_).key("dialog.statuswindow.nolast").display();
+			}
+		}).build();
 
 		Menu templatesMenu = createMenu(appMenuBar, "dialog.main.menu.templates");
 		if (SystemUtils.IS_WINDOWS && SystemUtils.IS_LINUX) // comment this line out to be able to export templates
@@ -2064,6 +2430,16 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		}).build();
 
 		Menu filterMenu = createMenu(appMenuBar, "dialog.main.menu.filter");
+		MenuItem_.on(filterMenu).key("dialog.main.menu.search").image(ImageService.IMG_ZOOM).accel(SWT.F3).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				if (quickSearchShown() && !searchField_.isFocusControl())
+					searchField_.setFocus(); // shown already: back into the field
+				else
+					toggleQuickSearch(!quickSearchShown());
+			}
+		}).build();
+		MenuItem_.on(filterMenu).build();
 		MenuItem_.on(filterMenu).key("dialog.main.menu.addfilter").image(ImageService.IMG_FILTER).listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
@@ -2169,6 +2545,16 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		toolbarComposite.setLayoutData(new GridData(SWT.FILL, SWT.TOP, true, false));
 
 		initColumnIds();
+		// alpha 49: once, for those who arranged their toolbar before: back to the order as built, so that the toolbar breaks
+		// into a second row by itself in a narrow window (hidden buttons stay hidden); a hint says so and how to arrange it again
+		if (!settings_.getBooleanValue("gui", "toolbarautoreset")) {
+			settings_.setBooleanValue("gui", "toolbarautoreset", true);
+			if (StringUtils.isNotBlank(settings_.getValue("gui", "toolbarlayout"))) {
+				settings_.setValue("gui", "toolbarlayout", "");
+				settings_.setBooleanValue("gui", "toolbarresethint", true);
+			}
+		}
+		tbRow_ = toolbarComposite;
 		createToolbars(toolbarComposite);
 		finishToolbars(toolbarComposite);
 
@@ -2330,12 +2716,17 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				doCompareProfiles();
 			}
 		}).build();
-		MenuItem_.on(tools).key("dialog.main.profile.checkprofile").image(ImageService.IMG_ZOOM).listen(new SelectionAdapter() {
+		// test 18: the picture of "Check profiles" as in the menu Profiles and the toolbar (it was the magnifier): one per window
+		MenuItem_.on(tools).key("dialog.main.profile.checkprofile").image(ImageService.IMG_CHECKPROFILES).listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
-				if ((profileTable_.getSelectionIndex() != -1) && Boolean.TRUE.equals(new CheckProfilesDialog(shell_, getSelectedProfiles()).open())) {
+				if (profileTable_.getSelectionIndex() == -1)
+					return;
+				if (Boolean.TRUE.equals(new CheckProfilesDialog(shell_, getSelectedProfiles()).open())) {
 					updateProfilesList(getSelectedProfileIds());
 					displayProfileInformation(false);
+				} else {
+					refreshMarkers();
 				}
 			}
 		}).build();
@@ -2471,6 +2862,14 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			}
 		}).build();
 		Menu profileViewSubMenu = createMenu(menu, "dialog.main.profile.view", ImageService.IMG_ZOOM);
+		// alpha 49: the other parts of the series of this profile; choosing one goes to it
+		Menu seriesMenu = createMenu(menu, "dialog.main.profile.seriesparts", ImageService.IMG_DUPLICATE);
+		menu.addMenuListener(new MenuAdapter() {
+			@Override
+			public void menuShown(MenuEvent event) {
+				fillSeriesMenu(seriesMenu);
+			}
+		});
 		MenuItem_.on(menu).build();
 		MenuItem_.on(menu).key("dialog.main.profile.togglefavorite").image(ImageService.IMG_FAVORITE).listen(new SelectionAdapter() {
 			@Override
@@ -2743,6 +3142,26 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		}
 	}
 
+	/** alpha 49: series suggested from the titles of all profiles (whatever the filter); what is ticked is taken over */
+	private void doSuggestSeries() {
+		List<org.dbgl.util.SeriesSuggester.Suggestion> suggestions;
+		try {
+			suggestions = org.dbgl.util.SeriesSuggester.suggest(new ProfileRepository().list("", "", dbversionsList_));
+		} catch (SQLException e) {
+			Mess_.on(shell_).exception(e).warning();
+			return;
+		}
+		if (suggestions.isEmpty()) {
+			Mess_.on(shell_).key("dialog.series.none").display();
+			return;
+		}
+		Integer done = new SeriesDialog(shell_, suggestions).open();
+		if ((done != null) && (done > 0)) {
+			updateProfilesList(getSelectedProfileIds());
+			displayProfileInformation(false);
+		}
+	}
+
 	/** alpha 48: the ids of all profiles (whatever the filter) */
 	private Set<Integer> allProfileIds() {
 		try {
@@ -2750,6 +3169,46 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		} catch (SQLException e) {
 			return Set.of();
 		}
+	}
+
+	/** alpha 49: the parts of the series of the chosen profile ("3. Space Quest III"), the chosen one marked; greyed without a series */
+	private void fillSeriesMenu(Menu seriesMenu) {
+		for (MenuItem it: seriesMenu.getItems())
+			it.dispose();
+		int index = profileTable_.getSelectionIndex();
+		Profile prof = index == -1 ? null: profilesList_.get(index);
+		List<ProfileRepository.SeriesMember> members = new ArrayList<>();
+		if ((prof != null) && !prof.getSeriesName().isEmpty()) {
+			try {
+				members = new ProfileRepository().listSeriesMembers(prof.getSeriesName());
+			} catch (SQLException e) {
+				e.printStackTrace();
+			}
+		}
+		seriesMenu.getParentItem().setEnabled(members.size() > 1);
+		for (ProfileRepository.SeriesMember m: members) {
+			MenuItem item = new MenuItem(seriesMenu, SWT.RADIO);
+			item.setText(((m.part() > 0 ? m.part() + ". ": "") + m.title()).replace("&", "&&"));
+			item.setSelection(m.id() == prof.getId());
+			item.addSelectionListener(new SelectionAdapter() {
+				@Override
+				public void widgetSelected(SelectionEvent event) {
+					if (item.getSelection() && (m.id() != prof.getId()))
+						showProfiles(Set.of(m.id()));
+				}
+			});
+		}
+	}
+
+	/** the given profiles chosen in the list; if the filter of the tab leaves them out, the first tab (all) */
+	private void showProfiles(Set<Integer> ids) {
+		updateProfilesList(ids);
+		if (profilesList_.stream().noneMatch(p -> ids.contains(p.getId())) && (filterFolder_.getItemCount() > 0) && (filterFolder_.getSelectionIndex() != 0)) {
+			filterFolder_.setSelection(0);
+			updateProfilesAfterTabAction();
+			updateProfilesList(ids);
+		}
+		displayProfileInformation(false);
 	}
 
 	/** alpha 48: after an import, the new profiles chosen in the list; if the filter of the tab leaves them out, the first tab (all) */
@@ -2824,6 +3283,40 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		}
 		prepareTiles(newViewType);
 		rebuildProfilesTable();
+		applyScreenshotRule(); // alpha 49: the screenshots below the list as the settings say for this view
+	}
+
+	private ToolItem screenshotsItem_;
+
+	/** alpha 49: what the settings say about the screenshots below the profiles in the view shown: 0 as chosen, 1 shown, 2 hidden */
+	private int screenshotRule() {
+		int rule = settings_.getIntValue("gui", new String[] {"screenshots_list", "screenshots_tiles", "screenshots_boxes"}[kindOfView(currentViewIndex())]);
+		return (rule < 0) || (rule > 2) ? 0: rule;
+	}
+
+	/** alpha 49: shown or hidden as the settings say for this view; without a rule, as last chosen with the button */
+	private void applyScreenshotRule() {
+		if (StringUtils.isBlank(settings_.getValue("gui", "screenshotsmanual"))) // the first time: what was chosen until now
+			settings_.setBooleanValue("gui", "screenshotsmanual", settings_.getBooleanValue("gui", "screenshotsvisible"));
+		int rule = screenshotRule();
+		boolean want = rule == 1 || ((rule == 0) && settings_.getBooleanValue("gui", "screenshotsmanual"));
+		if (want != settings_.getBooleanValue("gui", "screenshotsvisible"))
+			setScreenshotsVisible(want);
+	}
+
+	/** the screenshots below the profiles shown or hidden, the button in the toolbar (if it is there) with it */
+	private void setScreenshotsVisible(boolean visible) {
+		if ((scrolledCompositeForThumbs_ == null) || scrolledCompositeForThumbs_.isDisposed())
+			return;
+		((GridData)scrolledCompositeForThumbs_.getLayoutData()).exclude = !visible;
+		scrolledCompositeForThumbs_.setVisible(visible);
+		scrolledCompositeForThumbs_.getParent().layout();
+		settings_.setBooleanValue("gui", "screenshotsvisible", visible);
+		if ((screenshotsItem_ != null) && !screenshotsItem_.isDisposed()) {
+			screenshotsItem_.setSelection(visible);
+			setToolItemLabel(screenshotsItem_, text_.get(visible ? "dialog.main.tb.screenshots.on": "dialog.main.tb.screenshots.off"));
+		}
+		displayProfileInformation(false);
 	}
 
 	/** how many images of the tiles and boxes are read in advance (the rest when they are scrolled to) */
@@ -2941,7 +3434,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		layout.marginHeight = 2;
 		bar.setLayout(layout);
 		Label icon = new Label(bar, SWT.NONE);
-		icon.setImage(ImageService.getResourceImage(shell_.getDisplay(), ImageService.IMG_CONTROLLER));
+		icon.setImage(ImageService.getResourceImage(shell_.getDisplay(), ImageService.IMG_NOTICE)); // alpha 49: the same sign for every hint
 		icon.setLayoutData(new GridData(SWT.BEGINNING, SWT.BEGINNING, false, false));
 		Label text = new Label(bar, SWT.WRAP);
 		text.setText(text_.get("dialog.main.tvhint").replace("\n\n", " ").replace("\n", " "));
@@ -2971,6 +3464,157 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		Button never = new Button(bar, SWT.PUSH);
 		never.setText(text_.get("dialog.main.view.hint.never"));
 		never.addListener(SWT.Selection, e -> close.run());
+		if (DarkTheme.forced()) {
+			for (Control c: new Control[] {bar, icon, text}) {
+				c.setBackground(DarkTheme.toolbarBackground);
+				c.setForeground(DarkTheme.defaultForeground);
+			}
+		}
+		bar.moveBelow(hintBelow_);
+		hintParent_.layout(true, true);
+	}
+
+	/**
+	 * Alpha 49: the check for new versions of the Extended Edition is off unless turned on. Once, a bar offers to turn it on
+	 * (DBGL then asks GitHub once a day); "No thanks" or turning it on closes it for good.
+	 */
+	private void createUpdateHint() {
+		if (settings_.getBooleanValue(org.dbgl.util.EditionUpdateChecker.SECTION, org.dbgl.util.EditionUpdateChecker.CHECK) || settings_.getBooleanValue("gui", "updatehintshown") || (hintParent_ == null)
+				|| hintParent_.isDisposed())
+			return;
+		Composite bar = new Composite(hintParent_, SWT.BORDER);
+		bar.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+		GridLayout layout = new GridLayout(4, false);
+		layout.marginHeight = 2;
+		bar.setLayout(layout);
+		Label icon = new Label(bar, SWT.NONE);
+		icon.setImage(ImageService.getResourceImage(shell_.getDisplay(), ImageService.IMG_NOTICE)); // alpha 49: the same sign for every hint
+		icon.setLayoutData(new GridData(SWT.BEGINNING, SWT.BEGINNING, false, false));
+		Label text = new Label(bar, SWT.WRAP);
+		text.setText(text_.get("dialog.main.updatehint", new Object[] {Constants.EDITION_NAME}));
+		GridData td = new GridData(SWT.FILL, SWT.CENTER, true, false);
+		td.widthHint = 400;
+		text.setLayoutData(td);
+		Runnable close = () -> {
+			settings_.setBooleanValue("gui", "updatehintshown", true);
+			if (!bar.isDisposed()) {
+				Composite p = bar.getParent();
+				bar.dispose();
+				p.layout(true, true);
+			}
+		};
+		Button on = new Button(bar, SWT.PUSH);
+		on.setText(text_.get("dialog.main.updatehint.on"));
+		on.addListener(SWT.Selection, e -> {
+			settings_.setBooleanValue(org.dbgl.util.EditionUpdateChecker.SECTION, org.dbgl.util.EditionUpdateChecker.CHECK, true);
+			close.run();
+		});
+		Button no = new Button(bar, SWT.PUSH);
+		no.setText(text_.get("dialog.main.updatehint.no"));
+		no.addListener(SWT.Selection, e -> close.run());
+		if (DarkTheme.forced()) {
+			for (Control c: new Control[] {bar, icon, text}) {
+				c.setBackground(DarkTheme.toolbarBackground);
+				c.setForeground(DarkTheme.defaultForeground);
+			}
+		}
+		bar.moveBelow(hintBelow_);
+		hintParent_.layout(true, true);
+	}
+
+	/** the Java version a later release will need (SWT 4.38 and later, and the Nebula Gallery 1.1, are built for it) */
+	public static final int JAVA_NEEDED_SOON = 21;
+
+	/** the Java version DBGL runs with: 17, 21, ... (the property is for tests) */
+	public static int javaFeature() {
+		return Integer.getInteger("dbgl.java.feature", Runtime.version().feature());
+	}
+
+	/**
+	 * Alpha 49: with a Java older than 21, a bar says that a later version of the Extended Edition will need Java 21, with the
+	 * page to get it from. "Understood" hides it for this version of DBGL; after the next update it is back while Java is old.
+	 */
+	private Composite tbRow_;
+	private boolean toolbarResetHintShown_;
+
+	/** alpha 49: once after the update: the toolbar was set back to the order as built, why, and how to arrange it again */
+	private void createToolbarResetHint() {
+		if (toolbarResetHintShown_ || !settings_.getBooleanValue("gui", "toolbarresethint") || (hintParent_ == null) || hintParent_.isDisposed())
+			return;
+		toolbarResetHintShown_ = true;
+		Composite bar = new Composite(hintParent_, SWT.BORDER);
+		bar.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+		GridLayout layout = new GridLayout(4, false);
+		layout.marginHeight = 2;
+		bar.setLayout(layout);
+		Label icon = new Label(bar, SWT.NONE);
+		icon.setImage(ImageService.getResourceImage(shell_.getDisplay(), ImageService.IMG_NOTICE));
+		icon.setLayoutData(new GridData(SWT.BEGINNING, SWT.BEGINNING, false, false));
+		Label text = new Label(bar, SWT.WRAP);
+		// where the button for it is in the settings, in the words of the language
+		String where = text_.get("dialog.main.menu.adjustsettings").replace("&", "").replace("...", "").strip() + " > " + text_.get("dialog.settings.tab.gui") + " > "
+				+ text_.get("dialog.settings.profileoverview");
+		text.setText(text_.get("dialog.main.toolbarresethint", new Object[] {where}));
+		GridData td = new GridData(SWT.FILL, SWT.CENTER, true, false);
+		td.widthHint = 400;
+		text.setLayoutData(td);
+		Runnable close = () -> {
+			settings_.setBooleanValue("gui", "toolbarresethint", false);
+			if (!bar.isDisposed()) {
+				Composite p = bar.getParent();
+				bar.dispose();
+				p.layout(true, true);
+			}
+		};
+		Button customize = new Button(bar, SWT.PUSH);
+		customize.setText(text_.get("dialog.main.tb.customize"));
+		customize.addListener(SWT.Selection, e -> {
+			close.run();
+			if ((tbRow_ != null) && !tbRow_.isDisposed())
+				customizeToolbar(shell_, tbRow_);
+		});
+		Button ok = new Button(bar, SWT.PUSH);
+		ok.setText(text_.get("dialog.main.javahint.ok"));
+		ok.addListener(SWT.Selection, e -> close.run());
+		if (DarkTheme.forced()) {
+			for (Control c: new Control[] {bar, icon, text}) {
+				c.setBackground(DarkTheme.toolbarBackground);
+				c.setForeground(DarkTheme.defaultForeground);
+			}
+		}
+		bar.moveBelow(hintBelow_);
+		hintParent_.layout(true, true);
+	}
+
+	private void createJavaHint() {
+		if ((javaFeature() >= JAVA_NEEDED_SOON) || Constants.PROGRAM_VERSION.equals(settings_.getValue("gui", "javahintshown")) || (hintParent_ == null) || hintParent_.isDisposed())
+			return;
+		Composite bar = new Composite(hintParent_, SWT.BORDER);
+		bar.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+		GridLayout layout = new GridLayout(4, false);
+		layout.marginHeight = 2;
+		bar.setLayout(layout);
+		Label icon = new Label(bar, SWT.NONE);
+		icon.setImage(ImageService.getResourceImage(shell_.getDisplay(), ImageService.IMG_NOTICE)); // alpha 49: the same sign for every hint
+		icon.setLayoutData(new GridData(SWT.BEGINNING, SWT.BEGINNING, false, false));
+		Label text = new Label(bar, SWT.WRAP);
+		text.setText(text_.get("dialog.main.javahint", new Object[] {SystemUtils.JVM_VERSION, JAVA_NEEDED_SOON, Constants.EDITION_NAME}));
+		GridData td = new GridData(SWT.FILL, SWT.CENTER, true, false);
+		td.widthHint = 400;
+		text.setLayoutData(td);
+		Button get = new Button(bar, SWT.PUSH);
+		get.setText(text_.get("dialog.main.javahint.get", new Object[] {JAVA_NEEDED_SOON}));
+		get.addListener(SWT.Selection, e -> SystemUtils.openForBrowsing("https://adoptium.net/temurin/releases/?version=" + JAVA_NEEDED_SOON, shell_));
+		Button ok = new Button(bar, SWT.PUSH);
+		ok.setText(text_.get("dialog.main.javahint.ok"));
+		ok.addListener(SWT.Selection, e -> {
+			settings_.setValue("gui", "javahintshown", Constants.PROGRAM_VERSION);
+			if (!bar.isDisposed()) {
+				Composite p = bar.getParent();
+				bar.dispose();
+				p.layout(true, true);
+			}
+		});
 		if (DarkTheme.forced()) {
 			for (Control c: new Control[] {bar, icon, text}) {
 				c.setBackground(DarkTheme.toolbarBackground);
@@ -3035,7 +3679,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		layout.marginHeight = 2;
 		viewHint_.setLayout(layout);
 		Label icon = new Label(viewHint_, SWT.NONE);
-		icon.setImage(ImageService.getResourceImage(shell_.getDisplay(), ImageService.IMG_TILES_MEDIUM));
+		icon.setImage(ImageService.getResourceImage(shell_.getDisplay(), ImageService.IMG_NOTICE)); // alpha 49: the same sign for every hint
 		Label text = new Label(viewHint_, SWT.WRAP);
 		text.setText(text_.get("dialog.main.view.hint"));
 		text.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
@@ -3072,6 +3716,11 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			setProfileTableItem(profileTable_.getItem(i), profilesList_.get(i));
 		}
 		profileTable_.setSelection(getIndicesByIds(selectedProfiles));
+		// alpha 49: the list follows the chosen profile to its new place (once the click on the heading is done with)
+		display_.asyncExec(() -> {
+			if (!shell_.isDisposed() && (profileTable_.getSelectionCount() > 0))
+				profileTable_.showSelection();
+		});
 		settings_.setIntValues("gui", "sortcolumn", orderingVector_.getColumns());
 		settings_.setBooleanValues("gui", "sortascending", orderingVector_.getAscendings());
 	}
@@ -3151,6 +3800,10 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 	private void displayPlayInfo(Profile prof) {
 		// alpha 48: can be switched off (settings, GUI)
 		String text = settings_.getBooleanValue("gui", "showplaytimeinnotes") ? org.dbgl.util.ProfileReports.playInfo(prof, text_, "\n"): StringUtils.EMPTY;
+		// alpha 49: before it the disk space of the game folder, once it was found
+		String disk = settings_.getBooleanValue("gui", "showdiskspaceinnotes") ? org.dbgl.util.DiskUsage.line(prof, text_): StringUtils.EMPTY;
+		if (!disk.isEmpty())
+			text = text.isEmpty() ? disk: disk + "\n" + text;
 		if (!text.equals(playInfo_.getText())) {
 			playInfo_.setText(text);
 			playInfo_.getParent().layout();
@@ -3277,6 +3930,44 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				}
 			}
 		}).build();
+		// alpha 49: the own settings of the file of another (older) DOSBox version taken over into the one of this version
+		MenuItem_.on(menu).key("dialog.main.dosboxversion.takeover").image(ImageService.IMG_PROFILE_CONF).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				int index = dbversionTable_.getSelectionIndex();
+				if (index == -1)
+					return;
+				DosboxVersion dbversion = dbversionsList_.get(index);
+				if (org.dbgl.gui.controls.ConfTakeoverDialog.open(shell_, dbversion, dbversionsList_))
+					updateDosboxVersionList(dbversion); // read again from the file that was written
+			}
+		}).build();
+		// alpha 49: what differs between the configuration of this DOSBox version and that of another one: the other versions
+		// as a sub menu, filled when it is shown
+		Menu compareMenu = createMenu(menu, "dialog.main.dosboxversion.compare", ImageService.IMG_ZOOM);
+		compareMenu.addMenuListener(new MenuAdapter() {
+			@Override
+			public void menuShown(MenuEvent event) {
+				for (MenuItem old: compareMenu.getItems())
+					old.dispose();
+				int index = dbversionTable_.getSelectionIndex();
+				if (index == -1)
+					return;
+				DosboxVersion chosen = dbversionsList_.get(index);
+				for (DosboxVersion other: dbversionsList_) {
+					if (other.getId() == chosen.getId())
+						continue;
+					MenuItem item = new MenuItem(compareMenu, SWT.PUSH);
+					item.setText(other.getTitle().replace("&", "&&"));
+					item.addSelectionListener(org.dbgl.gui.abstractdialog.BaseDialog.withWindowImage(ImageService.IMG_ZOOM, new SelectionAdapter() {
+						@Override
+						public void widgetSelected(SelectionEvent e) {
+							doCompareDosboxVersions(chosen, other);
+						}
+					}));
+				}
+			}
+		});
 		MenuItem_.on(menu).build();
 		MenuItem_.on(menu).key("dialog.main.dosboxversion.add").image(ImageService.IMG_NEW).listen(addDosboxAdapter).build();
 		MenuItem_.on(menu).key("dialog.main.dosboxversion.edit").image(ImageService.IMG_EDIT).listen(editDosboxAdapter).build();
@@ -3536,6 +4227,14 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				case 32:
 					value = org.dbgl.model.ProfileStats.formatPlayTime(prof.getProfileStats().getPlayTime());
 					break;
+				case 33:
+					value = prof.getSeriesLabel(); // alpha 49: "Commander Keen 4"
+					break;
+				case org.dbgl.model.OrderingVector.DISK_COLUMN: { // alpha 49: the size of the game folder, once it was found
+					Long size = org.dbgl.util.DiskUsage.known(prof);
+					value = size == null ? StringUtils.EMPTY: org.dbgl.util.DiskUsage.format(size, uiLocale());
+					break;
+				}
 				default:
 					value = StringUtils.EMPTY;
 			}
@@ -3675,7 +4374,11 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		}
 		profileTable_.setSelection(getIndicesByIds(profileIds));
 		profileTable_.setRedraw(true);
-		profileTable_.setFocus();
+		if (!quickSearchShown() || !searchField_.isFocusControl()) // alpha 49: typing into the quick search goes on
+			profileTable_.setFocus();
+		showSearchCount();
+		if (diskSpaceWanted())
+			scheduleDiskUsage(listed_); // alpha 49: sizes not known yet are found in the background
 	}
 
 	private void updateDosboxVersionList(DosboxVersion dbversion) {
@@ -3784,17 +4487,271 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 	private List<Profile> listProfiles() throws SQLException {
 		boolean problems = PROBLEMS_FILTER.equals(filterClause_);
 		List<Profile> list = new ProfileRepository().list(orderingVector_.toClause(), problems ? null: filterClause_, dbversionsList_);
+		sortByDiskSpace(list);
 		if (!problems)
-			return list;
+			return quickSearched(listed_ = list);
 		boolean busy = (shell_ != null) && !shell_.isDisposed();
 		if (busy)
 			shell_.setCursor(display_.getSystemCursor(SWT.CURSOR_WAIT));
 		try {
-			return list.stream().filter(p -> !org.dbgl.util.ProfileWarnings.check(p).isEmpty()).collect(Collectors.toCollection(ArrayList::new));
+			return quickSearched(listed_ = list.stream().filter(p -> !org.dbgl.util.ProfileWarnings.check(p).isEmpty()).collect(Collectors.toCollection(ArrayList::new)));
 		} finally {
 			if (busy)
 				shell_.setCursor(null);
 		}
+	}
+
+	private java.util.Locale uiLocale() {
+		return new java.util.Locale(settings_.getValue("locale", "language"), settings_.getValue("locale", "country"));
+	}
+
+	/** alpha 49: the sizes are found when something shows them: the column, the info below the notes, the profile editor or the TV mode */
+	private boolean diskSpaceWanted() {
+		return diskColumnShown() || settings_.getBooleanValue("gui", "showdiskspaceinnotes") || settings_.getBooleanValue("gui", "showdiskspaceininfo")
+				|| settings_.getBooleanValue("gui", "showdiskspaceintv");
+	}
+
+	private boolean diskColumnShown() {
+		return settings_.getBooleanValue("gui", "column" + (org.dbgl.model.OrderingVector.DISK_COLUMN + 1) + "visible");
+	}
+
+	/**
+	 * Alpha 49: sorted by the column "Disk space" (the last column clicked): the order of the sizes found, profiles without a
+	 * size last; the order of the database stays within the same size
+	 */
+	private void sortByDiskSpace(List<Profile> list) {
+		int[] columns = orderingVector_.getColumns();
+		if ((columns.length == 0) || (columns[0] != org.dbgl.model.OrderingVector.DISK_COLUMN))
+			return;
+		boolean ascending = orderingVector_.getAscendings()[0];
+		list.sort((a, b) -> {
+			Long x = org.dbgl.util.DiskUsage.known(a), y = org.dbgl.util.DiskUsage.known(b);
+			if ((x == null) || (y == null))
+				return x == null ? (y == null ? 0: 1): -1;
+			return ascending ? Long.compare(x, y): Long.compare(y, x);
+		});
+	}
+
+	private volatile boolean diskUsageRunning_;
+
+	/**
+	 * Alpha 49: find the sizes of the game folders that are not known yet, in the background; when some were found and the
+	 * column is shown, the list shows them. Started when the column is shown or the statistics are opened.
+	 */
+	private void scheduleDiskUsage(List<Profile> profiles) {
+		if (diskUsageRunning_ || (profiles.stream().allMatch(org.dbgl.util.DiskUsage::looked) && org.dbgl.util.DiskUsage.rootsKnown()))
+			return;
+		diskUsageRunning_ = true;
+		List<Profile> todo = new ArrayList<>(profiles);
+		Thread finder = new Thread(() -> {
+			int found = 0;
+			try {
+				found = org.dbgl.util.DiskUsage.find(todo, () -> display_.isDisposed());
+			} finally {
+				diskUsageRunning_ = false;
+			}
+			if ((found > 0) && !display_.isDisposed())
+				display_.asyncExec(() -> {
+					if (shell_.isDisposed())
+						return;
+					if (diskColumnShown()) {
+						updateProfilesList(getSelectedProfileIds());
+					} else { // only below the notes of the chosen profile
+						int index = profileTable_.getSelectionIndex();
+						if ((index >= 0) && (index < profilesList_.size()) && !playInfo_.isDisposed())
+							displayPlayInfo(profilesList_.get(index));
+					}
+				});
+		}, "DBGL disk space");
+		finder.setDaemon(true);
+		finder.setPriority(Thread.MIN_PRIORITY);
+		finder.start();
+	}
+
+	/** alpha 49: the lines about the disk space at the top of the statistics: the game folders, the screenshots, the profile files */
+	private List<String> diskSpaceLines(List<Profile> all, java.util.Locale locale) {
+		long until = System.currentTimeMillis() + 3000; // what is not known yet: looked for 3 seconds here, the rest in the background
+		if (!diskUsageRunning_)
+			org.dbgl.util.DiskUsage.find(all, () -> System.currentTimeMillis() > until);
+		long[] games = org.dbgl.util.DiskUsage.total(all);
+		long limit = System.currentTimeMillis() + 2000;
+		java.util.function.BooleanSupplier late = () -> System.currentTimeMillis() > limit;
+		long captures = org.dbgl.util.DiskUsage.folderSize(FileLocationService.getInstance().getCapturesDir(), late);
+		long confs = org.dbgl.util.DiskUsage.folderSize(FileLocationService.getInstance().getProfilesDir(), late);
+		List<String> lines = new ArrayList<>();
+		if (late.getAsBoolean()) // too much to count in the time: no half numbers
+			lines.add(text_.get("dialog.statistics.disk.games", new Object[] {org.dbgl.util.DiskUsage.format(games[0], locale)}));
+		else
+			lines.add(text_.get("dialog.statistics.disk", new Object[] {org.dbgl.util.DiskUsage.format(games[0] + captures + confs, locale), org.dbgl.util.DiskUsage.format(games[0], locale),
+					org.dbgl.util.DiskUsage.format(captures, locale), org.dbgl.util.DiskUsage.format(confs, locale)}));
+		// alpha 49: the folder of the games as a whole, and what in it belongs to no profile (test 12: 41 GB of 46 GB explained)
+		// (test 14: not the folder DBGL calls dosroot, but the folders the game folders of the profiles are really in)
+		boolean rootsKnown = org.dbgl.util.DiskUsage.rootsKnown();
+		if (rootsKnown && (games[1] >= all.size()))
+			org.dbgl.util.DiskUsage.roots().stream().limit(3).forEach(root -> lines.add(text_.get("dialog.statistics.disk.dosroot",
+				new Object[] {root.path(), org.dbgl.util.DiskUsage.format(root.bytes(), locale), org.dbgl.util.DiskUsage.format(root.outside(), locale)})));
+		if ((games[1] < all.size()) || !rootsKnown) {
+			if (games[1] < all.size())
+				lines.add(text_.get("dialog.statistics.disk.partial", new Object[] {games[1], all.size()}));
+			scheduleDiskUsage(all);
+		}
+		return lines;
+	}
+
+	/** alpha 49: the profiles of the filter tab as last read, and what is typed into the quick search ("": nothing) */
+	private List<Profile> listed_ = new ArrayList<>();
+	private String quickSearch_ = "";
+	private Composite searchBar_;
+	private Text searchField_;
+	private Label searchCount_;
+
+	/** what a profile is found by: its title, developer, publisher, genre, year, status and series, in lower case */
+	static String searchText(Profile p) {
+		return String.join(" ", StringUtils.defaultString(p.getTitle()), StringUtils.defaultString(p.getDeveloper()), StringUtils.defaultString(p.getPublisher()), StringUtils.defaultString(p.getGenre()),
+			StringUtils.defaultString(p.getYear()), StringUtils.defaultString(p.getStatus()), p.getSeriesName()).toLowerCase(java.util.Locale.ROOT);
+	}
+
+	/** alpha 49: the profiles that have every word typed into the quick search (in any order, anywhere in the text); all without a search */
+	public static List<Profile> quickSearched(List<Profile> all, String search) {
+		String[] words = StringUtils.trimToEmpty(search).toLowerCase(java.util.Locale.ROOT).split("\\s+");
+		if ((words.length == 0) || words[0].isEmpty())
+			return all;
+		List<Profile> found = new ArrayList<>();
+		for (Profile p: all) {
+			String text = searchText(p);
+			boolean every = true;
+			for (String w: words)
+				every &= text.contains(w);
+			if (every)
+				found.add(p);
+		}
+		return found;
+	}
+
+	/**
+	 * alpha 49: the profile a search leads to: the first whose title begins with the text typed; else the first with a word of
+	 * the title that begins with it
+	 *
+	 * @return its index, -1 if there is none (or nothing was typed)
+	 */
+	public static int bestMatch(List<Profile> found, String search) {
+		String s = StringUtils.trimToEmpty(search).toLowerCase(java.util.Locale.ROOT);
+		if (s.isEmpty())
+			return -1;
+		int word = -1;
+		for (int i = 0; i < found.size(); i++) {
+			String title = StringUtils.trimToEmpty(found.get(i).getTitle()).toLowerCase(java.util.Locale.ROOT);
+			if (title.startsWith(s))
+				return i;
+			if ((word < 0) && java.util.Arrays.stream(title.split("[^\\p{L}\\p{N}]+")).anyMatch(w -> w.startsWith(s)))
+				word = i;
+		}
+		return word;
+	}
+
+	private List<Profile> quickSearched(List<Profile> all) {
+		return quickSearched(all, quickSearch_);
+	}
+
+	/** the bar with the search field above the profiles, made when first asked for; shown or hidden (then the search ends) */
+	private void toggleQuickSearch(boolean show) {
+		if ((hintParent_ == null) || hintParent_.isDisposed())
+			return;
+		if ((searchBar_ == null) || searchBar_.isDisposed()) {
+			if (!show)
+				return;
+			searchBar_ = new Composite(hintParent_, SWT.NONE);
+			searchBar_.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+			GridLayout layout = new GridLayout(3, false);
+			layout.marginHeight = 2;
+			searchBar_.setLayout(layout);
+			// at the right: the number of profiles found, the field, "Close"
+			searchCount_ = new Label(searchBar_, SWT.RIGHT);
+			searchCount_.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+			searchField_ = new Text(searchBar_, SWT.SEARCH | SWT.ICON_SEARCH | SWT.ICON_CANCEL | SWT.BORDER);
+			searchField_.setMessage(text_.get("dialog.main.search.hint"));
+			GridData fd = new GridData(SWT.END, SWT.CENTER, false, false);
+			fd.widthHint = 320;
+			searchField_.setLayoutData(fd);
+			Button close = new Button(searchBar_, SWT.PUSH);
+			close.setText(text_.get("dialog.main.search.close"));
+			close.addListener(SWT.Selection, e -> toggleQuickSearch(false));
+			searchField_.addListener(SWT.Modify, e -> applyQuickSearch(searchField_.getText()));
+			searchField_.addListener(SWT.DefaultSelection, e -> { // Enter, or the cross in the field
+				if (e.detail == SWT.ICON_CANCEL)
+					searchField_.setText("");
+				else
+					profileTable_.setFocus();
+			});
+			searchField_.addListener(SWT.KeyDown, e -> {
+				if (e.keyCode == SWT.ESC)
+					toggleQuickSearch(false);
+				else if (e.keyCode == SWT.ARROW_DOWN)
+					profileTable_.setFocus();
+			});
+			if (DarkTheme.forced()) {
+				searchBar_.setBackground(DarkTheme.toolbarBackground);
+				DarkTheme.apply(searchBar_);
+			}
+			searchBar_.moveBelow(hintBelow_);
+		}
+		GridData data = (GridData)searchBar_.getLayoutData();
+		data.exclude = !show;
+		searchBar_.setVisible(show);
+		hintParent_.layout(true, true);
+		if (show) {
+			searchField_.setFocus();
+			searchField_.selectAll();
+			showSearchCount();
+		} else {
+			if (!searchField_.getText().isEmpty())
+				searchField_.setText(""); // ends the search
+			profileTable_.setFocus();
+		}
+		if ((searchItem_ != null) && !searchItem_.isDisposed())
+			searchItem_.setSelection(show);
+	}
+
+	private ToolItem searchItem_;
+
+	private boolean quickSearchShown() {
+		return (searchBar_ != null) && !searchBar_.isDisposed() && searchBar_.getVisible();
+	}
+
+	private void showSearchCount() {
+		if ((searchCount_ != null) && !searchCount_.isDisposed())
+			searchCount_.setText(quickSearch_.isBlank() ? "": text_.get("dialog.main.search.count", new Object[] {profilesList_.size(), listed_.size()}));
+	}
+
+	/** while typing: the list shows what fits, without asking the database again; the profile chosen stays chosen if it still fits */
+	private void applyQuickSearch(String search) {
+		String s = StringUtils.trimToEmpty(search);
+		if (s.equals(quickSearch_))
+			return;
+		quickSearch_ = s;
+		Set<Integer> selected = getSelectedProfileIds();
+		profilesList_ = quickSearched(listed_);
+		profileTable_.setRedraw(false);
+		profileTable_.removeAll();
+		for (Profile prof: profilesList_)
+			addProfileToTable(prof);
+		// alpha 49: the profile whose title begins with what was typed is chosen ("ran" goes to "Ran Soccer", not to the first
+		// title with "ran" somewhere in it); without one, the profile chosen before stays, else the first one
+		int best = bestMatch(profilesList_, s);
+		int[] keep = getIndicesByIds(selected);
+		if (best >= 0)
+			profileTable_.setSelection(best);
+		else if (keep.length > 0)
+			profileTable_.setSelection(keep);
+		else if (!profilesList_.isEmpty())
+			profileTable_.setSelection(0);
+		profileTable_.setRedraw(true);
+		if (best >= 0)
+			profileTable_.showSelectionAtTop(); // test 15: the title found as far up as it gets, what follows it below
+		else if (profileTable_.getSelectionCount() > 0)
+			profileTable_.showSelection();
+		showSearchCount();
+		displayProfileInformation(false);
 	}
 
 	/** jump from the warning sign of a profile to its first problem */
@@ -4370,6 +5327,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		notesField_.setFont(stringToFont(display_, settings_.getValues("gui", "notesfont"), notesField_.getFont()));
 		f.dispose();
 		refreshMarkers(); // warning signs and notes turned on or off: at once, not only after a restart
+		applyScreenshotRule(); // alpha 49
 	}
 
 	/** the warning signs and notes of all profiles in the list, as the settings say now */
@@ -4451,9 +5409,13 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		try {
 			List<Profile> all = new ProfileRepository().list(" ORDER BY LOWER(GAM.TITLE)", null, dbversionsList_);
 			java.util.Set<Integer> chosen = new java.util.HashSet<>();
-			for (int i: profileTable_.getSelectionIndices())
+			Integer first = null; // alpha 49: the first chosen profile of the list: the window shows it at once
+			for (int i: profileTable_.getSelectionIndices()) {
 				chosen.add(profilesList_.get(i).getId());
-			PortableDialog.open(shell_, all, chosen);
+				if (first == null)
+					first = profilesList_.get(i).getId();
+			}
+			PortableDialog.open(shell_, all, chosen, first);
 		} catch (SQLException e) {
 			Mess_.on(shell_).exception(e).warning();
 		}

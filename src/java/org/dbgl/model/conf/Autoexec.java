@@ -1429,7 +1429,7 @@ public class Autoexec {
 				// no mount reaches the game (e.g. its drive is mounted only by the configuration of another DOSBox version): the lines
 				// stay as they were read, "Check profiles" tells that the game is not found
 				dosLocation.drive_ = startAsRead_[0] + ":";
-				dosLocation.directory_ = StringUtils.removeStart(startAsRead_[1], "\\");
+				dosLocation.directory_ = org.apache.commons.lang3.Strings.CS.removeStart(startAsRead_[1], "\\");
 				dosLocation.file_ = startAsRead_[2];
 			}
 			if (dosLocation.drive_ != null) {

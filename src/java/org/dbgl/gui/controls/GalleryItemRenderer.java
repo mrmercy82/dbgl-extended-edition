@@ -71,6 +71,37 @@ public class GalleryItemRenderer extends AbstractGalleryItemRenderer {
 		if (drawImage != null) {
 			int xShift = RendererHelper.getShift(width - (LINE_WIDTH * 2), drawImage.getBounds().width);
 			gc.drawImage(drawImage, x + LINE_WIDTH + xShift, y + LINE_WIDTH);
+		} else {
+			// alpha 49: a game without a picture: a grey area instead of an empty (white) one
+			org.eclipse.swt.graphics.Color before = gc.getBackground();
+			org.eclipse.swt.graphics.RGB back = item.getParent().getBackground().getRGB();
+			boolean light = (back.red * 299 + back.green * 587 + back.blue * 114) / 1000 >= 128;
+			gc.setBackground(light ? new org.eclipse.swt.graphics.Color(222, 222, 222): new org.eclipse.swt.graphics.Color(72, 72, 72));
+			gc.fillRoundRectangle(x + LINE_WIDTH, y + LINE_WIDTH, width - (LINE_WIDTH * 2), Math.max(1, height - fontHeight - (LINE_WIDTH * 2) - 2), SELECTION_RADIUS, SELECTION_RADIUS);
+			gc.setBackground(before);
+		}
+
+		// alpha 49: the sign of a profile with problems or hints (as in the list), in the top right corner of the tile or box:
+		// larger with the tile, on a white disc with a dark rim, so that it stands out on any cover
+		if (item.getData(OVERLAY_TOP_RIGHT) instanceof Image sign && !sign.isDisposed()) {
+			int size = Math.max(16, Math.min(26, width / 7)), disc = size + 6; // smaller (was up to 44): enough to be seen
+			int dx = x + width - LINE_WIDTH - disc - 3, dy = y + LINE_WIDTH + 3;
+			org.eclipse.swt.graphics.Color back = gc.getBackground(), fore = gc.getForeground();
+			int antialias = gc.getAntialias(), interpolation = gc.getInterpolation();
+			gc.setAntialias(SWT.ON);
+			gc.setInterpolation(SWT.HIGH);
+			gc.setBackground(new org.eclipse.swt.graphics.Color(255, 255, 255));
+			gc.fillOval(dx, dy, disc, disc);
+			gc.setForeground(new org.eclipse.swt.graphics.Color(40, 40, 40));
+			gc.setLineWidth(1);
+			gc.drawOval(dx, dy, disc, disc);
+			org.eclipse.swt.graphics.Rectangle sb = sign.getBounds();
+			gc.drawImage(sign, 0, 0, sb.width, sb.height, dx + 3, dy + 3, size, size);
+			gc.setLineWidth(LINE_WIDTH);
+			gc.setAntialias(antialias);
+			gc.setInterpolation(interpolation);
+			gc.setBackground(back);
+			gc.setForeground(fore);
 		}
 
 		// Create label

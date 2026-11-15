@@ -34,6 +34,7 @@ public class WebProfile implements Comparable<WebProfile> {
 	private String title_, platform_, year_, url_, developerName_, publisherName_, genre_, notes_;
 	private int rank_;
 	private String coreGameCoverUrl_;
+	private String series_; // alpha 49: the game series, if the source names one
 	protected SearchEngineImageInformation[] webImages_;
 	private int releaseId_;
 	private int gameId_;
@@ -183,6 +184,15 @@ public class WebProfile implements Comparable<WebProfile> {
 		gameId_ = gameId;
 	}
 	
+	/** alpha 49: the game series this game belongs to ("" if the source names none) */
+	public String getSeries() {
+		return series_ == null ? "": series_;
+	}
+
+	public void setSeries(String series) {
+		series_ = series;
+	}
+
 	public int getPlatformId() {
 		return platformId_;
 	}

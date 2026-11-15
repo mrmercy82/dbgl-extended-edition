@@ -64,6 +64,12 @@ public class DocumentDialog extends SizeControlledButtonDialog<Object> {
 		return title_;
 	}
 
+	/** alpha 49: a heading that is shown in red: "Wichtig", "IMPORTANT: JAVA 21 WILL BE NEEDED SOON" */
+	public static boolean important(String heading) {
+		String h = heading.trim().toLowerCase(java.util.Locale.ROOT);
+		return h.startsWith("wichtig") || h.startsWith("important");
+	}
+
 	/** the text of a document shipped with DBGL in its parts; lines of an entry or paragraph joined */
 	public static List<Block> blocks(String text) {
 		String[] lines = text.replace("\r\n", "\n").replace('\r', '\n').split("\n", -1);
@@ -161,6 +167,7 @@ public class DocumentDialog extends SizeControlledButtonDialog<Object> {
 		boolean dark = DarkTheme.forced();
 		Color strong = dark ? new Color(255, 255, 255): new Color(0, 0, 0);
 		Color normal = dark ? new Color(200, 200, 200): new Color(70, 70, 70);
+		Color warn = dark ? new Color(255, 110, 110): new Color(200, 0, 0);
 		FontData[] boldData = page.getFont().getFontData(), headData = page.getFont().getFontData(), titleData = page.getFont().getFontData();
 		for (FontData d: boldData)
 			d.setStyle(SWT.BOLD);
@@ -186,7 +193,7 @@ public class DocumentDialog extends SizeControlledButtonDialog<Object> {
 					l.setText(b.text().replace("&", "&&"));
 					l.setFont(b.kind() == Kind.TITLE ? titleFont: b.kind() == Kind.SECTION ? head: bold);
 					l.setData(DarkTheme.KEEP_FOREGROUND, Boolean.TRUE);
-					l.setForeground(strong);
+					l.setForeground(important(b.text()) ? warn: strong); // alpha 49: "Wichtig"/"Important" in red
 					GridData gd = new GridData(SWT.FILL, SWT.BEGINNING, true, false, 2, 1);
 					gd.verticalIndent = first ? 0: (b.kind() == Kind.SUB ? 6: 16);
 					gd.horizontalIndent = b.kind() == Kind.SUB ? 8: 0;

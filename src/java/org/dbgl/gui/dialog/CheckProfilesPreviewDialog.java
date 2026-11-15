@@ -154,7 +154,7 @@ public class CheckProfilesPreviewDialog extends SizeControlledButtonDialog<Boole
 				{"dialog.checkprofiles.legend.same2", SWT.COLOR_DARK_CYAN}}) {
 			Label label = new Label(legend, SWT.NONE);
 			label.setText(text_.get((String)l[0]));
-			label.setForeground(d.getSystemColor((Integer)l[1]));
+			label.setForeground(org.dbgl.gui.controls.DarkTheme.textColor(d, (Integer)l[1]));
 		}
 		text_area_ = new StyledText(contents_, SWT.MULTI | SWT.READ_ONLY | SWT.V_SCROLL | SWT.H_SCROLL | SWT.BORDER);
 		text_area_.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
@@ -214,8 +214,17 @@ public class CheckProfilesPreviewDialog extends SizeControlledButtonDialog<Boole
 				render();
 			}
 		}).ctrl();
+		// alpha 49: the preview as it is shown, saved as text, as a web page in its colors or as PDF
+		org.eclipse.swt.widgets.Button save = Button_.on(otherButtons_).text().key("dialog.switchdosbox.savereport").listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				org.dbgl.gui.controls.ReportSave.menu(shell_, "dbgl-profile-check-preview", shell_.getText(), text_area_::getText,
+					() -> org.dbgl.gui.controls.ReportSave.html(text_area_, shell_.getText()));
+			}
+		}).ctrl();
+		((GridLayout)otherButtons_.getLayout()).numColumns = otherButtons_.getChildren().length;
 		// as wide as "Apply" and "Back"
-		for (org.eclipse.swt.widgets.Button b: new org.eclipse.swt.widgets.Button[] {all, none})
+		for (org.eclipse.swt.widgets.Button b: new org.eclipse.swt.widgets.Button[] {all, none, save})
 			b.setLayoutData(new GridData(SWT.BEGINNING, SWT.FILL, false, false));
 		for (org.eclipse.swt.widgets.Button b: new org.eclipse.swt.widgets.Button[] {all, none})
 			((GridData)b.getLayoutData()).widthHint = Math.max(width, ((GridData)okButton_.getLayoutData()).widthHint);
@@ -255,7 +264,8 @@ public class CheckProfilesPreviewDialog extends SizeControlledButtonDialog<Boole
 				line++;
 			}
 			headerLines_.put(line, e.profile());
-			String header = (take_.get(e.profile()) ? "☑ ": "☐ ") + e.profile().getTitle() + " ("
+			// alpha 49: with the ID, to tell profiles of the same title apart
+			String header = (take_.get(e.profile()) ? "☑ ": "☐ ") + e.profile().getTitle() + " [ID " + e.profile().getId() + "] ("
 				+ (e.profile().getDosboxVersion() == null ? "-": e.profile().getDosboxVersion().getTitle()) + ")  – "
 				+ text_.get("dialog.checkprofiles.previewsolutions", new Object[] {e.chosen().size()});
 			styles.add(range(sb.length(), header.length(), null, bold_));
@@ -263,19 +273,19 @@ public class CheckProfilesPreviewDialog extends SizeControlledButtonDialog<Boole
 			line++;
 			if (e.error() != null) {
 				String s = "    " + text_.get("dialog.checkprofiles.previewerror", new Object[] {e.error()});
-				styles.add(range(sb.length(), s.length(), d.getSystemColor(SWT.COLOR_RED), null));
+				styles.add(range(sb.length(), s.length(), org.dbgl.gui.controls.DarkTheme.textColor(d, SWT.COLOR_RED), null));
 				sb.append(s).append('\n');
 				line++;
 			} else if (e.diff().isEmpty()) {
 				String s = "    " + text_.get("dialog.checkprofiles.nochange");
-				styles.add(range(sb.length(), s.length(), d.getSystemColor(SWT.COLOR_DARK_GRAY), null));
+				styles.add(range(sb.length(), s.length(), org.dbgl.gui.controls.DarkTheme.textColor(d, SWT.COLOR_DARK_GRAY), null));
 				sb.append(s).append('\n');
 				line++;
 			}
 			for (DiffLine dl: full_.getSelection() ? e.full(): e.diff()) {
 				if (dl.kind() == '!') { // what follows only goes because DBGL writes what differs from the DOSBox configuration
 					String note = "    " + text_.get("dialog.checkprofiles.previewsame");
-					styles.add(range(sb.length(), note.length(), d.getSystemColor(SWT.COLOR_DARK_GRAY), null));
+					styles.add(range(sb.length(), note.length(), org.dbgl.gui.controls.DarkTheme.textColor(d, SWT.COLOR_DARK_GRAY), null));
 					sb.append(note).append('\n');
 					line++;
 					continue;
@@ -283,10 +293,10 @@ public class CheckProfilesPreviewDialog extends SizeControlledButtonDialog<Boole
 				boolean section = dl.text().startsWith("[") && dl.text().endsWith("]") && ((dl.kind() == ' ') || (dl.kind() == '~'));
 				String s = section ? "    " + dl.text(): dl.kind() == '~' ? "    = " + dl.text(): "  " + dl.kind() + " " + dl.text();
 				org.eclipse.swt.graphics.Color c = switch (dl.kind()) {
-					case '-' -> d.getSystemColor(SWT.COLOR_DARK_RED);
-					case '+' -> d.getSystemColor(SWT.COLOR_DARK_GREEN);
-					case ' ' -> section || ProfileFindings.GAP.equals(dl.text()) ? d.getSystemColor(SWT.COLOR_DARK_GRAY): null; // a line that stays: as written
-					default -> section ? d.getSystemColor(SWT.COLOR_DARK_GRAY): d.getSystemColor(SWT.COLOR_DARK_CYAN); // sections gray; '~' (gone without effect) teal
+					case '-' -> org.dbgl.gui.controls.DarkTheme.textColor(d, SWT.COLOR_DARK_RED);
+					case '+' -> org.dbgl.gui.controls.DarkTheme.textColor(d, SWT.COLOR_DARK_GREEN);
+					case ' ' -> section || ProfileFindings.GAP.equals(dl.text()) ? org.dbgl.gui.controls.DarkTheme.textColor(d, SWT.COLOR_DARK_GRAY): null; // a line that stays: as written
+					default -> section ? org.dbgl.gui.controls.DarkTheme.textColor(d, SWT.COLOR_DARK_GRAY): org.dbgl.gui.controls.DarkTheme.textColor(d, SWT.COLOR_DARK_CYAN); // sections gray; '~' (gone without effect) teal
 				};
 				styles.add(range(sb.length(), s.length(), c, null));
 				sb.append(s).append('\n');
@@ -312,7 +322,7 @@ public class CheckProfilesPreviewDialog extends SizeControlledButtonDialog<Boole
 		List<Profile> profiles = entries_.stream().map(Entry::profile).filter(take_::get).toList();
 		if (profiles.isEmpty())
 			return;
-		String menu = text_.get("dialog.main.menu.profiles").replace("&", ""), undo = StringUtils.removeEnd(text_.get("dialog.main.menu.undobulk").replace("&", "").trim(), "...");
+		String menu = text_.get("dialog.main.menu.profiles").replace("&", ""), undo = org.apache.commons.lang3.Strings.CS.removeEnd(text_.get("dialog.main.menu.undobulk").replace("&", "").trim(), "...");
 		if (!Mess_.on(shell_).key("dialog.checkprofiles.confirmapply", new Object[] {profiles.size(), menu, undo}).confirm())
 			return;
 		// written again as a whole: files in Windows-1252 (umlauts) where the system uses UTF-8 kept so, or converted, as the user

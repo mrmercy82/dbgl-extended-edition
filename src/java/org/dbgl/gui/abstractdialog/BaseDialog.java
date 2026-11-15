@@ -109,7 +109,7 @@ public abstract class BaseDialog<T> extends Dialog {
 		}
 		shell_.setText(getDialogTitle());
 		if (shellStyle_ != SWT.PRIMARY_MODAL)
-			setWindowImage(shell_, windowImage_ != null ? windowImage_: WINDOW_IMAGES.get(getClass().getSimpleName()));
+			setWindowImage(shell_, windowImage_ != null ? windowImage_: menuImage_ != null ? menuImage_: WINDOW_IMAGES.get(getClass().getSimpleName()));
 		org.dbgl.gui.LongToolTips.install(shell_.getDisplay()); // tooltips stay while the mouse is over the control
 
 		onShellInit();
@@ -199,8 +199,81 @@ public abstract class BaseDialog<T> extends Dialog {
 		}
 	}
 
+	private static String menuImage_;
+
+	/**
+	 * Test 18: a window opened from a menu has the symbol of its menu entry in its title bar ("Download DOSBox" had the one of
+	 * DBGL). Set while the entry is carried out, so every window it opens gets it, whatever kind of window it is.
+	 *
+	 * @param image the picture of the menu entry, null for none
+	 * @return what was set before (to be set again when the entry is done)
+	 */
+	public static String windowImageFromMenu(String image) {
+		String before = menuImage_;
+		menuImage_ = image;
+		return before;
+	}
+
+	/**
+	 * Test 18: one picture per window, however it was opened. Eleven buttons of the toolbar have drawings of their own
+	 * ("tb_new.png"); the window gets the picture of the menu entry of the same function ("new.png"), where there is one. The
+	 * settings have the drawing of the toolbar in the menu too.
+	 *
+	 * @return the picture a window gets that was opened with a toolbar button of this picture
+	 */
+	public static String menuPicture(String toolbarPicture) {
+		if ((toolbarPicture == null) || !toolbarPicture.startsWith("tb_") || toolbarPicture.equals(ImageService.IMG_TB_SETTINGS))
+			return toolbarPicture;
+		String candidate = toolbarPicture.substring(3);
+		return ImageService.class.getResource("/img/" + candidate) != null ? candidate: toolbarPicture;
+	}
+
+	/**
+	 * @param image the picture of a menu entry or a toolbar button
+	 * @return the listener, carried out with that picture as the symbol of the windows it opens; the listener itself if there is
+	 *         no picture
+	 */
+	public static SelectionListener withWindowImage(String image, SelectionListener listener) {
+		if ((image == null) || (listener == null))
+			return listener;
+		return new SelectionListener() {
+			@Override
+			public void widgetSelected(org.eclipse.swt.events.SelectionEvent e) {
+				String before = windowImageFromMenu(image);
+				try {
+					listener.widgetSelected(e);
+				} finally {
+					windowImageFromMenu(before);
+				}
+			}
+
+			@Override
+			public void widgetDefaultSelected(org.eclipse.swt.events.SelectionEvent e) {
+				listener.widgetDefaultSelected(e);
+			}
+		};
+	}
+
+	/** alpha 49: like {@link #withWindowImage(String, SelectionListener)} for what is carried out later (when a download is done) */
+	public static Runnable withWindowImage(String image, Runnable task) {
+		if ((image == null) || (task == null))
+			return task;
+		return () -> {
+			String before = windowImageFromMenu(image);
+			try {
+				task.run();
+			} finally {
+				windowImageFromMenu(before);
+			}
+		};
+	}
+
 	/** the symbol of the window a small window (progress, message) belongs to */
 	public static void inheritWindowImage(Shell shell, Shell parent) {
+		if ((menuImage_ != null) && ((parent == null) || parent.isDisposed() || (parent.getParent() == null))) {
+			setWindowImage(shell, menuImage_); // opened from the main window by a menu entry: its symbol
+			return;
+		}
 		Image[] images = parent != null && !parent.isDisposed() ? parent.getImages(): null;
 		if (images != null && images.length > 0)
 			shell.setImages(images);
@@ -321,7 +394,7 @@ public abstract class BaseDialog<T> extends Dialog {
 			toolItem.setToolTipText(TextService.getInstance().get(title));
 		else
 			toolItem.setText(TextService.getInstance().get(title));
-		toolItem.addSelectionListener(listener);
+		toolItem.addSelectionListener(withWindowImage(menuPicture(img), listener)); // alpha 49: the symbol of the window it opens
 		toolItem.setData("dbgl.tb", title); // alpha 48: which button it is (the user can hide it)
 		return toolItem;
 	}

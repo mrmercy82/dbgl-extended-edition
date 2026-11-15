@@ -207,7 +207,7 @@ public class ScreenScraperSearchEngine extends WebSearchEngine {
 	}
 
 	static String language() {
-		String l = StringUtils.defaultString(SettingsService.getInstance().getValue("locale", "language"), "en").toLowerCase();
+		String l = java.util.Objects.toString(SettingsService.getInstance().getValue("locale", "language"), "en").toLowerCase();
 		return l.length() > 2 ? l.substring(0, 2): l;
 	}
 

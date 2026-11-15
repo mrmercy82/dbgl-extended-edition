@@ -52,7 +52,7 @@ jobs:
           mkdir -p testrun2
           cd testrun2
           $RUN java -Dfile.encoding=COMPAT -Ddbgl.testdata="$W/src/java/org/dbgl/test/data" -Ddbgl.officialconf="$W/src/dist/winshared/DOSBox-0.74-3/dosbox.conf" -cp "$CP" org.junit.runner.JUnitCore org.dbgl.test.OfflineTests
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: runner.os == 'Linux'
         with:
           name: dbgl-jar

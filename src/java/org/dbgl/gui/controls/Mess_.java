@@ -143,6 +143,18 @@ public class Mess_ {
 			return display() == SWT.YES;
 		}
 
+		/**
+		 * alpha 49: a question with the buttons and the symbol of style (as for MessageBox: SWT.YES | SWT.NO | SWT.CANCEL ...) and a
+		 * title of its own; dark in the dark mode, which the message box of the system is not
+		 *
+		 * @return the button chosen: SWT.YES, SWT.NO, SWT.OK or SWT.CANCEL
+		 */
+		public int choose(int style, String title) {
+			style_ = SWT.APPLICATION_MODAL | style;
+			title_ = title;
+			return display();
+		}
+
 		/** alpha 48: a question to be answered with OK (go on) or Cancel, e.g. after doing something outside DBGL */
 		public boolean okCancel() {
 			style_ = SWT.APPLICATION_MODAL | SWT.ICON_INFORMATION | SWT.OK | SWT.CANCEL;

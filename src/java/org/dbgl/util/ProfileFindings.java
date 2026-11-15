@@ -222,6 +222,20 @@ public final class ProfileFindings {
 	}
 
 	/** @param progress told the number of profiles checked so far, after each one (null: not told) */
+	/** the kind of a finding about a configuration file in the profile folder that no profile uses (no profile, no DOSBox version) */
+	public static final String ORPHAN = "orphanconf";
+
+	/** alpha 49: files in the profile folder without a profile, as findings for information (args: the name of the file) */
+	public static List<Finding> orphans(List<java.io.File> files, ITextService text) {
+		List<Finding> result = new ArrayList<>();
+		java.text.DateFormat date = java.text.DateFormat.getDateInstance(java.text.DateFormat.MEDIUM);
+		for (java.io.File f: files) {
+			Object[] args = {f.getName(), date.format(new java.util.Date(f.lastModified()))};
+			result.add(new Finding(null, null, ORPHAN, new Object[] {f.getName()}, text.get("dialog.checkprofiles." + ORPHAN, args), true, null, null, false));
+		}
+		return result;
+	}
+
 	public static Result collect(List<Profile> profiles, List<Profile> all, List<DosboxVersion> versions, ITextService text, java.util.function.IntConsumer progress) {
 		int done = 0;
 		List<Finding> forVersions = new ArrayList<>();
@@ -333,6 +347,10 @@ public final class ProfileFindings {
 					if (!"pc98".equals(reason))
 						told.accept("dosboxx", new Object[] {text.get("dialog.storeimport.reason." + reason)});
 				}
+				// alpha 49: DOSBox-X boots another system and does not capture the mouse on its own: it does not move in there
+				if (ProfileChecks.bootWithoutMouseCapture(prof))
+					list.add(new Finding(prof, prof.getDosboxVersion(), "bootmouse", new Object[0], text.get("dialog.checkprofiles.bootmouse"), false, "autolock",
+						fix((p, vs) -> p.getConfiguration().setValue("sdl", "autolock", "true"), (p, t) -> t.set("sdl", "autolock", "true")), false));
 				// a line DOSBox cannot read: told above with its solution (ConfLines), not again as the warning of reading it
 				List<String> syntaxLines = problems.stream().filter(pr -> pr.key().startsWith("syntax")).map(pr -> "\"" + pr.args()[0] + "\"").toList();
 				for (String w: StringUtils.defaultString(warnings).split("\\R"))
@@ -365,8 +383,8 @@ public final class ProfileFindings {
 		Fix fix = null;
 		boolean rewrite = false;
 		switch (pr.key()) {
-			case "renamedsetting", "removedsetting" -> {
-				solution = pr.key().equals("removedsetting") ? "removevalue": "rename";
+			case "renamedsetting", "removedsetting", "autogone0831" -> {
+				solution = pr.key().equals("renamedsetting") ? "rename": "removevalue";
 				fix = fix((p, vs) -> ProfileChecks.applyStagingChange(p, setting[0], setting[1]), (p, t) -> editStagingChange(p, t, setting[0], setting[1]));
 			}
 			case "wrongsection", "wrongsectiondup" -> {
