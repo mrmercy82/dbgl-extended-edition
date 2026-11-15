@@ -424,7 +424,7 @@ public class DosboxVersionDetector {
 	}
 
 	/** the first comment line names the program and its version, in the language DOSBox uses (Staging translates it) */
-	private static final Pattern CONF_HEADER_PATRN = Pattern.compile("^#.*?\\bdosbox(?:-x|[- ]staging)?\\s*\\(?v?(\\d+(?:\\.\\d+)+(?:-\\d+)?)", Pattern.CASE_INSENSITIVE);
+	private static final Pattern CONF_HEADER_PATRN = Pattern.compile("^#?.*?\\bdosbox(?:-x|[- ]staging)?\\s*\\(?v?(\\d+(?:\\.\\d+)+(?:-\\d+)?)", Pattern.CASE_INSENSITIVE); // "#" may be missing (DOSBox-X in Russian)
 
 	/**
 	 * @return the version a DOSBox configuration file was written by, from its first line (e.g. "# This is the configuration

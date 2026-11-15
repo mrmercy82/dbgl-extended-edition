@@ -95,6 +95,13 @@ public class EditFilterDialog extends SizeControlledTabbedDialog<Filter> {
 		Composite leftComposite = Composite_.on(sashForm).innerLayout(2).build();
 		Text filterTitle = Chain.on(leftComposite).lbl(l -> l.key("dialog.filter.title")).txt(t -> t).text();
 		Text filterText = Chain.on(leftComposite).lbl(l -> l.key("dialog.filter.filter")).txt(Text_.Builder::multi).text();
+		// alpha 50: the condition in words below it ("Title contains "DOOM""); the condition itself stays as it is
+		Text meaning = Chain.on(leftComposite).lbl(l -> l.key("dialog.filter.meaning")).txt(t -> t.multi().wrap().readOnly()).text();
+		((org.eclipse.swt.layout.GridData)meaning.getLayoutData()).grabExcessVerticalSpace = false;
+		java.util.Map<String, String> fieldNames = new java.util.HashMap<>();
+		String[] mainFields = {"GAM.TITLE", "GAM.SETUP", "DEV.NAME", "PUBL.NAME", "GEN.NAME", "YR.YEAR", "STAT.STAT", "GAM.FAVORITE", "GAM.ID", "GAM.DBVERSION_ID"};
+		for (int i = 0; (i < mainFields.length) && (i < columnNames_.length); i++)
+			fieldNames.put(mainFields[i], columnNames_[i]);
 
 		Tree tree = createTree(sashForm, SWT.BORDER | SWT.CHECK);
 
@@ -267,6 +274,9 @@ public class EditFilterDialog extends SizeControlledTabbedDialog<Filter> {
 				TreeItem valueItem = new TreeItem(item, SWT.NONE);
 				valueItem.setText(v.value);
 				valueItem.setData(v.subQuery);
+				java.util.regex.Matcher field = java.util.regex.Pattern.compile(v.subQuery.contains("SER.NAME") ? "(SER\\.NAME)": "([A-Z]+\\.[A-Z_0-9]+)").matcher(v.subQuery);
+				if (field.find())
+					fieldNames.putIfAbsent(field.group(1), columnNames_[i]); // for the condition in words
 				valueItem.setGrayed(true);
 
 				if (v.likeQuery != null) {
@@ -432,6 +442,11 @@ public class EditFilterDialog extends SizeControlledTabbedDialog<Filter> {
 			}
 		});
 		filterText.addModifyListener(event -> {
+			String words = org.dbgl.util.FilterText.readable(filterText.getText(), fieldNames::get, id -> {
+				DosboxVersion version = dbversionsList_ == null ? null: BaseRepository.findById(dbversionsList_, id);
+				return version == null ? null: version.getTitle();
+			}, text_);
+			meaning.setText(words != null ? words: StringUtils.isBlank(filterText.getText()) ? StringUtils.EMPTY: text_.get("dialog.filter.read.own"));
 			try {
 				List<Profile> tmpList = new ProfileRepository().list("", filterText.getText(), dbversionsList_);
 				results.setText(text_.get("dialog.filter.notice.results", new Object[] {tmpList.size()}));

@@ -1212,6 +1212,12 @@ public final class ProfileChecks {
 	}
 
 	/** the programs the [autoexec] of the configuration of the DOSBox version starts before every game (e.g. a menu): {line, key to hide it} */
+	/** the release number only: "0.83.0-abc123" -> "0.83.0", "2026.10.01 SDL2" -> "2026.10.01" */
+	public static String releaseOf(String version) {
+		java.util.regex.Matcher m = Pattern.compile("\\d+(?:\\.\\d+)*").matcher(StringUtils.defaultString(version));
+		return m.find() ? m.group(): StringUtils.defaultString(version);
+	}
+
 	public static List<Problem> dosboxVersionHints(DosboxVersion db) {
 		List<Problem> result = new ArrayList<>();
 		if ((db == null) || !FilesUtils.isReadableFile(db.getConfigurationCanonicalFile()))
@@ -1219,6 +1225,12 @@ public final class ProfileChecks {
 		boolean skipped = "overwrite".equalsIgnoreCase(StringUtils.trim(db.getConfiguration().getValue("dosbox", "autoexec_section")));
 		for (String line: runDosboxAutoexec(db, skipped).programs())
 			result.add(new Problem("dosboxconfprogram", db.getTitle(), db.getConfigurationCanonicalFile().getName(), line));
+		// alpha 50: the file names an older version than the entry (the program was replaced, the file kept): new settings are
+		// not in it, and what it says about values and defaults is of the old version
+		String written = DosboxVersionDetector.versionOfConf(db.getConfigurationCanonicalFile());
+		if ((written != null) && releaseOf(written).matches("\\d+\\.\\d.*") && releaseOf(db.getVersion()).matches("\\d+\\.\\d.*") // not "SVN", "r4483"
+				&& (org.dbgl.util.DosboxUpdateChecker.compareVersions(releaseOf(written), releaseOf(db.getVersion())) < 0))
+			result.add(new Problem("dosboxconfolder", db.getTitle(), db.getConfigurationCanonicalFile().getName(), written, db.getVersion()));
 		// alpha 49: a configuration kept from 0.83.0 for DOSBox Staging 0.83.1: "auto" is no value there any more
 		if (staging0831(db))
 			for (String[] gone: GONE_0831)

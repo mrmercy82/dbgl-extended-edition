@@ -3091,13 +3091,42 @@ public class Dbgl0102Tests {
 		assertEquals(193, org.dbgl.util.ConfTakeover.shipped("staging-0.83.1").size());
 		assertEquals(172, org.dbgl.util.ConfTakeover.shipped("staging-0.82.2").size());
 		assertEquals(64, org.dbgl.util.ConfTakeover.shipped("dosbox-0.74-3").size());
-		assertEquals("staging-0.82.2", org.dbgl.util.ConfTakeover.listFor("# This is the configuration file for DOSBox Staging (0.82.0)."));
+		assertEquals("staging-0.82.0", org.dbgl.util.ConfTakeover.listFor("# This is the configuration file for DOSBox Staging (0.82.0)."));
+		assertEquals("staging-0.82.2", org.dbgl.util.ConfTakeover.listFor("# This is the configuration file for DOSBox Staging (0.82.1)."));
+		assertEquals("staging-0.81.2", org.dbgl.util.ConfTakeover.listFor("# Dies ist die Konfigurationsdatei f\u00fcr dosbox-staging (0.81.1)."));
+		assertEquals("false", org.dbgl.util.ConfTakeover.shipped("staging-0.82.0").get("voodoo\nvoodoo_bilinear_filtering"));
+		assertEquals("true", org.dbgl.util.ConfTakeover.shipped("staging-0.82.2").get("voodoo\nvoodoo_bilinear_filtering"));
+		assertFalse(org.dbgl.util.ConfTakeover.shipped("staging-0.81.0").isEmpty());
+		assertEquals("staging-0.81.0", org.dbgl.util.ConfTakeover.listFor("# DOSBox Staging 0.81.0 - plik konfiguracyjny."));
+		// DOSBox-X in other languages
+		assertEquals("dosbox-x", org.dbgl.util.ConfTakeover.listFor("# Dies ist die Konfig-Datei fuer DOSBox-X 2026.10.01. (Verwende bitte die neuste Version von DOSBox-X)"));
+		assertEquals("dosbox-x", org.dbgl.util.ConfTakeover.listFor("??? ???? ???????????? ??? DOSBox-X 2026.10.01. (??????????)"));
+		assertNull(org.dbgl.util.ConfTakeover.listFor("# a note about DOSBox-X and its files"));
+		String germanX = "# Dies ist die Konfig-Datei fuer DOSBox-X 2026.10.01. (Verwende bitte die neuste Version von DOSBox-X)\n[sdl]\n#     output: Welches Videosystem\n#               Moegliche Werte: default, surface.\noutput = default\n";
+		org.dbgl.model.conf.ConfValueOptions.Options xOut = org.dbgl.model.conf.ConfValueOptions.parse(germanX).get("sdl", "output");
+		assertTrue(xOut.getValues().contains("ttf") && xOut.getValues().contains("opengl"));
+		assertEquals("48000 || 49716", String.join(" || ", new java.util.TreeSet<>(java.util.Arrays.asList(org.dbgl.util.ConfTakeover.shipped("dosbox-x").get("sblaster\noplrate").split(" \\|\\| ")))));
+		assertEquals("staging-0.82.2", org.dbgl.util.ConfTakeover.listFor("# DOSBox Staging (0.82.2) - plik konfiguracyjny."));
 		assertEquals("staging-0.83.1", org.dbgl.util.ConfTakeover.listFor("# Dies ist die Konfigurationsdatei für dosbox-staging (0.83.1)."));
 		assertEquals("dosbox-0.74-3", org.dbgl.util.ConfTakeover.listFor("# This is the configuration file for DOSBox 0.74-2. (Please use the latest version of DOSBox)"));
 		assertEquals("dosbox-x", org.dbgl.util.ConfTakeover.listFor("# This is the configuration file for DOSBox-X 2026.10.01. (Please use the latest version of DOSBox-X)"));
 		assertEquals("dosbox-daum", org.dbgl.util.ConfTakeover.listFor("# This is the configuration file for DOSBox SVN-Daum. (Please use the latest version of DOSBox)"));
 		assertEquals("dosbox-ece", org.dbgl.util.ConfTakeover.listFor("# This is the configuration file for DOSBox ECE. (Please use the latest version of DOSBox)"));
 		assertNull(org.dbgl.util.ConfTakeover.listFor("# This is the configuration file for DOSBox Pure."));
+		// alpha 50: DOSBox 0.71 to 0.73, as they name themselves ("configurationfile")
+		assertEquals("dosbox-0.73", org.dbgl.util.ConfTakeover.listFor("# This is the configurationfile for DOSBox 0.73."));
+		assertEquals("dosbox-0.72", org.dbgl.util.ConfTakeover.listFor("# This is the configurationfile for DOSBox 0.71."));
+		assertEquals("dosbox-0.74-3", org.dbgl.util.ConfTakeover.listFor("# This is the configurationfile for DOSBox 0.74. (Please use the latest version of DOSBox)"));
+		assertEquals("22050", org.dbgl.util.ConfTakeover.shipped("dosbox-0.73").get("mixer\nrate"));
+		assertEquals("vga", org.dbgl.util.ConfTakeover.shipped("dosbox-0.72").get("dosbox\nmachine"));
+		// a file in another language: the values from the list of the version, not from its comments
+		String germanMidi = "# Dies ist die Konfigurationsdatei f\u00fcr dosbox-staging (0.83.1).\n[midi]\n# Legt fest ...\n#\n#   Port:   Ein MIDI-Port\n#   mt32:   Der interne\n#\nmididevice = port\n";
+		org.dbgl.model.conf.ConfValueOptions.Options midi = org.dbgl.model.conf.ConfValueOptions.parse(germanMidi).get("midi", "mididevice");
+		assertTrue(midi.getValues().contains("port") && midi.getValues().contains("fluidsynth") && !midi.getValues().contains("Port"));
+		assertNotNull(org.dbgl.model.conf.ConfValueOptions.parse(germanMidi).get("sdl", "output")); // also for a setting the file does not have
+		// an English file is read as it is
+		String english = "# This is the configuration file for DOSBox Staging (0.83.1).\n[midi]\n# Possible values:\n#\n#   port:   x\n#   mine:   x\n#\nmididevice = port\n";
+		assertEquals(java.util.List.of("port", "mine"), org.dbgl.model.conf.ConfValueOptions.parse(english).get("midi", "mididevice").getValues());
 		assertEquals("dosbox-svn", org.dbgl.util.ConfTakeover.listFor("# This is the configuration file for DOSBox SVN. (Please use the latest version of DOSBox)"));
 		assertEquals(66, org.dbgl.util.ConfTakeover.shipped("dosbox-svn").size());
 		assertEquals(108, org.dbgl.util.ConfTakeover.shipped("dosbox-ece").size());
@@ -3767,5 +3796,155 @@ public class Dbgl0102Tests {
 		assertEquals("disksizes.properties", Files.readString(moved.toPath())); // the one in "cache" stays, the other one goes
 		assertFalse(new File(data, "disksizes.properties").exists());
 		org.apache.commons.io.FileUtils.deleteQuietly(root);
+	}
+	/** alpha 50: letters typed in the list of profiles (a virtual table does not search by itself) */
+	@Test
+	public void testListTypeAhead() {
+		String[] titles = {"Alone in the Dark", "Doom", "Doom II", "Duke Nukem 3D", "Dune", null, "Wolfenstein 3D"};
+		java.util.function.IntFunction<String> label = i -> titles[i];
+		StringBuilder typed = new StringBuilder();
+		// one letter: the next row with it after the selected one, going round
+		assertEquals(1, org.dbgl.gui.controls.ProfilesList.typeAhead(typed, 'd', -1, titles.length, label));
+		assertEquals(2, org.dbgl.gui.controls.ProfilesList.typeAhead(typed, 'D', 1, titles.length, label));
+		assertEquals(3, org.dbgl.gui.controls.ProfilesList.typeAhead(typed, 'd', 2, titles.length, label));
+		assertEquals(4, org.dbgl.gui.controls.ProfilesList.typeAhead(typed, 'd', 3, titles.length, label));
+		assertEquals(1, org.dbgl.gui.controls.ProfilesList.typeAhead(typed, 'd', 4, titles.length, label));
+		// more letters: the beginning typed so far, from the selected row on (it stays if it fits)
+		typed.setLength(0);
+		assertEquals(1, org.dbgl.gui.controls.ProfilesList.typeAhead(typed, 'd', 0, titles.length, label));
+		assertEquals(3, org.dbgl.gui.controls.ProfilesList.typeAhead(typed, 'u', 1, titles.length, label));
+		assertEquals(4, org.dbgl.gui.controls.ProfilesList.typeAhead(typed, 'n', 3, titles.length, label));
+		assertEquals("dun", typed.toString());
+		// a letter nothing begins with is dropped, the list stays where it is
+		assertEquals(-1, org.dbgl.gui.controls.ProfilesList.typeAhead(typed, 'x', 4, titles.length, label));
+		assertEquals("dun", typed.toString());
+		assertEquals(4, org.dbgl.gui.controls.ProfilesList.typeAhead(typed, 'e', 4, titles.length, label));
+		// nothing with the letter at all, an empty list, a row without a text
+		typed.setLength(0);
+		assertEquals(-1, org.dbgl.gui.controls.ProfilesList.typeAhead(typed, 'z', 2, titles.length, label));
+		typed.setLength(0);
+		assertEquals(-1, org.dbgl.gui.controls.ProfilesList.typeAhead(typed, 'a', -1, 0, label));
+		typed.setLength(0);
+		assertEquals(6, org.dbgl.gui.controls.ProfilesList.typeAhead(typed, 'w', 4, titles.length, label));
+		assertEquals(0, org.dbgl.gui.controls.ProfilesList.typeAhead(new StringBuilder(), '\u00c4', 3, 1, x -> "\u00e4rger"));
+	}
+	/** alpha 50: values of DOSBox 0.74 that DOSBox Staging has under another name, taken over as what they mean there */
+	@Test
+	public void testTakeoverClassicValues() {
+		String target = "# This is the configuration file for dosbox-staging (0.83.0).\n[sdl]\noutput = opengl\n[cpu]\n# CPU type. Possible values:\n#\n#   auto:  x\n#   386:  x\n#   386_fast:  x\n#   486:  x\n#   pentium:  x\n#\ncputype = auto\n"
+				+ "[midi]\n# Possible values:\n#\n#   port:  x\n#   mt32:  x\n#   none:  x\n#\nmididevice = port\n[joystick]\n# Possible values:\n#\n#   auto:  x\n#   hidden:  x\n#   disabled:  x\n#\njoysticktype = auto\n[mouse]\nmouse_capture = onclick\n";
+		String classic = "# This is the configuration file for DOSBox 0.74-3. (Please use the latest version of DOSBox)\n[sdl]\nautolock=false\n[cpu]\ncputype=%s\n[midi]\nmididevice=%s\n[joystick]\njoysticktype=%s\n";
+		java.util.function.BiFunction<String, String, org.dbgl.util.ConfTakeover.Row> row = (text, item) -> org.dbgl.util.ConfTakeover.compare(text, target).stream().filter(r -> r.item().equals(item))
+				.findFirst().orElse(null);
+		String[][] cpu = {{"386_slow", "386"}, {"486_slow", "486"}, {"pentium_slow", "pentium"}}; // as DOSBox Staging 0.83.1 says in its log
+		for (String[] c: cpu) {
+			org.dbgl.util.ConfTakeover.Row r = row.apply(String.format(classic, c[0], "default", "auto"), "cputype");
+			assertEquals(c[1], r.oldValue());
+			assertEquals(c[0], r.from()); // told as "earlier ..."
+			assertEquals(org.dbgl.util.ConfTakeover.State.OWN, r.state());
+		}
+		assertEquals("port", row.apply(String.format(classic, "auto", "win32", "auto"), "mididevice") == null ? "port": "changed"); // the same as the new file has: nothing to take over
+		String otherPort = target.replace("mididevice = port", "mididevice = mt32");
+		org.dbgl.util.ConfTakeover.Row midi = org.dbgl.util.ConfTakeover.compare(String.format(classic, "auto", "alsa", "auto"), otherPort).stream().filter(r -> r.item().equals("mididevice")).findFirst().orElse(null);
+		assertEquals("port", midi.oldValue());
+		assertEquals("alsa", midi.from());
+		org.dbgl.util.ConfTakeover.Row joy = row.apply(String.format(classic, "auto", "default", "none"), "joysticktype");
+		assertEquals("disabled", joy.oldValue());
+		// "386" DOSBox Staging takes as its own "386", without a word: so does DBGL
+		org.dbgl.util.ConfTakeover.Row plain = row.apply(String.format(classic, "386", "default", "auto"), "cputype");
+		assertEquals("386", plain.oldValue());
+		assertNull(plain.from());
+		// output, machine, pcspeaker: what DOSBox Staging uses for them
+		String more = "# This is the configuration file for dosbox-staging (0.83.1).\n[sdl]\n# Possible values:\n#\n#   opengl:  x\n#   texture:  x\n#\noutput = texture\n[dosbox]\n# Possible values:\n#\n#   svga_s3:  x\n#   svga_paradise:  x\n#\nmachine = svga_s3\n"
+				+ "[speaker]\n# Possible values:\n#\n#   impulse:  x\n#   discrete:  x\n#   none:  x\n#   off:  x\n#\npcspeaker = impulse\n";
+		String classic2 = "# This is the configuration file for DOSBox 0.74-3. (Please use the latest version of DOSBox)\n[sdl]\noutput=%s\n[dosbox]\nmachine=vgaonly\n[speaker]\npcspeaker=false\n";
+		org.dbgl.util.ConfTakeover.Row nb = org.dbgl.util.ConfTakeover.compare(String.format(classic2, "openglnb"), more).stream().filter(x -> x.item().equals("output")).findFirst().orElse(null);
+		assertEquals("opengl", nb.oldValue());
+		assertEquals("openglnb", nb.from());
+		// "surface" is the default of DOSBox 0.74: an old default is shown as that and not converted
+		org.dbgl.util.ConfTakeover.Row surface = org.dbgl.util.ConfTakeover.compare(String.format(classic2, "surface"), more).stream().filter(x -> x.item().equals("output")).findFirst().orElse(null);
+		assertEquals(org.dbgl.util.ConfTakeover.State.OLD_DEFAULT, surface.state());
+		List<org.dbgl.util.ConfTakeover.Row> rows2 = org.dbgl.util.ConfTakeover.compare(String.format(classic2, "ddraw"), more);
+		assertEquals("svga_paradise", rows2.stream().filter(x -> x.item().equals("machine")).findFirst().get().oldValue());
+		assertEquals("off", rows2.stream().filter(x -> x.item().equals("pcspeaker")).findFirst().get().oldValue());
+		org.dbgl.util.ConfTakeover.Row ddraw = rows2.stream().filter(x -> x.item().equals("output")).findFirst().get();
+		assertEquals("ddraw", ddraw.oldValue()); // invalid for DOSBox Staging: not converted, not preselected
+		assertEquals(org.dbgl.util.ConfTakeover.State.NOT_LISTED, ddraw.state());
+		// a new file that still has the old name keeps it (DOSBox Staging 0.81: "pentium_slow")
+		String target081 = "# This is the configuration file for dosbox-staging (0.81.2).\n[cpu]\n# CPU type. Possible values:\n#\n#   auto:  x\n#   386:  x\n#   pentium_slow:  x\n#   pentium:  x\n#\ncputype = auto\n";
+		org.dbgl.util.ConfTakeover.Row old081 = org.dbgl.util.ConfTakeover.compare(String.format(classic, "pentium_slow", "default", "auto"), target081).stream().filter(r -> r.item().equals("cputype")).findFirst().orElse(null);
+		assertEquals("pentium_slow", old081.oldValue());
+		assertNull(old081.from());
+		// a value without a twin stays as it is: not among the values of the new file
+		org.dbgl.util.ConfTakeover.Row prefetch = row.apply(String.format(classic, "386_prefetch", "default", "auto"), "cputype");
+		assertEquals("386_prefetch", prefetch.oldValue());
+		assertEquals(org.dbgl.util.ConfTakeover.State.NOT_LISTED, prefetch.state());
+		// "autolock = false": shown with mouse_capture, to be set by hand
+		org.dbgl.util.ConfTakeover.Row lock = row.apply(String.format(classic, "auto", "default", "auto"), "autolock");
+		assertEquals(org.dbgl.util.ConfTakeover.State.MANUAL, lock.state());
+		assertEquals("[mouse] mouse_capture", lock.from());
+		// from a file of DOSBox Staging itself nothing is renamed: its "386" is the "386" of the new file
+		String staging = "# This is the configuration file for dosbox-staging (0.82.2).\n[cpu]\ncputype = 386\n";
+		org.dbgl.util.ConfTakeover.Row same = org.dbgl.util.ConfTakeover.compare(staging, target).stream().filter(r -> r.item().equals("cputype")).findFirst().orElse(null);
+		assertEquals("386", same.oldValue());
+		assertNull(same.from());
+	}
+
+	/** alpha 50: the configuration file of a DOSBox version names an older version than its entry */
+	@Test
+	public void testDosboxConfOlder() throws Exception {
+		File dir = Files.createTempDirectory("dbglolder").toFile();
+		File conf = new File(dir, "dosbox-staging.conf");
+		Files.writeString(conf.toPath(), "# This is the configuration file for dosbox-staging (0.83.0).\n[sdl]\nfullscreen = off\n", StandardCharsets.UTF_8);
+		java.util.function.Function<String, Boolean> told = version -> {
+			org.dbgl.model.aggregate.DosboxVersion db = DosboxVersionFactory.create("Staging", SettingsService.STAGING_DOSBOX_FAM.title_, version, false, true, false, null, dir.getPath(), "", "", conf.getPath());
+			return org.dbgl.util.ProfileChecks.dosboxVersionHints(db).stream().anyMatch(p -> p.key().equals("dosboxconfolder"));
+		};
+		assertTrue(told.apply("0.83.1"));
+		assertFalse(told.apply("0.83.0"));
+		assertFalse(told.apply("0.83.0-abc12")); // the same release
+		assertFalse(told.apply("0.82.2")); // a newer file under an older entry: put right at the start of DBGL
+		assertEquals("0.83.0", org.dbgl.util.ProfileChecks.releaseOf("0.83.0 (git)"));
+		assertEquals("2026.10.01", org.dbgl.util.ProfileChecks.releaseOf("2026.10.01 SDL2"));
+		assertFalse(told.apply("r4483")); // no release number to compare
+	}
+	/** alpha 50: the condition of a filter in words */
+	@Test
+	public void testFilterInWords() {
+		org.dbgl.service.ITextService text = org.dbgl.service.TextService.getInstance();
+		java.util.Map<String, String> names = java.util.Map.of("GAM.TITLE", "Title", "DEV.NAME", "Developer", "GAM.FAVORITE", "Favorite", "GAM.SETUP", "Setup", "GAM.STATS_LASTRUN", "Last run", "SER.NAME",
+			"Series", "GAM.DBVERSION_ID", "DOSBox version", "YR.YEAR", "Year");
+		java.util.function.Function<String, String> words = c -> org.dbgl.util.FilterText.readable(c, names::get, id -> id == 3 ? "Staging 0.83": null, text);
+		String and = text.get("dialog.filter.read.and"), or = text.get("dialog.filter.read.or");
+		assertEquals(text.get("dialog.filter.read.contains", new Object[] {"Title", "JURASSIC"}), words.apply("UPPER(GAM.TITLE) LIKE '%JURASSIC%'"));
+		assertEquals(text.get("dialog.filter.read.is", new Object[] {"Developer", "id Software"}), words.apply("DEV.NAME='id Software'"));
+		assertEquals(text.get("dialog.filter.read.is", new Object[] {"Developer", "Sid's"}), words.apply("DEV.NAME='Sid''s'"));
+		assertEquals(text.get("dialog.filter.read.empty", new Object[] {"Developer"}), words.apply("DEV.NAME=''"));
+		assertEquals(text.get("dialog.filter.read.yes", new Object[] {"Favorite"}), words.apply("GAM.FAVORITE=true"));
+		assertEquals(text.get("dialog.filter.read.no", new Object[] {"Favorite"}), words.apply("GAM.FAVORITE=false"));
+		assertEquals(text.get("dialog.filter.read.notempty", new Object[] {"Setup"}), words.apply("GAM.SETUP<>''"));
+		assertEquals(text.get("dialog.filter.read.empty", new Object[] {"Setup"}), words.apply("(GAM.SETUP IS NULL OR GAM.SETUP='')"));
+		assertEquals(text.get("dialog.filter.read.empty", new Object[] {"Last run"}), words.apply("GAM.STATS_LASTRUN IS NULL"));
+		assertEquals(text.get("dialog.filter.read.on", new Object[] {"Last run", "2026-11-05"}), words.apply("YEAR(GAM.STATS_LASTRUN)=2026 AND MONTH(GAM.STATS_LASTRUN)=11 AND DAYOFMONTH(GAM.STATS_LASTRUN)=5"));
+		assertEquals(text.get("dialog.filter.read.selected", new Object[] {"3"}), words.apply("GAM.ID IN (4,17,23)"));
+		assertEquals(text.get("dialog.filter.read.is", new Object[] {"Series", "Commander Keen"}), words.apply("GAM.ID IN (SELECT SER.GAME_ID FROM SERIES SER WHERE SER.NAME='Commander Keen')"));
+		assertEquals(text.get("dialog.filter.read.is", new Object[] {"DOSBox version", "Staging 0.83"}), words.apply("GAM.DBVERSION_ID=3"));
+		assertEquals(text.get("dialog.filter.read.is", new Object[] {"DOSBox version", "8"}), words.apply("GAM.DBVERSION_ID=8")); // not known: its number
+		assertEquals(text.get("dialog.filter.read.is", new Object[] {"Year", "1993"}), words.apply("YR.YEAR='1993'"));
+		// joined as the window writes them, over several lines
+		String a = text.get("dialog.filter.read.is", new Object[] {"Developer", "Apogee"}), b = text.get("dialog.filter.read.is", new Object[] {"Developer", "Sierra"}),
+				c = text.get("dialog.filter.read.contains", new Object[] {"Title", "QUEST"});
+		assertEquals("(" + a + " " + or + " " + b + ") " + and + " (" + c + ")", words.apply("(DEV.NAME='Apogee'\n\tOR DEV.NAME='Sierra')\nAND\n(UPPER(GAM.TITLE) LIKE '%QUEST%')"));
+		// a field without a name for the user keeps its own
+		assertEquals(text.get("dialog.filter.read.is", new Object[] {"GAM.CUSTOM9", "5"}), words.apply("GAM.CUSTOM9=5"));
+		// "AND" inside a value is a value
+		assertEquals(text.get("dialog.filter.read.contains", new Object[] {"Title", "ROCK AND ROLL"}), words.apply("UPPER(GAM.TITLE) LIKE '%ROCK AND ROLL%'"));
+		// what this class does not know is not guessed at
+		assertNull(words.apply("GAM.STATS_RUNS > 10"));
+		assertNull(words.apply("UPPER(GAM.TITLE) LIKE '%DOOM%' AND NOT GAM.FAVORITE=true"));
+		assertNull(words.apply("LENGTH(GAM.TITLE) = 4"));
+		assertNull(words.apply(""));
+		assertNull(words.apply(null));
+		assertNull(words.apply("/* dbgl: profiles with problems */"));
 	}
 }

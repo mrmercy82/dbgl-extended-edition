@@ -4,6 +4,62 @@ DBGL Extended Edition - Änderungen seit 0.100 beta 17
 Grundlage: DBGL 0.100 beta 17 von Ronald Blankendaal (https://dbgl.org), Quellcode.
 
 
+0.101 alpha 50 (in Arbeit)
+--------------------------
+Verbessert
+- Große Sammlungen: Die Profilliste (Ansicht "Tabelle") füllt ihre Zeilen
+  erst, wenn sie ins Bild kommen. Mit 5000 Profilen steht die Liste nach
+  Sortieren, Filtern oder Bearbeiten deutlich schneller (unter Linux
+  gemessen: etwa ein Zehntel der bisherigen Zeit). Buchstaben tippen
+  springt wie bisher zum passenden Titel, derselbe Buchstabe noch einmal
+  zum nächsten.
+- Die Profile werden schneller aus der Datenbank gelesen (eine Abfrage für
+  alle statt einer je Profil); das hilft in allen Ansichten.
+- Einstellungen aus einer DOSBox-0.74-Konfiguration nach DOSBox Staging
+  übernehmen: Werte, die dort anders heißen, werden so umgerechnet, wie
+  DOSBox Staging 0.83.1 es selbst tut, und mit "früher ..." gezeigt:
+  "cputype = pentium_slow" wird "pentium" (ebenso 386_slow, 486_slow),
+  "output = surface" und "openglnb" werden "opengl", "machine = vgaonly"
+  wird "svga_paradise", "mididevice = win32" wird "port", "joysticktype =
+  none" wird "disabled", "pcspeaker = false" wird "off". "autolock =
+  false" nennt "mouse_capture" als Nachfolger, von Hand einzustellen.
+- Konfigurationsdateien von DOSBox Staging 0.81 bis 0.83.1 in anderen
+  Sprachen (Deutsch, Französisch, Italienisch, Niederländisch, Polnisch,
+  Russisch, Spanisch, Portugiesisch): Die möglichen Werte einer
+  Einstellung kommen jetzt aus einer mitgelieferten Liste der jeweiligen
+  Version statt aus den übersetzten Kommentaren. Dort fehlten Werte oder
+  waren übersetzt ("Port" statt "port"), sodass Auswahllisten
+  unvollständig waren und gültige Werte als unbekannt galten.
+- Einstellungen übernehmen kennt die Standardwerte von DOSBox 0.71 bis
+  0.73 (bisher erst ab 0.74) und von DOSBox Staging 0.81 (bisher erst ab
+  0.82) und erkennt so auch in deren Dateien, was selbst geändert wurde,
+  in jeder Sprache. Geprüft mit den Dateien, die jede dieser Versionen
+  selbst schreibt.
+- DOSBox-X in anderen Sprachen: Eine Konfigurationsdatei, die DOSBox-X
+  auf Deutsch, Französisch, Japanisch usw. geschrieben hat, wird jetzt
+  als DOSBox-X-Datei erkannt (bisher nur die englische). Damit kennt DBGL
+  auch dort die Standardwerte und die möglichen Werte der Einstellungen.
+  Die Standardwerte decken DOSBox-X 2023.10.06 bis 2026.10.01 ab.
+
+Neu
+- "Profile prüfen" weist darauf hin, wenn die Konfigurationsdatei einer
+  DOSBox-Version von einer älteren Version geschrieben wurde als
+  eingetragen ist. Im Reiter "DOSBox-Versionen" gibt es dazu per
+  Rechtsklick "Konfigurationsdatei neu schreiben lassen": Die eigenen
+  Einstellungen und [autoexec] bleiben, die bisherige Datei bleibt als
+  .bak daneben.
+- "Filter bearbeiten" zeigt unter der Bedingung ihre Bedeutung in Worten
+  (z. B. Titel enthält "JURASSIC" oder Entwickler ist "Apogee"). Die
+  Bedingung selbst bleibt, wie sie ist; bei einer von Hand geschriebenen,
+  die DBGL nicht in Worte fassen kann, steht das dabei.
+
+Behoben
+- Das Protokollfenster von DOSBox fror ein, wenn DOSBox sehr viele ähnliche
+  Zeilen schrieb (Windows 95 fährt in DOSBox-X herunter): Der Zähler
+  "weitere ähnliche Zeilen" wird höchstens zehnmal je Sekunde geschrieben
+  statt einmal je Zeile.
+
+
 0.101 alpha 49 (2026-11-15)
 ---------------------------
 Wichtig

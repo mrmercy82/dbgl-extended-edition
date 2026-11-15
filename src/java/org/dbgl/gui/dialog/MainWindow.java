@@ -306,7 +306,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		});
 
 		// init values
-		profilesList_.forEach(this::addProfileToTable);
+		showProfileRows(); // alpha 50: a table fills its rows when they come into view
 		dbversionsList_.forEach(this::addDosboxVersionToTable);
 		templatesList_.forEach(this::addTemplateToTable);
 
@@ -1725,6 +1725,31 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		shell_.close();
 	}
 
+	private void doRewriteDosboxConf(DosboxVersion dbversion) {
+		File conf = dbversion.getConfigurationCanonicalFile();
+		if (!FilesUtils.isReadableFile(conf) || !FilesUtils.isReadableFile(dbversion.getCanonicalExecutable())) {
+			List<org.dbgl.util.ProfileChecks.Problem> problems = org.dbgl.util.ProfileChecks.checkDosboxVersion(dbversion);
+			if (!problems.isEmpty())
+				Mess_.on(shell_).txt(text_.get("dialog.checkprofiles." + problems.get(0).key(), problems.get(0).args())).warning();
+			return;
+		}
+		String written = StringUtils.defaultIfEmpty(DosboxVersionDetector.versionOfConf(conf), "?");
+		if (!Mess_.on(shell_).key("dialog.main.dosboxversion.rewriteconf.confirm", new Object[] {conf.getPath(), written, dbversion.getFamily() + " " + dbversion.getVersion()}).confirm())
+			return;
+		shell_.setCursor(display_.getSystemCursor(SWT.CURSOR_WAIT));
+		try {
+			ExecuteUtils.recreateDosboxConf(dbversion);
+			dbversion.resetAndLoadConfiguration();
+		} catch (IOException e) {
+			Mess_.on(shell_).exception(e).warning();
+			return;
+		} finally {
+			shell_.setCursor(null);
+		}
+		updateDosboxVersionList(dbversion);
+		Mess_.on(shell_).key("dialog.main.dosboxversion.rewriteconf.done", new Object[] {conf.getName() + ".bak"}).display();
+	}
+
 	/** @return true if the configuration file of the DOSBox version says it was written by this very version */
 	private static boolean confIsFrom(DosboxVersion v) {
 		String written = DosboxVersionDetector.versionOfConf(v.getConfigurationCanonicalFile());
@@ -2695,6 +2720,11 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		for (CTabItem tab: filterFolder_.getItems())
 			tab.setControl(profileTable_.getControl());
 		profileTable_.setWarningHandlers(this::profileProblemsText, this::doShowProfileProblem);
+		// alpha 50: the table asks for a row when it comes into view
+		profileTable_.setSource((item, index) -> {
+			if ((profilesList_ != null) && (index >= 0) && (index < profilesList_.size()))
+				setProfileTableItem(item, profilesList_.get(index));
+		}, index -> (profilesList_ != null) && (index >= 0) && (index < profilesList_.size()) ? columnValue(profilesList_.get(index), columnIds_[0] == 20 ? 0: columnIds_[0]): null);
 
 		Menu menu = new Menu(profileTable_.getControl());
 		MenuItem_.on(menu).build();
@@ -3712,8 +3742,13 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		} catch (SQLException e) {
 			Mess_.on(shell_).exception(e).warning();
 		}
-		for (int i = 0; i < profilesList_.size(); i++) {
-			setProfileTableItem(profileTable_.getItem(i), profilesList_.get(i));
+		int top = profileTable_.getTopIndex();
+		if (profileTable_.showRows(profilesList_.size())) {
+			profileTable_.setTopIndex(top); // alpha 50: the rows are filled anew as they come into view
+		} else {
+			for (int i = 0; i < profilesList_.size(); i++) {
+				setProfileTableItem(profileTable_.getItem(i), profilesList_.get(i));
+			}
 		}
 		profileTable_.setSelection(getIndicesByIds(selectedProfiles));
 		// alpha 49: the list follows the chosen profile to its new place (once the click on the heading is done with)
@@ -3942,6 +3977,16 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 					updateDosboxVersionList(dbversion); // read again from the file that was written
 			}
 		}).build();
+		// alpha 50: the configuration file written again by its DOSBox (after the program was replaced by a newer one): the
+		// new settings come in, the own values and the [autoexec] stay
+		MenuItem_.on(menu).key("dialog.main.dosboxversion.rewriteconf").image(ImageService.IMG_REFRESH).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				int index = dbversionTable_.getSelectionIndex();
+				if (index != -1)
+					doRewriteDosboxConf(dbversionsList_.get(index));
+			}
+		}).build();
 		// alpha 49: what differs between the configuration of this DOSBox version and that of another one: the other versions
 		// as a sub menu, filled when it is shown
 		Menu compareMenu = createMenu(menu, "dialog.main.dosboxversion.compare", ImageService.IMG_ZOOM);
@@ -4134,6 +4179,24 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		});
 	}
 
+	/** the list shows profilesList_: a table gets its rows empty and fills them when they come into view (alpha 50) */
+	private void showProfileRows() {
+		if (profileTable_.showRows(profilesList_.size())) {
+			if (markersOn() && profilesList_.stream().anyMatch(p -> org.dbgl.util.ProfileWarnings.known(p) == null))
+				scheduleProfileWarnings(); // also for the rows not in view
+			return;
+		}
+		profileTable_.removeAll();
+		for (Profile prof: profilesList_)
+			addProfileToTable(prof);
+	}
+
+	/** the screenshots of a profile in the list; for a row that was not shown yet without filling it */
+	private ThumbInfo thumbInfoOf(int index) {
+		ProfilesListItem item = profileTable_.peekItem(index);
+		return item != null ? (ThumbInfo)item.getData(): new ThumbInfo(profilesList_.get(index).getCapturesString());
+	}
+
 	private void addProfileToTable(Profile prof) {
 		setProfileTableItem(profileTable_.new ProfilesListItem(profileTable_), prof);
 	}
@@ -4146,100 +4209,105 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		setTemplateTableItem(new TableItem(templateTable_, SWT.BORDER), template);
 	}
 
+	/** what a column of the list shows for a profile (alpha 50: on its own, also for the search by typing in the list) */
+	private String columnValue(Profile prof, int colId) {
+		final String value;
+		switch (colId) {
+			case 0:
+				value = prof.getTitle();
+				break;
+			case 1:
+				value = prof.hasSetup() ? "\u2713": StringUtils.EMPTY; // alpha 48: a tick instead of yes, empty instead of no
+				break;
+			case 2:
+				value = prof.getDeveloper();
+				break;
+			case 3:
+				value = prof.getPublisher();
+				break;
+			case 4:
+				value = prof.getGenre();
+				break;
+			case 5:
+				value = prof.getYear();
+				break;
+			case 6:
+				value = prof.getStatus();
+				break;
+			case 7:
+				value = Boolean.TRUE.equals(prof.isFavorite()) ? "\u2605": StringUtils.EMPTY; // alpha 48: a star instead of yes
+				break;
+			case 8:
+				value = String.valueOf(prof.getId());
+				break;
+			case 9:
+				value = String.valueOf(prof.getDosboxVersion().getId());
+				break;
+			case 10:
+			case 11:
+			case 12:
+			case 13:
+			case 14:
+			case 15:
+			case 16:
+			case 17:
+				value = prof.getCustomStrings()[colId - Constants.RO_COLUMN_NAMES];
+				break;
+			case 18:
+				value = prof.getCustomInts()[0] + " %";
+				break;
+			case 19:
+				value = String.valueOf(prof.getCustomInts()[1]);
+				break;
+			case 21:
+				value = prof.getDosboxVersion().getTitle();
+				break;
+			case 22:
+				value = text_.toString(prof.getStats().getCreated(), DateFormat.SHORT);
+				break;
+			case 23:
+				value = text_.toString(prof.getStats().getModified(), DateFormat.SHORT);
+				break;
+			case 24:
+				value = text_.toString(prof.getStats().getLastRun(), DateFormat.SHORT);
+				break;
+			case 25:
+				value = text_.toString(prof.getProfileStats().getLastSetup(), DateFormat.SHORT);
+				break;
+			case 26:
+				value = String.valueOf(prof.getStats().getRuns());
+				break;
+			case 27:
+				value = String.valueOf(prof.getProfileStats().getSetups());
+				break;
+			case 28:
+			case 29:
+			case 30:
+			case 31:
+				value = prof.getCustomStrings()[colId - Constants.RO_COLUMN_NAMES - Constants.EDIT_COLUMN_NAMES_1];
+				break;
+			case 32:
+				value = org.dbgl.model.ProfileStats.formatPlayTime(prof.getProfileStats().getPlayTime());
+				break;
+			case 33:
+				value = prof.getSeriesLabel(); // alpha 49: "Commander Keen 4"
+				break;
+			case org.dbgl.model.OrderingVector.DISK_COLUMN: { // alpha 49: the size of the game folder, once it was found
+				Long size = org.dbgl.util.DiskUsage.known(prof);
+				value = size == null ? StringUtils.EMPTY: org.dbgl.util.DiskUsage.format(size, uiLocale());
+				break;
+			}
+			default:
+				value = StringUtils.EMPTY;
+		}
+		return value;
+	}
+
 	private void setProfileTableItem(ProfilesListItem newItemTableItem, Profile prof) {
 		for (int i = 0; i < columnIds_.length; i++) {
 			final int colId = columnIds_[i];
-			final String value;
-			switch (colId) {
-				case 0:
-					value = prof.getTitle();
-					break;
-				case 1:
-					value = prof.hasSetup() ? "\u2713": StringUtils.EMPTY; // alpha 48: a tick instead of yes, empty instead of no
-					break;
-				case 2:
-					value = prof.getDeveloper();
-					break;
-				case 3:
-					value = prof.getPublisher();
-					break;
-				case 4:
-					value = prof.getGenre();
-					break;
-				case 5:
-					value = prof.getYear();
-					break;
-				case 6:
-					value = prof.getStatus();
-					break;
-				case 7:
-					value = Boolean.TRUE.equals(prof.isFavorite()) ? "\u2605": StringUtils.EMPTY; // alpha 48: a star instead of yes
-					break;
-				case 8:
-					value = String.valueOf(prof.getId());
-					break;
-				case 9:
-					value = String.valueOf(prof.getDosboxVersion().getId());
-					break;
-				case 10:
-				case 11:
-				case 12:
-				case 13:
-				case 14:
-				case 15:
-				case 16:
-				case 17:
-					value = prof.getCustomStrings()[colId - Constants.RO_COLUMN_NAMES];
-					break;
-				case 18:
-					value = prof.getCustomInts()[0] + " %";
-					break;
-				case 19:
-					value = String.valueOf(prof.getCustomInts()[1]);
-					break;
-				case 21:
-					value = prof.getDosboxVersion().getTitle();
-					break;
-				case 22:
-					value = text_.toString(prof.getStats().getCreated(), DateFormat.SHORT);
-					break;
-				case 23:
-					value = text_.toString(prof.getStats().getModified(), DateFormat.SHORT);
-					break;
-				case 24:
-					value = text_.toString(prof.getStats().getLastRun(), DateFormat.SHORT);
-					break;
-				case 25:
-					value = text_.toString(prof.getProfileStats().getLastSetup(), DateFormat.SHORT);
-					break;
-				case 26:
-					value = String.valueOf(prof.getStats().getRuns());
-					break;
-				case 27:
-					value = String.valueOf(prof.getProfileStats().getSetups());
-					break;
-				case 28:
-				case 29:
-				case 30:
-				case 31:
-					value = prof.getCustomStrings()[colId - Constants.RO_COLUMN_NAMES - Constants.EDIT_COLUMN_NAMES_1];
-					break;
-				case 32:
-					value = org.dbgl.model.ProfileStats.formatPlayTime(prof.getProfileStats().getPlayTime());
-					break;
-				case 33:
-					value = prof.getSeriesLabel(); // alpha 49: "Commander Keen 4"
-					break;
-				case org.dbgl.model.OrderingVector.DISK_COLUMN: { // alpha 49: the size of the game folder, once it was found
-					Long size = org.dbgl.util.DiskUsage.known(prof);
-					value = size == null ? StringUtils.EMPTY: org.dbgl.util.DiskUsage.format(size, uiLocale());
-					break;
-				}
-				default:
-					value = StringUtils.EMPTY;
-			}
 			if (colId != 20) {
-				newItemTableItem.setText(i, colId, columnNames_[colId], value);
+				newItemTableItem.setText(i, colId, columnNames_[colId], columnValue(prof, colId));
 			}
 		}
 		newItemTableItem.setData(new ThumbInfo(prof.getCapturesString()));
@@ -4328,10 +4396,16 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			return;
 		profileTable_.setRedraw(false);
 		try {
+			// alpha 50: the place of each profile looked up once, not searched in the list for every profile
+			java.util.Map<Integer, Integer> places = new java.util.HashMap<>();
+			if (profiles.size() > 8)
+				for (int i = 0; i < profilesList_.size(); i++)
+					places.putIfAbsent(profilesList_.get(i).getId(), i);
 			for (Profile prof: profiles) {
-				int index = BaseRepository.indexOf(profilesList_, prof);
-				if ((index >= 0) && (index < profileTable_.getItemCount()))
-					setMarker(profileTable_.getItem(index), prof);
+				int index = profiles.size() > 8 ? places.getOrDefault(prof.getId(), -1): BaseRepository.indexOf(profilesList_, prof);
+				ProfilesListItem item = (index >= 0) && (index < profileTable_.getItemCount()) ? profileTable_.peekItem(index): null;
+				if (item != null) // alpha 50: a row not shown yet gets its sign when it is filled
+					setMarker(item, prof);
 			}
 		} finally {
 			profileTable_.setRedraw(true);
@@ -4368,10 +4442,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			Mess_.on(shell_).exception(e).warning();
 		}
 		profileTable_.setRedraw(false);
-		profileTable_.removeAll();
-		for (Profile prof: profilesList_) {
-			addProfileToTable(prof);
-		}
+		showProfileRows();
 		profileTable_.setSelection(getIndicesByIds(profileIds));
 		profileTable_.setRedraw(true);
 		if (!quickSearchShown() || !searchField_.isFocusControl()) // alpha 49: typing into the quick search goes on
@@ -4732,9 +4803,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		Set<Integer> selected = getSelectedProfileIds();
 		profilesList_ = quickSearched(listed_);
 		profileTable_.setRedraw(false);
-		profileTable_.removeAll();
-		for (Profile prof: profilesList_)
-			addProfileToTable(prof);
+		showProfileRows();
 		// alpha 49: the profile whose title begins with what was typed is chosen ("ran" goes to "Ran Soccer", not to the first
 		// title with "ran" somewhere in it); without one, the profile chosen before stays, else the first one
 		int best = bestMatch(profilesList_, s);
@@ -4829,7 +4898,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		int[] indices = selection ? profileTable_.getSelectionIndices(): java.util.stream.IntStream.range(0, profilesList_.size()).toArray();
 		List<Profile> without = new ArrayList<>();
 		for (int i: indices) {
-			ThumbInfo info = (ThumbInfo)profileTable_.getItem(i).getData();
+			ThumbInfo info = thumbInfoOf(i);
 			if ((info == null) || (info.getAllThumbs().length == 0))
 				without.add(profilesList_.get(i));
 		}
@@ -4840,7 +4909,8 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		Integer saved = new CoverBatchDialog(shell_, without).open();
 		if ((saved != null) && (saved > 0)) {
 			for (int i: indices) {
-				ThumbInfo info = (ThumbInfo)profileTable_.getItem(i).getData();
+				ProfilesListItem item = profileTable_.peekItem(i);
+				ThumbInfo info = item == null ? null: (ThumbInfo)item.getData();
 				if (info != null)
 					info.resetCachedInfo();
 			}
@@ -5338,11 +5408,13 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		try {
 			boolean unknown = false;
 			for (int i = 0; (i < profilesList_.size()) && (i < profileTable_.getItemCount()); i++) {
+				ProfilesListItem item = profileTable_.peekItem(i); // alpha 50: null for a row that was not shown yet
 				if (markersOn()) {
-					setMarker(profileTable_.getItem(i), profilesList_.get(i));
+					if (item != null)
+						setMarker(item, profilesList_.get(i));
 					unknown |= org.dbgl.util.ProfileWarnings.known(profilesList_.get(i)) == null;
-				} else {
-					profileTable_.getItem(i).setWarning(false);
+				} else if (item != null) {
+					item.setWarning(false);
 				}
 			}
 			if (unknown)

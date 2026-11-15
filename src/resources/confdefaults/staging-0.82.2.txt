@@ -1,4 +1,4 @@
-# the defaults of DOSBox Staging 0.82.2, for "Take over settings" (a value that differs by system: both, split by " || ")
+# the defaults of DOSBox Staging 0.82.1 and 0.82.2, for "Take over settings" (a value that differs by system: both, split by " || ")
 sdl|output=opengl
 sdl|texture_renderer=auto
 sdl|display=0
@@ -17,7 +17,7 @@ sdl|waitonerror=true
 sdl|priority=auto auto
 sdl|mute_when_inactive=false
 sdl|pause_when_inactive=false
-sdl|mapperfile=mapper-sdl2-0.82.2.map
+sdl|mapperfile=mapper-sdl2-0.82.2.map || mapper-sdl2-0.82.1.map
 sdl|screensaver=auto
 dosbox|language=
 dosbox|machine=svga_s3

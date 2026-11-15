@@ -81,6 +81,9 @@ public class DosboxStatusWindow {
 	/** alpha 49: lines of DOSBox not yet shown, and whether showing them is under way (see {@link #append}) */
 	private final java.util.concurrent.ConcurrentLinkedQueue<String> pending_ = new java.util.concurrent.ConcurrentLinkedQueue<>();
 	private final java.util.concurrent.atomic.AtomicBoolean draining_ = new java.util.concurrent.atomic.AtomicBoolean();
+	private static final int SUMMARY_MILLIS = 100;
+	private boolean batch_, scrollDue_, summaryDue_, summaryTimer_; // only used by the thread of the window
+	private long summaryShownAt_;
 
 	/** the key by which consecutive lines count as the same: the line without "LOG:", every number replaced */
 	public static String similarityKey(String line) {
@@ -378,6 +381,10 @@ public class DosboxStatusWindow {
 	}
 
 	private void appendLine(String line, Color color) {
+		if (summaryDue_)
+			showSummary();
+		lastKey_ = null; // a line of DBGL in between: what DOSBox writes after it starts a count of its own
+		summaryStart_ = -1;
 		rawLog_.append(line).append(System.lineSeparator());
 		Shown s = new Shown(line, color, null, new int[1], true);
 		shown_.add(s);
@@ -413,6 +420,7 @@ public class DosboxStatusWindow {
 		linkRanges_.clear();
 		linkSettings_.clear();
 		summaryStart_ = -1;
+		summaryDue_ = false; // written below, with the number as it is now
 		for (int i = 0; i < shown_.size(); i++) {
 			Shown s = shown_.get(i);
 			if (!visible(s))
@@ -439,7 +447,10 @@ public class DosboxStatusWindow {
 			range.foreground = color;
 			text_.setStyleRange(range);
 		}
-		text_.setTopIndex(text_.getLineCount() - 1);
+		if (batch_)
+			scrollDue_ = true; // once, at the end of the lines that came together
+		else
+			text_.setTopIndex(text_.getLineCount() - 1);
 	}
 
 	private void copyToClipboard() {
@@ -495,11 +506,57 @@ public class DosboxStatusWindow {
 		if (line == null)
 			return;
 		text_.setRedraw(false);
+		batch_ = true;
 		try {
 			for (; line != null; line = pending_.poll())
 				addOutputLine(line);
+			// alpha 50: the counter of similar lines is written at most ten times a second, not once for each line. Lines that
+			// come one after the other, each as a round of its own, froze the window in alpha 49 all the same
+			if (summaryDue_) {
+				if (System.currentTimeMillis() - summaryShownAt_ >= SUMMARY_MILLIS) {
+					showSummary();
+				} else if (!summaryTimer_) {
+					summaryTimer_ = true;
+					display_.timerExec(SUMMARY_MILLIS, () -> {
+						summaryTimer_ = false;
+						if (!isGone() && summaryDue_) {
+							showSummary();
+							text_.setTopIndex(text_.getLineCount() - 1);
+						}
+					});
+				}
+			}
 		} finally {
+			batch_ = false;
+			if (scrollDue_)
+				text_.setTopIndex(text_.getLineCount() - 1);
+			scrollDue_ = false;
 			text_.setRedraw(true);
+		}
+	}
+
+	/** the line "... more similar lines" below the last line of DOSBox, with the number as it is now */
+	private void showSummary() {
+		summaryDue_ = false;
+		summaryShownAt_ = System.currentTimeMillis();
+		Shown last = shown_.isEmpty() ? null: shown_.get(shown_.size() - 1);
+		if ((repeatCount_ <= 0) || ((last != null) && !visible(last)))
+			return;
+		String summary = "    " + TextService.getInstance().get("dialog.statuswindow.repeated", new Object[] {repeatCount_});
+		if (summaryStart_ == -1) {
+			summaryStart_ = text_.getCharCount();
+			appendVisibleLine(summary, harmlessColor_);
+		} else {
+			text_.replaceTextRange(summaryStart_, text_.getCharCount() - summaryStart_, summary + text_.getLineDelimiter());
+			StyleRange range = new StyleRange();
+			range.start = summaryStart_;
+			range.length = summary.length();
+			range.foreground = harmlessColor_;
+			text_.setStyleRange(range);
+			if (batch_)
+				scrollDue_ = true;
+			else
+				text_.setTopIndex(text_.getLineCount() - 1);
 		}
 	}
 
@@ -512,23 +569,11 @@ public class DosboxStatusWindow {
 			Shown last = shown_.isEmpty() ? null: shown_.get(shown_.size() - 1);
 			if (last != null)
 				last.repeats()[0] = repeatCount_;
-			if ((last != null) && !visible(last))
-				return;
-			String summary = "    " + TextService.getInstance().get("dialog.statuswindow.repeated", new Object[] {repeatCount_});
-			if (summaryStart_ == -1) {
-				summaryStart_ = text_.getCharCount();
-				appendVisibleLine(summary, harmlessColor_);
-			} else {
-				text_.replaceTextRange(summaryStart_, text_.getCharCount() - summaryStart_, summary + text_.getLineDelimiter());
-				StyleRange range = new StyleRange();
-				range.start = summaryStart_;
-				range.length = summary.length();
-				range.foreground = harmlessColor_;
-				text_.setStyleRange(range);
-				text_.setTopIndex(text_.getLineCount() - 1);
-			}
+			summaryDue_ = true;
 			return;
 		}
+		if (summaryDue_)
+			showSummary(); // the number of the lines before, ahead of this other line
 		lastKey_ = key;
 		repeatCount_ = 0;
 		summaryStart_ = -1;

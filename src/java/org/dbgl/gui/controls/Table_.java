@@ -48,6 +48,12 @@ public class Table_ {
 			return this;
 		}
 
+		/** alpha 50: the rows are filled when they come into view (SWT.SetData) */
+		public Builder virtual() {
+			style_ |= SWT.VIRTUAL;
+			return this;
+		}
+
 		public Builder check() {
 			style_ |= SWT.CHECK;
 			return this;

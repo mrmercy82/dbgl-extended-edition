@@ -19,6 +19,7 @@
 package org.dbgl.model.conf;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -81,9 +82,52 @@ public class ConfValueOptions {
 
 	public static ConfValueOptions parse(String confData) {
 		ConfValueOptions result = new ConfValueOptions();
-		if (confData != null)
-			result.doParse(confData.split("\\R"));
+		if (confData != null) {
+			String[] lines = confData.split("\\R");
+			result.doParse(lines);
+			result.useShippedValues(lines);
+		}
 		return result;
+	}
+
+	/**
+	 * Alpha 50: a configuration file of DOSBox Staging in another language than English. The translations word and lay out
+	 * the lists of values each in their own way, and some translate a value ("Port" for "port" in the German one), so
+	 * reading them missed settings or found values that are none. For such a file the values come from a list that comes
+	 * with DBGL, made from the English file of the same version (the file names its version in its first line in every
+	 * language). The descriptions stay those of the file. An English file is read as before, and so is a file of a
+	 * version DBGL has no list for.
+	 */
+	private void useShippedValues(String[] lines) {
+		String list = null;
+		for (int i = 0; (i < Math.min(5, lines.length)) && (list == null); i++) {
+			if (lines[i].trim().startsWith("# This is the configuration file for"))
+				return; // English
+			list = org.dbgl.util.ConfTakeover.listFor(lines[i]);
+		}
+		// DOSBox-X too: its translations word "Possible values:" in their language ("Moegliche Werte:")
+		if ((list == null) || !(list.startsWith("staging-") || list.equals("dosbox-x")))
+			return;
+		try (java.io.InputStream in = ConfValueOptions.class.getResourceAsStream("/confvalues/" + list + ".txt")) {
+			if (in == null)
+				return;
+			Map<String, Map<String, Options>> shipped = new HashMap<>();
+			for (String line: new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8).split("\\R")) {
+				int bar = line.indexOf('|'), eq = line.indexOf('=');
+				if (line.startsWith("#") || (bar <= 0) || (eq <= bar))
+					continue;
+				List<String> values = new ArrayList<>(Arrays.asList(StringUtils.split(line.substring(eq + 1), ',')));
+				boolean freeForm = values.remove("*");
+				if (!values.isEmpty())
+					shipped.computeIfAbsent(line.substring(0, bar), k -> new HashMap<>()).put(line.substring(bar + 1, eq), new Options(values, freeForm));
+			}
+			if (!shipped.isEmpty()) {
+				options_.clear();
+				options_.putAll(shipped);
+			}
+		} catch (java.io.IOException e) {
+			// no list then: what was read from the file stays
+		}
 	}
 
 	/** @return the documented values, or null if DOSBox doesn't document them for this setting */

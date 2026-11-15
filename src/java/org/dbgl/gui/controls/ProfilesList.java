@@ -66,6 +66,7 @@ public class ProfilesList {
 			if (list.type_ == ProfilesListType.TABLE) {
 				gItem_ = null;
 				tItem_ = new TableItem(list.table_, SWT.BORDER);
+				list.filled_.set(list.table_.getItemCount() - 1); // alpha 50: a row added by hand is filled by who adds it
 			} else {
 				gItem_ = new GalleryItem(list.group_, SWT.NONE);
 				tItem_ = null;
@@ -156,6 +157,9 @@ public class ProfilesList {
 	private final Image topdog_, warning_, warningLarge_, error_, errorLarge_, hint_, hintLarge_;
 
 	private int lastSearchEventTime_;
+	private java.util.function.BiConsumer<ProfilesListItem, Integer> filler_;
+	private java.util.function.IntFunction<String> label_;
+	private final java.util.BitSet filled_ = new java.util.BitSet(); // the rows of the table (their places) that have their texts
 
 	private static final Listener paintListener = new PaintListener();
 	private static final Listener measureListener = new MeasureListener();
@@ -182,7 +186,35 @@ public class ProfilesList {
 		hintLarge_ = ImageService.getResourceImage(composite.getShell().getDisplay(), ImageService.IMG_HINT_LARGE);
 
 		if (type == ProfilesListType.TABLE) {
-			table_ = Table_.on(composite).header().multi().build();
+			// alpha 50: a virtual table. A row gets its texts when it comes into view, so a list of thousands of profiles is
+			// there at once; before, every row was filled each time the list was built
+			table_ = Table_.on(composite).header().multi().virtual().build();
+			table_.addListener(SWT.SetData, e -> {
+				TableItem item = (TableItem)e.item;
+				int index = table_.indexOf(item);
+				// the table asks when the row has no texts, also for a row that had them before the table was emptied
+				if ((filler_ != null) && (index >= 0)) {
+					filled_.set(index);
+					filler_.accept(new ProfilesListItem(item), index);
+				}
+			});
+			// a virtual table does not search by itself when letters are typed in it (Windows), so it is done here, as Windows
+			// does it: the typed beginning of the first column, the same letter again goes on to the next row with it
+			StringBuilder typed = new StringBuilder(8);
+			table_.addListener(SWT.KeyDown, e -> {
+				if ((label_ == null) || ((e.stateMask & (SWT.CTRL | SWT.ALT | SWT.COMMAND)) != 0) || !Character.isLetterOrDigit(e.character))
+					return;
+				e.doit = false;
+				if ((e.time - lastSearchEventTime_) > 750)
+					typed.setLength(0);
+				lastSearchEventTime_ = e.time;
+				int found = typeAhead(typed, e.character, table_.getSelectionIndex(), table_.getItemCount(), label_);
+				if (found >= 0) {
+					table_.setSelection(found);
+					table_.showSelection();
+					table_.notifyListeners(SWT.Selection, new org.eclipse.swt.widgets.Event());
+				}
+			});
 			for (int i = 0; i < columnIds.length; i++)
 				addProfileColumn(reOrderable, columnIds, columnNames[columnIds[i]], i);
 
@@ -285,6 +317,70 @@ public class ProfilesList {
 				}
 			});
 		}
+	}
+
+	/**
+	 * The row to go to for a letter typed in the list, or -1. One letter (or the same letter again): the next row after the
+	 * selected one that begins with it, going round. More letters: the first row from the selected one on that begins with
+	 * them; a letter nothing begins with is dropped again.
+	 */
+	public static int typeAhead(StringBuilder typed, char ch, int selected, int count, java.util.function.IntFunction<String> label) {
+		typed.append(Character.toLowerCase(ch));
+		boolean same = typed.chars().allMatch(x -> x == typed.charAt(0));
+		String term = same ? typed.substring(0, 1): typed.toString();
+		int from = same ? selected + 1: Math.max(selected, 0);
+		for (int n = 0; n < count; n++) {
+			int i = Math.floorMod(from + n, count);
+			if (Strings.CI.startsWith(StringUtils.defaultString(label.apply(i)), term))
+				return i;
+		}
+		if (!same)
+			typed.deleteCharAt(typed.length() - 1);
+		return -1;
+	}
+
+	/**
+	 * Alpha 50, the list as a table: how a row gets its texts (called when it comes into view or is asked for), and the text
+	 * of the first column of a row for the search by typing.
+	 */
+	public void setSource(java.util.function.BiConsumer<ProfilesListItem, Integer> filler, java.util.function.IntFunction<String> label) {
+		filler_ = filler;
+		label_ = label;
+	}
+
+	/** the list as a table: this many rows, empty for now; false for tiles and boxes, which are filled row by row */
+	public boolean showRows(int count) {
+		if ((type_ != ProfilesListType.TABLE) || (filler_ == null))
+			return false;
+		table_.setItemCount(count);
+		table_.deselectAll();
+		table_.clearAll();
+		filled_.clear(); // no row has its texts any more (after the table was emptied: it may ask for a row while it changes)
+		if (count > 0)
+			table_.setTopIndex(0); // as a list built anew: from its beginning, until a selection or the caller says otherwise
+		return true;
+	}
+
+	/** the rows of the table that have their texts, in the order of the list */
+	private TableItem[] filledItems() {
+		return filled_.stream().filter(i -> i < table_.getItemCount()).mapToObj(table_::getItem).toArray(TableItem[]::new);
+	}
+
+	/** the row if it has its texts already, else null: for what only matters for rows that were shown (a warning sign) */
+	public ProfilesListItem peekItem(int index) {
+		if (type_ != ProfilesListType.TABLE)
+			return new ProfilesListItem(group_.getItem(index));
+		// asked by its place, without touching the row: a row the table has not made yet stays unmade
+		return (filler_ != null) && !filled_.get(index) ? null: new ProfilesListItem(table_.getItem(index));
+	}
+
+	public int getTopIndex() {
+		return type_ == ProfilesListType.TABLE ? table_.getTopIndex(): -1;
+	}
+
+	public void setTopIndex(int index) {
+		if ((type_ == ProfilesListType.TABLE) && (index >= 0) && (index < table_.getItemCount()))
+			table_.setTopIndex(index);
 	}
 
 	private static int findColumnById(int[] columnIds, int id) {
@@ -498,20 +594,32 @@ public class ProfilesList {
 	}
 
 	public ProfilesListItem getItem(int index) {
-		return type_ == ProfilesListType.TABLE ? new ProfilesListItem(table_.getItem(index)): new ProfilesListItem(group_.getItem(index));
+		if (type_ != ProfilesListType.TABLE)
+			return new ProfilesListItem(group_.getItem(index));
+		TableItem item = table_.getItem(index);
+		ProfilesListItem result = new ProfilesListItem(item);
+		if ((filler_ != null) && !filled_.get(index)) {
+			filled_.set(index);
+			filler_.accept(result, index); // alpha 50: a row not shown yet is filled when it is asked for
+		}
+		return result;
 	}
 
 	public void removeAll() {
-		if (type_ == ProfilesListType.TABLE)
+		if (type_ == ProfilesListType.TABLE) {
 			table_.removeAll();
-		else
+			filled_.clear();
+		} else
 			Stream.of(group_.getItems()).forEach(group_::remove);
 	}
 
 	public void remove(int index) {
-		if (type_ == ProfilesListType.TABLE)
+		if (type_ == ProfilesListType.TABLE) {
 			table_.remove(index);
-		else
+			// the rows below move up by one, and what is known of them with them
+			for (int i = index; i <= filled_.length(); i++)
+				filled_.set(i, filled_.get(i + 1));
+		} else
 			group_.remove(index);
 	}
 
@@ -523,7 +631,8 @@ public class ProfilesList {
 	}
 
 	public ProfilesListItem[] getItems() {
-		return type_ == ProfilesListType.TABLE ? Stream.of(table_.getItems()).map(ProfilesListItem::new).toArray(ProfilesListItem[]::new)
+		// alpha 50: of a table the rows that have their texts; the others are filled anew when they come into view
+		return type_ == ProfilesListType.TABLE ? Stream.of(filler_ == null ? table_.getItems(): filledItems()).map(ProfilesListItem::new).toArray(ProfilesListItem[]::new)
 				: Stream.of(group_.getItems()).map(ProfilesListItem::new).toArray(ProfilesListItem[]::new);
 	}
 

@@ -28,7 +28,9 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.apache.commons.lang3.StringUtils;
 import org.dbgl.model.NativeCommand;
 import org.dbgl.model.aggregate.DosboxVersion;
@@ -66,6 +68,7 @@ public class ProfileRepository extends LoggingRepository<Profile> {
 			+ "AND GAM.CUST1_ID=CUST1.ID AND GAM.CUST2_ID=CUST2.ID AND GAM.CUST3_ID=CUST3.ID AND GAM.CUST4_ID=CUST4.ID";
 	private static final String READ_BY_ID_QRY = READ_QRY + " AND GAM.ID = ?";
 	private static final String READ_INVALID_PROFILES_QRY = READ_QRY + " AND (GAM.CONFFILE IS NULL OR GAM.CAPTURES IS NULL)";
+	private static final String READ_ALL_NTVCMD_QRY = "SELECT GAME_ID, COMMAND, PARAMETERS, CWD, WAITFOR, ORDERNR FROM NATIVECOMMANDS WHERE GAME_ID IS NOT NULL AND TEMPLATE_ID IS NULL ORDER BY GAME_ID, ORDERNR";
 	private static final String READ_NTVCMD_QRY = "SELECT COMMAND, PARAMETERS, CWD, WAITFOR, ORDERNR FROM NATIVECOMMANDS WHERE GAME_ID = ? AND TEMPLATE_ID IS NULL ORDER BY ORDERNR";
 	private static final String UPD_QRY = "UPDATE GAMES SET TITLE = ?, FAVORITE = ?, DEV_ID = ?, PUBL_ID = ?, GENRE_ID = ?, YEAR_ID = ?, "
 			+ "STAT_ID = ?, NOTES = ?, CUST1_ID = ?, CUST2_ID = ?, CUST3_ID = ?, CUST4_ID = ?, "
@@ -209,9 +212,12 @@ public class ProfileRepository extends LoggingRepository<Profile> {
 			qry.append(" AND (").append(filterClause).append(")");
 		qry.append(orderingClause);
 		try (Connection con = dbService_.getConnection(); Statement stmt = con.createStatement(); ResultSet rs = stmt.executeQuery(qry.toString())) {
+			// alpha 50: the native commands of all profiles with one query. Before, each profile asked for its own: with
+			// thousands of profiles that was most of the time the list took
+			Map<Integer, List<NativeCommand>> nativeCommands = allNativeCommands(con);
 			List<Profile> profilesList = new ArrayList<>();
 			while (rs.next())
-				profilesList.add(toProfile(con, rs, dosboxVersions));
+				profilesList.add(toProfile(con, rs, dosboxVersions, nativeCommands));
 			readSeries(con, profilesList);
 			return profilesList;
 		} catch (SQLException e) {
@@ -221,13 +227,38 @@ public class ProfileRepository extends LoggingRepository<Profile> {
 	}
 
 	private static Profile toProfile(Connection con, ResultSet rs, List<DosboxVersion> dosboxVersions) throws SQLException {
+		return toProfile(con, rs, dosboxVersions, null);
+	}
+
+	/** the native commands of all profiles, per profile in their order; each list is a profile's own */
+	private static Map<Integer, List<NativeCommand>> allNativeCommands(Connection con) throws SQLException {
+		Map<Integer, List<NativeCommand>> result = new HashMap<>();
+		try (Statement stmt = con.createStatement(); ResultSet rs = stmt.executeQuery(READ_ALL_NTVCMD_QRY)) {
+			while (rs.next())
+				result.computeIfAbsent(rs.getInt(1), k -> new ArrayList<>()).add(new NativeCommand(rs.getString(2), rs.getString(3), rs.getString(4), rs.getBoolean(5), rs.getInt(6)));
+		} catch (SQLException e) {
+			e.printStackTrace();
+			throw new SQLException(TextService.getInstance().get("database.error.query", new Object[] {"read profile native commands"}));
+		}
+		return result;
+	}
+
+	private static List<NativeCommand> nativeCommandsOf(Connection con, int profileId, Map<Integer, List<NativeCommand>> all) throws SQLException {
+		if (all == null)
+			return listNativeCommands(con, profileId);
+		List<NativeCommand> nativeCommands = all.getOrDefault(profileId, new ArrayList<>());
+		NativeCommand.insertDosboxCommand(nativeCommands);
+		return nativeCommands;
+	}
+
+	private static Profile toProfile(Connection con, ResultSet rs, List<DosboxVersion> dosboxVersions, Map<Integer, List<NativeCommand>> nativeCommands) throws SQLException {
 		return ProfileFactory.create(rs.getInt(1), rs.getString(2), rs.getBoolean(3), rs.getString(4), rs.getString(5), rs.getString(6), rs.getString(7), rs.getString(8), rs.getString(9),
 			new String[] {rs.getString(10), rs.getString(11), rs.getString(12), rs.getString(13), rs.getString(14), rs.getString(15), rs.getString(16), rs.getString(17), rs.getString(18),
 					rs.getString(19), rs.getString(20), rs.getString(21)},
 			new int[] {rs.getInt(22), rs.getInt(23)},
 			new String[] {rs.getString(24), rs.getString(25), rs.getString(26), rs.getString(27), rs.getString(28), rs.getString(29), rs.getString(30), rs.getString(31), rs.getString(32),
 					rs.getString(33), rs.getString(34), rs.getString(35), rs.getString(36), rs.getString(37), rs.getString(38), rs.getString(39)},
-			rs.getString(40), rs.getString(41), rs.getString(42), rs.getString(43), rs.getString(44), rs.getString(45), rs.getString(46), listNativeCommands(con, rs.getInt(1)), rs.getInt(47),
+			rs.getString(40), rs.getString(41), rs.getString(42), rs.getString(43), rs.getString(44), rs.getString(45), rs.getString(46), nativeCommandsOf(con, rs.getInt(1), nativeCommands), rs.getInt(47),
 			rs.getString(48), rs.getTimestamp(49), rs.getTimestamp(50), rs.getTimestamp(51), rs.getTimestamp(52), rs.getInt(53), rs.getInt(54), rs.getInt(55), dosboxVersions);
 	}
 

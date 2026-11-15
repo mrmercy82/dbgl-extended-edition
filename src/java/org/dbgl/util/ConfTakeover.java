@@ -84,7 +84,22 @@ public final class ConfTakeover {
 
 	private static final String AUTOEXEC = "autoexec";
 	private static final Pattern EN_DEFAULT = Pattern.compile("\\(('?)([^()']*?)\\1 by default\\)");
-	private static final Pattern STAGING_VERSION = Pattern.compile("(?i)dosbox[- ]staging \\((\\d+\\.\\d+\\.\\d+)");
+	// the version in brackets, in the Polish file up to 0.82.0 without them ("DOSBox Staging 0.81.0 - plik konfiguracyjny")
+	private static final Pattern STAGING_VERSION = Pattern.compile("(?i)dosbox[- ]staging \\(?(\\d+\\.\\d+\\.\\d+)");
+
+	/**
+	 * Alpha 50: values of DOSBox 0.74 that DOSBox Staging has under another name ("section\nsetting=value" in lower case).
+	 * This is what DOSBox Staging 0.83.1 does itself with these values, as its log says when it reads them ("Deprecated
+	 * 'cputype' setting: 'pentium_slow'; using 'pentium'"); "joysticktype = none" and "pcspeaker = false" it takes without
+	 * a word and switches the device off, which the new file calls "disabled" and "off". Values it calls invalid and
+	 * answers with its default ("output = ddraw", "output = overlay", "mididevice = default") are not here: they stay as
+	 * they are and are shown as not among the values of the new file. "cputype = 386" it takes as its own "386".
+	 */
+	private static final Map<String, String> CLASSIC_TO_STAGING = Map.ofEntries(Map.entry(key("cpu", "cputype") + "=386_slow", "386"), Map.entry(key("cpu", "cputype") + "=486_slow", "486"),
+		Map.entry(key("cpu", "cputype") + "=pentium_slow", "pentium"), Map.entry(key("midi", "mididevice") + "=win32", "port"), Map.entry(key("midi", "mididevice") + "=alsa", "port"),
+		Map.entry(key("midi", "mididevice") + "=oss", "port"), Map.entry(key("midi", "mididevice") + "=coremidi", "port"), Map.entry(key("joystick", "joysticktype") + "=none", "disabled"),
+		Map.entry(key("sdl", "output") + "=surface", "opengl"), Map.entry(key("sdl", "output") + "=openglnb", "opengl"), Map.entry(key("dosbox", "machine") + "=vgaonly", "svga_paradise"),
+		Map.entry(key("speaker", "pcspeaker") + "=false", "off"));
 
 	private ConfTakeover() {
 	}
@@ -146,7 +161,7 @@ public final class ConfTakeover {
 		return lines.stream().map(String::trim).filter(l -> !l.isEmpty() && !l.startsWith("#")).toList();
 	}
 
-	private static final Pattern CLASSIC_VERSION = Pattern.compile("(?i)file for DOSBox (0\\.74(?:-\\d)?)\\b");
+	private static final Pattern CLASSIC_VERSION = Pattern.compile("(?i)file for DOSBox (0\\.7[1-4](?:-\\d)?)\\b"); // "configurationfile" up to 0.74
 
 	/**
 	 * The defaults of the version that wrote the file. From a list that comes with DBGL, for DOSBox 0.74 to 0.74-3, DOSBox
@@ -162,8 +177,7 @@ public final class ConfTakeover {
 		Map<String, String> result = new LinkedHashMap<>();
 		String[] all = lines(text);
 		for (int i = 0; (i < Math.min(5, all.length)) && result.isEmpty(); i++)
-			if (all[i].trim().startsWith("#"))
-				result.putAll(shipped(listFor(all[i])));
+			result.putAll(shipped(listFor(all[i]))); // also a line without "#": the Russian file of DOSBox-X has none there
 		// only DOSBox Staging writes a comment of its own above each setting; the others have all of them at the top of the
 		// section, where "by default" belongs to some other setting
 		if (Arrays.stream(all).limit(5).noneMatch(l -> STAGING_VERSION.matcher(l).find()))
@@ -200,13 +214,19 @@ public final class ConfTakeover {
 		Matcher staging = STAGING_VERSION.matcher(line);
 		if (staging.find()) {
 			String version = staging.group(1);
-			// the three releases of 0.82 have the same settings
-			return "staging-" + (version.startsWith("0.82.") ? "0.82.2": version);
+			// alpha 50: 0.82.1 and 0.82.2 have the same defaults, 0.82.0 has three others; 0.81.1 and 0.81.2 the same
+			return "staging-" + (version.equals("0.82.1") ? "0.82.2": version.equals("0.81.1") ? "0.81.2": version);
 		}
-		if (CLASSIC_VERSION.matcher(line).find())
-			return "dosbox-0.74-3";
+		Matcher classic = CLASSIC_VERSION.matcher(line);
+		if (classic.find()) {
+			// alpha 50: DOSBox 0.71 to 0.73 too, whose defaults differ (sound at 22050 Hz, "machine = vga", other names in
+			// [midi] and [gus]). Older versions do not name themselves in their file
+			String version = classic.group(1);
+			return version.startsWith("0.74") ? "dosbox-0.74-3": version.equals("0.73") ? "dosbox-0.73": "dosbox-0.72";
+		}
 		// DOSBox-X comes out every month: one list for all of its versions (its defaults change seldom)
-		if (line.matches("(?i).*file for DOSBox-X\\b.*"))
+		// alpha 50: in every language ("Konfig-Datei fuer DOSBox-X 2026.10.01"): its version follows its name
+		if (line.matches("(?i).*file for DOSBox-X\\b.*") || line.matches(".*\\bDOSBox-X \\d{4}\\.\\d\\d\\.\\d\\d.*"))
 			return "dosbox-x";
 		if (line.matches("(?i).*file for DOSBox ECE\\b.*"))
 			return "dosbox-ece";
@@ -290,6 +310,7 @@ public final class ConfTakeover {
 		// a file that says "on" and "off" all over and nowhere "true" or "false" (DOSBox Staging 0.83)
 		boolean writesOnOff = newSettings.values().stream().anyMatch(v -> v[2].equalsIgnoreCase("on") || v[2].equalsIgnoreCase("off"))
 				&& newSettings.values().stream().noneMatch(v -> v[2].equalsIgnoreCase("true") || v[2].equalsIgnoreCase("false"));
+		boolean classicSource = List.of("dosbox", "dosbox-ece", "dosbox-svn", "dosbox-daum").contains(kind(oldText));
 		List<Row> result = new ArrayList<>();
 		for (Map.Entry<String, String[]> entry: oldSettings.entrySet()) {
 			String section = entry.getValue()[0], item = entry.getValue()[1];
@@ -317,6 +338,10 @@ public final class ConfTakeover {
 					next = new String[] {"manual", "cpu", "cpu_cycles", value.equalsIgnoreCase("max") ? "max": fixed.matches() ? fixed.group(1): null};
 				} else if ((next == null) && stagingTarget && section.equalsIgnoreCase("sdl") && item.equalsIgnoreCase("windowresolution")) {
 					next = new String[] {"manual", "sdl", "window_size", value.matches("\\d+x\\d+") ? value: null};
+				} else if ((next == null) && stagingTarget && section.equalsIgnoreCase("sdl") && item.equalsIgnoreCase("autolock")) {
+					// alpha 50: "autolock = false" (the mouse is not caught by a click) has no twin among the values of
+					// mouse_capture: shown with the setting that takes its place, to be set by hand
+					next = new String[] {"manual", "mouse", "mouse_capture", null};
 				}
 				String kind = next == null ? "": next[0];
 				String converted = next == null ? null: next[3];
@@ -359,6 +384,18 @@ public final class ConfTakeover {
 				value = code == null ? value: code;
 			} else if (!stagingTarget && otherKind && target[0].equalsIgnoreCase("dosbox") && target[1].equalsIgnoreCase("language") && !value.isEmpty()) {
 				languageFile = true; // each kind of DOSBox has its own files of translations ("de" is none of DOSBox-X)
+			}
+			// alpha 50: values of DOSBox 0.74 (and ECE, SVN, SVN-Daum) that DOSBox Staging has under another name
+			if (stagingTarget && classicSource && (from == null) && !wasDefault) {
+				String renamed = CLASSIC_TO_STAGING.get(key(target[0], target[1]) + "=" + value.toLowerCase(Locale.ROOT));
+				// only where the new file has the new name and not the old one: DOSBox Staging 0.81 still has "pentium_slow",
+				// 0.82 still "win32"
+				final String had = value;
+				if ((renamed != null) && (known != null) && known.getValues().stream().anyMatch(v -> v.equalsIgnoreCase(renamed))
+						&& known.getValues().stream().noneMatch(v -> v.equalsIgnoreCase(had))) {
+					from = value;
+					value = renamed;
+				}
 			}
 			final String wanted = value;
 			if (same(value, target[2]))
