@@ -160,10 +160,28 @@ public final class BackupManager {
 		}
 		table.addListener(SWT.PaintItem, e -> {
 			if ((e.index == 0) && Boolean.TRUE.equals(e.item.getData()) && (lockImage != null)) {
-				Rectangle cell = ((TableItem)e.item).getBounds(0), img = lockImage.getBounds();
-				e.gc.drawImage(lockImage, cell.x + (table.getColumn(0).getWidth() - img.width) / 2 - (cell.x - ((TableItem)e.item).getBounds(0).x), cell.y + (cell.height - img.height) / 2);
+				TableItem item = (TableItem)e.item;
+				Rectangle cell = item.getBounds(0), img = lockImage.getBounds();
+				// alpha 50: where the column is, taken from the column beside it. Windows gives for the first column of a row
+				// a place that does not move with the list when it is scrolled sideways: the padlocks stayed where they were
+				// while their heading moved on.
+				int[] order = table.getColumnOrder();
+				int at = 0;
+				while ((at < order.length) && (order[at] != 0))
+					at++;
+				int width = table.getColumn(0).getWidth(), left = cell.x;
+				if (at + 1 < order.length)
+					left = item.getBounds(order[at + 1]).x - width;
+				else if (at > 0) {
+					Rectangle before = item.getBounds(order[at - 1]);
+					left = before.x + before.width;
+				}
+				e.gc.drawImage(lockImage, left + (width - img.width) / 2, cell.y + (cell.height - img.height) / 2);
 			}
 		});
+		// drawn again when the list is moved sideways (the padlocks are drawn by DBGL)
+		if (table.getHorizontalBar() != null)
+			table.getHorizontalBar().addListener(SWT.Selection, e -> table.redraw());
 		table.setColumnOrder(stored(ints(settings, "backupscolumnorder"), new int[] {0, 1, 2, 3, 4, 5, 6}, true));
 		dlg.addListener(SWT.Close, e -> {
 			int[] now = new int[heads.length];
