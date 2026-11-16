@@ -710,6 +710,23 @@ public final class GameHints {
 			if (!(lure && pr.key().equals("gamewantsmt32")))
 				result.add(pr);
 		result.addAll(advice(prof.getTitle(), main, prof.getConfiguration(), conf));
+		Problem setup = setupAdvice(prof.getTitle(), conf);
+		if (setup != null)
+			result.add(setup);
 		return result;
+	}
+
+	private static final Pattern DUNGEON_MASTER_2 = Pattern.compile("^dungeon master (ii|2)( .*)?$");
+
+	/**
+	 * What to choose in the setup of the game itself (DBGL cannot do that; the hint can be hidden once it is done). Dungeon
+	 * Master II: its setup finds a Sound Blaster 16 by itself and then plays music but no sound effects; with "Sound Blaster
+	 * Pro" chosen by hand the effects are there (found by a user of DBGL with DOSBox emulating a Sound Blaster 16, IRQ 7).
+	 */
+	public static Problem setupAdvice(String title, Configuration conf) {
+		String type = value(conf, "sblaster", "sbtype");
+		if (DUNGEON_MASTER_2.matcher(titleKey(title)).matches() && (type != null) && type.startsWith("sb16"))
+			return new Problem("dm2sbpro", title, "[sblaster] sbtype = " + type);
+		return null;
 	}
 }

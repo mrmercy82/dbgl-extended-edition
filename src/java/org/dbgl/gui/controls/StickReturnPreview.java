@@ -18,8 +18,11 @@
  */
 package org.dbgl.gui.controls;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import org.dbgl.gui.abstractdialog.BaseDialog;
 import org.dbgl.service.ITextService;
 import org.dbgl.service.TextService;
@@ -59,42 +62,103 @@ public final class StickReturnPreview {
 		HEADING, EMPTY, STAT, NEW, CHANGED, CONFLICT, GONE
 	}
 
-	/** a line of the list; what: the StatChange or FileAction it stands for, null for the others */
-	public record Row(Kind kind, String text, Object what) {
+	/** a line of the list; what: the StatChange or FileAction it stands for, null for the others; size: of the file, -1 for none */
+	public record Row(Kind kind, String text, Object what, long size) {
 	}
 
-	/** the lines: per group a heading, its lines, and an empty line before the next group */
-	public static List<Row> rows(Plan plan, ITextService text) {
+	/**
+	 * the game a file belongs to: the nearest folder of a game above it; else a folder above it that holds the folder of one
+	 * game only (saved games beside the folder of the program), not further up than the folders in stops
+	 *
+	 * @param folders folder of a game here (of its program, of its screenshots) -> its title
+	 * @return the title, null if that cannot be told
+	 */
+	public static String gameOf(File file, Map<File, String> folders, File... stops) {
+		for (File d = file.getParentFile(); d != null; d = d.getParentFile()) {
+			String title = folders.get(d);
+			if (title != null)
+				return title;
+		}
+		List<File> stop = java.util.Arrays.asList(stops);
+		for (File d = file.getParentFile(); (d != null) && !stop.contains(d) && (d.getParentFile() != null); d = d.getParentFile()) {
+			java.util.Set<String> titles = new java.util.TreeSet<>();
+			java.nio.file.Path above = d.toPath();
+			folders.forEach((f, title) -> {
+				if (f.toPath().startsWith(above))
+					titles.add(title);
+			});
+			if (titles.size() == 1)
+				return titles.iterator().next();
+			if (titles.size() > 1)
+				return null;
+		}
+		return null;
+	}
+
+	/** the path as shown: from the folder of the data or the DOSroot on if it lies in one of them, else whole */
+	public static String shown(File file, File dataDir, File dosroot) {
+		for (File base: new File[] {dataDir, dosroot}) {
+			if ((base != null) && file.toPath().startsWith(base.toPath()) && !file.equals(base))
+				return (base == dataDir ? "": base.getName() + File.separator) + base.toPath().relativize(file.toPath());
+		}
+		return file.getPath();
+	}
+
+	private static File canonical(File file) {
+		try {
+			return file.getCanonicalFile();
+		} catch (java.io.IOException e) {
+			return file.getAbsoluteFile();
+		}
+	}
+
+	/**
+	 * the lines: a group per game (its title, then what was played, the new files, the changed ones, those that are not
+	 * touched), then the files that belong to no game that could be told, then the profiles that are gone here; an empty line
+	 * before each next group
+	 *
+	 * @param folders folder of a game here -> its title (see gameOf)
+	 */
+	public static List<Row> rows(Plan plan, ITextService text, Map<File, String> folders, File dataDir, File dosroot) {
+		File data = dataDir == null ? null: canonical(dataDir), root = dosroot == null ? null: canonical(dosroot);
+		Map<File, String> known = new java.util.HashMap<>();
+		folders.forEach((f, title) -> known.merge(canonical(f), title, (x, y) -> x.equals(y) ? x: x + " / " + y));
+		File[] stops = java.util.stream.Stream.of(data, root).filter(java.util.Objects::nonNull).toArray(File[]::new);
+		Map<String, List<Row>> games = new java.util.TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+		List<Row> other = new ArrayList<>();
+		for (StatChange s: plan.stats())
+			games.computeIfAbsent(s.title(), k -> new ArrayList<>()).add(new Row(Kind.STAT,
+					text.get("dialog.stickreturn.stat", new Object[] {s.title(), String.valueOf(s.runs()), String.format("%d:%02d", s.seconds() / 3600, (s.seconds() % 3600) / 60)}), s, -1));
+		for (FileAction f: plan.files()) {
+			File to = canonical(f.to());
+			String game = gameOf(to, known, stops);
+			(game == null ? other: games.computeIfAbsent(game, k -> new ArrayList<>())).add(new Row(f.replaces() ? Kind.CHANGED: Kind.NEW, (f.replaces() ? "> ": "+ ") + shown(to, data, root), f, f.from().length()));
+		}
+		for (File f: plan.conflicts()) {
+			File to = canonical(f);
+			String game = gameOf(to, known, stops);
+			(game == null ? other: games.computeIfAbsent(game, k -> new ArrayList<>())).add(new Row(Kind.CONFLICT, "! " + shown(to, data, root), null, -1));
+		}
 		List<Row> rows = new ArrayList<>();
-		if (!plan.stats().isEmpty()) {
-			rows.add(new Row(Kind.HEADING, text.get("dialog.stickreturn.stats") + ": " + plan.stats().size(), null));
-			for (StatChange s: plan.stats())
-				rows.add(new Row(Kind.STAT, text.get("dialog.stickreturn.stat", new Object[] {s.title(), String.valueOf(s.runs()), String.format("%d:%02d", s.seconds() / 3600, (s.seconds() % 3600) / 60)}), s));
-		}
-		List<FileAction> fresh = plan.files().stream().filter(f -> !f.replaces()).toList(), changed = plan.files().stream().filter(FileAction::replaces).toList();
-		if (!fresh.isEmpty()) {
-			group(rows, text.get("dialog.stickreturn.new") + ": " + fresh.size());
-			fresh.forEach(f -> rows.add(new Row(Kind.NEW, "+ " + f.to().getPath(), f)));
-		}
-		if (!changed.isEmpty()) {
-			group(rows, text.get("dialog.stickreturn.changed") + ": " + changed.size());
-			changed.forEach(f -> rows.add(new Row(Kind.CHANGED, "> " + f.to().getPath(), f)));
-		}
-		if (!plan.conflicts().isEmpty()) {
-			group(rows, text.get("dialog.stickreturn.conflicts") + ": " + plan.conflicts().size());
-			plan.conflicts().forEach(f -> rows.add(new Row(Kind.CONFLICT, "! " + f.getPath(), null)));
+		games.forEach((title, list) -> {
+			group(rows, title);
+			list.stream().sorted(java.util.Comparator.comparing(Row::kind)).forEach(rows::add);
+		});
+		if (!other.isEmpty()) {
+			group(rows, text.get("dialog.stickreturn.other"));
+			other.stream().sorted(java.util.Comparator.comparing(Row::kind)).forEach(rows::add);
 		}
 		if (!plan.gone().isEmpty()) {
 			group(rows, text.get("dialog.stickreturn.gone") + ": " + plan.gone().size());
-			plan.gone().forEach(t -> rows.add(new Row(Kind.GONE, "! " + t, null)));
+			plan.gone().forEach(title -> rows.add(new Row(Kind.GONE, "! " + title, null, -1)));
 		}
 		return rows;
 	}
 
 	private static void group(List<Row> rows, String heading) {
 		if (!rows.isEmpty())
-			rows.add(new Row(Kind.EMPTY, "", null));
-		rows.add(new Row(Kind.HEADING, heading, null));
+			rows.add(new Row(Kind.EMPTY, "", null, -1));
+		rows.add(new Row(Kind.HEADING, heading, null, -1));
 	}
 
 	/** the plan with only what was chosen (the play times and the files); the rest of it as it is */
@@ -120,9 +184,10 @@ public final class StickReturnPreview {
 	 * shows the window
 	 *
 	 * @param info where from and where to, above the legend
+	 * @param folders folder of a game here -> its title: the lines are grouped by game
 	 * @return the plan with what was chosen, null if nothing is to be taken over
 	 */
-	public static Plan open(Shell shell, String info, Plan plan) {
+	public static Plan open(Shell shell, String info, Plan plan, Map<File, String> folders, File dataDir, File dosroot, Locale locale) {
 		ITextService text = TextService.getInstance();
 		Display display = shell.getDisplay();
 		boolean dark = DarkTheme.forced();
@@ -178,7 +243,7 @@ public final class StickReturnPreview {
 			l.setLayoutData(ld);
 		}
 
-		Table table = new Table(dlg, SWT.BORDER | SWT.V_SCROLL | SWT.H_SCROLL | SWT.FULL_SELECTION);
+		Table table = new Table(dlg, SWT.BORDER | SWT.V_SCROLL | SWT.FULL_SELECTION);
 		GridData tableData = new GridData(SWT.FILL, SWT.FILL, true, true);
 		tableData.heightHint = 400;
 		tableData.widthHint = 860;
@@ -190,32 +255,64 @@ public final class StickReturnPreview {
 		Label count = new Label(dlg, SWT.NONE);
 		count.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
 		Button[] apply = new Button[1];
-		List<Row> rows = rows(plan, text);
+		List<Row> rows = rows(plan, text, folders, dataDir, dosroot);
 		List<TableItem> boxes = new ArrayList<>();
+		// the heading of a group has a box too: it ticks or clears the lines of its group
+		Map<TableItem, List<TableItem>> groups = new java.util.LinkedHashMap<>();
 		Runnable[] changed = new Runnable[1];
 		CheckColumn checks = CheckColumn.on(table, () -> changed[0].run());
-		TableColumn column = new TableColumn(table, SWT.NONE);
+		TableColumn column = new TableColumn(table, SWT.NONE), sizeColumn = new TableColumn(table, SWT.RIGHT);
+		TableItem heading = null;
+		long whole = 0;
 		for (Row row: rows) {
 			TableItem item = new TableItem(table, SWT.NONE);
-			item.setText(row.text());
+			item.setText(0, row.text());
+			if (row.size() >= 0) {
+				item.setText(1, org.dbgl.util.DiskUsage.format(row.size(), locale));
+				whole += row.size();
+			}
 			item.setData(row);
 			Color c = colors.get(row.kind());
 			if (c != null)
 				item.setForeground(c);
-			if (row.kind() == Kind.HEADING)
+			if (row.kind() == Kind.HEADING) {
 				item.setFont(bold);
+				heading = item;
+			}
 			if (row.what() != null) {
 				checks.add(item, true, false);
 				boxes.add(item);
+				if (heading != null)
+					groups.computeIfAbsent(heading, k -> new ArrayList<>()).add(item);
 			} else {
 				checks.addWithoutBox(item);
 			}
 		}
-		column.pack();
-		column.setWidth(Math.max(column.getWidth() + 20, 840));
+		for (TableItem h: groups.keySet()) {
+			checks.add(h, true, false);
+			h.setData("dbgl.group.was", Boolean.TRUE);
+		}
+		// the sizes at the right edge, the text takes the rest: nothing to scroll sideways
+		sizeColumn.pack();
+		sizeColumn.setWidth(Math.max(sizeColumn.getWidth() + 16, 90));
+		Runnable fit = () -> {
+			if (!table.isDisposed())
+				column.setWidth(Math.max(200, table.getClientArea().width - sizeColumn.getWidth()));
+		};
+		table.addListener(SWT.Resize, e -> fit.run());
+		long wholeSize = whole;
 		changed[0] = () -> {
+			for (Map.Entry<TableItem, List<TableItem>> g: groups.entrySet()) {
+				boolean now = CheckColumn.checked(g.getKey());
+				if (now != Boolean.TRUE.equals(g.getKey().getData("dbgl.group.was")))
+					g.getValue().forEach(i -> checks.set(i, now, false));
+				boolean allTicked = g.getValue().stream().allMatch(CheckColumn::checked);
+				checks.set(g.getKey(), allTicked, false);
+				g.getKey().setData("dbgl.group.was", allTicked);
+			}
 			long n = boxes.stream().filter(CheckColumn::checked).count();
-			count.setText(text.get("dialog.stickreturn.count", new Object[] {n, boxes.size()}));
+			long bytes = boxes.stream().filter(CheckColumn::checked).mapToLong(i -> Math.max(0, ((Row)i.getData()).size())).sum();
+			count.setText(text.get("dialog.stickreturn.count2", new Object[] {n, boxes.size(), org.dbgl.util.DiskUsage.format(bytes, locale), org.dbgl.util.DiskUsage.format(wholeSize, locale)}));
 			if ((apply[0] != null) && !apply[0].isDisposed()) {
 				apply[0].setEnabled(n > 0);
 				apply[0].redraw();
@@ -278,6 +375,7 @@ public final class StickReturnPreview {
 		dlg.setLocation(Math.max(area.x, Math.min(parent.x + (parent.width - size.x) / 2, area.x + area.width - size.x)),
 			Math.max(area.y, Math.min(parent.y + (parent.height - size.y) / 2, area.y + area.height - size.y)));
 		dlg.open();
+		fit.run();
 		while (!dlg.isDisposed())
 			if (!display.readAndDispatch())
 				display.sleep();

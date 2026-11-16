@@ -120,13 +120,19 @@ public final class BackupManager {
 		String[] heads = {"lock", "kind", "content", "version", "date", "size", "file"};
 		// the widths and the order of the columns as the user left them
 		org.dbgl.service.SettingsService settings = org.dbgl.service.SettingsService.getInstance();
-		int[] widths = stored(ints(settings, "backupscolumnwidths"), new int[] {70, 180, 310, 120, 130, 80, 400}, false);
+		int[] widths = stored(ints(settings, "backupscolumnwidths"), new int[] {44, 200, 310, 120, 130, 80, 400}, false);
 		int[] sort = {4, SWT.DOWN}; // column, direction: the newest first
 		Runnable[] refill = new Runnable[1];
 		for (int i = 0; i < heads.length; i++) {
 			int index = i;
 			TableColumn column = new TableColumn(table, i == 5 ? SWT.RIGHT: SWT.NONE);
-			column.setText(text.get("dialog.backups.col." + heads[i]));
+			if ((i == 0) && (lockImage != null)) { // alpha 50: a padlock as the heading, not a word
+				column.setImage(lockImage);
+				column.setToolTipText(text.get("dialog.backups.col.lock"));
+				column.setAlignment(SWT.CENTER);
+			} else {
+				column.setText(text.get("dialog.backups.col." + heads[i]));
+			}
 			column.setWidth(widths[i]);
 			column.setMoveable(true);
 			column.addListener(SWT.Selection, e -> { // a click on a heading sorts by it, another one the other way round
@@ -162,6 +168,8 @@ public final class BackupManager {
 		restoreFile.setToolTipText(text.get("dialog.backups.tip.restorefile"));
 		new Label(side, SWT.SEPARATOR | SWT.HORIZONTAL).setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
 		Button lock = sideButton(side, text.get("dialog.backups.lock"));
+		if (lockImage != null)
+			lock.setImage(lockImage); // alpha 50: the padlock of the column on its button too
 		Button delete = sideButton(side, text.get("dialog.backups.delete"));
 		Button restore = sideButton(side, text.get("dialog.backups.restore"));
 		Button folder = sideButton(side, text.get("dialog.backups.openfolder"));

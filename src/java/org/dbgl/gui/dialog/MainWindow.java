@@ -1771,6 +1771,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		}
 		File dataDir = FileLocationService.getInstance().getDataDir();
 		org.dbgl.util.StickReturn.Plan plan;
+		java.util.Map<File, String> gameFolders = new java.util.HashMap<>();
 		shell_.setCursor(display_.getSystemCursor(SWT.CURSOR_WAIT));
 		try {
 			if (stick.getCanonicalFile().equals(new File(".").getCanonicalFile()) || stick.getCanonicalFile().equals(dataDir.getCanonicalFile())) {
@@ -1778,8 +1779,22 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				return;
 			}
 			java.util.Map<Integer, String> here = new java.util.HashMap<>();
-			for (Profile p: new ProfileRepository().list(StringUtils.EMPTY, null, dbversionsList_))
+			java.util.Set<Integer> onStick = org.dbgl.util.StickReturn.profilesOf(stick);
+			for (Profile p: new ProfileRepository().list(StringUtils.EMPTY, null, dbversionsList_)) {
 				here.put(p.getId(), p.getTitle());
+				if (!onStick.contains(p.getId()))
+					continue;
+				// alpha 50: the folders of the games that went along, so the preview can tell which file belongs to which game
+				try {
+					gameFolders.merge(p.getCanonicalCaptures(), p.getTitle(), (a, b) -> a.equals(b) ? a: a + " / " + b);
+					p.resetAndLoadConfiguration();
+					File folder = org.dbgl.util.ExtrasFinder.gameFolder(p);
+					if (folder != null)
+						gameFolders.merge(folder.getCanonicalFile(), p.getTitle(), (a, b) -> a.equals(b) ? a: a + " / " + b);
+				} catch (IOException | RuntimeException e) {
+					// its files are listed without a game then
+				}
+			}
 			plan = org.dbgl.util.StickReturn.plan(stick, here, dataDir, FileLocationService.getInstance().getDosroot());
 		} catch (IOException | SQLException | RuntimeException e) {
 			Mess_.on(shell_).exception(e).warning();
@@ -1794,7 +1809,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		}
 		// alpha 50: a preview of its own: the kinds in colors, a box before each line - only what is ticked is taken over
 		String info = text_.get("dialog.stickreturn.info2", new Object[] {stick.getPath(), text_.toString(new java.util.Date(plan.created()))}) + noState;
-		plan = org.dbgl.gui.controls.StickReturnPreview.open(shell_, info, plan);
+		plan = org.dbgl.gui.controls.StickReturnPreview.open(shell_, info, plan, gameFolders, dataDir, FileLocationService.getInstance().getDosroot(), uiLocale());
 		if (plan == null)
 			return;
 		// asked once more, with the numbers, before anything is changed
@@ -2342,16 +2357,16 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			MenuItem_.on(systemMenu).pos(prefsIndex + 1).key("dialog.main.menu.log").listen(logAdapter).build();
 			MenuItem_.on(systemMenu).pos(prefsIndex + 2).key("dialog.main.menu.databasecleanup").listen(cleanupAdapter).build();
 			// alpha 50: creating a backup and restoring one from a file are buttons of the window of the backups now
-			MenuItem_.on(systemMenu).pos(prefsIndex + 3).key("dialog.backups.menu").listen(manageBackupsAdapter).build();
-			MenuItem_.on(systemMenu).pos(prefsIndex + 4).key("dialog.logs.menu").listen(manageLogsAdapter).build();
+			MenuItem_.on(systemMenu).pos(prefsIndex + 3).key("dialog.logs.menu").listen(manageLogsAdapter).build();
+			MenuItem_.on(systemMenu).pos(prefsIndex + 4).key("dialog.backups.menu").listen(manageBackupsAdapter).build();
 		} else {
 			Menu fileMenu = createMenu(appMenuBar, "dialog.main.menu.file");
 			MenuItem_.on(fileMenu).key("dialog.main.menu.adjustsettings").image(ImageService.IMG_TB_SETTINGS).listen(settingsAdapter).build();
 			MenuItem_.on(fileMenu).key("dialog.main.menu.log").image(ImageService.IMG_LOG).listen(logAdapter).build();
 			MenuItem_.on(fileMenu).key("dialog.main.menu.databasecleanup").image(ImageService.IMG_CLEAN).listen(cleanupAdapter).build();
 			MenuItem_.on(fileMenu).build();
-			MenuItem_.on(fileMenu).key("dialog.backups.menu").image(ImageService.IMG_BACKUPS).listen(manageBackupsAdapter).build();
 			MenuItem_.on(fileMenu).key("dialog.logs.menu").image(ImageService.IMG_LOG).listen(manageLogsAdapter).build();
+			MenuItem_.on(fileMenu).key("dialog.backups.menu").image(ImageService.IMG_BACKUPS).listen(manageBackupsAdapter).build();
 			MenuItem_.on(fileMenu).build();
 			MenuItem_.on(fileMenu).key("dialog.main.menu.exit").image(ImageService.IMG_EXIT).listen(quitAdapter).build();
 		}

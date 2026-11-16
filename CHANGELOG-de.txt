@@ -27,11 +27,18 @@ Neu
   anders belegte Einstellungen gegenüber der neuesten bekannten Version,
   zum Schicken an den Entwickler; er enthält keine Pfade. "Profile
   prüfen" weist bei einer solchen Version darauf hin.
-- USB-Stick zurückholen: eine eigene Vorschau. Spielzeit, neue Dateien,
-  ersetzte Dateien und Konflikte stehen in Gruppen mit Leerzeile
-  dazwischen, jede Art in ihrer Farbe (die Legende darüber ebenso), und
-  vor jeder Zeile steht ein Kästchen: Übernommen wird nur, was
-  angekreuzt ist. Danach fragt DBGL noch einmal mit den Zahlen nach.
+- "Profile prüfen": Hinweis für Dungeon Master II mit nachgeahmter Sound
+  Blaster 16: Fehlen im Spiel die Klang-Effekte, im Setup des Spiels von
+  Hand "Sound Blaster Pro" wählen.
+- USB-Stick zurückholen: eine eigene Vorschau. Je Spiel eine Gruppe mit
+  Leerzeile dazwischen: Spielzeit, neue Dateien, ersetzte Dateien und
+  Konflikte, jede Art in ihrer Farbe (die Legende darüber ebenso), mit
+  der Größe jeder Datei. Vor jeder Zeile steht ein Kästchen, vor dem
+  Namen des Spiels eines für die ganze Gruppe: Übernommen wird nur, was
+  angekreuzt ist. Unten steht, wie viel von der Gesamtmenge übertragen
+  wird. Danach fragt DBGL noch einmal mit den Zahlen nach.
+- "Sicherungen verwalten": Die Spalte der gesperrten Sicherungen trägt
+  ein Schloss statt eines Wortes, die Schaltfläche "Sperren" ebenso.
 - Einstellungen > GUI-Einstellungen > Profilübersicht: Reiter für Profile
   ohne Bilder - immer ausblenden, immer einblenden oder einblenden bei
   Funden (Vorgabe).

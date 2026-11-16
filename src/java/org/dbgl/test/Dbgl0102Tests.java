@@ -4120,10 +4120,30 @@ public class Dbgl0102Tests {
 		assertEquals("{SAVE0.DSG=true, SAVE1.DSG=false, doom_001.png=false}", actions.toString());
 		assertEquals(java.util.List.of(new File(game, "BOTH.DSG")), plan.conflicts());
 		// alpha 50, the preview: groups with an empty line between them; only the play times and the files can be chosen
-		List<org.dbgl.gui.controls.StickReturnPreview.Row> preview = org.dbgl.gui.controls.StickReturnPreview.rows(plan, org.dbgl.service.TextService.getInstance());
-		assertEquals("HEADING STAT EMPTY HEADING NEW NEW EMPTY HEADING CHANGED EMPTY HEADING CONFLICT EMPTY HEADING GONE",
-			preview.stream().map(r -> r.kind().name()).collect(java.util.stream.Collectors.joining(" ")));
+		// a group per game: the folder of its program and that of its screenshots tell which file belongs to it
+		java.util.Map<File, String> gameFolders = java.util.Map.of(game, "Doom | the first", captures, "Doom | the first");
+		List<org.dbgl.gui.controls.StickReturnPreview.Row> preview = org.dbgl.gui.controls.StickReturnPreview.rows(plan, org.dbgl.service.TextService.getInstance(), gameFolders, data, new File(base, "main/games"));
+		assertEquals("HEADING STAT NEW NEW CHANGED CONFLICT EMPTY HEADING GONE", preview.stream().map(r -> r.kind().name()).collect(java.util.stream.Collectors.joining(" ")));
+		assertEquals("Doom | the first", preview.get(0).text());
 		assertEquals(4, preview.stream().filter(r -> r.what() != null).count());
+		assertTrue(preview.stream().allMatch(r -> (r.size() >= 0) == (r.what() instanceof org.dbgl.util.StickReturn.FileAction)));
+		assertEquals("new on the stick".length(), preview.stream().filter(r -> r.text().endsWith("SAVE1.DSG")).findFirst().get().size());
+		// nothing known about the games: the files in a group of their own, what was played under its title
+		preview = org.dbgl.gui.controls.StickReturnPreview.rows(plan, org.dbgl.service.TextService.getInstance(), java.util.Map.of(), data, new File(base, "main/games"));
+		assertEquals("HEADING STAT EMPTY HEADING NEW NEW CHANGED CONFLICT EMPTY HEADING GONE", preview.stream().map(r -> r.kind().name()).collect(java.util.stream.Collectors.joining(" ")));
+		// which game: the nearest folder of a game above; else the folder above that holds one game only; not above the stops
+		File g = new File(base, "g").getAbsoluteFile();
+		java.util.Map<File, String> owners = java.util.Map.of(new File(g, "A/BIN"), "A", new File(g, "B"), "B", new File(g, "B/ADDON"), "B addon");
+		assertEquals("A", org.dbgl.gui.controls.StickReturnPreview.gameOf(new File(g, "A/BIN/SUB/x.sav"), owners, g));
+		assertEquals("A", org.dbgl.gui.controls.StickReturnPreview.gameOf(new File(g, "A/SAVE/x.sav"), owners, g));
+		assertEquals("B addon", org.dbgl.gui.controls.StickReturnPreview.gameOf(new File(g, "B/ADDON/x.sav"), owners, g));
+		assertEquals("B", org.dbgl.gui.controls.StickReturnPreview.gameOf(new File(g, "B/x.sav"), owners, g));
+		assertNull(org.dbgl.gui.controls.StickReturnPreview.gameOf(new File(g, "x.sav"), owners, g));
+		assertNull(org.dbgl.gui.controls.StickReturnPreview.gameOf(new File(g, "C/x.sav"), owners, g));
+		assertNull(org.dbgl.gui.controls.StickReturnPreview.gameOf(new File(g, "x.sav"), java.util.Map.of(new File(g, "A"), "A"), g)); // the stop itself is not asked
+		assertEquals("captures" + File.separator + "7" + File.separator + "a.png", org.dbgl.gui.controls.StickReturnPreview.shown(new File(g, "captures/7/a.png"), g, new File(g, "dosroot")));
+		assertEquals("games" + File.separator + "A" + File.separator + "a.sav", org.dbgl.gui.controls.StickReturnPreview.shown(new File(base, "elsewhere/games/A/a.sav").getAbsoluteFile(), g, new File(base, "elsewhere/games").getAbsoluteFile()));
+		assertEquals(java.util.Set.of(7, 8, 9), org.dbgl.util.StickReturn.profilesOf(stick));
 		assertTrue(preview.stream().allMatch(r -> (r.what() != null) == java.util.EnumSet.of(org.dbgl.gui.controls.StickReturnPreview.Kind.STAT, org.dbgl.gui.controls.StickReturnPreview.Kind.NEW, org.dbgl.gui.controls.StickReturnPreview.Kind.CHANGED).contains(r.kind())));
 		org.dbgl.util.StickReturn.Plan part = org.dbgl.gui.controls.StickReturnPreview.chosen(plan, java.util.List.of(plan.files().get(0)));
 		assertTrue(part.stats().isEmpty());
@@ -4520,5 +4540,24 @@ public class Dbgl0102Tests {
 			String part = text.substring(first.end());
 			assertTrue(doc[0], part.startsWith(doc[1] + "\n") && part.substring(0, 400).contains("Java 21") && part.substring(0, 600).contains("https://adoptium.net/temurin/releases/?version=21"));
 		}
+	}
+
+	/** alpha 50: Dungeon Master II with an emulated Sound Blaster 16: the hint to choose "Sound Blaster Pro" in its setup */
+	@Test
+	public void testSetupAdviceDungeonMaster2() throws Exception {
+		org.dbgl.model.conf.Configuration sb16 = new org.dbgl.model.conf.Configuration(), pro = new org.dbgl.model.conf.Configuration(), none = new org.dbgl.model.conf.Configuration();
+		sb16.setValue("sblaster", "sbtype", "sb16");
+		pro.setValue("sblaster", "sbtype", "sbpro1");
+		for (String title: new String[] {"Dungeon Master II: The Legend of Skullkeep", "Dungeon Master 2", "dungeon master ii (1995)"}) {
+			org.dbgl.util.ProfileChecks.Problem p = org.dbgl.util.GameHints.setupAdvice(title, sb16);
+			assertNotNull(title, p);
+			assertEquals("dm2sbpro", p.key());
+			assertEquals("[sblaster] sbtype = sb16", p.args()[1]);
+		}
+		assertNull(org.dbgl.util.GameHints.setupAdvice("Dungeon Master II", pro));
+		assertNull(org.dbgl.util.GameHints.setupAdvice("Dungeon Master II", none));
+		assertNull(org.dbgl.util.GameHints.setupAdvice("Dungeon Master", sb16));
+		assertNull(org.dbgl.util.GameHints.setupAdvice("Dungeon Keeper 2", sb16));
+		assertFalse(org.dbgl.service.TextService.getInstance().get("dialog.checkprofiles.dm2sbpro", new Object[] {"X", "Y"}).contains("dm2sbpro"));
 	}
 }

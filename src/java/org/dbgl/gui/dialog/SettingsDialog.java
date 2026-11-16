@@ -353,6 +353,16 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 			shotCombos[i] = Chain.on(overviewGroup).lbl(l -> l.key(shotLabel)).cmb(c -> c.items(shotRules)).combo();
 			shotCombos[i].select(Math.max(0, Math.min(2, settings_.getIntValue("gui", shotKeys[i]))));
 		}
+		// alpha 50: the four lists below each other have one width: that of the widest of them
+		int comboWidth = noImagesTab.computeSize(SWT.DEFAULT, SWT.DEFAULT).x;
+		for (Combo combo: shotCombos)
+			comboWidth = Math.max(comboWidth, combo.computeSize(SWT.DEFAULT, SWT.DEFAULT).x);
+		for (Combo combo: new Combo[] {noImagesTab, shotCombos[0], shotCombos[1], shotCombos[2]}) {
+			GridData comboData = new GridData(SWT.BEGINNING, SWT.CENTER, false, false);
+			comboData.minimumWidth = comboWidth;
+			comboData.horizontalAlignment = SWT.FILL;
+			combo.setLayoutData(comboData);
+		}
 		// alpha 49: the window that arranges the toolbar (else only in the menu of a right click on the toolbar)
 		if (toolbarCustomizer_ != null) {
 			Button customize = new Button(overviewGroup, SWT.PUSH);

@@ -230,6 +230,20 @@ public final class StickReturn {
 		return new Plan(id, created, stats, files, conflicts, gone, seen, stateFile.isFile());
 	}
 
+	/** the numbers of the profiles that went along on this stick */
+	public static java.util.Set<Integer> profilesOf(File stick) throws IOException {
+		java.util.Set<Integer> ids = new java.util.TreeSet<>();
+		for (String key: load(new File(stick, MANIFEST)).stringPropertyNames()) {
+			if (key.startsWith("p."))
+				try {
+					ids.add(Integer.parseInt(key.substring(2)));
+				} catch (NumberFormatException e) {
+					// not a profile
+				}
+		}
+		return ids;
+	}
+
 	private static List<String> sortedRoots(Properties manifest) {
 		List<String> keys = new ArrayList<>();
 		for (String key: manifest.stringPropertyNames())

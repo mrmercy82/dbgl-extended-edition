@@ -26,11 +26,18 @@ New
   DOSBox versions) lists settings that are new, gone or set differently
   against the newest known version, to be sent to the developer; it
   holds no paths. "Check profiles" notes such a version.
-- Bring back from the USB stick: a preview of its own. Play time, new
-  files, replaced files and conflicts are in groups with an empty line
-  between them, each kind in its color (the legend above as well), and
-  before each line there is a box: only what is ticked is taken over.
-  Then DBGL asks once more, with the numbers.
+- "Check profiles": a hint for Dungeon Master II with an emulated Sound
+  Blaster 16: if the sound effects are missing in the game, choose
+  "Sound Blaster Pro" by hand in the setup of the game.
+- Bring back from the USB stick: a preview of its own. A group per game
+  with an empty line between them: play time, new files, replaced files
+  and conflicts, each kind in its color (the legend above as well), with
+  the size of each file. Before each line there is a box, before the
+  name of the game one for its whole group: only what is ticked is taken
+  over. Below it says how much of the whole will be transferred. Then
+  DBGL asks once more, with the numbers.
+- "Manage backups": the column of the locked backups has a padlock
+  instead of a word, and so has the button "Lock".
 - Settings > GUI settings > Profile overview: the tab for profiles
   without pictures - always hide, always show, or show when there are
   any (the default).
