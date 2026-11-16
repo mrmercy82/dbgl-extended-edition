@@ -2458,6 +2458,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			}
 		}).build();
 		// alpha 48: for a USB stick (another drive letter on each computer)
+		MenuItem_.on(profilesMenu).build(); // alpha 50: a line below the migration
 		MenuItem_.on(profilesMenu).key("dialog.main.menu.portable").image(ImageService.IMG_USB).listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
@@ -2492,12 +2493,14 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				doCheckProfiles();
 			}
 		}).build();
+		MenuItem_.on(profilesMenu).build(); // alpha 50: the covers between two lines
 		MenuItem_.on(profilesMenu).key("dialog.main.menu.coverbatch").image(ImageService.IMG_GLOBE).listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
 				doCoverBatch();
 			}
 		}).build();
+		MenuItem_.on(profilesMenu).build();
 		MenuItem undoBulkItem = MenuItem_.on(profilesMenu).key("dialog.main.menu.undobulk").image(ImageService.IMG_UNDO).listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
@@ -2867,6 +2870,15 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		}).build();
 		MenuItem_.on(menu).key("dialog.main.profile.remove").image(ImageService.IMG_DELETE).listen(removeProfAdapter).build();
 		MenuItem_.on(menu).build();
+		// alpha 50: the order as wished: the earlier version, then the submenus, checking, the controller and the extras
+		MenuItem restoreVersionItem = MenuItem_.on(menu).key("dialog.main.profile.restoreversion").image(ImageService.IMG_REFRESH).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				doRestoreProfileVersion();
+			}
+		}).build();
+		MenuItem_.on(menu).build();
+		Menu profileViewSubMenu = createMenu(menu, "dialog.main.profile.view", ImageService.IMG_ZOOM);
 		// alpha 48: the tools and the folders in submenus, the menu had grown to 38 entries
 		Menu tools = createMenu(menu, "dialog.main.profile.tools", ImageService.IMG_TOOLS);
 		MenuItem_.on(tools).key("dialog.main.profile.compare").image(ImageService.IMG_ZOOM).listen(new SelectionAdapter() {
@@ -2875,44 +2887,19 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				doCompareProfiles();
 			}
 		}).build();
-		// test 18: the picture of "Check profiles" as in the menu Profiles and the toolbar (it was the magnifier): one per window
-		MenuItem_.on(tools).key("dialog.main.profile.checkprofile").image(ImageService.IMG_CHECKPROFILES).listen(new SelectionAdapter() {
+		// alpha 48: also here, not only in the profile dialog; greyed out without differences
+		MenuItem deviationsItem = MenuItem_.on(tools).key("dialog.template.showdifferences").image(ImageService.IMG_ZOOM).listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
-				if (profileTable_.getSelectionIndex() == -1)
-					return;
-				if (Boolean.TRUE.equals(new CheckProfilesDialog(shell_, getSelectedProfiles()).open())) {
-					updateProfilesList(getSelectedProfileIds());
-					displayProfileInformation(false);
-				} else {
-					refreshMarkers();
-				}
+				doShowDeviations();
 			}
 		}).build();
-		MenuItem fixProblemsItem = MenuItem_.on(tools).key("dialog.main.profile.fixproblems").image(ImageService.IMG_WARNING).listen(new SelectionAdapter() {
+		MenuItem_.on(tools).key("dialog.main.profile.replacevalues").image(ImageService.IMG_EDIT).listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
-				doFixProfileProblems();
+				doReplaceValues();
 			}
 		}).build();
-		menu.addMenuListener(new MenuAdapter() {
-			@Override
-			public void menuShown(MenuEvent event) {
-				// only for profiles with a warning sign
-				fixProblemsItem.setEnabled(getSelectedProfiles().stream().map(org.dbgl.util.ProfileWarnings::known).anyMatch(p -> (p != null) && !p.isEmpty()));
-			}
-		});
-		MenuItem_.on(tools).build();
-		MenuItem presetsItem = MenuItem_.on(tools).key("dialog.main.profile.applypreset").image(ImageService.IMG_SETTINGS).build();
-		Menu presetsMenu = new Menu(presetsItem);
-		presetsItem.setMenu(presetsMenu);
-		presetsMenu.addMenuListener(new MenuAdapter() {
-			@Override
-			public void menuShown(MenuEvent event) {
-				Stream.of(presetsMenu.getItems()).forEach(MenuItem::dispose); // own presets may have been added
-				org.dbgl.gui.abstractdialog.PresetsMenu.addPresetItems(presetsMenu, MainWindow.this::doApplyPreset);
-			}
-		});
 		MenuItem_.on(tools).build();
 		MenuItem_.on(tools).key("dialog.main.profile.switchdosboxversion").image(ImageService.IMG_MIGRATE).listen(new SelectionAdapter() {
 			@Override
@@ -2929,60 +2916,24 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				doImportConf(profileTable_.getSelectionIndex(), null);
 			}
 		}).build();
-		MenuItem_.on(tools).key("dialog.main.profile.replacevalues").image(ImageService.IMG_EDIT).listen(new SelectionAdapter() {
-			@Override
-			public void widgetSelected(SelectionEvent event) {
-				doReplaceValues();
-			}
-		}).build();
-		// alpha 48: also here, not only in the profile dialog; greyed out without differences
-		MenuItem deviationsItem = MenuItem_.on(tools).key("dialog.template.showdifferences").image(ImageService.IMG_ZOOM).listen(new SelectionAdapter() {
-			@Override
-			public void widgetSelected(SelectionEvent event) {
-				doShowDeviations();
-			}
-		}).build();
-		// alpha 48: the buttons of a game controller as keys, in the mapper file of the profile
-		MenuItem controllerItem = MenuItem_.on(tools).key("dialog.main.profile.controller").image(ImageService.IMG_CONTROLLER).listen(new SelectionAdapter() {
-			@Override
-			public void widgetSelected(SelectionEvent event) {
-				int index = profileTable_.getSelectionIndex();
-				if ((index != -1) && Boolean.TRUE.equals(new ControllerDialog(shell_, profilesList_.get(index)).open())) {
-					updateProfilesList(getSelectedProfileIds());
-					displayProfileInformation(false);
-				}
-			}
-		}).build();
-		MenuItem restoreVersionItem = MenuItem_.on(tools).key("dialog.main.profile.restoreversion").image(ImageService.IMG_REFRESH).listen(new SelectionAdapter() {
-			@Override
-			public void widgetSelected(SelectionEvent event) {
-				doRestoreProfileVersion();
-			}
-		}).build();
-		menu.addMenuListener(new MenuAdapter() {
-			@Override
-			public void menuShown(MenuEvent event) {
-				// greyed out while DBGL keeps no earlier version of the profile (nor its original)
-				int index = profileTable_.getSelectionIndex();
-				int id = (index >= 0) && (index < profilesList_.size()) ? profilesList_.get(index).getId(): -1;
-				restoreVersionItem.setEnabled((id != -1) && (!org.dbgl.util.ProfileHistory.list(id).isEmpty() || (org.dbgl.util.ProfileHistory.original(id) != null)));
-				controllerItem.setEnabled((id != -1) && (profileTable_.getSelectionCount() == 1) && (profilesList_.get(index).getDosboxVersion() != null));
-				deviationsItem.setEnabled((id != -1) && (profileTable_.getSelectionCount() == 1) && !deviationsOf(profilesList_.get(index)).isEmpty());
-			}
-		});
 		MenuItem_.on(tools).build();
-		MenuItem_.on(tools).key("dialog.main.profile.findextras").image(ImageService.IMG_ZOOM).listen(new SelectionAdapter() {
-			@Override
-			public void widgetSelected(SelectionEvent event) {
-				doFindExtras();
-			}
-		}).build();
 		MenuItem_.on(tools).key("dialog.main.menu.coverbatch").image(ImageService.IMG_GLOBE).listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
 				doCoverBatch();
 			}
 		}).build();
+		MenuItem_.on(tools).build();
+		MenuItem presetsItem = MenuItem_.on(tools).key("dialog.main.profile.applypreset").image(ImageService.IMG_SETTINGS).build();
+		Menu presetsMenu = new Menu(presetsItem);
+		presetsItem.setMenu(presetsMenu);
+		presetsMenu.addMenuListener(new MenuAdapter() {
+			@Override
+			public void menuShown(MenuEvent event) {
+				Stream.of(presetsMenu.getItems()).forEach(MenuItem::dispose); // own presets may have been added
+				org.dbgl.gui.abstractdialog.PresetsMenu.addPresetItems(presetsMenu, MainWindow.this::doApplyPreset);
+			}
+		});
 		Menu folders = createMenu(menu, "dialog.main.profile.openfolders", ImageService.IMG_FOLDER);
 		MenuItem_.on(folders).key("dialog.main.profile.openfolder").image(ImageService.IMG_FOLDER).listen(new SelectionAdapter() {
 			@Override
@@ -3020,13 +2971,69 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				}
 			}
 		}).build();
-		Menu profileViewSubMenu = createMenu(menu, "dialog.main.profile.view", ImageService.IMG_ZOOM);
 		// alpha 49: the other parts of the series of this profile; choosing one goes to it
 		Menu seriesMenu = createMenu(menu, "dialog.main.profile.seriesparts", ImageService.IMG_DUPLICATE);
 		menu.addMenuListener(new MenuAdapter() {
 			@Override
 			public void menuShown(MenuEvent event) {
 				fillSeriesMenu(seriesMenu);
+			}
+		});
+		MenuItem_.on(menu).build();
+		// test 18: the picture of "Check profiles" as in the menu Profiles and the toolbar (it was the magnifier): one per window
+		MenuItem_.on(menu).key("dialog.main.profile.checkprofile").image(ImageService.IMG_CHECKPROFILES).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				if (profileTable_.getSelectionIndex() == -1)
+					return;
+				if (Boolean.TRUE.equals(new CheckProfilesDialog(shell_, getSelectedProfiles()).open())) {
+					updateProfilesList(getSelectedProfileIds());
+					displayProfileInformation(false);
+				} else {
+					refreshMarkers();
+				}
+			}
+		}).build();
+		MenuItem fixProblemsItem = MenuItem_.on(menu).key("dialog.main.profile.fixproblems").image(ImageService.IMG_WARNING).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				doFixProfileProblems();
+			}
+		}).build();
+		menu.addMenuListener(new MenuAdapter() {
+			@Override
+			public void menuShown(MenuEvent event) {
+				// only for profiles with a warning sign
+				fixProblemsItem.setEnabled(getSelectedProfiles().stream().map(org.dbgl.util.ProfileWarnings::known).anyMatch(p -> (p != null) && !p.isEmpty()));
+			}
+		});
+		MenuItem_.on(menu).build();
+		// alpha 48: the buttons of a game controller as keys, in the mapper file of the profile
+		MenuItem controllerItem = MenuItem_.on(menu).key("dialog.main.profile.controller").image(ImageService.IMG_CONTROLLER).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				int index = profileTable_.getSelectionIndex();
+				if ((index != -1) && Boolean.TRUE.equals(new ControllerDialog(shell_, profilesList_.get(index)).open())) {
+					updateProfilesList(getSelectedProfileIds());
+					displayProfileInformation(false);
+				}
+			}
+		}).build();
+		MenuItem_.on(menu).key("dialog.main.profile.findextras").image(ImageService.IMG_ZOOM).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				doFindExtras();
+			}
+		}).build();
+		menu.addMenuListener(new MenuAdapter() {
+			@Override
+			public void menuShown(MenuEvent event) {
+				// greyed out while DBGL keeps no earlier version of the profile (nor its original)
+				int index = profileTable_.getSelectionIndex();
+				int id = (index >= 0) && (index < profilesList_.size()) ? profilesList_.get(index).getId(): -1;
+				restoreVersionItem.setEnabled((id != -1) && (!org.dbgl.util.ProfileHistory.list(id).isEmpty() || (org.dbgl.util.ProfileHistory.original(id) != null)));
+				controllerItem.setEnabled((id != -1) && (profileTable_.getSelectionCount() == 1) && (profilesList_.get(index).getDosboxVersion() != null));
+				deviationsItem.setEnabled((id != -1) && (profileTable_.getSelectionCount() == 1) && !deviationsOf(profilesList_.get(index)).isEmpty());
 			}
 		});
 		MenuItem_.on(menu).build();
@@ -3042,6 +3049,13 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			@Override
 			public void widgetSelected(SelectionEvent event) {
 				doMakePortable();
+			}
+		}).build();
+		// alpha 50: the way back right below it
+		MenuItem_.on(menu).key("dialog.main.menu.stickreturn").image(ImageService.IMG_USB).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				doStickReturn();
 			}
 		}).build();
 		MenuItem_.on(menu).build();
@@ -4074,14 +4088,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		Menu menu = new Menu(dbversionTable_);
 		MenuItem_.on(menu).key("dialog.main.dosboxversion.run").image(ImageService.IMG_RUN).listen(runDosboxAdapter).build();
 		MenuItem_.on(menu).build();
-		MenuItem_.on(menu).key("dialog.main.dosboxversion.openfolder").image(ImageService.IMG_FOLDER).listen(new SelectionAdapter() {
-			@Override
-			public void widgetSelected(SelectionEvent event) {
-				int index = dbversionTable_.getSelectionIndex();
-				if (index != -1)
-					SystemUtils.openDirForViewing(dbversionsList_.get(index).getConfigurationCanonicalFile().getParentFile(), getParent());
-			}
-		}).build();
+		// alpha 50: the order as wished: looking, the folder, the configuration file, then adding and the rest
 		Menu viewDosboxSubMenu = createMenu(menu, "dialog.main.profile.view", ImageService.IMG_ZOOM);
 		MenuItem_.on(viewDosboxSubMenu).key("dialog.main.dosboxversion.view.conf").image(ImageService.IMG_PROFILE_CONF).listen(new SelectionAdapter() {
 			@Override
@@ -4090,28 +4097,6 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 					DosboxVersion dbversion = dbversionsList_.get(dbversionTable_.getSelectionIndex());
 					SystemUtils.openForEditing(dbversion.getConfigurationCanonicalFile(), getParent());
 				}
-			}
-		}).build();
-		// alpha 49: the own settings of the file of another (older) DOSBox version taken over into the one of this version
-		MenuItem_.on(menu).key("dialog.main.dosboxversion.takeover").image(ImageService.IMG_PROFILE_CONF).listen(new SelectionAdapter() {
-			@Override
-			public void widgetSelected(SelectionEvent event) {
-				int index = dbversionTable_.getSelectionIndex();
-				if (index == -1)
-					return;
-				DosboxVersion dbversion = dbversionsList_.get(index);
-				if (org.dbgl.gui.controls.ConfTakeoverDialog.open(shell_, dbversion, dbversionsList_))
-					updateDosboxVersionList(dbversion); // read again from the file that was written
-			}
-		}).build();
-		// alpha 50: the configuration file written again by its DOSBox (after the program was replaced by a newer one): the
-		// new settings come in, the own values and the [autoexec] stay
-		MenuItem_.on(menu).key("dialog.main.dosboxversion.rewriteconf").image(ImageService.IMG_REFRESH).listen(new SelectionAdapter() {
-			@Override
-			public void widgetSelected(SelectionEvent event) {
-				int index = dbversionTable_.getSelectionIndex();
-				if (index != -1)
-					doRewriteDosboxConf(dbversionsList_.get(index));
 			}
 		}).build();
 		// alpha 49: what differs between the configuration of this DOSBox version and that of another one: the other versions
@@ -4140,6 +4125,38 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				}
 			}
 		});
+		MenuItem_.on(menu).build();
+		MenuItem_.on(menu).key("dialog.main.dosboxversion.openfolder").image(ImageService.IMG_FOLDER).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				int index = dbversionTable_.getSelectionIndex();
+				if (index != -1)
+					SystemUtils.openDirForViewing(dbversionsList_.get(index).getConfigurationCanonicalFile().getParentFile(), getParent());
+			}
+		}).build();
+		MenuItem_.on(menu).build();
+		// alpha 50: the configuration file written again by its DOSBox (after the program was replaced by a newer one): the
+		// new settings come in, the own values and the [autoexec] stay
+		MenuItem_.on(menu).key("dialog.main.dosboxversion.rewriteconf").image(ImageService.IMG_REFRESH).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				int index = dbversionTable_.getSelectionIndex();
+				if (index != -1)
+					doRewriteDosboxConf(dbversionsList_.get(index));
+			}
+		}).build();
+		// alpha 49: the own settings of the file of another (older) DOSBox version taken over into the one of this version
+		MenuItem_.on(menu).key("dialog.main.dosboxversion.takeover").image(ImageService.IMG_PROFILE_CONF).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				int index = dbversionTable_.getSelectionIndex();
+				if (index == -1)
+					return;
+				DosboxVersion dbversion = dbversionsList_.get(index);
+				if (org.dbgl.gui.controls.ConfTakeoverDialog.open(shell_, dbversion, dbversionsList_))
+					updateDosboxVersionList(dbversion); // read again from the file that was written
+			}
+		}).build();
 		MenuItem_.on(menu).build();
 		MenuItem_.on(menu).key("dialog.main.dosboxversion.add").image(ImageService.IMG_NEW).listen(addDosboxAdapter).build();
 		MenuItem_.on(menu).key("dialog.main.dosboxversion.edit").image(ImageService.IMG_EDIT).listen(editDosboxAdapter).build();

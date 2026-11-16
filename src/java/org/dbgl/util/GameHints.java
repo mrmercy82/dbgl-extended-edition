@@ -710,10 +710,46 @@ public final class GameHints {
 			if (!(lure && pr.key().equals("gamewantsmt32")))
 				result.add(pr);
 		result.addAll(advice(prof.getTitle(), main, prof.getConfiguration(), conf));
-		Problem setup = setupAdvice(prof.getTitle(), conf);
+		Problem setup = setupAdvice(prof.getTitle(), conf, main);
 		if (setup != null)
 			result.add(setup);
+		Problem manager = memoryManagerAdvice(prof.getTitle(), main, own);
+		if (manager != null)
+			result.add(manager);
 		return result;
+	}
+
+	private static final Pattern PACIFIC_AIR_WAR = Pattern.compile("^1942 (the )?pacific air ?war( .*)?$");
+
+	/**
+	 * 1942: The Pacific Air War (MicroProse, 1942.EXE) has no digital sound effects with the memory of DOSBox itself; with
+	 * "[dos] xms, ems and umb" off and the memory manager JEMMEX loaded before the game ("JEMMEX.EXE FRAME=E000 LOAD") they
+	 * are there (found by a user of DBGL with DOSBox Staging). The hint comes while nothing in the [autoexec] of the profile,
+	 * or in the batch file it starts, loads JEMMEX.
+	 *
+	 * @param main     the program of the profile on this computer, null if not known
+	 * @param ownLines the lines of the [autoexec] that are not of DBGL
+	 */
+	public static Problem memoryManagerAdvice(String title, File main, List<String> ownLines) {
+		String program = main == null ? "": main.getName().toUpperCase(Locale.ROOT);
+		if (!PACIFIC_AIR_WAR.matcher(titleKey(title)).matches() && !program.equals("1942.EXE"))
+			return null;
+		if (ownLines.stream().anyMatch(GameHints::loadsJemmex))
+			return null;
+		if (program.endsWith(".BAT") && main.isFile() && (main.length() < 65536)) {
+			try {
+				if (Files.readAllLines(main.toPath(), StandardCharsets.ISO_8859_1).stream().anyMatch(GameHints::loadsJemmex))
+					return null;
+			} catch (java.io.IOException e) {
+				// not readable: as if it did not
+			}
+		}
+		return new Problem("paw1942jemmex", title, "JEMMEX.EXE FRAME=E000 LOAD");
+	}
+
+	private static boolean loadsJemmex(String line) {
+		String l = line.trim().toLowerCase(Locale.ROOT);
+		return !l.startsWith("rem ") && !l.startsWith("::") && l.matches("(?:@|call\\s+|loadhigh\\s+|lh\\s+)*(?:.*[\\\\/:])?jemmex(?:\\.exe)?(?:\\s.*)?");
 	}
 
 	private static final Pattern DUNGEON_MASTER_2 = Pattern.compile("^dungeon master (ii|2)( .*)?$");
@@ -722,11 +758,44 @@ public final class GameHints {
 	 * What to choose in the setup of the game itself (DBGL cannot do that; the hint can be hidden once it is done). Dungeon
 	 * Master II: its setup finds a Sound Blaster 16 by itself and then plays music but no sound effects; with "Sound Blaster
 	 * Pro" chosen by hand the effects are there (found by a user of DBGL with DOSBox emulating a Sound Blaster 16, IRQ 7).
+	 * The setup writes its choice into SKULL.CFG beside the program, in the way of HMI ("[DIGITAL]", "DeviceID = 0xe015" for
+	 * the Sound Blaster 16 it finds, "0xe001" for the Sound Blaster Pro): with that file there, the hint comes only while the
+	 * Sound Blaster 16 is chosen in it, and it also comes for a profile with another title.
+	 *
+	 * @param main the program of the profile on this computer, null if not known
 	 */
-	public static Problem setupAdvice(String title, Configuration conf) {
+	public static Problem setupAdvice(String title, Configuration conf, File main) {
 		String type = value(conf, "sblaster", "sbtype");
-		if (DUNGEON_MASTER_2.matcher(titleKey(title)).matches() && (type != null) && type.startsWith("sb16"))
+		if ((type == null) || !type.startsWith("sb16"))
+			return null;
+		String chosen = null;
+		boolean file = false;
+		File[] beside = main == null ? null: main.getAbsoluteFile().getParentFile().listFiles((d, n) -> n.equalsIgnoreCase("SKULL.CFG"));
+		if ((beside != null) && (beside.length > 0) && beside[0].isFile() && (beside[0].length() < 65536)) {
+			try {
+				chosen = hmiDigitalId(Files.readString(beside[0].toPath(), StandardCharsets.ISO_8859_1));
+				file = true;
+			} catch (java.io.IOException e) {
+				// not readable: as without the file
+			}
+		}
+		if (file ? "e015".equals(chosen): DUNGEON_MASTER_2.matcher(titleKey(title)).matches())
 			return new Problem("dm2sbpro", title, "[sblaster] sbtype = " + type);
+		return null;
+	}
+
+	/** the number of the device for digital sound in a file of the sound system of HMI ("e001"), null if there is none */
+	public static String hmiDigitalId(String text) {
+		Matcher m = HMI_DIGITAL.matcher(text);
+		if (!m.find())
+			return null;
+		for (String line: m.group(1).split("\\R")) {
+			String[] kv = line.split("=", 2);
+			if ((kv.length == 2) && kv[0].trim().equalsIgnoreCase("DeviceID")) {
+				String id = kv[1].trim().toLowerCase(Locale.ROOT);
+				return id.startsWith("0x") ? id.substring(2): id;
+			}
+		}
 		return null;
 	}
 }

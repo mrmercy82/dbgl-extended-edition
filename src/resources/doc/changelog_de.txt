@@ -29,7 +29,12 @@ Neu
   prüfen" weist bei einer solchen Version darauf hin.
 - "Profile prüfen": Hinweis für Dungeon Master II mit nachgeahmter Sound
   Blaster 16: Fehlen im Spiel die Klang-Effekte, im Setup des Spiels von
-  Hand "Sound Blaster Pro" wählen.
+  Hand "Sound Blaster Pro" wählen. Der Hinweis verschwindet von selbst,
+  sobald das in SKULL.CFG des Spiels steht.
+- "Profile prüfen": Hinweis für 1942: The Pacific Air War: Ohne den
+  Speichermanager JEMMEX vor dem Spiel ("JEMMEX.EXE FRAME=E000 LOAD", mit
+  [dos] xms, ems und umb aus) fehlen die digitalen Klang-Effekte. Der
+  Hinweis verschwindet, sobald das Profil JEMMEX lädt.
 - USB-Stick zurückholen: eine eigene Vorschau. Je Spiel eine Gruppe mit
   Leerzeile dazwischen: Spielzeit, neue Dateien, ersetzte Dateien und
   Konflikte, jede Art in ihrer Farbe (die Legende darüber ebenso), mit
@@ -44,6 +49,17 @@ Neu
   Funden (Vorgabe).
 
 Geändert
+- Kontextmenü der Profilliste neu geordnet: "Frühere Fassung
+  wiederherstellen", "Profil prüfen", "Problem beheben", "Controller als
+  Tastatur" und "Handbücher und Extras suchen" stehen jetzt direkt im
+  Menü, in Gruppen mit Trennlinien; "Werkzeuge" enthält Vergleichen,
+  Abweichungen, Werte ersetzen, Umstellen, Übernehmen, Cover und
+  Voreinstellungen. "Teile dieser Reihe" heißt "Teile dieser
+  Spielereihe", das Übernehmen "Aus anderer DOSBox-Konfiguration
+  übernehmen". Im Menü "Profile" trennen Linien die Gruppen klarer.
+  Auch das Kontextmenü der DOSBox-Versionen ist neu geordnet: Starten,
+  dann Anzeigen und Vergleichen, der Ordner, die Konfigurationsdatei
+  (neu schreiben, übernehmen), dann Hinzufügen und der Rest.
 - "Sicherung erstellen" und "Sicherung wiederherstellen" sind keine
   Menüpunkte mehr, sondern Schaltflächen im Fenster "Sicherungen
   verwalten" ("Sicherung erstellen...", "Aus Datei wiederherstellen...").

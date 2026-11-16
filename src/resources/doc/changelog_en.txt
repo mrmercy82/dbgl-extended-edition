@@ -28,7 +28,12 @@ New
   holds no paths. "Check profiles" notes such a version.
 - "Check profiles": a hint for Dungeon Master II with an emulated Sound
   Blaster 16: if the sound effects are missing in the game, choose
-  "Sound Blaster Pro" by hand in the setup of the game.
+  "Sound Blaster Pro" by hand in the setup of the game. The hint goes by
+  itself once SKULL.CFG of the game says so.
+- "Check profiles": a hint for 1942: The Pacific Air War: without the
+  memory manager JEMMEX before the game ("JEMMEX.EXE FRAME=E000 LOAD",
+  with [dos] xms, ems and umb off) the digital sound effects are
+  missing. The hint goes once the profile loads JEMMEX.
 - Bring back from the USB stick: a preview of its own. A group per game
   with an empty line between them: play time, new files, replaced files
   and conflicts, each kind in its color (the legend above as well), with
@@ -43,6 +48,17 @@ New
   any (the default).
 
 Changed
+- The context menu of the list of profiles in a new order: "Restore an
+  earlier version", "Check profile", "Fix problems", the controller as
+  keyboard and the search for manuals and extras are in the menu itself
+  now, in groups with lines between them; "Tools" holds comparing, the
+  differences, replacing values, switching, taking over, covers and
+  presets. "Parts of this series" is called "Parts of this game series",
+  taking over "Take over from another DOSBox configuration". In the menu
+  "Profiles" lines separate the groups more clearly. The context menu
+  of the DOSBox versions is in a new order too: run, then view and
+  compare, the folder, the configuration file (write again, take over),
+  then add and the rest.
 - "Create backup" and "Restore backup" are no longer in the menu but
   buttons in the window "Manage backups" ("Create backup...", "Restore
   from a file..."). The folders with the files that were replaced when a

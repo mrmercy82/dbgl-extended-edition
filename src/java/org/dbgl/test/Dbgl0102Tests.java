@@ -4542,22 +4542,78 @@ public class Dbgl0102Tests {
 		}
 	}
 
-	/** alpha 50: Dungeon Master II with an emulated Sound Blaster 16: the hint to choose "Sound Blaster Pro" in its setup */
+	/**
+	 * alpha 50: Dungeon Master II with an emulated Sound Blaster 16: the hint to choose "Sound Blaster Pro" in its setup; with
+	 * SKULL.CFG beside the program only while another Sound Blaster is chosen there
+	 */
 	@Test
 	public void testSetupAdviceDungeonMaster2() throws Exception {
 		org.dbgl.model.conf.Configuration sb16 = new org.dbgl.model.conf.Configuration(), pro = new org.dbgl.model.conf.Configuration(), none = new org.dbgl.model.conf.Configuration();
 		sb16.setValue("sblaster", "sbtype", "sb16");
 		pro.setValue("sblaster", "sbtype", "sbpro1");
 		for (String title: new String[] {"Dungeon Master II: The Legend of Skullkeep", "Dungeon Master 2", "dungeon master ii (1995)"}) {
-			org.dbgl.util.ProfileChecks.Problem p = org.dbgl.util.GameHints.setupAdvice(title, sb16);
+			org.dbgl.util.ProfileChecks.Problem p = org.dbgl.util.GameHints.setupAdvice(title, sb16, null);
 			assertNotNull(title, p);
 			assertEquals("dm2sbpro", p.key());
 			assertEquals("[sblaster] sbtype = sb16", p.args()[1]);
 		}
-		assertNull(org.dbgl.util.GameHints.setupAdvice("Dungeon Master II", pro));
-		assertNull(org.dbgl.util.GameHints.setupAdvice("Dungeon Master II", none));
-		assertNull(org.dbgl.util.GameHints.setupAdvice("Dungeon Master", sb16));
-		assertNull(org.dbgl.util.GameHints.setupAdvice("Dungeon Keeper 2", sb16));
+		assertNull(org.dbgl.util.GameHints.setupAdvice("Dungeon Master II", pro, null));
+		assertNull(org.dbgl.util.GameHints.setupAdvice("Dungeon Master II", none, null));
+		assertNull(org.dbgl.util.GameHints.setupAdvice("Dungeon Master", sb16, null));
+		assertNull(org.dbgl.util.GameHints.setupAdvice("Dungeon Keeper 2", sb16, null));
 		assertFalse(org.dbgl.service.TextService.getInstance().get("dialog.checkprofiles.dm2sbpro", new Object[] {"X", "Y"}).contains("dm2sbpro"));
+
+		String cfg = "\r\n[DIGITAL]\r\nDeviceName  = %s\r\nDeviceIRQ   = 7\r\nDeviceDMA   = 1\r\nDevicePort  = 0x220\r\nDeviceID    = %s\r\n\r\n[MIDI]\r\nDeviceName  = Sound Blaster 16\r\nDevicePort  = 0x388\r\nDeviceID    = 0xa009\r\n";
+		assertEquals("e001", org.dbgl.util.GameHints.hmiDigitalId(String.format(cfg, "Sound Blaster Pro", "0xe001")));
+		assertEquals("e015", org.dbgl.util.GameHints.hmiDigitalId(String.format(cfg, "Sound Blaster 16", "0xE015")));
+		assertNull(org.dbgl.util.GameHints.hmiDigitalId("[MIDI]\r\nDeviceID = 0xa009\r\n"));
+		File dir = Files.createTempDirectory("dbgl-dm2").toFile();
+		try {
+			File main = new File(dir, "DM2.EXE");
+			Files.writeString(main.toPath(), "x");
+			assertNotNull(org.dbgl.util.GameHints.setupAdvice("Dungeon Master II", sb16, main)); // no file of the setup yet
+			File skull = new File(dir, "skull.cfg");
+			Files.writeString(skull.toPath(), String.format(cfg, "Sound Blaster Pro", "0xe001"), StandardCharsets.ISO_8859_1);
+			assertNull(org.dbgl.util.GameHints.setupAdvice("Dungeon Master II", sb16, main)); // done: no hint
+			Files.writeString(skull.toPath(), String.format(cfg, "Sound Blaster 16", "0xe015"), StandardCharsets.ISO_8859_1);
+			assertNotNull(org.dbgl.util.GameHints.setupAdvice("Dungeon Master II", sb16, main));
+			assertNotNull(org.dbgl.util.GameHints.setupAdvice("DM2 (my copy)", sb16, main)); // the file tells the game
+			assertNull(org.dbgl.util.GameHints.setupAdvice("DM2 (my copy)", pro, main));
+			Files.writeString(skull.toPath(), "[MIDI]\r\nDeviceID = 0xa009\r\n", StandardCharsets.ISO_8859_1);
+			assertNull(org.dbgl.util.GameHints.setupAdvice("Dungeon Master II", sb16, main)); // no digital sound chosen
+			Files.writeString(skull.toPath(), String.format(cfg, "Sound Blaster", "0xe000"), StandardCharsets.ISO_8859_1);
+			assertNull(org.dbgl.util.GameHints.setupAdvice("Dungeon Master II", sb16, main)); // another one: nothing known about it
+		} finally {
+			org.apache.commons.io.FileUtils.deleteQuietly(dir);
+		}
+	}
+
+	/** alpha 50: 1942: The Pacific Air War wants the memory manager JEMMEX loaded before it; the hint goes once that is so */
+	@Test
+	public void testMemoryManagerAdvice1942() throws Exception {
+		List<String> plain = List.of("@echo off", "C:", "cd \\", "1942.EXE"), done = List.of("cd \\", "JEMMEX.EXE FRAME=E000 LOAD", "1942.EXE");
+		for (String title: new String[] {"1942: The Pacific Air War", "1942 - The Pacific Air War (1994)", "1942 Pacific Air War Gold"}) {
+			org.dbgl.util.ProfileChecks.Problem p = org.dbgl.util.GameHints.memoryManagerAdvice(title, null, plain);
+			assertNotNull(title, p);
+			assertEquals("paw1942jemmex", p.key());
+			assertNull(title, org.dbgl.util.GameHints.memoryManagerAdvice(title, null, done));
+		}
+		assertNotNull(org.dbgl.util.GameHints.memoryManagerAdvice("PAW", new File("1942.exe"), plain)); // the program tells the game
+		assertNull(org.dbgl.util.GameHints.memoryManagerAdvice("PAW", new File("1942.exe"), List.of("c:\\tools\\jemmex frame=e000 load")));
+		assertNull(org.dbgl.util.GameHints.memoryManagerAdvice("PAW", new File("1942.exe"), List.of("@LH JEMMEX LOAD")));
+		assertNotNull(org.dbgl.util.GameHints.memoryManagerAdvice("PAW", new File("1942.exe"), List.of("rem JEMMEX.EXE FRAME=E000 LOAD", "echo jemmex")));
+		assertNull(org.dbgl.util.GameHints.memoryManagerAdvice("1942", null, plain)); // another game of that name
+		assertNull(org.dbgl.util.GameHints.memoryManagerAdvice("Pacific Strike", new File("PS.EXE"), plain));
+		File dir = Files.createTempDirectory("dbgl-1942").toFile();
+		try {
+			File bat = new File(dir, "START.BAT");
+			Files.writeString(bat.toPath(), "@echo off\r\n1942.EXE\r\n");
+			assertNotNull(org.dbgl.util.GameHints.memoryManagerAdvice("1942: The Pacific Air War", bat, List.of()));
+			Files.writeString(bat.toPath(), "@echo off\r\nJEMMEX.EXE FRAME=E000 LOAD\r\n1942.EXE\r\n");
+			assertNull(org.dbgl.util.GameHints.memoryManagerAdvice("1942: The Pacific Air War", bat, List.of()));
+		} finally {
+			org.apache.commons.io.FileUtils.deleteQuietly(dir);
+		}
+		assertFalse(org.dbgl.service.TextService.getInstance().get("dialog.checkprofiles.paw1942jemmex", new Object[] {"X", "Y"}).contains("paw1942jemmex"));
 	}
 }
