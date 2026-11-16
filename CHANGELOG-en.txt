@@ -4,8 +4,8 @@ DBGL Extended Edition - Changes since 0.100 beta 17
 Based on DBGL 0.100 beta 17 by Ronald Blankendaal (https://dbgl.org), source code.
 
 
-0.101 alpha 50 (in progress)
-----------------------------
+0.101 alpha 50 (2026-11-16)
+---------------------------
 Important
 - Java 21 will be needed soon: one of the next versions of DBGL Extended
   Edition needs Java 21 and will not start with an older Java. When DBGL
@@ -14,6 +14,34 @@ Important
   https://adoptium.net/temurin/releases/?version=21
 
 New
+- The way back from a USB stick (menu "Profiles" > "Bring back from USB
+  stick..."): what was played on a stick of the assistant "Portable (USB
+  stick)" comes back into the installation it was made from: play time
+  and starts, new files (saved games, screenshots) and files changed on
+  the stick. A preview shows every file first.
+  A file changed on both sides is not touched and named. Files that are
+  replaced are kept in a backup folder, nothing is deleted. Nothing is
+  counted twice when bringing back several times. Needed: the stick was
+  made with alpha 50 or later (it gets the details it needs then).
+- The preview of it: a group per game
+  with an empty line between them: play time, new files, replaced files
+  and conflicts, each kind in its color (the legend above as well), with
+  the size of each file. Before each line there is a box, before the
+  name of the game one for its whole group: only what is ticked is taken
+  over. Below it says how much of the whole will be transferred. Then
+  DBGL asks once more, with the numbers.
+- "Check profiles" tells when the configuration file of a DOSBox version
+  was written by an older version than the one entered. The tab "DOSBox
+  versions" has "Have the configuration file written again" on right
+  click for it: your settings and [autoexec] stay, the file as it was is
+  kept next to it as .bak.
+- New tab "Without pictures" next to "All profiles": the profiles that
+  have neither cover nor screenshot. It is found anew each time the list
+  is built; a profile leaves it as soon as it has a picture.
+- "Edit filter" shows the meaning of the condition in words below it
+  (e.g. Title contains "JURASSIC" or Developer is "Apogee"). The
+  condition itself stays as it is; for one written by hand that DBGL
+  cannot put into words, it says so.
 - Manage log files (menu File): a window like the one of the backups for
   the DOSBox output of the profiles (folder "logs", one folder per
   profile) and the diagnostic files of DBGL: look at them, delete them,
@@ -34,13 +62,6 @@ New
   memory manager JEMMEX before the game ("JEMMEX.EXE FRAME=E000 LOAD",
   with [dos] xms, ems and umb off) the digital sound effects are
   missing. The hint goes once the profile loads JEMMEX.
-- Bring back from the USB stick: a preview of its own. A group per game
-  with an empty line between them: play time, new files, replaced files
-  and conflicts, each kind in its color (the legend above as well), with
-  the size of each file. Before each line there is a box, before the
-  name of the game one for its whole group: only what is ticked is taken
-  over. Below it says how much of the whole will be transferred. Then
-  DBGL asks once more, with the numbers.
 - "Manage backups": the column of the locked backups has a padlock
   instead of a word, and so has the button "Lock".
 - Settings > GUI settings > Profile overview: the tab for profiles
@@ -75,17 +96,6 @@ Changed
   look for the folder, as the one of the MT-32 has. After a folder was
   chosen (MT-32 or Sound Canvas) the frame "ROMs" shows at once what was
   found there - without saving first.
-
-Fixed
-- "Import D-Fend (Reloaded) profiles" and "Import DFendX game archive":
-  in the dark mode under Windows the three headings were white bars with
-  unreadable text, and the fields beside a long label were outside of the
-  window. The three sources are a choice now, with the fields of the
-  chosen one below.
-- Dark mode: a button DBGL draws itself sometimes stayed dark until the
-  mouse moved over it (OK in the profile editor). The buttons of a window
-  are drawn again now once it has come up and when it becomes the active
-  one again.
 
 Improved
 - "Check profiles", a batch file as the program to start: no longer told
@@ -193,30 +203,16 @@ Improved
   values of the settings there too. The defaults cover DOSBox-X
   2023.10.06 to 2026.10.01.
 
-New
-- The way back from a USB stick (menu "Profiles" > "Bring back from USB
-  stick..."): what was played on a stick of the assistant "Portable (USB
-  stick)" comes back into the installation it was made from: play time
-  and starts, new files (saved games, screenshots) and files changed on
-  the stick. A preview shows every file first; the report can be saved.
-  A file changed on both sides is not touched and named. Files that are
-  replaced are kept in a backup folder, nothing is deleted. Nothing is
-  counted twice when bringing back several times. Needed: the stick was
-  made with alpha 50 or later (it gets the details it needs then).
-- "Check profiles" tells when the configuration file of a DOSBox version
-  was written by an older version than the one entered. The tab "DOSBox
-  versions" has "Have the configuration file written again" on right
-  click for it: your settings and [autoexec] stay, the file as it was is
-  kept next to it as .bak.
-- New tab "Without pictures" next to "All profiles": the profiles that
-  have neither cover nor screenshot. It is found anew each time the list
-  is built; a profile leaves it as soon as it has a picture.
-- "Edit filter" shows the meaning of the condition in words below it
-  (e.g. Title contains "JURASSIC" or Developer is "Apogee"). The
-  condition itself stays as it is; for one written by hand that DBGL
-  cannot put into words, it says so.
-
 Fixed
+- "Import D-Fend (Reloaded) profiles" and "Import DFendX game archive":
+  in the dark mode under Windows the three headings were white bars with
+  unreadable text, and the fields beside a long label were outside of the
+  window. The three sources are a choice now, with the fields of the
+  chosen one below.
+- Dark mode: a button DBGL draws itself sometimes stayed dark until the
+  mouse moved over it (OK in the profile editor). The buttons of a window
+  are drawn again now once it has come up and when it becomes the active
+  one again.
 - The log window of DOSBox froze when DOSBox wrote very many similar
   lines (Windows 95 shutting down in DOSBox-X): the counter "more similar
   lines" is written at most ten times a second instead of once per line.

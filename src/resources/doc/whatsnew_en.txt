@@ -23,6 +23,30 @@ IMPORTANT: JAVA 21 WILL BE NEEDED SOON
   When DBGL runs with an older Java, it says so at start.
 
 
+NEWEST IN 0.101 ALPHA 50
+------------------------
+  - Bring back from the USB stick: play time, saved games and screenshots
+    come back into the installation, with a preview per game in which you
+    tick what is taken over.
+  - "Check profiles" finds more: sound settings that do not fit together,
+    other values in the setup of the game, CD images that are not used,
+    hints for single games.
+  - Wizard and batch files: a better choice of the program to start and
+    of the setup program, far fewer false alarms for batch files.
+  - DOSBox versions: recognized from DOSBox 0.62 on, configuration files
+    in other languages, taking over from DOSBox 0.74 to DOSBox Staging
+    converts the values, a notice and a report for a version DBGL does
+    not know yet.
+  - Large collections: with thousands of profiles the table is there much
+    faster.
+  - "Manage log files"; creating and restoring a backup in the window
+    "Manage backups".
+  - Tab "Without pictures" for profiles without cover and screenshot; the
+    context menus are in a new order.
+  - Fixed: the D-Fend import in dark mode under Windows, the DOSBox log
+    window freezing.
+
+
 NEWEST IN 0.101 ALPHA 49
 ------------------------
   - DOSBox Staging 0.83.1 is supported; the value "auto" for keyboard and

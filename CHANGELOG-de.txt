@@ -4,8 +4,8 @@ DBGL Extended Edition - Änderungen seit 0.100 beta 17
 Grundlage: DBGL 0.100 beta 17 von Ronald Blankendaal (https://dbgl.org), Quellcode.
 
 
-0.101 alpha 50 (in Arbeit)
---------------------------
+0.101 alpha 50 (2026-11-16)
+---------------------------
 Wichtig
 - Bald ist Java 21 nötig: Eine der nächsten Versionen von DBGL Extended
   Edition benötigt Java 21 und startet mit einem älteren Java nicht mehr.
@@ -14,6 +14,37 @@ Wichtig
   https://adoptium.net/temurin/releases/?version=21
 
 Neu
+- Rückweg vom USB-Stick (Menü "Profile" > "Vom USB-Stick
+  zurückholen..."): Was auf einem Stick des Assistenten "Portabel
+  (USB-Stick)" gespielt wurde, kommt in die Installation zurück, aus der
+  er erstellt wurde: Spielzeit und Starts, neue Dateien (Spielstände,
+  Bildschirmfotos) und auf dem Stick geänderte Dateien. Vorher zeigt eine
+  Vorschau jede Datei. Eine Datei, die auf beiden Seiten geändert wurde,
+  wird nicht angefasst und genannt.
+  Ersetzte Dateien bleiben in einem Sicherungsordner, gelöscht wird
+  nichts. Nichts wird doppelt gezählt, wenn man mehrmals zurückholt.
+  Voraussetzung: Der Stick wurde mit alpha 50 oder neuer erstellt (er
+  bekommt dabei die nötigen Angaben mit).
+- Die Vorschau dazu: Je Spiel eine Gruppe mit
+  Leerzeile dazwischen: Spielzeit, neue Dateien, ersetzte Dateien und
+  Konflikte, jede Art in ihrer Farbe (die Legende darüber ebenso), mit
+  der Größe jeder Datei. Vor jeder Zeile steht ein Kästchen, vor dem
+  Namen des Spiels eines für die ganze Gruppe: Übernommen wird nur, was
+  angekreuzt ist. Unten steht, wie viel von der Gesamtmenge übertragen
+  wird. Danach fragt DBGL noch einmal mit den Zahlen nach.
+- "Profile prüfen" weist darauf hin, wenn die Konfigurationsdatei einer
+  DOSBox-Version von einer älteren Version geschrieben wurde als
+  eingetragen ist. Im Reiter "DOSBox-Versionen" gibt es dazu per
+  Rechtsklick "Konfigurationsdatei neu schreiben lassen": Die eigenen
+  Einstellungen und [autoexec] bleiben, die bisherige Datei bleibt als
+  .bak daneben.
+- Neuer Reiter "Ohne Bilder" neben "Alle Profile": die Profile, die weder
+  Cover noch Screenshot haben. Er wird bei jedem Aufbau neu ermittelt;
+  ein Profil verschwindet daraus, sobald es ein Bild hat.
+- "Filter bearbeiten" zeigt unter der Bedingung ihre Bedeutung in Worten
+  (z. B. Titel enthält "JURASSIC" oder Entwickler ist "Apogee"). Die
+  Bedingung selbst bleibt, wie sie ist; bei einer von Hand geschriebenen,
+  die DBGL nicht in Worte fassen kann, steht das dabei.
 - Logdateien verwalten (Menü Datei): ein Fenster wie das der Sicherungen
   für die DOSBox-Ausgabe der Profile (Ordner "logs", ein Ordner je Profil)
   und die Diagnosedateien von DBGL: ansehen, löschen, Ordner öffnen, und
@@ -35,13 +66,6 @@ Neu
   Speichermanager JEMMEX vor dem Spiel ("JEMMEX.EXE FRAME=E000 LOAD", mit
   [dos] xms, ems und umb aus) fehlen die digitalen Klang-Effekte. Der
   Hinweis verschwindet, sobald das Profil JEMMEX lädt.
-- USB-Stick zurückholen: eine eigene Vorschau. Je Spiel eine Gruppe mit
-  Leerzeile dazwischen: Spielzeit, neue Dateien, ersetzte Dateien und
-  Konflikte, jede Art in ihrer Farbe (die Legende darüber ebenso), mit
-  der Größe jeder Datei. Vor jeder Zeile steht ein Kästchen, vor dem
-  Namen des Spiels eines für die ganze Gruppe: Übernommen wird nur, was
-  angekreuzt ist. Unten steht, wie viel von der Gesamtmenge übertragen
-  wird. Danach fragt DBGL noch einmal mit den Zahlen nach.
 - "Sicherungen verwalten": Die Spalte der gesperrten Sicherungen trägt
   ein Schloss statt eines Wortes, die Schaltfläche "Sperren" ebenso.
 - Einstellungen > GUI-Einstellungen > Profilübersicht: Reiter für Profile
@@ -77,17 +101,6 @@ Geändert
   zum Suchen des Ordners, wie der des MT-32. Nach der Wahl eines Ordners
   (MT-32 oder Sound Canvas) zeigt der Rahmen "ROMs" sofort, was dort
   gefunden wurde - ohne erst zu speichern.
-
-Behoben
-- "D-Fend (Reloaded)-Profile importieren" und "DFendX-Spielarchiv
-  importieren": Im Dark Mode unter Windows waren die drei Überschriften
-  weiße Balken mit unlesbarer Schrift, und die Felder neben einer langen
-  Beschriftung lagen außerhalb des Fensters. Die drei Quellen sind jetzt
-  eine Auswahl, darunter stehen die Felder der gewählten.
-- Dark Mode: Eine Schaltfläche, die DBGL selbst zeichnet, blieb mitunter
-  dunkel, bis die Maus darüber fuhr (OK im Profil-Editor). Die
-  Schaltflächen eines Fensters werden jetzt neu gezeichnet, sobald es da
-  ist und wenn es wieder das aktive wird.
 
 Verbessert
 - "Profile prüfen" erkennt mehr:
@@ -199,33 +212,16 @@ Verbessert
   auch dort die Standardwerte und die möglichen Werte der Einstellungen.
   Die Standardwerte decken DOSBox-X 2023.10.06 bis 2026.10.01 ab.
 
-Neu
-- Rückweg vom USB-Stick (Menü "Profile" > "Vom USB-Stick
-  zurückholen..."): Was auf einem Stick des Assistenten "Portabel
-  (USB-Stick)" gespielt wurde, kommt in die Installation zurück, aus der
-  er erstellt wurde: Spielzeit und Starts, neue Dateien (Spielstände,
-  Bildschirmfotos) und auf dem Stick geänderte Dateien. Vorher zeigt eine
-  Vorschau jede Datei; der Bericht lässt sich speichern. Eine Datei, die
-  auf beiden Seiten geändert wurde, wird nicht angefasst und genannt.
-  Ersetzte Dateien bleiben in einem Sicherungsordner, gelöscht wird
-  nichts. Nichts wird doppelt gezählt, wenn man mehrmals zurückholt.
-  Voraussetzung: Der Stick wurde mit alpha 50 oder neuer erstellt (er
-  bekommt dabei die nötigen Angaben mit).
-- "Profile prüfen" weist darauf hin, wenn die Konfigurationsdatei einer
-  DOSBox-Version von einer älteren Version geschrieben wurde als
-  eingetragen ist. Im Reiter "DOSBox-Versionen" gibt es dazu per
-  Rechtsklick "Konfigurationsdatei neu schreiben lassen": Die eigenen
-  Einstellungen und [autoexec] bleiben, die bisherige Datei bleibt als
-  .bak daneben.
-- Neuer Reiter "Ohne Bilder" neben "Alle Profile": die Profile, die weder
-  Cover noch Screenshot haben. Er wird bei jedem Aufbau neu ermittelt;
-  ein Profil verschwindet daraus, sobald es ein Bild hat.
-- "Filter bearbeiten" zeigt unter der Bedingung ihre Bedeutung in Worten
-  (z. B. Titel enthält "JURASSIC" oder Entwickler ist "Apogee"). Die
-  Bedingung selbst bleibt, wie sie ist; bei einer von Hand geschriebenen,
-  die DBGL nicht in Worte fassen kann, steht das dabei.
-
-Behoben
+Fehler behoben
+- "D-Fend (Reloaded)-Profile importieren" und "DFendX-Spielarchiv
+  importieren": Im Dark Mode unter Windows waren die drei Überschriften
+  weiße Balken mit unlesbarer Schrift, und die Felder neben einer langen
+  Beschriftung lagen außerhalb des Fensters. Die drei Quellen sind jetzt
+  eine Auswahl, darunter stehen die Felder der gewählten.
+- Dark Mode: Eine Schaltfläche, die DBGL selbst zeichnet, blieb mitunter
+  dunkel, bis die Maus darüber fuhr (OK im Profil-Editor). Die
+  Schaltflächen eines Fensters werden jetzt neu gezeichnet, sobald es da
+  ist und wenn es wieder das aktive wird.
 - Das Protokollfenster von DOSBox fror ein, wenn DOSBox sehr viele ähnliche
   Zeilen schrieb (Windows 95 fährt in DOSBox-X herunter): Der Zähler
   "weitere ähnliche Zeilen" wird höchstens zehnmal je Sekunde geschrieben
