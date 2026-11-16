@@ -21,20 +21,45 @@ Verbessert
     die Zeile aus dem Profil.
   - Hinweise ohne Warnzeichen, aus den Dateien des Spiels (DIG.INI und
     MDI.INI des Miles Sound System, DEFAULT.CFG von Doom, Heretic, Hexen
-    und Strife, RESOURCE.CFG der Sierra-Spiele): Das Setup des Spiels hat
-    für den Sound Blaster andere Werte für Port, IRQ oder DMA gespeichert,
-    als das Profil hat (die Lösung setzt das Profil auf die Werte des
-    Spiels); das Spiel ist auf ein Gerät eingestellt, das im Profil aus
-    ist (Sound Blaster, Gravis Ultrasound); das Spiel ist auf einen Roland
-    MT-32 eingestellt, das Profil nutzt keinen (DOSBox Staging, DOSBox-X).
+    und Strife, RESOURCE.CFG der Spiele von Sierra und Dynamix, HMISET.CFG
+    und ihre Abarten des Soundsystems von HMI (Schicksalsklinge 3,
+    Millennia, M.A.X., Sensible Soccer), die .CFG der Spiele von Origin
+    mit "-ds271", die .CFG der Build-Spiele, FB.CFG von Flashback,
+    SC2000.CFG, TURRICAN.CFG, die Schalter "-sa: -si: -sd:" in der
+    Batchdatei von Arena): Das Setup des
+    Spiels hat für den Sound Blaster andere Werte für Port, IRQ oder DMA
+    gespeichert, als das Profil hat (die Lösung setzt das Profil auf die
+    Werte des Spiels); das Spiel ist auf ein Gerät eingestellt, das im
+    Profil aus ist (Sound Blaster, Gravis Ultrasound); das Spiel ist auf
+    einen Roland MT-32 eingestellt, das Profil nutzt keinen (DOSBox
+    Staging, DOSBox-X).
   - Hinweis: Im Ordner des Spiels liegt ein CD-Abbild, das Profil bindet
-    aber keine CD ein. Die Lösung bindet es als Laufwerk ein.
+    aber keine CD ein. Die Lösung bindet es als Laufwerk ein. Als Abbild
+    zählt eine Datei nach ihrem Inhalt, nicht nur nach ihrer Endung.
   - Eine kurze Liste von Spielen mit belegtem Bedarf, mit Quelle im Text:
     Contra, FIFA International Soccer, The Terminator, X-Men: Madness in
     Murderworld (cputype = 386_prefetch), Alley Cat, Sopwith (140 bis 300
     Zyklen), Quake, Duke Nukem 3D, Tomb Raider, Descent II (memsize = 32)
     nach dem Handbuch von DOSBox Staging; Ultima VII: The Black Gate
     (ems = false) nach dem Wiki von DOSBox.
+- "Profile prüfen", Batchdatei als Startprogramm: Nicht mehr als fehlend
+  gemeldet wird, was die Batchdatei selbst anlegt ("copy x.dat x.exe",
+  dann "x.exe") oder vorher abfragt ("if not exist x.bat goto ..."), wie
+  es Installations- und Startmenüs in einer Datei tun (gefunden an der
+  Starship Troopers TC für Duke Nukem 3D); ein fehlendes Programm steht
+  nur noch einmal da. Ein Programm, das ohne Endung aufgerufen wird
+  ("wrms", "u8"), wird jetzt auch geprüft (als .COM, .EXE und .BAT);
+  bisher nur Aufrufe mit Endung. Der Assistent nimmt als Startprogramm
+  kein Windows-Programm, wenn es eines für DOS gibt (SST_TC.EXE neben
+  SST_TC.BAT), und erkennt ein Setup-Programm auch am Namen (GAMESET.EXE,
+  SETMUSE.EXE, SBSETUP.EXE; nicht WINSETUP.EXE oder IPXSETUP.EXE). Als
+  Startprogramm zählt mehr, wer seine Einstellungen im Ordner hat (WG.EXE
+  mit WG.CFG bei Wings of Glory), und "3D" am Ende des Namens gilt als
+  Zahl des Titels (WOLF3D.EXE, DUKE3D.EXE).
+  Ein sicheres "goto" wird verfolgt ("if not exist seq.exe goto weiter":
+  King's Quest VI entpackt beim ersten Start mit Programmen, die danach
+  weg sind). Geprüft an 259 Batchdateien, 333 Einstellungsdateien und
+  408 Ordnern einer Sammlung von 189 Spielen.
 - Erkennung beim Hinzufügen eines Spiels (Assistent): Die Startdatei wird
   jetzt nach dem gewählt, woraus solche Namen bestehen: der Titel am
   Stück oder ein Teil davon (DOOM2, MONKEY), seine Anfangsbuchstaben (UW,

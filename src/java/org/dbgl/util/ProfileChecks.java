@@ -27,6 +27,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -973,7 +974,9 @@ public final class ProfileChecks {
 		"mem", "mode", "ctty", "truename", "verify", "ls", "help", "for", "mount", "imgmount", "boot", "config", "mixer", "keyb", "loadfix", "loadrom",
 		"rescan", "intro", "mousectl", "serial", "autotype", "imgmake", "imgswap", "cpuid", "license", "tree", "xcopy", "deltree", "find", "sys", "mscdex",
 		"mcdex", "setver", "subst", "a20gate", "biostest", "capmouse", "clip", "color", "country", "debug", "dsxmenu", "flagsave", "int2fdbg", "nmitest",
-		"prinfo", "shutdown", "start", "vesamoed", "vfrcrate", "where", "addkey", "dx-capture", "fcbs", "files", "lfnfor", "pause", "popd", "pushd");
+		"prinfo", "shutdown", "start", "vesamoed", "vfrcrate", "where", "addkey", "dx-capture", "fcbs", "files", "lfnfor", "pause", "popd", "pushd",
+		// alpha 50: IPXNET of DOSBox, and what batch files of the time call of DOS itself (DOSBox says "Illegal command" and goes on)
+		"ipxnet", "smartdrv", "share", "doskey", "fastopen", "nlsfunc", "lock", "unlock", "emm386", "himem", "setlocal", "endlocal");
 
 	/** the lines of the [autoexec] section of a configuration file as they are written (DOSBox runs them in this order) */
 	public static List<String> autoexecLines(File conf) {
@@ -1198,16 +1201,71 @@ public final class ProfileChecks {
 		return caesar && p.startsWith("COHORT");
 	}
 
+	private static final Pattern BAT_GOTO = Pattern.compile("(?i)goto\\s+:?(\\S+)\\s*"), BAT_IF_EXIST_GOTO = Pattern.compile("(?i)if\\s+(not\\s+)?exist\\s+(\\S+)\\s+goto\\s+:?(\\S+)\\s*");
+
+	/** a label as DOS compares it: its first word, its first eight characters, capitals and small letters the same */
+	private static String labelOf(String label) {
+		String l = label.trim().split("\\s+")[0].toLowerCase(Locale.ROOT);
+		return l.length() > 8 ? l.substring(0, 8): l;
+	}
+
+	private static final Pattern BARE_NAME = Pattern.compile("[A-Za-z0-9_~$!#&-]{1,8}"), PLAIN_WORDS = Pattern.compile("\\s+[\\p{L}'.,!?\\s]+");
+
+	// "copy a b", "ren a b", "move a b": b; "if exist a", "if not exist a": a; "echo text >a": a
+	private static final Pattern BAT_MAKES = Pattern.compile("(?i)^\\s*@?(?:copy|ren|rename|move)\\s+(?:/\\S+\\s+)*\\S+\\s+([^\\s>|]+)"),
+			BAT_ASKS = Pattern.compile("(?i)\\bif\\s+(?:not\\s+)?exist\\s+([^\\s>|]+)"), BAT_WRITES = Pattern.compile(">>?\\s*([^\\s>|]+)\\s*$");
+
 	/** the programs a batch file starts (just its name, before any "cd") that are not in its folder: {program, line} */
 	public static List<String[]> batMissing(File bat) {
 		List<String[]> result = new ArrayList<>();
 		File dir = bat.getParentFile();
 		try {
-			for (String raw: new String(Files.readAllBytes(bat.toPath()), StandardCharsets.ISO_8859_1).split("\\R")) {
+			String[] lines = new String(Files.readAllBytes(bat.toPath()), StandardCharsets.ISO_8859_1).split("\\R");
+			// alpha 50: not missing is what the batch file makes itself ("copy sst_full.dat sst_full.exe", then "sst_full.exe")
+			// and what it asks for before ("if not exist ump.bat goto noump"): an installer and launcher in one does both
+			Set<String> own = new HashSet<>(), told = new HashSet<>();
+			for (String raw: lines) {
+				Matcher made = BAT_MAKES.matcher(raw);
+				if (made.find())
+					own.add(FilenameUtils.getName(made.group(1).replace('\\', '/')).toLowerCase(Locale.ROOT));
+				Matcher asked = BAT_ASKS.matcher(raw);
+				while (asked.find())
+					own.add(FilenameUtils.getName(asked.group(1).replace('\\', '/')).toLowerCase(Locale.ROOT));
+				Matcher written = BAT_WRITES.matcher(raw);
+				if (written.find())
+					own.add(FilenameUtils.getName(written.group(1).replace('\\', '/')).toLowerCase(Locale.ROOT));
+			}
+			// the labels, to follow a "goto" that is sure: "goto x", and "if [not] exist file goto x" as the folder is now (the
+			// first start of King's Quest VI unpacks with programs that are gone afterwards: "if not exist seq.exe goto continue")
+			java.util.Map<String, Integer> labels = new java.util.HashMap<>();
+			for (int i = 0; i < lines.length; i++) {
+				String l = lines[i].trim();
+				if (l.startsWith(":") && !l.startsWith("::"))
+					labels.putIfAbsent(labelOf(l.substring(1)), i);
+			}
+			for (int at = 0; at < lines.length; at++) {
+				String raw = lines[at];
 				String line = raw.trim();
 				if (line.startsWith("@"))
 					line = line.substring(1).trim();
 				String lower = line.toLowerCase(Locale.ROOT);
+				Matcher jump = BAT_GOTO.matcher(line), jumpIf = BAT_IF_EXIST_GOTO.matcher(line);
+				String target = null;
+				if (jump.matches())
+					target = jump.group(1);
+				else if (jumpIf.matches()) {
+					File asked = new File(dir, org.dbgl.model.conf.DosboxShortNames.toHostName(dir, jumpIf.group(2)));
+					boolean there = !jumpIf.group(2).contains("*") && !jumpIf.group(2).contains("?") && !jumpIf.group(2).contains("%") && (asked.exists() || existsIgnoringCase(asked));
+					if (there == (jumpIf.group(1) == null))
+						target = jumpIf.group(3);
+				}
+				if (target != null) {
+					Integer to = labels.get(labelOf(target));
+					if ((to == null) || (to <= at))
+						break; // to the end (":eof", no such label) or back: what was to be seen has been seen
+					at = to;
+					continue;
+				}
 				if (line.isEmpty() || lower.startsWith("rem") || line.startsWith("::") || line.startsWith(":") || lower.startsWith("echo") || lower.startsWith("if ")
 						|| lower.startsWith("set ") || lower.startsWith("goto ") || lower.startsWith("for "))
 					continue;
@@ -1220,10 +1278,20 @@ public final class ProfileChecks {
 					}
 				String token = line.split("\\s+")[0];
 				Matcher m = PROGRAM_NAME.matcher(token);
-				if (!m.matches() || DOSBOX_COMMANDS.contains(FilenameUtils.getBaseName(token).toLowerCase(Locale.ROOT)))
+				// alpha 50: a program is mostly called without its ending ("wrms", "u8"): looked for as .COM, .EXE and .BAT. Not
+				// taken as a call is a line of plain words (text that was meant for "echo")
+				boolean bare = !m.matches() && BARE_NAME.matcher(token).matches() && !PLAIN_WORDS.matcher(line.substring(token.length())).matches();
+				if ((!m.matches() && !bare) || DOSBOX_COMMANDS.contains(FilenameUtils.getBaseName(token).toLowerCase(Locale.ROOT)))
 					continue;
-				File f = new File(dir, org.dbgl.model.conf.DosboxShortNames.toHostName(dir, token));
-				if (!f.exists() && !existsIgnoringCase(f))
+				String name = token.toLowerCase(Locale.ROOT);
+				if (own.contains(name) || (!name.contains(".") && own.stream().anyMatch(o -> FilenameUtils.getBaseName(o).equals(name) && PROGRAM_NAME.matcher(o).matches())))
+					continue;
+				boolean there = false;
+				for (String ending: bare ? new String[] {".COM", ".EXE", ".BAT"}: new String[] {""}) {
+					File f = new File(dir, org.dbgl.model.conf.DosboxShortNames.toHostName(dir, token + ending));
+					there |= f.exists() || existsIgnoringCase(f);
+				}
+				if (!there && told.add(name)) // once for each program
 					result.add(new String[] {token.toUpperCase(Locale.ROOT), raw.trim()});
 			}
 		} catch (IOException e) {

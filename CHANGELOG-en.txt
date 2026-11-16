@@ -7,6 +7,24 @@ Based on DBGL 0.100 beta 17 by Ronald Blankendaal (https://dbgl.org), source cod
 0.101 alpha 50 (in progress)
 ----------------------------
 Improved
+- "Check profiles", a batch file as the program to start: no longer told
+  as missing is what the batch file makes itself ("copy x.dat x.exe", then
+  "x.exe") or asks for before ("if not exist x.bat goto ..."), as an
+  installer and launcher in one file does (found with the Starship
+  Troopers TC for Duke Nukem 3D); a missing program is told once only.
+  A program called without its ending ("wrms", "u8") is checked now, too
+  (as .COM, .EXE and .BAT); before, only calls with an ending were. The
+  wizard does not take a Windows program as the program to start if
+  there is one for DOS (SST_TC.EXE next to SST_TC.BAT), and knows a setup
+  program by its name as well (GAMESET.EXE, SETMUSE.EXE, SBSETUP.EXE; not
+  WINSETUP.EXE or IPXSETUP.EXE). As the program to start, one counts for
+  more that has its settings in the folder (WG.EXE with WG.CFG of Wings of
+  Glory), and "3D" at the end of a name counts as the number of the title
+  (WOLF3D.EXE, DUKE3D.EXE). A "goto" that is sure is followed
+  ("if not exist seq.exe goto continue": the first start of King's Quest
+  VI unpacks with programs that are gone afterwards). Checked with 259
+  batch files, 333 files of settings and 408 folders of a collection of
+  189 games.
 - "Check profiles" finds more:
   - Settings that are valid each but do not go together: Sound Blaster and
     Gravis Ultrasound on the same IRQ, DMA channel or port; for DOSBox 0.74
@@ -20,14 +38,20 @@ Improved
     line from the profile.
   - Notes without a warning sign, from the files of the game (DIG.INI and
     MDI.INI of the Miles Sound System, DEFAULT.CFG of Doom, Heretic, Hexen
-    and Strife, RESOURCE.CFG of the games of Sierra): the setup of the game
+    and Strife, RESOURCE.CFG of the games of Sierra and Dynamix, HMISET.CFG
+    and its kin of the sound system of HMI (Realms of Arkania 3,
+    Millennia, M.A.X., Sensible Soccer), the .CFG of the games of Origin
+    with "-ds271", the .CFG of the Build games, FB.CFG of Flashback,
+    SC2000.CFG, TURRICAN.CFG, the switches "-sa: -si: -sd:" in the batch
+    file of Arena): the setup of the game
     has saved other values for port, IRQ or DMA of the Sound Blaster than
     the profile has (the solution sets the profile to the values of the
     game); the game is set to a device that is off in the profile (Sound
     Blaster, Gravis Ultrasound); the game is set to a Roland MT-32, the
     profile uses none (DOSBox Staging, DOSBox-X).
   - Note: a CD image is in the folder of the game, but the profile mounts
-    no CD. The solution mounts it as a drive.
+    no CD. The solution mounts it as a drive. A file counts as an image
+    by what is in it, not only by its ending.
   - A short list of games with a documented need, the source named in the
     text: Contra, FIFA International Soccer, The Terminator, X-Men: Madness
     in Murderworld (cputype = 386_prefetch), Alley Cat, Sopwith (140 to 300

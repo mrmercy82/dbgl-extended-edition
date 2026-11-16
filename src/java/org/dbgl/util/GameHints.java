@@ -159,6 +159,125 @@ public final class GameHints {
 		return null;
 	}
 
+	private static final Pattern HMI_SECTION = Pattern.compile("(?is)^\\s*\\[SoundFX\\]\\s*$(.*?)(?=^\\s*\\[|\\z)", Pattern.MULTILINE);
+	/** the numbers of the Sound Blaster and the Sound Blaster 16 (8 and 16 bit, mono and stereo) as SOUNDDRV.INI of Dynamix lists them */
+	private static final Set<String> HMI_SB = Set.of("e000", "e001", "e015", "e016", "e017", "e018");
+
+	/**
+	 * The sound system of HMI, as the setup of Dynamix writes it into RESOURCE.CFG (Aces of the Deep): "[SoundFX]",
+	 * "Driver#=E015", "DMA=1", "IRQ=7", "PortAddress=220".
+	 */
+	public static Sound hmiCfg(String file, String text) {
+		Matcher m = HMI_SECTION.matcher(text);
+		return m.find() ? hmiValues(file, m.group(1)): null;
+	}
+
+	private static final Pattern HMI_DIGITAL = Pattern.compile("(?is)^\\s*\\[DIGITAL\\]\\s*$(.*?)(?=^\\s*\\[|\\z)", Pattern.MULTILINE);
+
+	private static String first(Map<String, String> values, String... keys) {
+		for (String k: keys)
+			if (values.containsKey(k))
+				return values.get(k);
+		return null;
+	}
+
+	/**
+	 * The sound system of HMI as most games write it: HMISET.CFG with "[DIGITAL]", "DeviceIRQ = 7", "DeviceDMA = 1",
+	 * "DevicePort = 0x220", "DeviceID = 0xe016" (Realms of Arkania 3, Millennia); with "Device_IRQ" in MAX.INI of M.A.X.; as
+	 * "SoundCard=0xe016", "SoundPort=0x220", "SoundIRQ=7", "SoundDMA=1" without a section (Sensible Soccer). With a number
+	 * for 16 bit (e017, e018) the DMA channel is the high one (M.A.X.: "Device_DMA=5").
+	 */
+	public static Sound hmiSet(String file, String text) {
+		Matcher m = HMI_DIGITAL.matcher(text);
+		return hmiValues(file, m.find() ? m.group(1): text);
+	}
+
+	private static Sound hmiValues(String file, String text) {
+		Map<String, String> values = new LinkedHashMap<>();
+		for (String line: text.split("\\R")) {
+			String[] kv = line.split("=", 2);
+			if (kv.length == 2)
+				values.putIfAbsent(kv[0].trim().toLowerCase(Locale.ROOT).replace("_", ""), kv[1].trim());
+		}
+		String id = StringUtils.defaultString(first(values, "deviceid", "soundcard", "driver#")).toLowerCase(Locale.ROOT);
+		if (id.startsWith("0x"))
+			id = id.substring(2);
+		if (!HMI_SB.contains(id))
+			return null;
+		Integer dma = number(first(values, "devicedma", "sounddma", "dma"), 10);
+		boolean high = id.equals("e017") || id.equals("e018");
+		return new Sound(file, SB, number(first(values, "deviceport", "soundport", "portaddress"), 16), number(first(values, "deviceirq", "soundirq", "irq"), 10), high ? null: dma, high ? dma: null);
+	}
+
+	private static final Pattern BLASTER_ENTRY = Pattern.compile("(?im)^\\s*BLASTER\\s*=\\s*(A[0-9a-f]{3}\\b.*)$");
+
+	/**
+	 * Other files of settings, as found with the games: "BLASTER = A220 I7 D1" (Flashback, FB.CFG); "SFXDRIVER=A32SBPDG.DLL",
+	 * "SFXADDRESS=220", "SFXIRQ=7", "SFXDMA=1" (SimCity 2000; "*": found by the game); "SoundDriver=SBPRO.MSD", "Port=544",
+	 * "Interrupt=7", "DMAChannel=1" (Turrican II; the port in decimal).
+	 */
+	public static Sound otherCfg(String file, String text) {
+		Matcher b = BLASTER_ENTRY.matcher(text);
+		if (b.find()) {
+			Sound s = blasterLine(file, "set blaster=" + b.group(1));
+			return s == null ? null: new Sound(file, SB, s.port(), s.irq(), s.dma(), s.hdma());
+		}
+		Map<String, String> values = new LinkedHashMap<>();
+		for (String line: text.split("\\R")) {
+			String[] kv = line.split("=", 2);
+			if (kv.length == 2)
+				values.putIfAbsent(kv[0].trim().toLowerCase(Locale.ROOT), kv[1].trim());
+		}
+		String sfx = StringUtils.defaultString(values.get("sfxdriver")).toUpperCase(Locale.ROOT), msd = StringUtils.defaultString(values.get("sounddriver")).toUpperCase(Locale.ROOT);
+		if (sfx.startsWith("A32SB"))
+			return new Sound(file, SB, number(values.get("sfxaddress"), 16), number(values.get("sfxirq"), 10), number(values.get("sfxdma"), 10), null);
+		if (msd.startsWith("SB") && msd.endsWith(".MSD"))
+			return new Sound(file, SB, number(values.get("port"), 10), number(values.get("interrupt"), 10), number(values.get("dmachannel"), 10), null);
+		return null;
+	}
+
+	private static final Pattern ORIGIN_DS = Pattern.compile("(?m)^-ds(\\d)(1[0-2]|\\d)(\\d)\\s*$");
+
+	/**
+	 * The games of Origin with a .CFG of switches (Wing Commander Armada, Wings of Glory): "-ds271" is the Sound Blaster at
+	 * 220, IRQ 7, DMA 1 ("-ds###: address(2n0) IRQ DMAchannel", the file of Wings of Glory says so itself).
+	 */
+	public static Sound originCfg(String file, String text) {
+		Matcher m = ORIGIN_DS.matcher(text);
+		return m.find() ? new Sound(file, SB, 0x200 + 16 * Integer.parseInt(m.group(1)), number(m.group(2), 10), number(m.group(3), 10), null): null;
+	}
+
+	private static final Pattern BUILD_FX = Pattern.compile("(?im)^\\s*FXDevice\\s*=\\s*(\\d+)\\s*$");
+
+	/**
+	 * The games made with Build (Duke Nukem 3D, Blood, Shadow Warrior): "[Sound Setup]", "FXDevice = 0" is the Sound Blaster.
+	 * The "BlasterInterrupt" and its like there are not compared: whether the game takes them or the BLASTER variable is not
+	 * known to DBGL.
+	 */
+	public static Sound buildCfg(String file, String text) {
+		if (!text.toLowerCase(Locale.ROOT).contains("[sound setup]"))
+			return null;
+		Matcher m = BUILD_FX.matcher(text);
+		return m.find() && m.group(1).equals("0") ? new Sound(file, SB, null, null, null, null): null;
+	}
+
+	private static final Pattern SWITCH_PORT = Pattern.compile("(?i)(?:^|\\s)-sa:([0-9a-f]{3})\\b"), SWITCH_IRQ = Pattern.compile("(?i)\\s-si:(\\d{1,2})\\b"),
+			SWITCH_DMA = Pattern.compile("(?i)\\s-sd:(\\d)\\b"), SWITCH_SB = Pattern.compile("(?i)\\s-ssb\\w*");
+
+	/**
+	 * The batch file of The Elder Scrolls: Arena: "A -sa:220 -si:7 -sd:1 -ma:330 -mq:2 -md:1 -ssbdig.adv -mgenmidi.adv" -
+	 * address, IRQ and DMA of the sound card, here a Sound Blaster (sbdig.adv).
+	 */
+	public static Sound switchesLine(String file, String line) {
+		String t = line.trim();
+		if (t.toLowerCase(Locale.ROOT).startsWith("rem") || t.startsWith("::") || !SWITCH_SB.matcher(t).find())
+			return null;
+		Matcher p = SWITCH_PORT.matcher(t), i = SWITCH_IRQ.matcher(t), d = SWITCH_DMA.matcher(t);
+		if (!p.find() || !i.find() || !d.find())
+			return null;
+		return new Sound(file, SB, number(p.group(1), 16), number(i.group(1), 10), number(d.group(1), 10), null);
+	}
+
 	private static final Pattern BLASTER_LINE = Pattern.compile("(?i)^\\s*@?set\\s+blaster\\s*=\\s*(\\S.*)$");
 	private static final Pattern ULTRASND_LINE = Pattern.compile("(?i)^\\s*@?set\\s+ultrasnd\\s*=\\s*([0-9a-f]+)\\s*,\\s*(\\d+)\\s*,\\s*(\\d+)\\s*,\\s*(\\d+)\\s*,\\s*(\\d+)\\s*$");
 
@@ -192,7 +311,7 @@ public final class GameHints {
 		return (port == null) && (irq == null) && (dma == null) && (hdma == null) ? null: new Sound(file, SB, port, irq, dma, hdma, "BLASTER", line.trim());
 	}
 
-	private static final Set<String> SOUND_FOLDERS = Set.of("SOUND", "SOUNDS", "AIL", "DRIVERS", "CFG", "CONFIG", "SETUP");
+	private static final Set<String> SOUND_FOLDERS = Set.of("SOUND", "SOUNDS", "AIL", "DRIVERS", "CFG", "CONFIG", "SETUP", "DATA");
 	private static final Set<String> DOOM_FILES = Set.of("DEFAULT.CFG", "HERETIC.CFG", "HEXEN.CFG", "STRIFE.CFG");
 	private static final long MAX_SIZE = 64 * 1024;
 
@@ -223,15 +342,27 @@ public final class GameHints {
 			Arrays.sort(in, String.CASE_INSENSITIVE_ORDER);
 			for (String n: in) {
 				String upper = n.toUpperCase(Locale.ROOT), shown = folder == dir ? n: folder.getName() + File.separator + n;
-				boolean miles = upper.equals("DIG.INI") || upper.equals("MDI.INI"), doom = DOOM_FILES.contains(upper), sierra = upper.equals("RESOURCE.CFG");
-				if (!miles && !doom && !sierra)
+				boolean miles = upper.equals("DIG.INI") || upper.equals("MDI.INI"), doom = DOOM_FILES.contains(upper), sierra = upper.equals("RESOURCE.CFG"),
+						hmi = upper.equals("HMISET.CFG"), other = !miles && ((folder == dir) && (upper.endsWith(".CFG") || upper.endsWith(".INI")));
+				if (!miles && !doom && !sierra && !other && !hmi)
 					continue;
 				String text = read(new File(folder, n));
 				if (text == null)
 					continue;
-				Sound s = miles ? milesIni(shown, text): doom ? doomCfg(shown, text): sierraCfg(shown, text);
+				Sound s = miles ? milesIni(shown, text): doom ? doomCfg(shown, text): sierra ? sierraCfg(shown, text): null;
 				if (s != null)
 					result.add(s);
+				if (sierra || other)
+					for (Sound more: new Sound[] {sierra ? hmiCfg(shown, text): null, other && !doom ? originCfg(shown, text): null, other && !doom ? buildCfg(shown, text): null})
+						if (more != null)
+							result.add(more);
+				if (hmi || (other && !doom && !sierra)) {
+					Sound more = hmiSet(shown, text);
+					if ((more == null) && !hmi)
+						more = otherCfg(shown, text);
+					if (more != null)
+						result.add(more);
+				}
 			}
 		}
 		if (main.getName().toUpperCase(Locale.ROOT).endsWith(".BAT")) {
@@ -239,6 +370,8 @@ public final class GameHints {
 			if (text != null)
 				for (String line: text.split("\\R")) {
 					Sound s = blasterLine(main.getName() + ": " + line.trim(), line);
+					if (s == null)
+						s = switchesLine(main.getName(), line);
 					if (s != null)
 						result.add(s);
 				}
@@ -389,9 +522,61 @@ public final class GameHints {
 		Arrays.sort(names, String.CASE_INSENSITIVE_ORDER);
 		for (String ext: CD_IMAGES)
 			for (String n: names)
-				if (n.toLowerCase(Locale.ROOT).endsWith("." + ext) && new File(dir, n).isFile())
+				if (n.toLowerCase(Locale.ROOT).endsWith("." + ext) && isCdImage(new File(dir, n), ext))
 					return n;
 		return null;
+	}
+
+	private static final Pattern CUE_FILE = Pattern.compile("(?im)^\\s*FILE\\s+\\S"), CUE_TRACK = Pattern.compile("(?im)^\\s*TRACK\\s+\\d");
+
+	/**
+	 * Is this file a CD image by what is in it, not only by its name? Games have files of their own with these endings (an
+	 * ".ins" of 25 bytes is no cue sheet): a cue sheet (.cue, and .ins and .inst as GOG names them) names a FILE and a TRACK;
+	 * an ISO image has "CD001" where its first volume descriptor is; .mds, .ccd and .chd start as their makers write them.
+	 */
+	public static boolean isCdImage(File f, String ext) {
+		if (!f.isFile())
+			return false;
+		try (java.io.RandomAccessFile in = new java.io.RandomAccessFile(f, "r")) {
+			long size = in.length();
+			switch (ext) {
+				case "cue", "ins", "inst", "ccd" -> {
+					if ((size < 20) || (size > MAX_SIZE))
+						return false;
+					byte[] all = new byte[(int)size];
+					in.readFully(all);
+					String text = new String(all, StandardCharsets.ISO_8859_1);
+					return ext.equals("ccd") ? text.contains("[CloneCD]"): CUE_FILE.matcher(text).find() && CUE_TRACK.matcher(text).find();
+				}
+				case "iso" -> {
+					// sector 16, with 2048 bytes a sector, or 2352 (16 or 24 bytes before the data)
+					for (long at: new long[] {16L * 2048 + 1, 16L * 2352 + 16 + 1, 16L * 2352 + 24 + 1})
+						if (startsWith(in, at, "CD001"))
+							return true;
+					return false;
+				}
+				case "mds" -> {
+					return startsWith(in, 0, "MEDIA DESCRIPTOR");
+				}
+				case "chd" -> {
+					return startsWith(in, 0, "MComprHD");
+				}
+				default -> {
+					return false;
+				}
+			}
+		} catch (Exception e) {
+			return false;
+		}
+	}
+
+	private static boolean startsWith(java.io.RandomAccessFile in, long at, String magic) throws java.io.IOException {
+		if (in.length() < at + magic.length())
+			return false;
+		byte[] b = new byte[magic.length()];
+		in.seek(at);
+		in.readFully(b);
+		return magic.equals(new String(b, StandardCharsets.ISO_8859_1));
 	}
 
 	/**

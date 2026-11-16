@@ -50,8 +50,18 @@ public class DosGameUtils {
 	// alpha 50: helpers that are no game either: DOS extenders, tools of DOS, packers, what a store puts next to the game
 	private static final Set<String> MORE_UNLIKELY = Set.of("dos32a.exe", "dos4g.exe", "pmodew.exe", "dosbox.exe", "dosbox-x.exe", "unins000.exe", "uninst.exe", "uninstall.exe", "emm386.exe",
 		"mouse.com", "mouse.exe", "mscdex.exe", "smartdrv.exe", "share.exe", "choice.com", "choice.exe", "pkzip.exe", "arj.exe", "lharc.exe", "unzip.exe", "rar.exe", "unrar.exe", "xcopy.exe",
-		"keyb.com", "mode.com", "debug.exe", "edit.com", "qbasic.exe", "deltree.exe", "attrib.exe", "format.com", "fdisk.exe", "scandisk.exe", "gogwrap.exe", "dxcfg.exe", "cloud_saves.exe");
-	private static final java.util.regex.Pattern SETUP_LIKE = java.util.regex.Pattern.compile("(?i).*(setup|install|setsound|sndsetup|soundset|setsnd|config|uninst).*");
+		"keyb.com", "mode.com", "debug.exe", "edit.com", "qbasic.exe", "deltree.exe", "attrib.exe", "format.com", "fdisk.exe", "scandisk.exe", "gogwrap.exe", "dxcfg.exe", "cloud_saves.exe",
+		// as found in a collection of games: what plays before and after the game, starts the sound card, makes a boot disk
+		"opening.exe", "closing.exe", "outro.exe", "endgame.exe", "unisound.com", "unisound.exe", "bootmkr.exe", "boottie.exe", "imuse.exe", "cwsdpmi.exe", "insticon.exe", "autorun.exe",
+		"checkcd.exe", "detvesa.exe", "command.com");
+	// an editor of maps or sounds is not the game (MAPEDIT.EXE, WAR2EDIT.EXE, SFXED95.EXE)
+	private static final java.util.regex.Pattern EDITOR_LIKE = java.util.regex.Pattern.compile("(?i).*(edit|ed95)[a-z0-9]{0,2}\\.(exe|com|bat)");
+	private static final java.util.regex.Pattern SETUP_LIKE = java.util.regex.Pattern
+			.compile("(?i).*(setup|install|setsound|sndsetup|soundset|setsnd|config|uninst|gameset|setmain|setmuse|setvideo).*");
+	// a program that sets up by its name, though not one of the known names (GAMESET.EXE of Comanche, SETMUSE.EXE of X-Wing,
+	// SBSETUP.EXE): after the known ones, before the installers. Not those for Windows (WINSETUP.EXE of a sound card) or a
+	// network (IPXSETUP.EXE), nor one that sets the picture only.
+	private static final java.util.regex.Pattern SETUP_BY_NAME = java.util.regex.Pattern.compile("(?i)(?!win|ipx|ser|mod|net|un).*(setup|setsound|sndsetup|soundset|setsnd|gameset|setmuse)\\.(exe|com|bat)");
 	// the programs that set up sound and controls first, the installers last: an installed game is set up with SETUP.EXE,
 	// INSTALL.EXE would install it again (for some games it is the only one that sets the sound card: then it is taken)
 	private static final List<String> SETUP_ORDER = List.of("setup.exe", "setsound.exe", "sndsetup.exe", "soundset.exe", "setsnd.exe", "uwsound.exe", "setup.com", "setup.bat", "setsound.bat",
@@ -70,17 +80,25 @@ public class DosGameUtils {
 			return -1;
 		List<Integer> candidates = IntStream.range(0, files.size()).filter(i -> {
 			String name = files.get(i).getName().toLowerCase(java.util.Locale.ROOT);
-			return !SETUPFILES.contains(name) && !UNLIKELYMAINFILES.contains(name) && !MORE_UNLIKELY.contains(name) && !SETUP_LIKE.matcher(name).matches();
+			return !SETUPFILES.contains(name) && !UNLIKELYMAINFILES.contains(name) && !MORE_UNLIKELY.contains(name) && !SETUP_LIKE.matcher(name).matches() && !EDITOR_LIKE.matcher(name).matches();
 		}).boxed().toList();
 		if (candidates.isEmpty())
 			candidates = IntStream.range(0, files.size()).boxed().toList();
 		int minDepth = candidates.stream().mapToInt(i -> depth(files.get(i))).min().orElse(0);
+		// a program for Windows cannot start in DOSBox: taken only if there is nothing else (a launcher for Windows next to
+		// the batch file of the same name, as mods of Duke Nukem 3D have it)
+		List<Integer> forDos = candidates.stream().filter(i -> {
+			String kind = files.get(i).isFile() ? ProfileChecks.programKind(files.get(i)): null;
+			return !"pe".equals(kind) && !"ne".equals(kind);
+		}).toList();
+		if (!forDos.isEmpty())
+			candidates = forDos;
 		int best = candidates.get(0);
 		long bestScore = Long.MIN_VALUE;
 		for (int i: candidates) {
 			File f = files.get(i);
 			String base = org.apache.commons.io.FilenameUtils.getBaseName(f.getName());
-			long score = titleScore(title, base) * 1000L - (depth(f) - minDepth) * 15_000L - (f.getName().toLowerCase(java.util.Locale.ROOT).endsWith(".bat") ? 2000: 0)
+			long score = (titleScore(title, base) + (hasOwnSettings(f, base) ? 15: 0)) * 1000L - (depth(f) - minDepth) * 15_000L - (f.getName().toLowerCase(java.util.Locale.ROOT).endsWith(".bat") ? 2000: 0)
 					- org.apache.commons.text.similarity.LevenshteinDistance.getDefaultInstance().apply(compact(title), compact(base));
 			if (score > bestScore) {
 				bestScore = score;
@@ -88,6 +106,20 @@ public class DosGameUtils {
 			}
 		}
 		return best;
+	}
+
+	/**
+	 * Is there a file of settings by the name of the program next to it (WG.CFG next to WG.EXE, WAR2.INI next to WAR2.EXE)? The
+	 * game itself keeps its settings there, not a program that only shows the intro (GLORY.EXE of Wings of Glory).
+	 */
+	private static boolean hasOwnSettings(File f, String base) {
+		File dir = f.getParentFile();
+		String[] names = dir == null ? null: dir.list();
+		if (names != null)
+			for (String n: names)
+				if (n.equalsIgnoreCase(base + ".CFG") || n.equalsIgnoreCase(base + ".INI"))
+					return true;
+		return false;
 	}
 
 	private static int depth(File f) {
@@ -142,8 +174,11 @@ public class DosGameUtils {
 		String all = String.join("", words), allMain = String.join("", main) + String.join("", numbers);
 		if (base.equals(all) || base.equals(allMain))
 			return 100;
-		String letters = base.replaceAll("\\d+", ""), digits = base.replaceAll("[^0-9]", "");
-		boolean number = !digits.isEmpty() && numbers.contains(digits);
+		// "3D" at the end of the name and in the title counts as the number of the title: WOLF3D, DUKE3D
+		boolean threeD = base.endsWith("3d") && (base.length() > 2) && compact(title).contains("3d");
+		String rest = threeD ? base.substring(0, base.length() - 2): base;
+		String letters = rest.replaceAll("\\d+", ""), digits = rest.replaceAll("[^0-9]", "");
+		boolean number = threeD || (!digits.isEmpty() && numbers.contains(digits));
 		int score = 0;
 		// the first letters of the words: DOTT, UW, with or without the small words; with the number of the title: SQ4
 		String initials = names.stream().map(w -> w.substring(0, 1)).collect(Collectors.joining()), initialsMain = main.stream().map(w -> w.substring(0, 1)).collect(Collectors.joining());
@@ -158,6 +193,8 @@ public class DosGameUtils {
 				score = Math.max(score, 60); // KEEN4E: the word and something after it
 			else if ((w.length() >= 4) && letters.contains(w))
 				score = Math.max(score, 45);
+			else if (StringUtils.getCommonPrefix(letters, w).length() >= 5)
+				score = Math.max(score, 45 + StringUtils.getCommonPrefix(letters, w).length()); // COLONIZE for Colonization
 		}
 		if ((score == 0) && (letters.length() >= 2) && (all.startsWith(base) || allMain.startsWith(base)))
 			score = 50; // the title run together and cut off (DOS names have eight letters): SIMCITY2 for SimCity 2000
@@ -174,10 +211,12 @@ public class DosGameUtils {
 		int best = -1, bestRank = Integer.MAX_VALUE;
 		for (int i = 0; i < files.size(); i++) {
 			String name = files.get(i).getName().toLowerCase(java.util.Locale.ROOT);
-			int rank = SETUP_ORDER.indexOf(name);
-			if ((rank == -1) && SETUPFILES.contains(name))
-				rank = SETUP_ORDER.size();
-			if (rank == -1)
+			int rank = SETUP_ORDER.indexOf(name) * 2;
+			if ((rank < 0) && SETUP_BY_NAME.matcher(name).matches())
+				rank = SETUP_ORDER.indexOf("install.exe") * 2 - 1; // alpha 50: before the installers
+			if ((rank < 0) && SETUPFILES.contains(name))
+				rank = SETUP_ORDER.size() * 2;
+			if (rank < 0)
 				continue;
 			rank = rank * 100 + Math.min(depth(files.get(i)), 99); // among the same names the one nearer to the top
 			if (rank < bestRank) {

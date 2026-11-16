@@ -776,6 +776,92 @@ public class Dbgl0102Tests {
 		List<String[]> missing = org.dbgl.util.ProfileChecks.batMissing(bat);
 		assertEquals(1, missing.size()); // OTHER.EXE comes after "cd": another folder, not checked
 		assertEquals("MISSING.EXE", missing.get(0)[0]);
+		// alpha 50: an installer and launcher in one (a mod of Duke Nukem 3D): what it makes itself and what it asks for before
+		// is not missing; a program that is missing is told once
+		java.nio.file.Files.writeString(bat.toPath(), "@echo off\r\nif exist sst_full.ins goto menu\r\ncopy sst_full.dat sst_full.exe >nul\r\nsst_full.exe\r\ndel sst_full.exe\r\n"
+				+ "copy /y sst_atom.dat SST_ATOM.EXE\r\nsst_atom\r\nif not exist ump.bat goto noump\r\ncall ump.bat /tcdetect\r\n:noump\r\nren old.dat NEW.COM\r\nnew.com\r\n"
+				+ "echo x >made.bat\r\ncall made.bat\r\ngone.exe\r\ngone.exe /again\r\n:menu\r\ngame.exe\r\n");
+		missing = org.dbgl.util.ProfileChecks.batMissing(bat);
+		assertEquals("GONE.EXE", missing.stream().map(m -> m[0]).collect(java.util.stream.Collectors.joining(",")));
+		// the program that starts the game: not one for Windows, if there is one for DOS (SST_TC.EXE next to SST_TC.BAT)
+		byte[] pe = new byte[0x100];
+		pe[0] = 'M';
+		pe[1] = 'Z';
+		pe[0x3c] = (byte)0x80;
+		System.arraycopy("This program cannot be run in DOS mode.".getBytes(StandardCharsets.ISO_8859_1), 0, pe, 0x4e, 39);
+		pe[0x80] = 'P';
+		pe[0x81] = 'E';
+		File winLauncher = new File(dir, "SST_TC.EXE"), dosLauncher = new File(dir, "SST_TC.BAT"), engine = new File(dir, "DUKE3D.EXE");
+		java.nio.file.Files.write(winLauncher.toPath(), pe);
+		java.nio.file.Files.writeString(dosLauncher.toPath(), "duke3d.exe\r\n");
+		java.nio.file.Files.writeString(engine.toPath(), "MZ");
+		assertEquals("pe", org.dbgl.util.ProfileChecks.programKind(winLauncher));
+		assertEquals(1, org.dbgl.util.DosGameUtils.findMostLikelyMainIndex("SST TC", List.of(winLauncher, dosLauncher, engine)));
+		assertEquals(0, org.dbgl.util.DosGameUtils.findMostLikelyMainIndex("SST TC", List.of(winLauncher))); // nothing else: taken, and told as a Windows program
+		// as found in a collection of games: a program is called without its ending, and it is there or not; a line of plain
+		// words is no call; a setup program is known by its name (GAMESET.EXE, SETMUSE.EXE), not one for Windows or a network
+		java.nio.file.Files.writeString(new File(dir, "WRMS.EXE").toPath(), "MZ");
+		java.nio.file.Files.writeString(new File(dir, "U8.COM").toPath(), "MZ");
+		java.nio.file.Files.writeString(bat.toPath(), "@echo off\r\nblack\r\nwrms\r\nu8 -demo\r\ncls\r\npause >nul\r\nmode co80\r\ntype read.me | more\r\nloadfix -32 WRMS.EXE\r\nmoins d'avoir\r\n"
+				+ "nouveau SOUNDSET.\r\ncopy a.dat tool.exe\r\ntool\r\nif not exist extra.bat goto x\r\ncall extra\r\n:x\r\n");
+		assertEquals("BLACK", org.dbgl.util.ProfileChecks.batMissing(bat).stream().map(m -> m[0]).collect(java.util.stream.Collectors.joining(",")));
+		// a "goto" that is sure is followed: the first start unpacks with programs that are gone afterwards (King's Quest VI);
+		// IPXNET is a command of DOSBox, SMARTDRV one of DOS that DOSBox passes over
+		java.nio.file.Files.writeString(bat.toPath(), "echo off\r\nif not exist seq.exe goto continue\r\nseq.exe >nul\r\ndel seq.exe\r\nsync.exe >nul\r\n:continue\r\nsmartdrv /Q\r\nIPXNET CONNECT %1\r\nwrms\r\n"
+				+ "if exist wrms.exe goto done\r\nneverrun\r\n:done\r\nif \"%1\"==\"x\" goto other\r\nmaybe\r\n:other\r\ngoto end\r\nskipped\r\n:end\r\nlast\r\ngoto continue\r\nafter\r\n");
+		assertEquals("MAYBE,LAST", org.dbgl.util.ProfileChecks.batMissing(bat).stream().map(m -> m[0]).collect(java.util.stream.Collectors.joining(",")));
+		java.util.function.Function<String, String> setupOf = names -> {
+			List<File> fl = java.util.Arrays.stream(names.split(",")).map(n -> new File(dir, n)).toList();
+			int i = org.dbgl.util.DosGameUtils.findSetupIndex(fl);
+			return i < 0 ? "-": fl.get(i).getName();
+		};
+		assertEquals("GAMESET.EXE", setupOf.apply("C.BAT,COMANCHE.EXE,GAMESET.EXE"));
+		assertEquals("SETMUSE.EXE", setupOf.apply("BWING.EXE,INSTALL.EXE,SETMUSE.EXE,XWINGCD.BAT"));
+		assertEquals("SBSETUP.EXE", setupOf.apply("GAME.EXE,SBSETUP.EXE,V2INTRO.EXE"));
+		assertEquals("SETUP.EXE", setupOf.apply("GAMESET.EXE,INSTALL.EXE,SETUP.EXE"));
+		assertEquals("-", setupOf.apply("DEVICE.COM,DIAGNOSE.EXE,MIXERSET.EXE,WINSETUP.EXE"));
+		assertEquals("-", setupOf.apply("DOOM.EXE,IPXSETUP.EXE,SERSETUP.EXE"));
+		assertEquals(1, org.dbgl.util.DosGameUtils.findMostLikelyMainIndex("Comanche", List.of(new File(dir, "C.BAT"), new File(dir, "COMANCHE.EXE"), new File(dir, "GAMESET.EXE"))));
+		// which program starts the game, as its owner says: WG.EXE (it has its settings in WG.CFG), WOLF3D.EXE, ACES.COM
+		java.util.function.BiFunction<String, String, String> mainOf = (title, names) -> {
+			List<File> fl = java.util.Arrays.stream(names.split(",")).map(n -> new File(dir, n)).toList();
+			return fl.get(org.dbgl.util.DosGameUtils.findMostLikelyMainIndex(title, fl)).getName();
+		};
+		java.nio.file.Files.writeString(new File(dir, "WG.CFG").toPath(), "-ds271\r\n");
+		assertEquals("WG.EXE", mainOf.apply("Wings of Glory", "GLORY.EXE,INSTALL.EXE,RUNTEST.EXE,SNDTEST.EXE,WG.EXE,WINGS_OF.EXE"));
+		assertEquals("WOLF3D.EXE", mainOf.apply("Wolfenstein 3D", "WOLF3D.EXE,WOLFEN.EXE"));
+		assertEquals("DUKE3D.EXE", mainOf.apply("Duke Nukem 3D", "COMMIT.EXE,DUKE3D.EXE,NUKEM.EXE,SETUP.EXE"));
+		assertEquals("ACES.COM", mainOf.apply("Aces of the Pacific", "ACES.COM,AP.EXE,INSTALL.EXE,INTRO.EXE,PS.EXE"));
+		assertEquals("COLONIZE.BAT", mainOf.apply("Colonization", "CLOSING.EXE,COLDEMO.BAT,COLONIZE.BAT,INSTALL.EXE,MAPEDIT.EXE,OPENING.EXE,VICEROY.EXE"));
+		assertEquals("JP.BAT", mainOf.apply("Jurassic Park", "INSTALL.BAT,JP.BAT,UNISOUND.COM"));
+		assertEquals("DARK.EXE", mainOf.apply("Star Wars: Dark Forces", "BOOTMKR.EXE,DARK.EXE,DOS4GW.EXE,IMUSE.EXE,SETUP.EXE"));
+		assertEquals("HMISETUP.EXE", setupOf.apply("DOS4GW.EXE,HMISETUP.EXE,INSTALL.EXE,RAN2.BAT"));
+		java.nio.file.Files.writeString(new File(dir, "U7.CFG").toPath(), "x");
+		assertEquals("ULTIMA7.COM", mainOf.apply("Ultima VII: The Black Gate", "ENDGAME.EXE,INSTALL.EXE,INTRO.EXE,MAINMENU.EXE,U7.BAT,U7.EXE,ULTIMA7.COM")); // not U7.EXE for its U7.CFG
+		// the sound settings other games write, as found: HMI (Dynamix), the switches of Origin, Build, the batch file of Arena
+		assertEquals("A220 I7 D1", org.dbgl.util.GameHints.hmiCfg("RESOURCE.CFG", " soundDrv  = ADL.DRV\r\n[SoundFX]\r\nDriver#=E015\r\nDMA=1\r\nIRQ=7\r\nPortAddress=220\r\n[Music]\r\nDriver#=A001\r\nPortAddress=330\r\n").blaster());
+		assertNull(org.dbgl.util.GameHints.hmiCfg("RESOURCE.CFG", "[SoundFX]\r\nDriver#=E023\r\nDMA=1\r\nIRQ=7\r\nPortAddress=220\r\n")); // another card
+		assertNull(org.dbgl.util.GameHints.hmiCfg("RESOURCE.CFG", " soundDrv  = ADL.DRV\r\n"));
+		assertEquals("A220 I7 D1", org.dbgl.util.GameHints.hmiSet("HMISET.CFG", "\r\n[DIGITAL]\r\nDeviceName  = Sound Blaster AWE32          \r\nDeviceIRQ   = 7\r\nDeviceDMA   = 1\r\nDevicePort  = 0x220\r\nDeviceID    = 0xe016\r\n\r\n[MIDI]\r\nDeviceName  = MPU-401\r\nDevicePort  = 0x330\r\nDeviceID    = 0xa001\r\n").blaster());
+		assertEquals("A220 I7 H5", org.dbgl.util.GameHints.hmiSet("MAX.INI", "[MODEM]\r\nmodem_irq=4\r\n[DIGITAL]\r\nDevice_Name=Sound Blaster 16/AWE32\r\nDevice_IRQ=7\r\nDevice_DMA=5\r\nDevice_Port=0x220\r\nDevice_ID=0xe018\r\n").blaster());
+		assertEquals("A220 I7 D1", org.dbgl.util.GameHints.hmiSet("CONFIG.INI", "CDTransferRate=3236\r\nSoundCard=0xe016\r\nSoundPort=0x220\r\nSoundIRQ=7\r\nSoundDMA=1\r\nMusicCard=0xa001\r\nMusicPort=0x330\r\n").blaster());
+		assertNull(org.dbgl.util.GameHints.hmiSet("HMISET.CFG", "[DIGITAL]\r\nDeviceIRQ = 11\r\nDeviceDMA = 1\r\nDevicePort = 0x220\r\nDeviceID = 0xe023\r\n")); // a Gravis Ultrasound
+		assertNull(org.dbgl.util.GameHints.hmiSet("WIN.INI", "[windows]\r\nload=\r\nirq=5\r\n"));
+		assertEquals("A220 I7 D1", org.dbgl.util.GameHints.otherCfg("FB.CFG", "*  Einstellung Flashback PC  V 1.1 \r\nSFX = 0 \r\nBLASTER = A220 I7 D1\r\nMUSIC = 2 \r\n").blaster());
+		assertEquals("A220 I7 D1", org.dbgl.util.GameHints.otherCfg("SC2000.CFG", "MUSICDRIVER=A32MT32.DLL\r\nMUSICIRQ=*\r\n[Sound Effekte]\r\nSFXNAME=Sound Blaster 16\r\nSFXDRIVER=A32SBPDG.DLL\r\nSFXADDRESS=220\r\nSFXIRQ=7\r\nSFXDMA=1\r\nSFXDRQ=*\r\n").blaster());
+		assertEquals("A220", org.dbgl.util.GameHints.otherCfg("SC2000.CFG", "SFXDRIVER=A32SBDG.DLL\r\nSFXADDRESS=220\r\nSFXIRQ=*\r\nSFXDMA=*\r\n").blaster());
+		assertEquals("A220 I7 D1", org.dbgl.util.GameHints.otherCfg("TURRICAN.CFG", "CardName=Creative Labs SoundBlaster PRO\r\nSoundDriver=SBPRO.MSD\r\nPort=544\r\nInterrupt=7\r\nDMAChannel=1\r\n").blaster());
+		assertNull(org.dbgl.util.GameHints.otherCfg("GAME.CFG", "Port=544\r\nInterrupt=7\r\n"));
+		assertEquals("A220 I7 D1", org.dbgl.util.GameHints.originCfg("armada.cfg", "-w\r\n=data.tre\r\n-mg330\r\n-ds271\r\n").blaster());
+		assertEquals("A240 I10 D3", org.dbgl.util.GameHints.originCfg("x.cfg", "-ds4103\n").blaster());
+		assertNull(org.dbgl.util.GameHints.originCfg("WG.CFG", "#so, -ds251 means: address 220, IRQ 5, DMAchannel 1\r\n-d6271\r\n")); // a comment, and another switch
+		assertEquals("sb ", org.dbgl.util.GameHints.buildCfg("BLOOD.CFG", "[Sound Setup]\r\nFXDevice = 0\r\nMusicDevice = 4\r\nBlasterInterrupt = 5\r\n").device() + " "
+				+ org.dbgl.util.GameHints.buildCfg("BLOOD.CFG", "[Sound Setup]\r\nFXDevice = 0\r\nBlasterInterrupt = 5\r\n").blaster());
+		assertNull(org.dbgl.util.GameHints.buildCfg("BLOOD.CFG", "[Sound Setup]\r\nFXDevice = 13\r\n"));
+		assertNull(org.dbgl.util.GameHints.buildCfg("OTHER.CFG", "FXDevice = 0\r\n"));
+		assertEquals("A220 I7 D1", org.dbgl.util.GameHints.switchesLine("ARENA.BAT", "A -sa:220 -si:7 -sd:1 -ma:330 -mq:2 -md:1 -ssbdig.adv -mgenmidi.adv").blaster());
+		assertNull(org.dbgl.util.GameHints.switchesLine("ARENA.BAT", "A -sa:220 -si:7 -sd:1 -sgusdig.adv")); // not a Sound Blaster
+		assertNull(org.dbgl.util.GameHints.switchesLine("ARENA.BAT", "rem A -sa:220 -si:5 -sd:1 -ssbdig.adv"));
 		org.apache.commons.io.FileUtils.deleteDirectory(dir);
 	}
 
@@ -4242,7 +4328,23 @@ public class Dbgl0102Tests {
 				found.stream().map(s -> s.file() + "=" + s.blaster()).collect(java.util.stream.Collectors.joining(", ")));
 			assertNull(org.dbgl.util.GameHints.unusedCdImage(bat, List.of(), List.of()));
 			Files.writeString(new File(game, "game.bin").toPath(), "x", StandardCharsets.ISO_8859_1);
-			Files.writeString(new File(game, "GAME.CUE").toPath(), "FILE \"game.bin\" BINARY\r\n", StandardCharsets.ISO_8859_1);
+			// by what is in the file, not by its name: games have files of their own with these endings (an ".ins" of 25 bytes)
+			Files.writeString(new File(game, "SETUP.INS").toPath(), "C:\\GAME\\DATA\r\nSOUND=1\r\n", StandardCharsets.ISO_8859_1);
+			Files.writeString(new File(game, "DATA.ISO").toPath(), "not an image", StandardCharsets.ISO_8859_1);
+			Files.writeString(new File(game, "X.MDS").toPath(), "something", StandardCharsets.ISO_8859_1);
+			Files.writeString(new File(game, "X.CHD").toPath(), "something", StandardCharsets.ISO_8859_1);
+			Files.writeString(new File(game, "X.CCD").toPath(), "some settings of the game", StandardCharsets.ISO_8859_1);
+			Files.writeString(new File(game, "EMPTY.CUE").toPath(), "REM nothing in it\r\n", StandardCharsets.ISO_8859_1);
+			assertNull(org.dbgl.util.GameHints.unusedCdImage(bat, List.of(), List.of()));
+			Files.writeString(new File(game, "GOG.INS").toPath(), "FILE \"game.gog\" BINARY\r\n  TRACK 01 MODE1/2352\r\n    INDEX 01 00:00:00\r\n", StandardCharsets.ISO_8859_1);
+			assertEquals("GOG.INS", org.dbgl.util.GameHints.unusedCdImage(bat, List.of(), List.of()));
+			assertTrue(new File(game, "GOG.INS").delete());
+			byte[] iso = new byte[17 * 2048];
+			System.arraycopy("\u0001CD001".getBytes(StandardCharsets.ISO_8859_1), 0, iso, 16 * 2048, 6);
+			Files.write(new File(game, "REAL.ISO").toPath(), iso);
+			assertEquals("REAL.ISO", org.dbgl.util.GameHints.unusedCdImage(bat, List.of(), List.of()));
+			assertTrue(new File(game, "REAL.ISO").delete());
+			Files.writeString(new File(game, "GAME.CUE").toPath(), "FILE \"game.bin\" BINARY\r\n  TRACK 01 MODE1/2352\r\n", StandardCharsets.ISO_8859_1);
 			assertEquals("GAME.CUE", org.dbgl.util.GameHints.unusedCdImage(bat, List.of(), List.of("echo hello")));
 			assertNull(org.dbgl.util.GameHints.unusedCdImage(bat, List.of(), List.of("imgmount D \"x.iso\" -t iso")));
 			assertNull(org.dbgl.util.GameHints.unusedCdImage(bat, List.of(), List.of("mount D \"D:\\\" -t cdrom")));
