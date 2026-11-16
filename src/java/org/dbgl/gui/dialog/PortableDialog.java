@@ -181,7 +181,7 @@ public final class PortableDialog {
 		checks.add(gamesItem, false, true);
 		checks.add(dataItem, false, true);
 		Label partsHint = new Label(partsGroup, SWT.WRAP);
-		partsHint.setText(text.get("dialog.portable.content.hint"));
+		partsHint.setText(text.get("dialog.portable.content.hint2"));
 		GridData hintData = new GridData(SWT.FILL, SWT.BEGINNING, true, false);
 		hintData.widthHint = 440;
 		partsHint.setLayoutData(hintData);
@@ -210,6 +210,13 @@ public final class PortableDialog {
 		Label space = new Label(dlg, SWT.WRAP);
 		space.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 2, 1));
 		space.setData(DarkTheme.KEEP_FOREGROUND, Boolean.TRUE);
+
+		// alpha 50: the stick is for this operating system: its DBGL (SWT) and its DOSBox versions run there only
+		Label osInfo = new Label(dlg, SWT.WRAP);
+		osInfo.setText(text.get("dialog.portable.os", new Object[] {org.apache.commons.lang3.SystemUtils.IS_OS_WINDOWS ? "Windows": org.apache.commons.lang3.SystemUtils.IS_OS_MAC ? "macOS": "Linux"}));
+		GridData osInfoData = new GridData(SWT.FILL, SWT.BEGINNING, true, false, 3, 1);
+		osInfoData.widthHint = 820;
+		osInfo.setLayoutData(osInfoData);
 
 		Button java = new Button(dlg, SWT.CHECK);
 		java.setText(text.get("dialog.portable.java"));
@@ -353,7 +360,7 @@ public final class PortableDialog {
 					TableItem item = new TableItem(parts, SWT.NONE);
 					item.setText(new String[] {part.file() == null ? text.get("dialog.portable.content.files", new Object[] {part.name()}): part.name(), FileUtils.byteCountToDisplaySize(part.bytes())});
 					item.setData(part);
-					checks.add(item, part.suggested() || part.required(), part.required());
+					checks.add(item, part.required(), part.required()); // alpha 50: at first only what is needed is ticked
 					if (part.required())
 						item.setForeground(dim);
 					if (part.file() != null)

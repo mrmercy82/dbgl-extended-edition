@@ -108,9 +108,13 @@ public final class MidiRoms {
 	 * DOSBox version can use, as it looks for them.
 	 */
 	public static Found mt32(DosboxVersion db, Configuration combined, boolean dosboxX) {
+		return mt32(db, dosboxX ? combined.getValue("midi", "mt32.romdir"): combined.getValue("mt32", "romdir"), dosboxX);
+	}
+
+	/** alpha 50: with the folder as it is set right now (the field of the profile editor, before it is saved) */
+	public static Found mt32(DosboxVersion db, String set, boolean dosboxX) {
 		if (dosboxX)
-			return mt32DosboxX(db, combined.getValue("midi", "mt32.romdir"));
-		String set = combined.getValue("mt32", "romdir");
+			return mt32DosboxX(db, set);
 		List<File> dirs = stagingDirs(db, StringUtils.isBlank(set) ? "mt32-roms": set, "mt32-roms", "mt32-rom-data", "C:\\mt32-rom-data");
 		if (SystemUtils.IS_OSX)
 			dirs.add(new File(System.getProperty("user.home"), "Library/Audio/Sounds/MT32-Roms"));
@@ -264,7 +268,11 @@ public final class MidiRoms {
 	 * soundcanvas-roms), the folders DOSBox Staging looks in by itself, and Nuked-SC55-Resources/ROMs beside the plugin.
 	 */
 	public static Found soundCanvas(DosboxVersion db, Configuration combined) {
-		String set = combined.getValue("soundcanvas", "soundcanvas_rom_dir");
+		return soundCanvas(db, combined.getValue("soundcanvas", "soundcanvas_rom_dir"));
+	}
+
+	/** alpha 50: with the folder as it is set right now */
+	public static Found soundCanvas(DosboxVersion db, String set) {
 		List<File> bases = stagingDirs(db, StringUtils.isBlank(set) ? "soundcanvas-roms": set, "soundcanvas-roms", "soundcanvas-rom-data", null);
 		for (File plugins: stagingDirs(db, null, "plugins", null, null))
 			bases.add(new File(new File(plugins, "Nuked-SC55-Resources"), "ROMs"));

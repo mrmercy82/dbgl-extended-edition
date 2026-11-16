@@ -44,6 +44,90 @@ public final class DosboxLog {
 
 	public static final String SECTION = "dosboxlog", PROFILES = "profiles";
 	public static final int KEEP = 20;
+	/** the name of a log: the time of the start; only files of such a name in a folder of a profile are logs of DBGL */
+	public static final java.util.regex.Pattern FILE_NAME = java.util.regex.Pattern.compile("\\d{4}-\\d{2}-\\d{2}_\\d{2}-\\d{2}-\\d{2}\\.log");
+	private static final java.util.regex.Pattern PROFILE_FOLDER = java.util.regex.Pattern.compile(".* \\(\\d+\\)");
+
+	/**
+	 * alpha 50: a file of the folder "logs", for the window that manages them
+	 *
+	 * @param profile the folder of the profile ("Title (id)"), "" for a diagnostic file of DBGL itself
+	 */
+	public record Entry(File file, String profile, long when, long size) {
+	}
+
+	/** how many logs of a profile are kept (the setting; {@link #KEEP} if it is not set) */
+	public static int keep() {
+		try {
+			int n = SettingsService.getInstance().getIntValue(SECTION, "keep");
+			return n > 0 ? n: KEEP;
+		} catch (RuntimeException e) {
+			return KEEP;
+		}
+	}
+
+	public static void setKeep(int n) {
+		SettingsService.getInstance().setIntValue(SECTION, "keep", Math.max(1, n));
+	}
+
+	/** the logs of all profiles and the diagnostic files of DBGL in a folder "logs", the newest first; nothing else that lies there */
+	public static java.util.List<Entry> list(File logsDir) {
+		java.util.List<Entry> result = new java.util.ArrayList<>();
+		File[] top = logsDir.listFiles();
+		if (top == null)
+			return result;
+		for (File f: top) {
+			if (f.isFile() && OldFiles.isDiagnostic(f.getName())) {
+				result.add(new Entry(f, "", f.lastModified(), f.length()));
+			} else if (f.isDirectory() && PROFILE_FOLDER.matcher(f.getName()).matches()) {
+				File[] logs = f.listFiles(l -> l.isFile() && FILE_NAME.matcher(l.getName()).matches());
+				if (logs != null)
+					for (File l: logs)
+						result.add(new Entry(l, f.getName(), l.lastModified(), l.length()));
+			}
+		}
+		result.sort(Comparator.comparingLong(Entry::when).reversed().thenComparing(e -> e.file().getPath()));
+		return result;
+	}
+
+	/**
+	 * Deletes a file of the folder "logs" if it is one DBGL wrote there (by its name and where it lies); the folder of a profile
+	 * goes with its last log.
+	 *
+	 * @return false if it is not such a file (it stays)
+	 */
+	public static boolean delete(File logsDir, File file) throws IOException {
+		File parent = file.getParentFile();
+		boolean diagnostic = logsDir.equals(parent) && OldFiles.isDiagnostic(file.getName());
+		boolean log = (parent != null) && logsDir.equals(parent.getParentFile()) && PROFILE_FOLDER.matcher(parent.getName()).matches() && FILE_NAME.matcher(file.getName()).matches();
+		if (!diagnostic && !log)
+			return false;
+		Files.deleteIfExists(file.toPath());
+		if (log) {
+			String[] left = parent.list();
+			if ((left != null) && (left.length == 0))
+				Files.deleteIfExists(parent.toPath());
+		}
+		return true;
+	}
+
+	/** in every folder of a profile only the newest logs stay, as many as are kept: @return how many were deleted */
+	public static int removeOld(File logsDir, int keep) {
+		int deleted = 0;
+		File[] dirs = logsDir.listFiles(f -> f.isDirectory() && PROFILE_FOLDER.matcher(f.getName()).matches());
+		if (dirs == null)
+			return 0;
+		for (File dir: dirs) {
+			File[] logs = dir.listFiles(f -> f.isFile() && FILE_NAME.matcher(f.getName()).matches());
+			if ((logs == null) || (logs.length <= keep))
+				continue;
+			Arrays.sort(logs, Comparator.comparing(File::getName).reversed());
+			for (int i = keep; i < logs.length; i++)
+				if (logs[i].delete())
+					deleted++;
+		}
+		return deleted;
+	}
 	private static final DateTimeFormatter FILE_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss", Locale.ROOT);
 	private static final DateTimeFormatter LINE_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss", Locale.ROOT);
 
@@ -125,10 +209,11 @@ public final class DosboxLog {
 
 	private static void removeOld(File dir) {
 		File[] logs = dir.listFiles(f -> f.isFile() && f.getName().endsWith(".log"));
-		if ((logs == null) || (logs.length <= KEEP))
+		int keep = keep();
+		if ((logs == null) || (logs.length <= keep))
 			return;
 		Arrays.sort(logs, Comparator.comparing(File::getName).reversed()); // the names are times: newest first
-		for (int i = KEEP; i < logs.length; i++)
+		for (int i = keep; i < logs.length; i++)
 			logs[i].delete();
 	}
 

@@ -113,6 +113,7 @@ public class DarkTheme {
 		org.eclipse.swt.graphics.RGB widgetFg = d.getSystemColor(org.eclipse.swt.SWT.COLOR_WIDGET_FOREGROUND).getRGB();
 		org.eclipse.swt.graphics.RGB listBg = d.getSystemColor(org.eclipse.swt.SWT.COLOR_LIST_BACKGROUND).getRGB();
 		org.eclipse.swt.graphics.RGB listFg = d.getSystemColor(org.eclipse.swt.SWT.COLOR_LIST_FOREGROUND).getRGB();
+		redrawButtonsWhenShown(root.getShell());
 		java.util.ArrayDeque<org.eclipse.swt.widgets.Control> todo = new java.util.ArrayDeque<>();
 		todo.add(root);
 		while (!todo.isEmpty()) {
@@ -380,6 +381,41 @@ public class DarkTheme {
 			// another SWT
 		}
 		return 13;
+	}
+
+	private static final String REDRAWN = "dbgl.dark.redrawn";
+
+	/**
+	 * alpha 50: the buttons DBGL draws itself are drawn once more when their window has come up and each time it becomes the
+	 * active one. A button that was drawn while it was not ready yet (the OK of the profile editor stayed dark until the mouse
+	 * moved over it) is right then, without the mouse.
+	 */
+	private static void redrawButtonsWhenShown(org.eclipse.swt.widgets.Shell shell) {
+		if ((shell == null) || shell.isDisposed() || (shell.getData(REDRAWN) != null))
+			return;
+		shell.setData(REDRAWN, Boolean.TRUE);
+		Runnable redraw = () -> {
+			if (shell.isDisposed())
+				return;
+			java.util.ArrayDeque<org.eclipse.swt.widgets.Control> todo = new java.util.ArrayDeque<>();
+			todo.add(shell);
+			while (!todo.isEmpty()) {
+				org.eclipse.swt.widgets.Control c = todo.poll();
+				if (c.isDisposed())
+					continue;
+				if (c instanceof org.eclipse.swt.widgets.Button)
+					c.redraw();
+				else if (c instanceof org.eclipse.swt.widgets.Composite comp)
+					java.util.Collections.addAll(todo, comp.getChildren());
+			}
+		};
+		org.eclipse.swt.widgets.Listener later = e -> {
+			org.eclipse.swt.widgets.Display d = shell.getDisplay();
+			d.asyncExec(() -> safely(redraw));
+			d.timerExec(300, () -> safely(redraw));
+		};
+		shell.addListener(org.eclipse.swt.SWT.Show, later);
+		shell.addListener(org.eclipse.swt.SWT.Activate, later);
 	}
 
 	private static void paintButton(org.eclipse.swt.widgets.Button b, org.eclipse.swt.graphics.GC gc, int state) {

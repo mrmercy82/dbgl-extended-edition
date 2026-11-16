@@ -58,7 +58,9 @@ public final class BackupCatalog {
 		/** before an update was installed: everything that was chosen */
 		FULL(false),
 		/** the update itself, kept to install it again */
-		INSTALLER(false);
+		INSTALLER(false),
+		/** alpha 50: a folder with the files of this installation that were replaced when a USB stick was brought back */
+		STICK_RETURN(false);
 
 		private final boolean restorable_;
 
@@ -80,12 +82,26 @@ public final class BackupCatalog {
 	private static final Pattern AUTO_NAME = Pattern.compile("dbgl-backup-\\d{8}-\\d{6}\\.zip"), INSTALLER_NAME = Pattern.compile("dbgl-(.*)-update\\.zip"),
 			STAMP = Pattern.compile("-(\\d{4}-\\d{2}-\\d{2}_\\d{2}-\\d{2}|\\d{8}-\\d{4,6})$"), VERSION_NAME = Pattern.compile("before-.*-from-(.+)");
 
+	/** the folder "Profiles > Bring back from the USB stick" keeps the replaced files in: only a folder of exactly this name is one */
+	public static final Pattern STICK_RETURN_NAME = Pattern.compile("stick-return-\\d{8}-\\d{6}");
+
 	private BackupCatalog() {
+	}
+
+	private static long sizeOf(File dir) {
+		long sum = 0;
+		File[] files = dir.listFiles();
+		if (files != null)
+			for (File f: files)
+				sum += f.isDirectory() ? sizeOf(f): f.length();
+		return sum;
 	}
 
 	/** @return the kind of backup a file of this name is, null if it is none of DBGL */
 	public static Kind kindOf(String fileName) {
 		String name = fileName.toLowerCase(Locale.ROOT);
+		if (STICK_RETURN_NAME.matcher(name).matches())
+			return Kind.STICK_RETURN;
 		if (!name.endsWith(".zip"))
 			return null;
 		if (name.startsWith(FullBackup.PREFIX))
@@ -107,6 +123,8 @@ public final class BackupCatalog {
 
 	/** @return the version of DBGL in the name of the backup (as written there, e.g. "0.101alpha48"), "" if it has none */
 	public static String versionInName(String fileName, Kind kind) {
+		if (kind == Kind.STICK_RETURN)
+			return "";
 		String name = fileName.substring(0, fileName.length() - ".zip".length());
 		if (kind == Kind.INSTALLER) {
 			Matcher m = INSTALLER_NAME.matcher(fileName.toLowerCase(Locale.ROOT));
@@ -166,15 +184,19 @@ public final class BackupCatalog {
 	public static List<Backup> list(List<File> folders) {
 		List<Backup> result = new ArrayList<>();
 		for (File dir: folders) {
-			File[] files = dir.listFiles(File::isFile);
+			File[] files = dir.listFiles();
 			if (files == null)
 				continue;
 			Set<String> locked = locked(dir);
 			Set<Kind> always = autoLocked();
 			for (File f: files) {
 				Kind kind = kindOf(f.getName());
-				if (kind == null)
+				if ((kind == null) || ((kind == Kind.STICK_RETURN) != f.isDirectory()))
 					continue;
+				if (kind == Kind.STICK_RETURN) {
+					result.add(new Backup(f, kind, "", f.lastModified(), sizeOf(f), locked.contains(f.getName()) || always.contains(kind)));
+					continue;
+				}
 				String version = versionInName(f.getName(), kind);
 				if (version.isEmpty() && kind.restorable())
 					version = versionInside(f);
@@ -240,7 +262,7 @@ public final class BackupCatalog {
 	public static void setLocked(File backup, boolean lock) throws IOException {
 		File dir = backup.getParentFile();
 		Set<String> names = locked(dir);
-		names.removeIf(n -> !new File(dir, n).isFile());
+		names.removeIf(n -> !new File(dir, n).exists());
 		if (lock)
 			names.add(backup.getName());
 		else
@@ -256,6 +278,13 @@ public final class BackupCatalog {
 	public static boolean delete(File backup) throws IOException {
 		if (isLocked(backup))
 			return false;
+		if (backup.isDirectory()) {
+			// a folder only if it is one of the stick: by its exact name, nothing else a user may have put there
+			if (!STICK_RETURN_NAME.matcher(backup.getName()).matches())
+				return false;
+			org.apache.commons.io.FileUtils.deleteDirectory(backup);
+			return true;
+		}
 		Files.deleteIfExists(backup.toPath());
 		return true;
 	}

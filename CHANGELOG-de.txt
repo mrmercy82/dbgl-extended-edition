@@ -6,6 +6,61 @@ Grundlage: DBGL 0.100 beta 17 von Ronald Blankendaal (https://dbgl.org), Quellco
 
 0.101 alpha 50 (in Arbeit)
 --------------------------
+Wichtig
+- Bald ist Java 21 nötig: Eine der nächsten Versionen von DBGL Extended
+  Edition benötigt Java 21 und startet mit einem älteren Java nicht mehr.
+  Läuft DBGL mit einem älteren Java, zeigt es beim Start einen Hinweis.
+  Java 21 gibt es z. B. als Eclipse Temurin:
+  https://adoptium.net/temurin/releases/?version=21
+
+Neu
+- Logdateien verwalten (Menü Datei): ein Fenster wie das der Sicherungen
+  für die DOSBox-Ausgabe der Profile (Ordner "logs", ein Ordner je Profil)
+  und die Diagnosedateien von DBGL: ansehen, löschen, Ordner öffnen, und
+  wie viele Logdateien je Profil bleiben (bisher fest 20). Gezeigt und
+  gelöscht wird nur, was DBGL dort selbst geschrieben hat.
+- Eine DOSBox-Version, die DBGL noch nicht kennt: Beim Eintragen sagt
+  DBGL, dass es sie wie die neueste bekannte behandelt, was zu tun ist
+  (eintragen, neue Einstellungen von Hand, "Profile prüfen", Bericht) und
+  dass eine Fassung von DBGL, die sie kennt, in der Regel bald folgt.
+  Der Bericht (auch im Menü DOSBox-Versionen) nennt neue, entfallene und
+  anders belegte Einstellungen gegenüber der neuesten bekannten Version,
+  zum Schicken an den Entwickler; er enthält keine Pfade. "Profile
+  prüfen" weist bei einer solchen Version darauf hin.
+- USB-Stick zurückholen: eine eigene Vorschau. Spielzeit, neue Dateien,
+  ersetzte Dateien und Konflikte stehen in Gruppen mit Leerzeile
+  dazwischen, jede Art in ihrer Farbe (die Legende darüber ebenso), und
+  vor jeder Zeile steht ein Kästchen: Übernommen wird nur, was
+  angekreuzt ist. Danach fragt DBGL noch einmal mit den Zahlen nach.
+- Einstellungen > GUI-Einstellungen > Profilübersicht: Reiter für Profile
+  ohne Bilder - immer ausblenden, immer einblenden oder einblenden bei
+  Funden (Vorgabe).
+
+Geändert
+- "Sicherung erstellen" und "Sicherung wiederherstellen" sind keine
+  Menüpunkte mehr, sondern Schaltflächen im Fenster "Sicherungen
+  verwalten" ("Sicherung erstellen...", "Aus Datei wiederherstellen...").
+  Dort stehen jetzt auch die Ordner mit den Dateien, die beim Zurückholen
+  vom USB-Stick ersetzt wurden; vor dem Löschen eines solchen Ordners
+  warnt DBGL eigens, weil es die einzigen Kopien sind.
+- USB-Stick erstellen: Rechts ist anfangs nur das Nötige angekreuzt. Der
+  Dialog sagt, für welches Betriebssystem der Stick entsteht (DBGL und
+  die DOSBox-Versionen darauf laufen nur dort). In der Werkzeugleiste
+  öffnet das USB-Symbol jetzt beide Wege: erstellen und zurückholen.
+- Die Zahl der Profile der Liste steht jetzt immer in der Zeile der
+  Suche; der Tooltip über dem Filter-Reiter, der die Zeile darunter
+  verdeckte, entfällt.
+- Profil-Editor: Der Ordner der Sound-Canvas-ROMs hat eine Schaltfläche
+  zum Suchen des Ordners, wie der des MT-32. Nach der Wahl eines Ordners
+  (MT-32 oder Sound Canvas) zeigt der Rahmen "ROMs" sofort, was dort
+  gefunden wurde - ohne erst zu speichern.
+
+Behoben
+- Dark Mode: Eine Schaltfläche, die DBGL selbst zeichnet, blieb mitunter
+  dunkel, bis die Maus darüber fuhr (OK im Profil-Editor). Die
+  Schaltflächen eines Fensters werden jetzt neu gezeichnet, sobald es da
+  ist und wenn es wieder das aktive wird.
+
 Verbessert
 - "Profile prüfen" erkennt mehr:
   - Einstellungen, die einzeln gültig sind, aber nicht zusammenpassen:

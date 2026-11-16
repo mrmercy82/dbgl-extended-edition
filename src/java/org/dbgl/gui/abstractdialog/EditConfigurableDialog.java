@@ -1862,23 +1862,32 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		
 		GridData gd = new GridData(SWT.FILL, SWT.BEGINNING, true, false, 2, 1);
 		gd.verticalIndent = 20;
-		Group midiExpGroup = Group_.on(composite).layoutData(gd).layout(new GridLayout(2, false)).key(
+		Group midiExpGroup = Group_.on(composite).layoutData(gd).layout(new GridLayout(3, false)).key(
 				"dialog.template.tab.experimentaloptions").build();
 		Chain.on(midiExpGroup).lbl(l -> l.key("dialog.template.midisamplerate")).cmb(c -> c.tooltip("dialog.template.midisamplerate.tooltip").items("profile", "midisamplerate_x20240301")).section("midi").item("samplerate").build(
 				metaControls_).init(configurable);
+		Label_.on(midiExpGroup).build(); // alpha 50: the third column is for the button of the folder
 		Chain.on(midiExpGroup).lbl(l -> l.key("dialog.template.mpubase")).cmb(c -> c.tooltip("dialog.template.mpubase.tooltip").items("profile", "mpubase_x20240301")).section("midi").item("mpubase").build(
 				metaControls_).init(configurable);
+		Label_.on(midiExpGroup).build(); // alpha 50: the third column is for the button of the folder
 		Chain.on(midiExpGroup).lbl(l -> l.key("dialog.template.mpuirq")).cmb(c -> c.tooltip("dialog.template.mpuirq.tooltip").items("profile", "mpuirq_x20240301")).section("midi").item("mpuirq").build(
 				metaControls_).init(configurable);
+		Label_.on(midiExpGroup).build(); // alpha 50: the third column is for the button of the folder
 		Chain.on(midiExpGroup).lbl(l -> l.key("dialog.template.rawmidioutput")).but(b -> b.tooltip("dialog.template.rawmidioutput.tooltip")).section("midi").item("raw_midi_output")
 			.build(metaControls_).init(configurable);
+		Label_.on(midiExpGroup).build(); // alpha 50: the third column is for the button of the folder
 		Chain.on(midiExpGroup).lbl(l -> l.key("dialog.template.soundcanvasmodel")).cmb(c -> c.tooltip("dialog.template.soundcanvasmodel.tooltip").items("profile", "soundcanvasmodel_staging0830"))
 			.section("soundcanvas").item("soundcanvas_model").build(metaControls_).init(configurable);
+		Label_.on(midiExpGroup).build(); // alpha 50: the third column is for the button of the folder
+		// alpha 50: with a button to look for the folder, as the folder of the MT-32 has
 		Text romDir = Chain.on(midiExpGroup).lbl(l -> l.key("dialog.template.soundcanvasromdir")).txt(t -> t.tooltip("dialog.template.soundcanvasromdir.tooltip"))
-			.section("soundcanvas").item("soundcanvas_rom_dir").build(metaControls_).init(configurable).getText();
+			.but(b -> b.browse(true, Button_.BrowseType.DIR, Button_.CanonicalType.NONE, false)).section("soundcanvas").item("soundcanvas_rom_dir").build(metaControls_).init(configurable).getText();
 		shorter(romDir, 400); // alpha 48: a folder: twice as long
+		scRomDirText_ = romDir;
+		followRomDir(romDir);
 		Chain.on(midiExpGroup).lbl(l -> l.key("dialog.template.soundcanvasfilter")).cmb(c -> c.editable().tooltip("dialog.template.soundcanvasfilter.tooltip").items(new String[] {"on", "off"}))
 			.section("soundcanvas").item("soundcanvas_filter").build(metaControls_).init(configurable);
+		Label_.on(midiExpGroup).build(); // alpha 50: the third column is for the button of the folder
 		// which ROMs the DOSBox version finds (DOSBox Staging, DOSBox-X): an MT-32 or Sound Canvas without them stays silent
 		romGroup(composite, configurable);
 		addAdditionalOptions(composite, 2, configurable,
@@ -1891,8 +1900,35 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 	 * and versions the DOSBox version finds, aligned below each other; only where the DOSBox version emulates the device.
 	 */
 	private void romGroup(Composite composite, TemplateProfileBase configurable) {
-		infoGroup(composite, 2, "dialog.template.roms", configurable, new String[] {"MT-32/CM-32L:", "Sound Canvas:"}, // the names of the devices, in all languages
+		java.util.function.Consumer<TemplateProfileBase> update = infoGroup(composite, 2, "dialog.template.roms", configurable, new String[] {"MT-32/CM-32L:", "Sound Canvas:"}, // the names of the devices, in all languages
 			(c, r) -> romValue(c, r == 0), null);
+		romRefresh_ = () -> update.accept(configurable);
+	}
+
+	// alpha 50: the folders of the ROMs as they stand in their fields: the frame "ROMs" follows them at once (a folder chosen
+	// with the button shows its ROMs right away, not only after the profile was saved and opened again)
+	private Text mt32RomDirText_, scRomDirText_;
+	private Runnable romRefresh_;
+	private boolean romRefreshDue_;
+
+	/** a field of a folder of ROMs: the frame "ROMs" is filled anew shortly after it changed */
+	private void followRomDir(Text field) {
+		if (field == null)
+			return;
+		field.addModifyListener(e -> {
+			if (romRefreshDue_ || (romRefresh_ == null))
+				return;
+			romRefreshDue_ = true;
+			field.getDisplay().timerExec(350, () -> {
+				romRefreshDue_ = false;
+				if (!field.isDisposed() && (romRefresh_ != null))
+					romRefresh_.run();
+			});
+		});
+	}
+
+	private static String fieldOr(Text field, String stored) {
+		return (field != null) && !field.isDisposed() ? field.getText(): stored;
 	}
 
 	/**
@@ -1900,8 +1936,8 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 	 * it changes; a row with the value null is left out, the frame if all are; at the same distance to the frames around it as
 	 * those have to each other.
 	 */
-	private void infoGroup(Composite composite, int span, String key, TemplateProfileBase configurable, String[] names, java.util.function.BiFunction<TemplateProfileBase, Integer, String> values,
-			java.util.function.Function<TemplateProfileBase, String> tooltip) {
+	private java.util.function.Consumer<TemplateProfileBase> infoGroup(Composite composite, int span, String key, TemplateProfileBase configurable, String[] names,
+			java.util.function.BiFunction<TemplateProfileBase, Integer, String> values, java.util.function.Function<TemplateProfileBase, String> tooltip) {
 		GridData groupData = new GridData(SWT.FILL, SWT.FILL, true, false, span, 1);
 		groupData.verticalIndent = 20;
 		Group group = Group_.on(composite).layoutData(groupData).layout(new GridLayout(2, false)).key(key).build();
@@ -1953,6 +1989,7 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		};
 		update.accept(configurable);
 		versionNotes_.add(update);
+		return update;
 	}
 
 	/**
@@ -1979,7 +2016,9 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		if (mt32 ? !(staging || x): (gen != GenerationAwareConfigurable.Generation.staging_0830))
 			return null;
 		Configuration combined = c.getCombinedConfigurationForReading();
-		org.dbgl.util.MidiRoms.Found found = mt32 ? org.dbgl.util.MidiRoms.mt32(c.getDosboxVersion(), combined, x): org.dbgl.util.MidiRoms.soundCanvas(c.getDosboxVersion(), combined);
+		org.dbgl.util.MidiRoms.Found found = mt32
+				? org.dbgl.util.MidiRoms.mt32(c.getDosboxVersion(), fieldOr(mt32RomDirText_, x ? combined.getValue("midi", "mt32.romdir"): combined.getValue("mt32", "romdir")), x)
+				: org.dbgl.util.MidiRoms.soundCanvas(c.getDosboxVersion(), fieldOr(scRomDirText_, combined.getValue("soundcanvas", "soundcanvas_rom_dir")));
 		if (found.dir() == null)
 			return text_.get("dialog.template.roms.none");
 		String models; // recognised by their checksums, as DOSBox does it: a model a line
@@ -2044,8 +2083,9 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		Chain.on(mt32ExpGroup).lbl(l -> l.key("dialog.template.mt32.dac")).cmb(c -> c.tooltip("dialog.template.mt32.dac.tooltip").items("profile", "mt32dac_ecer4482").editable()).section("midi").item("mt32.dac").build(metaControls_).init(configurable);
 		Label_.on(mt32ExpGroup).build();
 		
-		Chain.on(mt32ExpGroup).lbl(l -> l.key("dialog.template.mt32.romdir")).txt(t -> t.horSpan(4).tooltip("dialog.template.mt32.romdir.tooltip")).but(b -> b.browse(true, Button_.BrowseType.DIR, Button_.CanonicalType.NONE, false)).section("midi", "mt32").item(
-			"mt32.romdir", "romdir").build(metaControls_).init(configurable);
+		mt32RomDirText_ = Chain.on(mt32ExpGroup).lbl(l -> l.key("dialog.template.mt32.romdir")).txt(t -> t.horSpan(4).tooltip("dialog.template.mt32.romdir.tooltip")).but(b -> b.browse(true, Button_.BrowseType.DIR, Button_.CanonicalType.NONE, false)).section("midi", "mt32").item(
+			"mt32.romdir", "romdir").build(metaControls_).init(configurable).getText();
+		followRomDir(mt32RomDirText_);
 		
 		Chain.on(mt32ExpGroup).lbl(l -> l.key("dialog.template.mt32.rate")).cmb(c -> c.tooltip("dialog.template.mt32.rate.tooltip").items("profile", "mt32rate_ecer4482")).section("midi").item(
 				"mt32.rate").build(metaControls_).init(configurable);

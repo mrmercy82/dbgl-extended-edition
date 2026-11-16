@@ -4119,6 +4119,25 @@ public class Dbgl0102Tests {
 		plan.files().forEach(f -> actions.put(f.to().getName(), f.replaces()));
 		assertEquals("{SAVE0.DSG=true, SAVE1.DSG=false, doom_001.png=false}", actions.toString());
 		assertEquals(java.util.List.of(new File(game, "BOTH.DSG")), plan.conflicts());
+		// alpha 50, the preview: groups with an empty line between them; only the play times and the files can be chosen
+		List<org.dbgl.gui.controls.StickReturnPreview.Row> preview = org.dbgl.gui.controls.StickReturnPreview.rows(plan, org.dbgl.service.TextService.getInstance());
+		assertEquals("HEADING STAT EMPTY HEADING NEW NEW EMPTY HEADING CHANGED EMPTY HEADING CONFLICT EMPTY HEADING GONE",
+			preview.stream().map(r -> r.kind().name()).collect(java.util.stream.Collectors.joining(" ")));
+		assertEquals(4, preview.stream().filter(r -> r.what() != null).count());
+		assertTrue(preview.stream().allMatch(r -> (r.what() != null) == java.util.EnumSet.of(org.dbgl.gui.controls.StickReturnPreview.Kind.STAT, org.dbgl.gui.controls.StickReturnPreview.Kind.NEW, org.dbgl.gui.controls.StickReturnPreview.Kind.CHANGED).contains(r.kind())));
+		org.dbgl.util.StickReturn.Plan part = org.dbgl.gui.controls.StickReturnPreview.chosen(plan, java.util.List.of(plan.files().get(0)));
+		assertTrue(part.stats().isEmpty());
+		assertEquals(java.util.List.of(plan.files().get(0)), part.files());
+		assertEquals(plan.conflicts(), part.conflicts());
+		assertEquals(plan.gone(), part.gone());
+		assertEquals(plan.stickId(), part.stickId());
+		part = org.dbgl.gui.controls.StickReturnPreview.chosen(plan, java.util.List.of());
+		assertTrue(part.stats().isEmpty() && part.files().isEmpty());
+		List<Object> all = new java.util.ArrayList<>(plan.stats());
+		all.addAll(plan.files());
+		part = org.dbgl.gui.controls.StickReturnPreview.chosen(plan, all);
+		assertEquals(plan.stats(), part.stats());
+		assertEquals(plan.files(), part.files());
 
 		File backup = new File(data, "backups/stick-return-test");
 		assertTrue(org.dbgl.util.StickReturn.copy(plan, backup).isEmpty());
@@ -4390,5 +4409,116 @@ public class Dbgl0102Tests {
 			told.apply(org.dbgl.util.GameHints.advice("Sopwith", null, conf.apply("[cpu]\ncore=auto\n"), staging)));
 		assertEquals("", told.apply(org.dbgl.util.GameHints.advice("Sopwith", null, ownCycles, both)));
 		assertEquals("", told.apply(org.dbgl.util.GameHints.advice("Some other game", new File("C:/games/x/GAME.EXE"), null, normal)));
+	}
+
+	/**
+	 * alpha 50, before the release: a DOSBox version DBGL does not know yet and the report on it; the logs and what may be
+	 * deleted among them; the folders of a USB stick brought back among the backups; the preview of bringing a stick back; the
+	 * note on Java 21 at the top of the newest part of the changelog.
+	 */
+	@Test
+	public void testFineTuningAlpha50() throws Exception {
+		// a version newer than the newest one of its family is "newer"; one not in the list but older is not
+		assertTrue(org.dbgl.util.DosboxSupport.compare("0.84.0", "0.83.1") > 0);
+		assertTrue(org.dbgl.util.DosboxSupport.compare("0.83.10", "0.83.9") > 0);
+		assertEquals(0, org.dbgl.util.DosboxSupport.compare("0.83", "0.83.0"));
+		assertTrue(org.dbgl.util.DosboxSupport.compare("2027.01.01", "2026.10.01") > 0);
+		assertTrue(org.dbgl.util.DosboxSupport.compare("0.74-4", "0.74-3") > 0);
+		assertEquals(org.dbgl.util.DosboxSupport.Status.KNOWN, org.dbgl.util.DosboxSupport.status("DOSBox Staging", "0.83.1"));
+		assertEquals(org.dbgl.util.DosboxSupport.Status.NEWER, org.dbgl.util.DosboxSupport.status("DOSBox Staging", "0.84.0"));
+		assertEquals(org.dbgl.util.DosboxSupport.Status.NEWER, org.dbgl.util.DosboxSupport.status("dosbox staging", "1.0.0"));
+		assertEquals(org.dbgl.util.DosboxSupport.Status.OTHER, org.dbgl.util.DosboxSupport.status("DOSBox Staging", "0.80.1")); // older than the list
+		assertEquals(org.dbgl.util.DosboxSupport.Status.NEWER, org.dbgl.util.DosboxSupport.status("Official", "0.74-4"));
+		assertEquals(org.dbgl.util.DosboxSupport.Status.NEWER, org.dbgl.util.DosboxSupport.status("DOSBox-X", "2031.01.01"));
+		assertEquals(org.dbgl.util.DosboxSupport.Status.OTHER, org.dbgl.util.DosboxSupport.status("Some other DOSBox", "9.9"));
+		assertEquals(org.dbgl.util.DosboxSupport.Status.OTHER, org.dbgl.util.DosboxSupport.status("DOSBox Staging", ""));
+		assertEquals("0.83.1", org.dbgl.util.DosboxSupport.newestKnown("DOSBox Staging"));
+		assertEquals("0.74-3", org.dbgl.util.DosboxSupport.newestKnown("Official"));
+		assertEquals("staging-0.83.1", org.dbgl.util.DosboxSupport.listOf("DOSBox Staging"));
+		assertNotNull(Dbgl0102Tests.class.getResourceAsStream("/confdefaults/" + org.dbgl.util.DosboxSupport.listOf("DOSBox Staging") + ".txt"));
+		assertNotNull(Dbgl0102Tests.class.getResourceAsStream("/confdefaults/" + org.dbgl.util.DosboxSupport.listOf("Official") + ".txt"));
+		assertNotNull(Dbgl0102Tests.class.getResourceAsStream("/confdefaults/" + org.dbgl.util.DosboxSupport.listOf("DOSBox-X") + ".txt"));
+		// the report: new, gone, another value - and no [autoexec]
+		java.util.Map<String, String> conf = org.dbgl.util.DosboxSupport.settingsOf("# a comment\r\n[sdl]\r\noutput = opengl\r\nfancy_new = on\r\n[newsection]\r\nthing=1\r\n[cpu]\r\ncore = normal\r\n[autoexec]\r\nmount c \"C:\\Users\\someone\\games\"\r\n");
+		assertEquals("{sdl|output=opengl, sdl|fancy_new=on, newsection|thing=1, cpu|core=normal}", conf.toString());
+		java.util.Map<String, String> known = new java.util.LinkedHashMap<>();
+		known.put("sdl|output", "opengl");
+		known.put("sdl|old_one", "x");
+		known.put("cpu|core", "auto || dynamic");
+		String report = org.dbgl.util.DosboxSupport.report("0.101 alpha 50", "DOSBox Staging", "0.84.0", "0.83.1", "staging-0.83.1", known, conf);
+		assertTrue(report, report.contains("DOSBox version:   DOSBox Staging 0.84.0") && report.contains("Treated as:       DOSBox Staging 0.83.1"));
+		assertTrue(report, report.contains("New sections: newsection") && report.contains("New settings (2):\n  [sdl] fancy_new = on\n  [newsection] thing = 1"));
+		assertTrue(report, report.contains("Settings that are gone (1):\n  [sdl] old_one"));
+		assertTrue(report, report.contains("[cpu] core = normal    (default known to DBGL: auto or dynamic)"));
+		assertFalse(report, report.contains("someone") || report.contains("autoexec"));
+		assertTrue(org.dbgl.util.DosboxSupport.report("x", "DOSBox Staging", "0.84.0", new File("no-such-file.conf")).contains("could not be read"));
+
+		File logs = Files.createTempDirectory("dbgl-logs").toFile();
+		try {
+			// the logs of two profiles, a diagnostic file of DBGL, and things a user put there
+			File one = new File(logs, "Game One (12)"), two = new File(logs, "Other: Game (7)"), foreign = new File(logs, "my notes");
+			assertTrue(one.mkdir() && two.mkdir() && foreign.mkdir());
+			for (int i = 1; i <= 5; i++)
+				Files.writeString(new File(one, "2026-11-0" + i + "_10-00-00.log").toPath(), "x" + i);
+			Files.writeString(new File(two, "2026-11-09_10-00-00.log").toPath(), "yy");
+			Files.writeString(new File(one, "readme.txt").toPath(), "of the user");
+			Files.writeString(new File(foreign, "2026-11-09_10-00-00.log").toPath(), "of the user");
+			Files.writeString(new File(logs, "menubar-check.txt").toPath(), "d");
+			Files.writeString(new File(logs, "freeze-20261109-101500.txt").toPath(), "d");
+			Files.writeString(new File(logs, "holiday.txt").toPath(), "of the user");
+			List<org.dbgl.util.DosboxLog.Entry> entries = org.dbgl.util.DosboxLog.list(logs);
+			assertEquals(8, entries.size());
+			assertEquals(6, entries.stream().filter(e -> !e.profile().isEmpty()).count());
+			assertTrue(entries.stream().noneMatch(e -> e.file().getName().equals("holiday.txt") || e.file().getName().equals("readme.txt") || e.file().getParentFile().equals(foreign)));
+			// only what DBGL wrote is deleted
+			assertFalse(org.dbgl.util.DosboxLog.delete(logs, new File(logs, "holiday.txt")));
+			assertFalse(org.dbgl.util.DosboxLog.delete(logs, new File(one, "readme.txt")));
+			assertFalse(org.dbgl.util.DosboxLog.delete(logs, new File(foreign, "2026-11-09_10-00-00.log")));
+			assertTrue(new File(logs, "holiday.txt").isFile() && new File(one, "readme.txt").isFile() && new File(foreign, "2026-11-09_10-00-00.log").isFile());
+			assertTrue(org.dbgl.util.DosboxLog.delete(logs, new File(logs, "menubar-check.txt")));
+			assertFalse(new File(logs, "menubar-check.txt").exists());
+			assertEquals(3, org.dbgl.util.DosboxLog.removeOld(logs, 2)); // of the five of the first profile the two newest stay
+			assertEquals("2026-11-04_10-00-00.log,2026-11-05_10-00-00.log,readme.txt", java.util.Arrays.stream(one.list()).sorted().collect(java.util.stream.Collectors.joining(",")));
+			assertTrue(org.dbgl.util.DosboxLog.delete(logs, new File(two, "2026-11-09_10-00-00.log")));
+			assertFalse(two.exists()); // the folder of a profile goes with its last log
+			assertTrue(foreign.isDirectory());
+		} finally {
+			org.apache.commons.io.FileUtils.deleteQuietly(logs);
+		}
+
+		File backups = Files.createTempDirectory("dbgl-backups").toFile();
+		try {
+			// the folder of the files that were replaced when a stick was brought back: listed, deleted only by its exact name
+			File stick = new File(backups, "stick-return-20261116-101500"), other = new File(backups, "stick-return-mine"), sub = new File(stick, "dosroot");
+			assertTrue(sub.mkdirs() && other.mkdir());
+			Files.writeString(new File(sub, "SAVE.DAT").toPath(), "12345");
+			Files.writeString(new File(other, "keep.txt").toPath(), "of the user");
+			assertEquals(org.dbgl.util.BackupCatalog.Kind.STICK_RETURN, org.dbgl.util.BackupCatalog.kindOf("stick-return-20261116-101500"));
+			assertNull(org.dbgl.util.BackupCatalog.kindOf("stick-return-mine"));
+			assertNull(org.dbgl.util.BackupCatalog.kindOf("stick-return-20261116-101500.txt"));
+			List<org.dbgl.util.BackupCatalog.Backup> listed = org.dbgl.util.BackupCatalog.list(List.of(backups));
+			assertEquals(1, listed.size());
+			assertEquals(org.dbgl.util.BackupCatalog.Kind.STICK_RETURN, listed.get(0).kind());
+			assertEquals(5, listed.get(0).size());
+			assertFalse(listed.get(0).kind().restorable());
+			assertFalse(org.dbgl.util.BackupCatalog.delete(other)); // not one of DBGL: stays
+			assertTrue(new File(other, "keep.txt").isFile());
+			assertTrue(org.dbgl.util.BackupCatalog.delete(stick));
+			assertFalse(stick.exists());
+		} finally {
+			org.apache.commons.io.FileUtils.deleteQuietly(backups);
+		}
+
+		// the newest part of the changelog starts with the note on Java 21, in both languages (until it is taken back)
+		for (String[] doc: new String[][] {{"changelog_de.txt", "Wichtig"}, {"changelog_en.txt", "Important"}}) {
+			String text;
+			try (java.io.InputStream in = org.dbgl.gui.dialog.DocumentDialog.class.getResourceAsStream("/doc/" + doc[0])) {
+				text = new String(in.readAllBytes(), StandardCharsets.UTF_8).replace("\r\n", "\n");
+			}
+			java.util.regex.Matcher first = java.util.regex.Pattern.compile("(?m)^0\\.\\d+ (alpha|beta) \\d+.*\\n-+\\n").matcher(text);
+			assertTrue(doc[0], first.find());
+			String part = text.substring(first.end());
+			assertTrue(doc[0], part.startsWith(doc[1] + "\n") && part.substring(0, 400).contains("Java 21") && part.substring(0, 600).contains("https://adoptium.net/temurin/releases/?version=21"));
+		}
 	}
 }

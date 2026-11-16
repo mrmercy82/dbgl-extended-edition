@@ -293,9 +293,34 @@ public class EditDosboxVersionDialog extends SizeControlledTabbedDialog<DosboxVe
 				maybeRecreateReducedDosboxXConf(family, version, path, exe, conf);
 				maybeRecreateConfAfterVersionChange(family, version, path, exe, conf);
 				noticeSpecialDosboxXBuild(family, executable);
+				if (mess.valid())
+					noticeNewerVersion(family.getText(), version.getText(), configFile);
 			}
 		}
 		return mess.valid();
+	}
+
+	/**
+	 * alpha 50: a version newer than the ones DBGL knows: told once per version - it is treated as the newest known one, what
+	 * to do, that an update of DBGL follows - with the offer to write the report for the developer.
+	 */
+	private void noticeNewerVersion(String family, String version, File configFile) {
+		if (org.dbgl.util.DosboxSupport.status(family, version) != org.dbgl.util.DosboxSupport.Status.NEWER)
+			return;
+		String id = family + ' ' + version;
+		if (id.equals(settings_.getValue("gui", "newversionnoticeshown")))
+			return;
+		settings_.setValue("gui", "newversionnoticeshown", id);
+		if (Mess_.on(shell_).key("dialog.dosboxversion.newer", new Object[] {id, family + ' ' + org.dbgl.util.DosboxSupport.newestKnown(family)}).confirm())
+			showSupportReport(shell_, family, version, configFile);
+	}
+
+	/** the report on a DOSBox version for the developer, in a window from which it can be saved */
+	public static void showSupportReport(Shell parent, String family, String version, File configFile) {
+		String report = org.dbgl.util.DosboxSupport.report(org.dbgl.constants.Constants.PROGRAM_VERSION, family, version, configFile).replace("\n", org.eclipse.swt.widgets.Text.DELIMITER);
+		String name = "dbgl-dosbox-report-" + (family + "-" + version).replaceAll("[^A-Za-z0-9.-]+", "-") + ".txt";
+		new DifferencesDialog(parent, org.dbgl.service.TextService.getInstance().get("dialog.dosboxversion.report.title", new Object[] {family + ' ' + version}), report, name, "compareversionsdialog")
+				.withImage(org.dbgl.service.ImageService.IMG_ZOOM).open();
 	}
 
 	/** tell once per executable if it is a DOSBox-X build that may surprise: without DOS shell, or made for old Windows 9x PCs */

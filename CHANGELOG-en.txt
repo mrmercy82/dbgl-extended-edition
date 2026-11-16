@@ -6,6 +6,59 @@ Based on DBGL 0.100 beta 17 by Ronald Blankendaal (https://dbgl.org), source cod
 
 0.101 alpha 50 (in progress)
 ----------------------------
+Important
+- Java 21 will be needed soon: one of the next versions of DBGL Extended
+  Edition needs Java 21 and will not start with an older Java. When DBGL
+  runs with an older Java, it says so at the start. Java 21 is available
+  e.g. as Eclipse Temurin:
+  https://adoptium.net/temurin/releases/?version=21
+
+New
+- Manage log files (menu File): a window like the one of the backups for
+  the DOSBox output of the profiles (folder "logs", one folder per
+  profile) and the diagnostic files of DBGL: look at them, delete them,
+  open the folder, and how many log files per profile stay (20 until
+  now). Only what DBGL wrote there itself is shown and deleted.
+- A DOSBox version DBGL does not know yet: when it is entered, DBGL says
+  that it treats it as the newest one it knows, what to do (enter it, new
+  settings by hand, "Check profiles", the report) and that a version of
+  DBGL that knows it usually follows soon. The report (also in the menu
+  DOSBox versions) lists settings that are new, gone or set differently
+  against the newest known version, to be sent to the developer; it
+  holds no paths. "Check profiles" notes such a version.
+- Bring back from the USB stick: a preview of its own. Play time, new
+  files, replaced files and conflicts are in groups with an empty line
+  between them, each kind in its color (the legend above as well), and
+  before each line there is a box: only what is ticked is taken over.
+  Then DBGL asks once more, with the numbers.
+- Settings > GUI settings > Profile overview: the tab for profiles
+  without pictures - always hide, always show, or show when there are
+  any (the default).
+
+Changed
+- "Create backup" and "Restore backup" are no longer in the menu but
+  buttons in the window "Manage backups" ("Create backup...", "Restore
+  from a file..."). The folders with the files that were replaced when a
+  USB stick was brought back are listed there now, too; before such a
+  folder is deleted, DBGL warns separately, as these are the only copies.
+- Making a USB stick: on the right, only what is needed is ticked at
+  first. The dialog says for which operating system the stick is made
+  (the DBGL and the DOSBox versions on it run only there). In the toolbar
+  the USB symbol opens both ways now: make one, bring one back.
+- The number of profiles of the list is always in the row of the search
+  now; the tooltip over the filter tab, which covered the row below, is
+  gone.
+- Profile editor: the folder of the Sound Canvas ROMs has a button to
+  look for the folder, as the one of the MT-32 has. After a folder was
+  chosen (MT-32 or Sound Canvas) the frame "ROMs" shows at once what was
+  found there - without saving first.
+
+Fixed
+- Dark mode: a button DBGL draws itself sometimes stayed dark until the
+  mouse moved over it (OK in the profile editor). The buttons of a window
+  are drawn again now once it has come up and when it becomes the active
+  one again.
+
 Improved
 - "Check profiles", a batch file as the program to start: no longer told
   as missing is what the batch file makes itself ("copy x.dat x.exe", then

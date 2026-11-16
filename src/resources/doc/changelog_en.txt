@@ -6,7 +6,132 @@ Based on DBGL 0.100 beta 17 by Ronald Blankendaal (https://dbgl.org), source cod
 
 0.101 alpha 50 (in progress)
 ----------------------------
+Important
+- Java 21 will be needed soon: one of the next versions of DBGL Extended
+  Edition needs Java 21 and will not start with an older Java. When DBGL
+  runs with an older Java, it says so at the start. Java 21 is available
+  e.g. as Eclipse Temurin:
+  https://adoptium.net/temurin/releases/?version=21
+
+New
+- Manage log files (menu File): a window like the one of the backups for
+  the DOSBox output of the profiles (folder "logs", one folder per
+  profile) and the diagnostic files of DBGL: look at them, delete them,
+  open the folder, and how many log files per profile stay (20 until
+  now). Only what DBGL wrote there itself is shown and deleted.
+- A DOSBox version DBGL does not know yet: when it is entered, DBGL says
+  that it treats it as the newest one it knows, what to do (enter it, new
+  settings by hand, "Check profiles", the report) and that a version of
+  DBGL that knows it usually follows soon. The report (also in the menu
+  DOSBox versions) lists settings that are new, gone or set differently
+  against the newest known version, to be sent to the developer; it
+  holds no paths. "Check profiles" notes such a version.
+- Bring back from the USB stick: a preview of its own. Play time, new
+  files, replaced files and conflicts are in groups with an empty line
+  between them, each kind in its color (the legend above as well), and
+  before each line there is a box: only what is ticked is taken over.
+  Then DBGL asks once more, with the numbers.
+- Settings > GUI settings > Profile overview: the tab for profiles
+  without pictures - always hide, always show, or show when there are
+  any (the default).
+
+Changed
+- "Create backup" and "Restore backup" are no longer in the menu but
+  buttons in the window "Manage backups" ("Create backup...", "Restore
+  from a file..."). The folders with the files that were replaced when a
+  USB stick was brought back are listed there now, too; before such a
+  folder is deleted, DBGL warns separately, as these are the only copies.
+- Making a USB stick: on the right, only what is needed is ticked at
+  first. The dialog says for which operating system the stick is made
+  (the DBGL and the DOSBox versions on it run only there). In the toolbar
+  the USB symbol opens both ways now: make one, bring one back.
+- The number of profiles of the list is always in the row of the search
+  now; the tooltip over the filter tab, which covered the row below, is
+  gone.
+- Profile editor: the folder of the Sound Canvas ROMs has a button to
+  look for the folder, as the one of the MT-32 has. After a folder was
+  chosen (MT-32 or Sound Canvas) the frame "ROMs" shows at once what was
+  found there - without saving first.
+
+Fixed
+- Dark mode: a button DBGL draws itself sometimes stayed dark until the
+  mouse moved over it (OK in the profile editor). The buttons of a window
+  are drawn again now once it has come up and when it becomes the active
+  one again.
+
 Improved
+- "Check profiles", a batch file as the program to start: no longer told
+  as missing is what the batch file makes itself ("copy x.dat x.exe", then
+  "x.exe") or asks for before ("if not exist x.bat goto ..."), as an
+  installer and launcher in one file does (found with the Starship
+  Troopers TC for Duke Nukem 3D); a missing program is told once only.
+  A program called without its ending ("wrms", "u8") is checked now, too
+  (as .COM, .EXE and .BAT); before, only calls with an ending were. The
+  wizard does not take a Windows program as the program to start if
+  there is one for DOS (SST_TC.EXE next to SST_TC.BAT), and knows a setup
+  program by its name as well (GAMESET.EXE, SETMUSE.EXE, SBSETUP.EXE; not
+  WINSETUP.EXE or IPXSETUP.EXE). As the program to start, one counts for
+  more that has its settings in the folder (WG.EXE with WG.CFG of Wings of
+  Glory), and "3D" at the end of a name counts as the number of the title
+  (WOLF3D.EXE, DUKE3D.EXE). The games of Sierra are started with
+  SIERRA.COM or SIERRA.EXE, not with SCIV.EXE. A "goto" that is sure is followed
+  ("if not exist seq.exe goto continue": the first start of King's Quest
+  VI unpacks with programs that are gone afterwards). Checked with 259
+  batch files, 333 files of settings and 408 folders of a collection of
+  189 games.
+- "Check profiles" finds more:
+  - Settings that are valid each but do not go together: Sound Blaster and
+    Gravis Ultrasound on the same IRQ, DMA channel or port; for DOSBox 0.74
+    a cputype with "prefetch" and another core than normal or auto (DOSBox
+    quits with it when starting; the profile gets the warning sign, the
+    solution sets core = normal); for DOSBox Staging and DOSBox-X
+    mididevice = mt32 without complete ROMs.
+  - A line "SET BLASTER=" or "SET ULTRASND=" in the profile or in the
+    batch file of the game with other values than DOSBox has: DOSBox sets
+    these variables itself, from its settings. The solution removes the
+    line from the profile.
+  - Notes without a warning sign, from the files of the game (DIG.INI and
+    MDI.INI of the Miles Sound System, DEFAULT.CFG of Doom, Heretic, Hexen
+    and Strife, RESOURCE.CFG of the games of Sierra and Dynamix, HMISET.CFG
+    and its kin of the sound system of HMI (Realms of Arkania 3,
+    Millennia, M.A.X., Sensible Soccer), the .CFG of the games of Origin
+    with "-ds271", the .CFG of the Build games, FB.CFG of Flashback,
+    SC2000.CFG, TURRICAN.CFG, the switches "-sa: -si: -sd:" in the batch
+    file of Arena): the setup of the game
+    has saved other values for port, IRQ or DMA of the Sound Blaster than
+    the profile has (the solution sets the profile to the values of the
+    game); the game is set to a device that is off in the profile (Sound
+    Blaster, Gravis Ultrasound); the game is set to a Roland MT-32, the
+    profile uses none (DOSBox Staging, DOSBox-X).
+  - Note: a CD image is in the folder of the game, but the profile mounts
+    no CD. The solution mounts it as a drive. A file counts as an image
+    by what is in it, not only by its ending.
+  - A short list of games with a documented need, the source named in the
+    text: Contra, FIFA International Soccer, The Terminator, X-Men: Madness
+    in Murderworld (cputype = 386_prefetch), Alley Cat, Sopwith (140 to 300
+    cycles), Quake, Duke Nukem 3D, Tomb Raider, Descent II (memsize = 32)
+    from the manual of DOSBox Staging; Ultima VII: The Black Gate
+    (ems = false) from the wiki of DOSBox.
+- Recognition when adding a game (wizard): the program to start is now
+  chosen by what such names are made of: the title run together or a
+  part of it (DOOM2, MONKEY), its first letters (UW, DOTT), the beginning
+  of a word with the number of the title (WAR2, SC2000, KEEN4E). Before,
+  the name nearest to the title letter by letter won. The setup program
+  was not found at all for file names in capitals; now it is, and
+  SETUP.EXE comes before INSTALL.EXE.
+- "Check profiles" with DOSBox Staging: for values of DOSBox 0.74 it now
+  names the value DOSBox Staging itself uses for them and changes it on
+  request ("vgaonly" to "svga_paradise", "win32" to "port", "openglnb"
+  to "opengl", "none" to "disabled"). "cycles" and "windowresolution"
+  were told as unknown and without effect; DOSBox Staging still takes
+  them, and that is what it says now.
+- Recognizing the DOSBox version: configuration files of DOSBox 0.62 to
+  0.70 do not name their version; DBGL now knows them by their settings
+  and knows their defaults. DOSBox Staging 0.78 and 0.79 call themselves
+  "version v0.79.1" and were not recognized. The programs of DOSBox 0.62
+  to 0.73 were not recognized when entered; now they are. Checked with
+  74 programs: DOSBox 0.62 to 0.74-3, DOSBox Staging 0.75 to 0.83.1,
+  DOSBox-X 2023.10.06 to 2026.10.01.
 - Large collections: the list of profiles (view "Table") fills its rows
   when they come into view. With 5000 profiles the list is there much
   sooner after sorting, filtering or editing (measured on Linux: about a

@@ -412,6 +412,7 @@ public class SettingsService {
 		settings_.setValue("gui", "screenshotsmaxheight", "1440");
 		settings_.setValue("gui", "autosortonupdate", false);
 		settings_.setValue("gui", "screenshotsfilename", true);
+		settings_.setValue("gui", "noimagestab", 2); // alpha 50: the tab of the profiles without pictures: 0 never, 1 always, 2 when there are any
 		settings_.setValue("gui", "buttondisplay", 0);
 		settings_.setValue("gui", "toolbarhidden", ""); // alpha 48: keys of the toolbar buttons the user hid
 		settings_.setValue("gui", "randomgame", "all"); // random game from: all, neverstarted, favorites

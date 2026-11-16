@@ -1311,6 +1311,9 @@ public final class ProfileChecks {
 		List<Problem> result = new ArrayList<>();
 		if ((db == null) || !FilesUtils.isReadableFile(db.getConfigurationCanonicalFile()))
 			return result;
+		// alpha 50: newer than the versions DBGL knows: treated as the newest one it knows
+		if (DosboxSupport.status(db.getFamily(), db.getVersion()) == DosboxSupport.Status.NEWER)
+			result.add(new Problem("dosboxnewer", db.getTitle(), db.getFamily() + " " + db.getVersion(), db.getFamily() + " " + DosboxSupport.newestKnown(db.getFamily())));
 		boolean skipped = "overwrite".equalsIgnoreCase(StringUtils.trim(db.getConfiguration().getValue("dosbox", "autoexec_section")));
 		for (String line: runDosboxAutoexec(db, skipped).programs())
 			result.add(new Problem("dosboxconfprogram", db.getTitle(), db.getConfigurationCanonicalFile().getName(), line));

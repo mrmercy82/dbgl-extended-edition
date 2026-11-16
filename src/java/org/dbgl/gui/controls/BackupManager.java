@@ -62,14 +62,14 @@ public final class BackupManager {
 	}
 
 	public static String contentText(ITextService text, Kind kind) {
-		String what = kind.restorable() ? "data": kind == Kind.UPDATE_PROGRAM ? "program": kind == Kind.FULL ? "full": "installer";
+		String what = kind.restorable() ? "data": kind == Kind.UPDATE_PROGRAM ? "program": kind == Kind.FULL ? "full": kind == Kind.STICK_RETURN ? "stick": "installer";
 		return text.get("dialog.backups.content." + what);
 	}
 
 	/** the cells of the row of a backup: lock, kind, content, version, date, size, file */
 	public static String[] row(ITextService text, Backup b, Locale locale) {
 		return new String[] {"", kindText(text, b.kind()), contentText(text, b.kind()),
-				b.version().isEmpty() ? text.get("dialog.backups.unknownversion"): BackupCatalog.pretty(b.version()),
+				b.kind() == Kind.STICK_RETURN ? "": b.version().isEmpty() ? text.get("dialog.backups.unknownversion"): BackupCatalog.pretty(b.version()),
 				DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT, locale).format(new Date(b.when())), DiskUsage.format(b.size(), locale), b.file().getName()};
 	}
 
@@ -155,6 +155,12 @@ public final class BackupManager {
 		GridLayout sideLayout = new GridLayout(1, false);
 		sideLayout.marginWidth = sideLayout.marginHeight = 0;
 		side.setLayout(sideLayout);
+		// alpha 50: what was "Create backup" and "Restore backup" in the menu is here
+		Button create = sideButton(side, text.get("dialog.main.menu.backup"));
+		create.setToolTipText(text.get("dialog.backups.tip.create"));
+		Button restoreFile = sideButton(side, text.get("dialog.backups.restorefile"));
+		restoreFile.setToolTipText(text.get("dialog.backups.tip.restorefile"));
+		new Label(side, SWT.SEPARATOR | SWT.HORIZONTAL).setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
 		Button lock = sideButton(side, text.get("dialog.backups.lock"));
 		Button delete = sideButton(side, text.get("dialog.backups.delete"));
 		Button restore = sideButton(side, text.get("dialog.backups.restore"));
@@ -238,6 +244,12 @@ public final class BackupManager {
 				sum += shown.get(i).size();
 			if ((sel.length == 0) || !Mess_.on(dlg).key("dialog.backups.confirm.delete", new Object[] {sel.length, DiskUsage.format(sum, locale)}).confirm())
 				return;
+			// alpha 50: the files replaced when a USB stick was brought back are the only copy of what was here before
+			long sticks = java.util.Arrays.stream(sel).filter(i -> shown.get(i).kind() == Kind.STICK_RETURN).count();
+			if ((sticks > 0) && !Mess_.on(dlg).key("dialog.backups.confirm.deletestick", new Object[] {sticks}).confirm()) {
+				dlg.forceActive();
+				return;
+			}
 			try {
 				for (int i: sel)
 					BackupCatalog.delete(shown.get(i).file());
@@ -263,6 +275,45 @@ public final class BackupManager {
 			}
 			dlg.forceActive();
 			table.setFocus();
+		});
+		create.addListener(SWT.Selection, e -> {
+			File dir = new File(org.dbgl.service.FileLocationService.getInstance().getDataDir(), org.dbgl.util.VersionBackup.DIR);
+			dir.mkdirs();
+			org.eclipse.swt.widgets.FileDialog fd = new org.eclipse.swt.widgets.FileDialog(dlg, SWT.SAVE);
+			fd.setFilterExtensions(new String[] {"*.zip", "*.*"});
+			fd.setFilterPath(dir.getPath()); // in the folder of the backups it shows in this window
+			fd.setFileName("dbgl-backup-" + java.time.LocalDate.now() + ".zip");
+			fd.setOverwrite(true);
+			String file = fd.open();
+			if (file != null) {
+				dlg.setCursor(display.getSystemCursor(SWT.CURSOR_WAIT));
+				try {
+					int count = org.dbgl.service.BackupService.backup(new File(file));
+					dlg.setCursor(null);
+					Mess_.on(dlg).key("dialog.main.notice.backupdone", new Object[] {file, count}).display();
+				} catch (IOException | java.sql.SQLException | RuntimeException ex) {
+					dlg.setCursor(null);
+					Mess_.on(dlg).exception(ex).warning();
+				}
+				fill.run();
+			}
+			dlg.forceActive();
+		});
+		restoreFile.addListener(SWT.Selection, e -> {
+			org.eclipse.swt.widgets.FileDialog fd = new org.eclipse.swt.widgets.FileDialog(dlg, SWT.OPEN);
+			fd.setFilterExtensions(new String[] {"*.zip", "*.*"});
+			String file = fd.open();
+			if (file != null) {
+				File chosen = new File(file);
+				if (!org.dbgl.service.BackupService.isBackup(chosen)) {
+					Mess_.on(dlg).key("dialog.main.error.nobackup", new Object[] {chosen.getPath()}).warning();
+				} else if (Mess_.on(dlg).key("dialog.main.confirm.restore", new Object[] {chosen.getPath()}).confirm()) {
+					result[0] = chosen;
+					dlg.close();
+					return;
+				}
+			}
+			dlg.forceActive();
 		});
 		folder.addListener(SWT.Selection, e -> {
 			int[] sel = table.getSelectionIndices();

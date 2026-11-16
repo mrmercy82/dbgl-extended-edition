@@ -341,6 +341,10 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 		Button profileHints = Chain.on(overviewGroup).lbl(l -> l.key("dialog.settings.profilehints")).but(b -> b.tooltip("dialog.settings.profilehints.tooltip").select(settings_.getBooleanValue("gui", "profilehints"))).button();
 		Button profileWarnings = Chain.on(overviewGroup).lbl(l -> l.key("dialog.settings.profilewarnings")).but(b -> b.tooltip("dialog.settings.profilewarnings.tooltip").select(settings_.getBooleanValue("gui", "profilewarnings"))).button();
 		// alpha 49: the screenshots below the profiles, per view: as chosen with the button in the toolbar, always shown, always hidden
+		// alpha 50: the tab with the profiles that have no pictures: never, always, or only while there are such profiles
+		Combo noImagesTab = Chain.on(overviewGroup).lbl(l -> l.key("dialog.settings.noimages")).cmb(
+			c -> c.items(new String[] {text_.get("dialog.settings.noimagestab.never"), text_.get("dialog.settings.noimagestab.always"), text_.get("dialog.settings.noimagestab.found")})).combo();
+		noImagesTab.select(Math.max(0, Math.min(2, settings_.getIntValue("gui", "noimagestab"))));
 		String[] shotRules = {text_.get("dialog.settings.screenshots.asis"), text_.get("dialog.settings.screenshots.show"), text_.get("dialog.settings.screenshots.hide")};
 		String[] shotKeys = {"screenshots_list", "screenshots_tiles", "screenshots_boxes"};
 		Combo[] shotCombos = new Combo[3];
@@ -749,6 +753,7 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 				}
 				settings_.setIntValue("gui", "screenshotsheight", screenshotsHeight.getSelection());
 				settings_.setBooleanValue("gui", "screenshotsfilename", displayFilename.getSelection());
+				settings_.setIntValue("gui", "noimagestab", noImagesTab.getSelectionIndex());
 				settings_.setIntValue("gui", "screenshotscolumnheight", screenshotsColumnHeight.getSelection());
 				settings_.setBooleanValue("gui", "screenshotscolumnstretch", stretch.getSelection());
 				settings_.setBooleanValue("gui", "screenshotscolumnkeepaspectratio", keepAspectRatio.getSelection());
@@ -964,7 +969,7 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 			{"setpublisher", "setfield"}, {"setyear", "setfield"}, {"setgenre", "setfield"}, {"setlink", "setlink"}, {"setrank", "setrank"}, {"setdescription", "setdescription"},
 			{"choosecoverart", "choosecoverart"}, {"allregionscoverart", "allregions"}, {"choosescreenshot", "choosescreenshot"}, {"multieditmaxcoverart", "multieditmax"},
 			{"multieditmaxscreenshot", "multieditmax"}, {"platformfilter", "platformfilter"}, {"enableenvironment", "environment"}, {"environmentvariables", "environment"},
-			{"screenshots.list", "screenshotsrule"}, {"screenshots.tiles", "screenshotsrule"}, {"screenshots.boxes", "screenshotsrule"}, {"tv.stacks", "tvstacks"},
+			{"noimages", "noimages"}, {"screenshots.list", "screenshotsrule"}, {"screenshots.tiles", "screenshotsrule"}, {"screenshots.boxes", "screenshotsrule"}, {"tv.stacks", "tvstacks"},
 			{"tv.playtime", "tvplaytime"}, {"showdiskspaceininfo", "diskspace"}, {"showdiskspaceinnotes", "diskspace"}, {"tv.diskspace", "diskspace"}, {"tv.hints", "tvhints"}, {"tv.button", "tvbutton"}, {"options", "options"}, {"values", "values"}};
 
 	/** alpha 49: the text of each such label (what is filled in later, like the name of an archive, as a gap) and its tooltip */

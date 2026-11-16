@@ -47,6 +47,11 @@ public final class OldFiles {
 	private OldFiles() {
 	}
 
+	/** alpha 50: is this the name of a diagnostic file DBGL writes into its folder "logs"? */
+	public static boolean isDiagnostic(String name) {
+		return DIAGNOSTICS.contains(name) || FREEZE.matcher(name).matches();
+	}
+
 	private static Map<String, String> docs() {
 		Map<String, String> m = new LinkedHashMap<>();
 		m.put("CHANGELOG-de.txt", "changelog-de.txt");

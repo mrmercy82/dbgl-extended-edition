@@ -6,7 +6,137 @@ Grundlage: DBGL 0.100 beta 17 von Ronald Blankendaal (https://dbgl.org), Quellco
 
 0.101 alpha 50 (in Arbeit)
 --------------------------
+Wichtig
+- Bald ist Java 21 nötig: Eine der nächsten Versionen von DBGL Extended
+  Edition benötigt Java 21 und startet mit einem älteren Java nicht mehr.
+  Läuft DBGL mit einem älteren Java, zeigt es beim Start einen Hinweis.
+  Java 21 gibt es z. B. als Eclipse Temurin:
+  https://adoptium.net/temurin/releases/?version=21
+
+Neu
+- Logdateien verwalten (Menü Datei): ein Fenster wie das der Sicherungen
+  für die DOSBox-Ausgabe der Profile (Ordner "logs", ein Ordner je Profil)
+  und die Diagnosedateien von DBGL: ansehen, löschen, Ordner öffnen, und
+  wie viele Logdateien je Profil bleiben (bisher fest 20). Gezeigt und
+  gelöscht wird nur, was DBGL dort selbst geschrieben hat.
+- Eine DOSBox-Version, die DBGL noch nicht kennt: Beim Eintragen sagt
+  DBGL, dass es sie wie die neueste bekannte behandelt, was zu tun ist
+  (eintragen, neue Einstellungen von Hand, "Profile prüfen", Bericht) und
+  dass eine Fassung von DBGL, die sie kennt, in der Regel bald folgt.
+  Der Bericht (auch im Menü DOSBox-Versionen) nennt neue, entfallene und
+  anders belegte Einstellungen gegenüber der neuesten bekannten Version,
+  zum Schicken an den Entwickler; er enthält keine Pfade. "Profile
+  prüfen" weist bei einer solchen Version darauf hin.
+- USB-Stick zurückholen: eine eigene Vorschau. Spielzeit, neue Dateien,
+  ersetzte Dateien und Konflikte stehen in Gruppen mit Leerzeile
+  dazwischen, jede Art in ihrer Farbe (die Legende darüber ebenso), und
+  vor jeder Zeile steht ein Kästchen: Übernommen wird nur, was
+  angekreuzt ist. Danach fragt DBGL noch einmal mit den Zahlen nach.
+- Einstellungen > GUI-Einstellungen > Profilübersicht: Reiter für Profile
+  ohne Bilder - immer ausblenden, immer einblenden oder einblenden bei
+  Funden (Vorgabe).
+
+Geändert
+- "Sicherung erstellen" und "Sicherung wiederherstellen" sind keine
+  Menüpunkte mehr, sondern Schaltflächen im Fenster "Sicherungen
+  verwalten" ("Sicherung erstellen...", "Aus Datei wiederherstellen...").
+  Dort stehen jetzt auch die Ordner mit den Dateien, die beim Zurückholen
+  vom USB-Stick ersetzt wurden; vor dem Löschen eines solchen Ordners
+  warnt DBGL eigens, weil es die einzigen Kopien sind.
+- USB-Stick erstellen: Rechts ist anfangs nur das Nötige angekreuzt. Der
+  Dialog sagt, für welches Betriebssystem der Stick entsteht (DBGL und
+  die DOSBox-Versionen darauf laufen nur dort). In der Werkzeugleiste
+  öffnet das USB-Symbol jetzt beide Wege: erstellen und zurückholen.
+- Die Zahl der Profile der Liste steht jetzt immer in der Zeile der
+  Suche; der Tooltip über dem Filter-Reiter, der die Zeile darunter
+  verdeckte, entfällt.
+- Profil-Editor: Der Ordner der Sound-Canvas-ROMs hat eine Schaltfläche
+  zum Suchen des Ordners, wie der des MT-32. Nach der Wahl eines Ordners
+  (MT-32 oder Sound Canvas) zeigt der Rahmen "ROMs" sofort, was dort
+  gefunden wurde - ohne erst zu speichern.
+
+Behoben
+- Dark Mode: Eine Schaltfläche, die DBGL selbst zeichnet, blieb mitunter
+  dunkel, bis die Maus darüber fuhr (OK im Profil-Editor). Die
+  Schaltflächen eines Fensters werden jetzt neu gezeichnet, sobald es da
+  ist und wenn es wieder das aktive wird.
+
 Verbessert
+- "Profile prüfen" erkennt mehr:
+  - Einstellungen, die einzeln gültig sind, aber nicht zusammenpassen:
+    Sound Blaster und Gravis Ultrasound auf demselben IRQ, DMA-Kanal oder
+    Port; bei DOSBox 0.74 ein cputype mit "prefetch" und ein anderer core
+    als normal oder auto (DOSBox bricht damit beim Start ab; das Profil
+    bekommt das Warnzeichen, die Lösung setzt core = normal); bei DOSBox
+    Staging und DOSBox-X mididevice = mt32, ohne dass vollständige ROMs da
+    sind.
+  - Eine Zeile "SET BLASTER=" oder "SET ULTRASND=" im Profil oder in der
+    Batchdatei des Spiels mit anderen Werten, als DOSBox hat: DOSBox setzt
+    diese Variablen selbst aus seinen Einstellungen. Die Lösung entfernt
+    die Zeile aus dem Profil.
+  - Hinweise ohne Warnzeichen, aus den Dateien des Spiels (DIG.INI und
+    MDI.INI des Miles Sound System, DEFAULT.CFG von Doom, Heretic, Hexen
+    und Strife, RESOURCE.CFG der Spiele von Sierra und Dynamix, HMISET.CFG
+    und ihre Abarten des Soundsystems von HMI (Schicksalsklinge 3,
+    Millennia, M.A.X., Sensible Soccer), die .CFG der Spiele von Origin
+    mit "-ds271", die .CFG der Build-Spiele, FB.CFG von Flashback,
+    SC2000.CFG, TURRICAN.CFG, die Schalter "-sa: -si: -sd:" in der
+    Batchdatei von Arena): Das Setup des
+    Spiels hat für den Sound Blaster andere Werte für Port, IRQ oder DMA
+    gespeichert, als das Profil hat (die Lösung setzt das Profil auf die
+    Werte des Spiels); das Spiel ist auf ein Gerät eingestellt, das im
+    Profil aus ist (Sound Blaster, Gravis Ultrasound); das Spiel ist auf
+    einen Roland MT-32 eingestellt, das Profil nutzt keinen (DOSBox
+    Staging, DOSBox-X).
+  - Hinweis: Im Ordner des Spiels liegt ein CD-Abbild, das Profil bindet
+    aber keine CD ein. Die Lösung bindet es als Laufwerk ein. Als Abbild
+    zählt eine Datei nach ihrem Inhalt, nicht nur nach ihrer Endung.
+  - Eine kurze Liste von Spielen mit belegtem Bedarf, mit Quelle im Text:
+    Contra, FIFA International Soccer, The Terminator, X-Men: Madness in
+    Murderworld (cputype = 386_prefetch), Alley Cat, Sopwith (140 bis 300
+    Zyklen), Quake, Duke Nukem 3D, Tomb Raider, Descent II (memsize = 32)
+    nach dem Handbuch von DOSBox Staging; Ultima VII: The Black Gate
+    (ems = false) nach dem Wiki von DOSBox.
+- "Profile prüfen", Batchdatei als Startprogramm: Nicht mehr als fehlend
+  gemeldet wird, was die Batchdatei selbst anlegt ("copy x.dat x.exe",
+  dann "x.exe") oder vorher abfragt ("if not exist x.bat goto ..."), wie
+  es Installations- und Startmenüs in einer Datei tun (gefunden an der
+  Starship Troopers TC für Duke Nukem 3D); ein fehlendes Programm steht
+  nur noch einmal da. Ein Programm, das ohne Endung aufgerufen wird
+  ("wrms", "u8"), wird jetzt auch geprüft (als .COM, .EXE und .BAT);
+  bisher nur Aufrufe mit Endung. Der Assistent nimmt als Startprogramm
+  kein Windows-Programm, wenn es eines für DOS gibt (SST_TC.EXE neben
+  SST_TC.BAT), und erkennt ein Setup-Programm auch am Namen (GAMESET.EXE,
+  SETMUSE.EXE, SBSETUP.EXE; nicht WINSETUP.EXE oder IPXSETUP.EXE). Als
+  Startprogramm zählt mehr, wer seine Einstellungen im Ordner hat (WG.EXE
+  mit WG.CFG bei Wings of Glory), und "3D" am Ende des Namens gilt als
+  Zahl des Titels (WOLF3D.EXE, DUKE3D.EXE). Die Spiele von Sierra werden
+  mit SIERRA.COM oder SIERRA.EXE gestartet, nicht mit SCIV.EXE.
+  Ein sicheres "goto" wird verfolgt ("if not exist seq.exe goto weiter":
+  King's Quest VI entpackt beim ersten Start mit Programmen, die danach
+  weg sind). Geprüft an 259 Batchdateien, 333 Einstellungsdateien und
+  408 Ordnern einer Sammlung von 189 Spielen.
+- Erkennung beim Hinzufügen eines Spiels (Assistent): Die Startdatei wird
+  jetzt nach dem gewählt, woraus solche Namen bestehen: der Titel am
+  Stück oder ein Teil davon (DOOM2, MONKEY), seine Anfangsbuchstaben (UW,
+  DOTT), ein Wortanfang mit der Nummer des Titels (WAR2, SC2000, KEEN4E).
+  Bisher gewann der Name, der dem Titel Buchstabe für Buchstabe am
+  nächsten kam. Die Setup-Datei wurde bei Dateinamen in Großbuchstaben
+  gar nicht gefunden; jetzt wird sie gefunden, und SETUP.EXE geht vor
+  INSTALL.EXE.
+- "Profile prüfen" bei DOSBox Staging: Für Werte von DOSBox 0.74 nennt es
+  jetzt den Wert, den DOSBox Staging selbst dafür nimmt, und stellt ihn
+  auf Wunsch um ("vgaonly" zu "svga_paradise", "win32" zu "port",
+  "openglnb" zu "opengl", "none" zu "disabled"). "cycles" und
+  "windowresolution" wurden als unbekannt und wirkungslos gemeldet; DOSBox
+  Staging nimmt sie aber noch an, das steht jetzt so da.
+- DOSBox-Version erkennen: Konfigurationsdateien von DOSBox 0.62 bis 0.70
+  nennen ihre Version nicht; DBGL erkennt sie jetzt an ihren
+  Einstellungen und kennt ihre Standardwerte. DOSBox Staging 0.78 und
+  0.79 melden sich als "version v0.79.1" und wurden nicht erkannt. Die
+  Programme von DOSBox 0.62 bis 0.73 wurden beim Eintragen nicht erkannt;
+  jetzt schon. Geprüft mit 74 Programmen: DOSBox 0.62 bis 0.74-3, DOSBox
+  Staging 0.75 bis 0.83.1, DOSBox-X 2023.10.06 bis 2026.10.01.
 - Große Sammlungen: Die Profilliste (Ansicht "Tabelle") füllt ihre Zeilen
   erst, wenn sie ins Bild kommen. Mit 5000 Profilen steht die Liste nach
   Sortieren, Filtern oder Bearbeiten deutlich schneller (unter Linux

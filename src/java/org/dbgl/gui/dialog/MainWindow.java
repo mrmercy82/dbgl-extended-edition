@@ -303,6 +303,11 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				profileTable_.setFocus();
 				displayProfileInformation(true);
 			}
+			lookForNoImages(false); // alpha 50: pictures may have come or gone
+		});
+		display_.asyncExec(() -> {
+			if (!shell_.isDisposed())
+				lookForNoImages(true);
 		});
 
 		// init values
@@ -633,10 +638,32 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			}
 		});
 		// alpha 48: the assistant for a USB stick, next to the profile assistant (the chosen profiles ticked)
+		// alpha 50: one symbol, two ways: make a stick, bring one back
 		tbButton(toolBar, "dialog.main.tb.portable", ImageService.IMG_USB, new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
-				doMakePortable();
+				Menu menu = new Menu(shell_, SWT.POP_UP);
+				MenuItem_.on(menu).key("dialog.main.menu.portable").image(ImageService.IMG_USB).listen(new SelectionAdapter() {
+					@Override
+					public void widgetSelected(SelectionEvent e) {
+						doMakePortable();
+					}
+				}).build();
+				MenuItem_.on(menu).key("dialog.main.menu.stickreturn").image(ImageService.IMG_USB).listen(new SelectionAdapter() {
+					@Override
+					public void widgetSelected(SelectionEvent e) {
+						doStickReturn();
+					}
+				}).build();
+				if (event.widget instanceof ToolItem item) {
+					org.eclipse.swt.graphics.Rectangle r = item.getBounds();
+					menu.setLocation(item.getParent().toDisplay(r.x, r.y + r.height));
+				}
+				menu.addListener(SWT.Hide, e -> display_.asyncExec(() -> {
+					if (!menu.isDisposed())
+						menu.dispose();
+				}));
+				menu.setVisible(true);
 			}
 		});
 		// quick access to what is otherwise in the menus: filters, game information from the internet, checking, a random game
@@ -1765,14 +1792,13 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			Mess_.on(shell_).txt(text_.get("dialog.stickreturn.nothing") + noState).display();
 			return;
 		}
-		List<String> lines = stickReturnLines(plan);
-		String info = text_.get("dialog.stickreturn.info", new Object[] {stick.getPath(), text_.toString(new java.util.Date(plan.created()))}) + noState;
-		if (plan.stats().isEmpty() && plan.files().isEmpty()) {
-			// nothing to take over, but something to tell (conflicts, profiles that are gone)
-			org.dbgl.gui.controls.ChangePreview.confirm(shell_, info, lines, "dbgl-stick-return");
+		// alpha 50: a preview of its own: the kinds in colors, a box before each line - only what is ticked is taken over
+		String info = text_.get("dialog.stickreturn.info2", new Object[] {stick.getPath(), text_.toString(new java.util.Date(plan.created()))}) + noState;
+		plan = org.dbgl.gui.controls.StickReturnPreview.open(shell_, info, plan);
+		if (plan == null)
 			return;
-		}
-		if (!org.dbgl.gui.controls.ChangePreview.confirm(shell_, info, lines, "dbgl-stick-return"))
+		// asked once more, with the numbers, before anything is changed
+		if (!Mess_.on(shell_).key("dialog.stickreturn.confirm", new Object[] {plan.files().size(), plan.stats().size()}).confirm())
 			return;
 		File backup = new File(new File(dataDir, org.dbgl.util.VersionBackup.DIR), "stick-return-" + java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")));
 		List<File> failed;
@@ -1812,33 +1838,6 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 	}
 
 	/** the preview of what comes back from a stick: "+" new, ">" replaces, "!" not touched */
-	private List<String> stickReturnLines(org.dbgl.util.StickReturn.Plan plan) {
-		List<String> lines = new ArrayList<>();
-		if (!plan.stats().isEmpty()) {
-			lines.add("[" + text_.get("dialog.stickreturn.stats") + "]");
-			for (org.dbgl.util.StickReturn.StatChange s: plan.stats())
-				lines.add("+ " + text_.get("dialog.stickreturn.stat", new Object[] {s.title(), String.valueOf(s.runs()), String.format("%d:%02d", s.seconds() / 3600, (s.seconds() % 3600) / 60)}));
-		}
-		List<org.dbgl.util.StickReturn.FileAction> fresh = plan.files().stream().filter(f -> !f.replaces()).toList(), changed = plan.files().stream().filter(f -> f.replaces()).toList();
-		if (!fresh.isEmpty()) {
-			lines.add("[" + text_.get("dialog.stickreturn.new") + ": " + fresh.size() + "]");
-			fresh.forEach(f -> lines.add("+ " + f.to().getPath()));
-		}
-		if (!changed.isEmpty()) {
-			lines.add("[" + text_.get("dialog.stickreturn.changed") + ": " + changed.size() + "]");
-			changed.forEach(f -> lines.add("> " + f.to().getPath()));
-		}
-		if (!plan.conflicts().isEmpty()) {
-			lines.add("[" + text_.get("dialog.stickreturn.conflicts") + ": " + plan.conflicts().size() + "]");
-			plan.conflicts().forEach(f -> lines.add("! " + f.getPath()));
-		}
-		if (!plan.gone().isEmpty()) {
-			lines.add("[" + text_.get("dialog.stickreturn.gone") + "]");
-			plan.gone().forEach(t -> lines.add("! " + t));
-		}
-		return lines;
-	}
-
 	private void doRewriteDosboxConf(DosboxVersion dbversion) {
 		File conf = dbversion.getConfigurationCanonicalFile();
 		if (!FilesUtils.isReadableFile(conf) || !FilesUtils.isReadableFile(dbversion.getCanonicalExecutable())) {
@@ -2112,25 +2111,19 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		worker.start();
 	}
 
-	private final SelectionAdapter backupAdapter = new SelectionAdapter() {
+	/** alpha 50: the window with the logs of the DOSBox output of the profiles and the diagnostic files of DBGL */
+	private final SelectionAdapter manageLogsAdapter = new SelectionAdapter() {
 		@Override
 		public void widgetSelected(SelectionEvent event) {
-			FileDialog dialog = new FileDialog(shell_, SWT.SAVE);
-			dialog.setFilterExtensions(new String[] {"*.zip", "*.*"});
-			dialog.setFileName("dbgl-backup-" + java.time.LocalDate.now() + ".zip");
-			dialog.setOverwrite(true);
-			String file = dialog.open();
-			if (file == null)
-				return;
-			shell_.setCursor(display_.getSystemCursor(SWT.CURSOR_WAIT));
-			try {
-				int count = BackupService.backup(new File(file));
-				shell_.setCursor(null);
-				Mess_.on(shell_).key("dialog.main.notice.backupdone", new Object[] {file, count}).display();
-			} catch (IOException | SQLException e) {
-				shell_.setCursor(null);
-				Mess_.on(shell_).exception(e).warning();
-			}
+			org.dbgl.gui.controls.LogManager.open(shell_, uiLocale(), (parent, entry) -> {
+				try {
+					String content = org.dbgl.util.DosboxLog.read(entry.file(), 2_000_000).replace("\r\n", "\n").replace("\n", org.eclipse.swt.widgets.Text.DELIMITER);
+					new DifferencesDialog(parent, (entry.profile().isEmpty() ? "DBGL": entry.profile()) + " - " + entry.file().getName(), content, entry.file().getName(), "lastlogdialog")
+							.withImage(ImageService.IMG_LOG).open();
+				} catch (IOException e) {
+					Mess_.on(parent).exception(e).warning();
+				}
+			});
 		}
 	};
 
@@ -2141,17 +2134,6 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			File chosen = org.dbgl.gui.controls.BackupManager.open(shell_, uiLocale());
 			if (chosen != null)
 				restoreBackup(chosen.getPath(), false); // asked in that window already
-		}
-	};
-
-	private final SelectionAdapter restoreAdapter = new SelectionAdapter() {
-		@Override
-		public void widgetSelected(SelectionEvent event) {
-			FileDialog dialog = new FileDialog(shell_, SWT.OPEN);
-			dialog.setFilterExtensions(new String[] {"*.zip", "*.*"});
-			String file = dialog.open();
-			if (file != null)
-				restoreBackup(file, true);
 		}
 	};
 
@@ -2359,18 +2341,17 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			int prefsIndex = systemMenu.indexOf(getMenuItemById(systemMenu, SWT.ID_PREFERENCES));
 			MenuItem_.on(systemMenu).pos(prefsIndex + 1).key("dialog.main.menu.log").listen(logAdapter).build();
 			MenuItem_.on(systemMenu).pos(prefsIndex + 2).key("dialog.main.menu.databasecleanup").listen(cleanupAdapter).build();
-			MenuItem_.on(systemMenu).pos(prefsIndex + 3).key("dialog.main.menu.backup").listen(backupAdapter).build();
-			MenuItem_.on(systemMenu).pos(prefsIndex + 4).key("dialog.main.menu.restore").listen(restoreAdapter).build();
-			MenuItem_.on(systemMenu).pos(prefsIndex + 5).key("dialog.backups.menu").listen(manageBackupsAdapter).build();
+			// alpha 50: creating a backup and restoring one from a file are buttons of the window of the backups now
+			MenuItem_.on(systemMenu).pos(prefsIndex + 3).key("dialog.backups.menu").listen(manageBackupsAdapter).build();
+			MenuItem_.on(systemMenu).pos(prefsIndex + 4).key("dialog.logs.menu").listen(manageLogsAdapter).build();
 		} else {
 			Menu fileMenu = createMenu(appMenuBar, "dialog.main.menu.file");
 			MenuItem_.on(fileMenu).key("dialog.main.menu.adjustsettings").image(ImageService.IMG_TB_SETTINGS).listen(settingsAdapter).build();
 			MenuItem_.on(fileMenu).key("dialog.main.menu.log").image(ImageService.IMG_LOG).listen(logAdapter).build();
 			MenuItem_.on(fileMenu).key("dialog.main.menu.databasecleanup").image(ImageService.IMG_CLEAN).listen(cleanupAdapter).build();
 			MenuItem_.on(fileMenu).build();
-			MenuItem_.on(fileMenu).key("dialog.main.menu.backup").image(ImageService.IMG_TABLEEXPORT).listen(backupAdapter).build();
-			MenuItem_.on(fileMenu).key("dialog.main.menu.restore").image(ImageService.IMG_IMPORT).listen(restoreAdapter).build();
 			MenuItem_.on(fileMenu).key("dialog.backups.menu").image(ImageService.IMG_BACKUPS).listen(manageBackupsAdapter).build();
+			MenuItem_.on(fileMenu).key("dialog.logs.menu").image(ImageService.IMG_LOG).listen(manageLogsAdapter).build();
 			MenuItem_.on(fileMenu).build();
 			MenuItem_.on(fileMenu).key("dialog.main.menu.exit").image(ImageService.IMG_EXIT).listen(quitAdapter).build();
 		}
@@ -2541,6 +2522,17 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				if (Boolean.TRUE.equals(new SwitchDosboxVersionDialog(shell_).open())) {
 					updateProfilesList(getSelectedProfileIds());
 					displayProfileInformation(false);
+				}
+			}
+		}).build();
+		// alpha 50: for a version DBGL does not know yet: what is new in its settings, to send to the developer
+		MenuItem_.on(dbversionsMenu).key("dialog.main.menu.dosboxreport").image(ImageService.IMG_ZOOM).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				int index = dbversionTable_.getSelectionIndex();
+				if (index != -1) {
+					DosboxVersion dbversion = dbversionsList_.get(index);
+					EditDosboxVersionDialog.showSupportReport(shell_, dbversion.getFamily(), dbversion.getVersion(), dbversion.getConfigurationCanonicalFile());
 				}
 			}
 		}).build();
@@ -2745,7 +2737,8 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		filtersList_.forEach(this::addFilterTab);
 		int filterIdx = Math.min(settings_.getIntValue("gui", "filtertab"), filtersList_.size() - 1);
 		filterFolder_.setSelection(filterIdx);
-		filterFolder_.getSelection().setToolTipText(text_.get("dialog.filter.notice.results", new Object[] {profilesList_.size()}));
+		// alpha 50: no tooltip on the tab (it lay over what stands below the tabs); the number of profiles is in the row of the
+		// search, always
 
 		constructProfilesList();
 
@@ -3384,9 +3377,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		settings_.setIntValue("gui", "filtertab", tabIndex);
 		filterClause_ = filtersList_.get(tabIndex).getFilter();
 		updateProfilesList(getSelectedProfileIds());
-		for (CTabItem tab: filterFolder_.getItems())
-			tab.setToolTipText(null);
-		filterFolder_.getSelection().setToolTipText(text_.get("dialog.filter.notice.results", new Object[] {profilesList_.size()}));
+		showSearchCount();
 		displayProfileInformation(false);
 	}
 
@@ -4670,8 +4661,89 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		result.add(0, new Filter(text_.get("dialog.main.allprofiles"), null));
 		if (settings_.getBooleanValue("gui", "profilewarnings"))
 			result.add(new Filter(text_.get("dialog.main.problemprofiles"), PROBLEMS_FILTER));
-		result.add(new Filter(text_.get("dialog.main.noimageprofiles"), NOIMAGES_FILTER));
+		if (noImagesTabWanted())
+			result.add(new Filter(text_.get("dialog.main.noimageprofiles"), NOIMAGES_FILTER));
 		return result;
+	}
+
+	/** alpha 50: is there a profile without pictures? null: not looked yet */
+	private Boolean noImagesFound_;
+	private long noImagesLooked_;
+
+	/** the setting: 0 never, 1 always, 2 while there are profiles without pictures */
+	private boolean noImagesTabWanted() {
+		int mode = settings_.getIntValue("gui", "noimagestab");
+		return (mode == 1) || ((mode == 2) && Boolean.TRUE.equals(noImagesFound_));
+	}
+
+	/** the tab is added or taken away as the setting and what was found say now */
+	private void syncNoImagesTab() {
+		if ((filterFolder_ == null) || filterFolder_.isDisposed() || (filtersList_ == null))
+			return;
+		int at = -1;
+		for (int i = 0; i < filtersList_.size(); i++)
+			if (NOIMAGES_FILTER.equals(filtersList_.get(i).getFilter()))
+				at = i;
+		boolean wanted = noImagesTabWanted();
+		if (wanted && (at < 0)) {
+			Filter filter = new Filter(text_.get("dialog.main.noimageprofiles"), NOIMAGES_FILTER);
+			filtersList_.add(filter);
+			addFilterTab(filter).setControl(profileTable_.getControl());
+		} else if (!wanted && (at >= 0) && (at < filterFolder_.getItemCount())) {
+			if (filterFolder_.getSelectionIndex() == at) {
+				if (settings_.getIntValue("gui", "noimagestab") == 2)
+					return; // the user is looking at it: it goes when another tab is chosen
+				filterFolder_.setSelection(0);
+				filtersList_.remove(at);
+				filterFolder_.getItem(at).dispose();
+				updateProfilesAfterTabAction();
+				return;
+			}
+			int selected = filterFolder_.getSelectionIndex();
+			filtersList_.remove(at);
+			filterFolder_.getItem(at).dispose();
+			settings_.setIntValue("gui", "filtertab", selected > at ? selected - 1: selected);
+		}
+	}
+
+	/**
+	 * Looks in the background whether a profile has no pictures (only with the setting "while there are any"), then shows or
+	 * hides the tab; not more often than every ten seconds.
+	 */
+	private void lookForNoImages(boolean now) {
+		if ((settings_.getIntValue("gui", "noimagestab") != 2) || (!now && (System.currentTimeMillis() - noImagesLooked_ < 10_000))) {
+			syncNoImagesTab();
+			return;
+		}
+		noImagesLooked_ = System.currentTimeMillis();
+		List<String> captures;
+		try {
+			captures = new ProfileRepository().list(StringUtils.EMPTY, null, dbversionsList_).stream().map(Profile::getCapturesString).toList();
+		} catch (SQLException | RuntimeException e) {
+			return;
+		}
+		Thread t = new Thread(() -> {
+			boolean found = false;
+			try {
+				for (String s: captures)
+					if (new ThumbInfo(s).getAllThumbs().length == 0) {
+						found = true;
+						break;
+					}
+			} catch (RuntimeException e) {
+				return;
+			}
+			boolean result = found;
+			if (!display_.isDisposed())
+				display_.asyncExec(() -> {
+					if (!shell_.isDisposed()) {
+						noImagesFound_ = result;
+						syncNoImagesTab();
+					}
+				});
+		}, "dbgl-noimages");
+		t.setDaemon(true);
+		t.start();
 	}
 
 	private static boolean isBuiltInFilter(Filter filter) {
@@ -4917,7 +4989,8 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 
 	private void showSearchCount() {
 		if ((searchCount_ != null) && !searchCount_.isDisposed())
-			searchCount_.setText(quickSearch_.isBlank() ? "": text_.get("dialog.main.search.count", new Object[] {profilesList_.size(), listed_.size()}));
+			searchCount_.setText(quickSearch_.isBlank() ? text_.get("dialog.main.profilecount", new Object[] {profilesList_.size()})
+					: text_.get("dialog.main.search.count", new Object[] {profilesList_.size(), listed_.size()}));
 	}
 
 	/** while typing: the list shows what fits, without asking the database again; the profile chosen stays chosen if it still fits */
@@ -5524,6 +5597,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		f.dispose();
 		refreshMarkers(); // warning signs and notes turned on or off: at once, not only after a restart
 		applyScreenshotRule(); // alpha 49
+		lookForNoImages(true); // alpha 50: the tab of the profiles without pictures as set now
 	}
 
 	/** the warning signs and notes of all profiles in the list, as the settings say now */
