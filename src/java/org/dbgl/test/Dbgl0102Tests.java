@@ -4114,6 +4114,15 @@ public class Dbgl0102Tests {
 		// "version v0.79.1"
 		assertEquals("0.79.1", org.dbgl.util.DosboxVersionDetector.parse("2026-11-15 21:52:04.072 | dosbox-staging version v0.79.1").version_);
 		assertEquals("0.75.0", org.dbgl.util.DosboxVersionDetector.parse("dosbox-staging version 0.75.0").version_);
+		// the programs of DOSBox 0.62 to 0.73: no version in the name of the mapper file, but in the greeting of the modem
+		String old065 = "x\0DOSBox 0.65\0" + "0.65\0mapper.txt\0Modem compiled for DosBox version 0.65\0";
+		org.dbgl.util.DosboxVersionDetector.Result r065 = org.dbgl.util.DosboxVersionDetector.scanClassicExecutableText(old065);
+		assertEquals("Official 0.65", r065.family_ + " " + r065.version_);
+		assertEquals("0.63", org.dbgl.util.DosboxVersionDetector.scanClassicExecutableText(old065.replace("0.65", "0.62")).version_); // the settings of 0.63
+		assertEquals("0.73", org.dbgl.util.DosboxVersionDetector.scanClassicExecutableText(old065.replace("0.65", "0.73")).version_);
+		assertNull(org.dbgl.util.DosboxVersionDetector.scanClassicExecutableText(old065.replace("mapper.txt", "other.txt")));
+		assertNull(org.dbgl.util.DosboxVersionDetector.scanClassicExecutableText(old065.replace("0.65", "0.99")));
+		assertEquals("0.74-3", org.dbgl.util.DosboxVersionDetector.scanClassicExecutableText("DOSBox\0mapper-0.74-3.map\0Modem compiled for DosBox version 0.74-3\0").version_);
 		// what DOSBox Staging uses for a value of DOSBox 0.74
 		assertEquals("svga_paradise", org.dbgl.util.ConfTakeover.stagingValueFor("dosbox", "machine", "VGAONLY"));
 		assertNull(org.dbgl.util.ConfTakeover.stagingValueFor("sdl", "output", "ddraw"));

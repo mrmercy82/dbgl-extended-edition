@@ -24,7 +24,10 @@ Verbessert
 - DOSBox-Version erkennen: Konfigurationsdateien von DOSBox 0.62 bis 0.70
   nennen ihre Version nicht; DBGL erkennt sie jetzt an ihren
   Einstellungen und kennt ihre Standardwerte. DOSBox Staging 0.78 und
-  0.79 melden sich als "version v0.79.1" und wurden nicht erkannt.
+  0.79 melden sich als "version v0.79.1" und wurden nicht erkannt. Die
+  Programme von DOSBox 0.62 bis 0.73 wurden beim Eintragen nicht erkannt;
+  jetzt schon. Geprüft mit 74 Programmen: DOSBox 0.62 bis 0.74-3, DOSBox
+  Staging 0.75 bis 0.83.1, DOSBox-X 2023.10.06 bis 2026.10.01.
 - Große Sammlungen: Die Profilliste (Ansicht "Tabelle") füllt ihre Zeilen
   erst, wenn sie ins Bild kommen. Mit 5000 Profilen steht die Liste nach
   Sortieren, Filtern oder Bearbeiten deutlich schneller (unter Linux

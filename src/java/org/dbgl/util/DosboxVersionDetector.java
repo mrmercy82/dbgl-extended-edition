@@ -183,6 +183,11 @@ public class DosboxVersionDetector {
 		return scanClassicText(readAsText(executable));
 	}
 
+	/** as {@link #scanClassicExecutable}, for the text of a program read already */
+	public static Result scanClassicExecutableText(String text) {
+		return scanClassicText(text);
+	}
+
 	static Result scanClassicText(String text) {
 		if ((text == null) || !text.contains("DOSBox"))
 			return null;
@@ -206,8 +211,22 @@ public class DosboxVersionDetector {
 			if (version.matches("0\\.\\d+(-\\d+)?"))
 				return new Result(SettingsService.OFFICIAL_DOSBOX_FAM.title_, version);
 		}
+		// alpha 50: DOSBox 0.62 to 0.73 call their mapper file "mapper.txt", without a version. Their version is in the
+		// greeting of their modem ("Modem compiled for DosBox version 0.65"; DOSBox Staging writes "DOSBox" there and is
+		// known before this). Found with the programs themselves, 0.62 to 0.73. DOSBox 0.62 has the settings of 0.63, the
+		// oldest version DBGL has in its list.
+		if (text.contains("mapper.txt")) {
+			Matcher old = OLD_MODEM_PATRN.matcher(text);
+			if (old.find()) {
+				String version = old.group(1).equals("0.62") ? "0.63": old.group(1);
+				if (SettingsService.OFFICIAL_DOSBOX_FAM.versions_.contains(version))
+					return new Result(SettingsService.OFFICIAL_DOSBOX_FAM.title_, version);
+			}
+		}
 		return null;
 	}
+
+	private static final Pattern OLD_MODEM_PATRN = Pattern.compile("Modem compiled for DosBox version (0\\.[67]\\d)\\b");
 
 	/** special DOSBox-X builds, as far as the executable tells */
 	public enum XBuild {
