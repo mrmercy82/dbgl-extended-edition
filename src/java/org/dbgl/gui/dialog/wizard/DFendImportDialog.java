@@ -32,14 +32,11 @@ import org.dbgl.gui.thread.DFendImportThread;
 import org.dbgl.gui.thread.DFendReloadedImportThread;
 import org.dbgl.model.aggregate.DosboxVersion;
 import org.dbgl.service.FileLocationService;
-import org.eclipse.swt.events.ExpandAdapter;
-import org.eclipse.swt.events.ExpandEvent;
-import org.eclipse.swt.layout.FillLayout;
+import org.eclipse.swt.SWT;
+import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
-import org.eclipse.swt.widgets.ExpandBar;
-import org.eclipse.swt.widgets.ExpandItem;
 import org.eclipse.swt.widgets.Group;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Text;
@@ -48,7 +45,7 @@ import org.eclipse.swt.widgets.Text;
 public class DFendImportDialog extends JobWizardDialog<Object> {
 
 	private DosboxVersion defaultDbversion_;
-	private ExpandItem orginalExpandItem_, dfxExpandItem_;
+	private Button originalChoice_, dfxChoice_;
 	private Text location_, dfrLocation_, dfrConfsLocation_, dfxLocation_, dfxTarget_;
 	private Button cleanup_, dfrCleanup_, dfxCleanup_;
 	private final boolean dfendx_;
@@ -75,55 +72,50 @@ public class DFendImportDialog extends JobWizardDialog<Object> {
 
 	@Override
 	protected void onShellCreated() {
-		Group optionsGroup = Group_.on(shell_).layout(new FillLayout()).key("dialog.dfendimport.options").build();
+		// alpha 50: three choices and the fields of the chosen one below them. It was an ExpandBar of three parts, of which
+		// one was always open; Windows draws its headings itself, light also in the dark mode (white bars with unreadable
+		// text), and the fields right of a long label were outside of the window.
+		Group optionsGroup = Group_.on(shell_).layout(new GridLayout(1, false)).key("dialog.dfendimport.options").build();
+		originalChoice_ = Button_.on(optionsGroup).radio().key("dialog.dfendimport.original.title").ctrl();
+		Button reloadedChoice = Button_.on(optionsGroup).radio().key("dialog.dfendimport.reloaded.title").ctrl();
+		dfxChoice_ = Button_.on(optionsGroup).radio().key("dialog.dfendimport.dfendx.title").ctrl();
+		(dfendx_ ? dfxChoice_: reloadedChoice).setSelection(true);
+		new org.eclipse.swt.widgets.Label(optionsGroup, SWT.SEPARATOR | SWT.HORIZONTAL).setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+		Composite stack = new Composite(optionsGroup, SWT.NONE);
+		stack.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
+		org.eclipse.swt.custom.StackLayout stackLayout = new org.eclipse.swt.custom.StackLayout();
+		stack.setLayout(stackLayout);
+		if (org.dbgl.gui.controls.DarkTheme.forced())
+			stack.setBackground(optionsGroup.getBackground());
 
-		ExpandBar bar = createExpandBar(optionsGroup);
-
-		Composite originalComposite = Composite_.on(bar).layout(new GridLayout(3, false)).build();
+		Composite originalComposite = Composite_.on(stack).layout(new GridLayout(3, false)).build();
 		location_ = Chain.on(originalComposite).lbl(l -> l.key("dialog.dfendimport.dfendpath")).txt(t -> t.val(FileLocationService.DFEND_STRING)).but(
 			b -> b.browse(false, Button_.BrowseType.FILE, Button_.CanonicalType.DFEND, false)).text();
 		cleanup_ = Chain.on(originalComposite).lbl(l -> l.key("dialog.dfendimport.cleanup")).but(b -> b.horSpan(2).key("dialog.dfendimport.removesections").select(true)).button();
 
-		orginalExpandItem_ = createExpandItem(bar, "dialog.dfendimport.original.title", false, originalComposite);
-
-		Composite reloadedComposite = Composite_.on(bar).layout(new GridLayout(3, false)).build();
+		Composite reloadedComposite = Composite_.on(stack).layout(new GridLayout(3, false)).build();
 		dfrLocation_ = Chain.on(reloadedComposite).lbl(l -> l.key("dialog.dfendimport.reloaded.path")).txt(t -> t.val(FileLocationService.DFEND_RELOADED_PATH_STRING)).but(
 			b -> b.browse(false, Button_.BrowseType.DIR, Button_.CanonicalType.NONE, false)).text();
-		dfrConfsLocation_ = Chain.on(reloadedComposite).lbl(l -> l.key("dialog.dfendimport.reloaded.exportedconfspath2")).txt(t -> t).but(
+		// a long text: in lines, so the field beside it keeps its room
+		dfrConfsLocation_ = Chain.on(reloadedComposite).lbl(l -> l.style(SWT.WRAP).widthHint(260).key("dialog.dfendimport.reloaded.exportedconfspath2")).txt(t -> t).but(
 			b -> b.browse(false, Button_.BrowseType.DIR, Button_.CanonicalType.NONE, false)).text();
 		dfrCleanup_ = Chain.on(reloadedComposite).lbl(l -> l.key("dialog.dfendimport.cleanup")).but(b -> b.horSpan(2).key("dialog.dfendimport.reloaded.removesections").select(false)).button();
 
-		createExpandItem(bar, "dialog.dfendimport.reloaded.title", !dfendx_, reloadedComposite);
-
 		// alpha 48: a game archive of DFendX (ZIP file or unpacked folder: .prof next to VirtualHD and Capture)
-		Composite dfxComposite = Composite_.on(bar).layout(new GridLayout(3, false)).build();
+		Composite dfxComposite = Composite_.on(stack).layout(new GridLayout(3, false)).build();
 		dfxLocation_ = Chain.on(dfxComposite).lbl(l -> l.key("dialog.dfendimport.dfendx.path")).txt(t -> t).but(
 			b -> b.browse(false, Button_.BrowseType.FILE, Button_.CanonicalType.ZIP, false)).text();
 		dfxTarget_ = Chain.on(dfxComposite).lbl(l -> l.key("dialog.dfendimport.dfendx.target")).txt(t -> t.val(FileLocationService.getInstance().getDosroot().getPath())).but(
 			b -> b.browse(false, Button_.BrowseType.DIR, Button_.CanonicalType.NONE, false)).text();
 		dfxCleanup_ = Chain.on(dfxComposite).lbl(l -> l.key("dialog.dfendimport.cleanup")).but(b -> b.horSpan(2).key("dialog.dfendimport.reloaded.removesections").select(false)).button();
-		dfxExpandItem_ = createExpandItem(bar, "dialog.dfendimport.dfendx.title", dfendx_, dfxComposite);
 
-		// one part is always open (since alpha 48 for three parts)
-		bar.addExpandListener(new ExpandAdapter() {
-			@Override
-			public void itemCollapsed(ExpandEvent e) {
-				ExpandItem item = (ExpandItem)e.item;
-				display_.asyncExec(() -> {
-					if (!item.isDisposed() && java.util.Arrays.stream(bar.getItems()).noneMatch(ExpandItem::getExpanded))
-						item.setExpanded(true);
-					shell_.layout();
-				});
-			}
-
-			@Override
-			public void itemExpanded(ExpandEvent e) {
-				for (ExpandItem other: bar.getItems())
-					if (other != e.item)
-						other.setExpanded(false);
-				display_.asyncExec(() -> shell_.layout());
-			}
-		});
+		Runnable show = () -> {
+			stackLayout.topControl = dfxChoice_.getSelection() ? dfxComposite: originalChoice_.getSelection() ? originalComposite: reloadedComposite;
+			stack.layout();
+		};
+		for (Button choice: new Button[] {originalChoice_, reloadedChoice, dfxChoice_})
+			choice.addListener(SWT.Selection, e -> show.run());
+		show.run();
 
 		addStep(optionsGroup);
 
@@ -137,14 +129,14 @@ public class DFendImportDialog extends JobWizardDialog<Object> {
 				return false;
 		} else if (step == 1) {
 			try {
-				importingDfendx_ = dfxExpandItem_.getExpanded();
+				importingDfendx_ = dfxChoice_.getSelection();
 				if (importingDfendx_) {
 					profilesBefore_ = profileCount();
 					java.util.List<File> profs = dfendxProfs();
 					if (profs == null)
 						return false;
 					job_ = new DFendReloadedImportThread(log_, progressBar_, status_, profs, dfxCleanup_.getSelection(), defaultDbversion_);
-				} else if (orginalExpandItem_.getExpanded())
+				} else if (originalChoice_.getSelection())
 					job_ = new DFendImportThread(log_, progressBar_, status_, new File(location_.getText()), cleanup_.getSelection(), defaultDbversion_);
 				else
 					// maybe also import data files in the future
@@ -218,13 +210,13 @@ public class DFendImportDialog extends JobWizardDialog<Object> {
 
 	private boolean isValid() {
 		Mess_.Builder mess = Mess_.on(shell_);
-		if (dfxExpandItem_.getExpanded()) {
+		if (dfxChoice_.getSelection()) {
 			File src = new File(dfxLocation_.getText().strip());
 			if (StringUtils.isBlank(dfxLocation_.getText()) || !src.exists())
 				mess.key("dialog.dfendimport.dfendx.required.location").bind(dfxLocation_);
 			else if (src.isFile() && StringUtils.isBlank(dfxTarget_.getText()))
 				mess.key("dialog.dfendimport.dfendx.required.target").bind(dfxTarget_);
-		} else if (orginalExpandItem_.getExpanded()) {
+		} else if (originalChoice_.getSelection()) {
 			if (StringUtils.isBlank(location_.getText())) {
 				mess.key("dialog.dfendimport.required.location").bind(location_);
 			}

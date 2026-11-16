@@ -79,6 +79,11 @@ Geändert
   gefunden wurde - ohne erst zu speichern.
 
 Behoben
+- "D-Fend (Reloaded)-Profile importieren" und "DFendX-Spielarchiv
+  importieren": Im Dark Mode unter Windows waren die drei Überschriften
+  weiße Balken mit unlesbarer Schrift, und die Felder neben einer langen
+  Beschriftung lagen außerhalb des Fensters. Die drei Quellen sind jetzt
+  eine Auswahl, darunter stehen die Felder der gewählten.
 - Dark Mode: Eine Schaltfläche, die DBGL selbst zeichnet, blieb mitunter
   dunkel, bis die Maus darüber fuhr (OK im Profil-Editor). Die
   Schaltflächen eines Fensters werden jetzt neu gezeichnet, sobald es da

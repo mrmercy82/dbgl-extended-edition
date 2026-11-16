@@ -3037,13 +3037,6 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			}
 		});
 		MenuItem_.on(menu).build();
-		MenuItem_.on(menu).key("dialog.main.profile.togglefavorite").image(ImageService.IMG_FAVORITE).listen(new SelectionAdapter() {
-			@Override
-			public void widgetSelected(SelectionEvent event) {
-				doToggleFavoriteProfile();
-			}
-		}).build();
-		MenuItem_.on(menu).build();
 		// alpha 48: the chosen profiles onto a USB stick (the assistant, with them ticked); a line between it and Steam
 		MenuItem_.on(menu).key("dialog.main.menu.portable").image(ImageService.IMG_USB).listen(new SelectionAdapter() {
 			@Override
@@ -3056,6 +3049,14 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			@Override
 			public void widgetSelected(SelectionEvent event) {
 				doStickReturn();
+			}
+		}).build();
+		MenuItem_.on(menu).build();
+		// alpha 50: the favorite here, between two lines, above Steam
+		MenuItem_.on(menu).key("dialog.main.profile.togglefavorite").image(ImageService.IMG_FAVORITE).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				doToggleFavoriteProfile();
 			}
 		}).build();
 		MenuItem_.on(menu).build();

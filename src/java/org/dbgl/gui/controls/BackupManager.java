@@ -127,9 +127,26 @@ public final class BackupManager {
 			int index = i;
 			TableColumn column = new TableColumn(table, i == 5 ? SWT.RIGHT: SWT.NONE);
 			if ((i == 0) && (lockImage != null)) { // alpha 50: a padlock as the heading, not a word
-				column.setImage(lockImage);
 				column.setToolTipText(text.get("dialog.backups.col.lock"));
 				column.setAlignment(SWT.CENTER);
+				// in the middle of the column: Windows draws the picture of a heading at its left edge, so the picture is as
+				// wide as the column, with the padlock in its middle; made again when the column gets another width
+				org.eclipse.swt.graphics.Image[] wide = new org.eclipse.swt.graphics.Image[1];
+				Runnable centered = () -> {
+					if (column.isDisposed())
+						return;
+					org.eclipse.swt.graphics.Image old = wide[0];
+					wide[0] = centeredImage(display, lockImage, column.getWidth() - HEADER_MARGINS);
+					column.setImage(wide[0]);
+					if (old != null)
+						old.dispose();
+				};
+				column.addListener(SWT.Resize, e -> centered.run());
+				column.addDisposeListener(e -> {
+					if (wide[0] != null)
+						wide[0].dispose();
+				});
+				display.asyncExec(centered); // once the stored width is set
 			} else {
 				column.setText(text.get("dialog.backups.col." + heads[i]));
 			}
@@ -168,8 +185,6 @@ public final class BackupManager {
 		restoreFile.setToolTipText(text.get("dialog.backups.tip.restorefile"));
 		new Label(side, SWT.SEPARATOR | SWT.HORIZONTAL).setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
 		Button lock = sideButton(side, text.get("dialog.backups.lock"));
-		if (lockImage != null)
-			lock.setImage(lockImage); // alpha 50: the padlock of the column on its button too
 		Button delete = sideButton(side, text.get("dialog.backups.delete"));
 		Button restore = sideButton(side, text.get("dialog.backups.restore"));
 		Button folder = sideButton(side, text.get("dialog.backups.openfolder"));
@@ -344,6 +359,17 @@ public final class BackupManager {
 			state[0].run();
 		}
 		DarkTheme.apply(dlg);
+		// alpha 50: the padlock of the column on its button too: left of the text, which stays in the middle as on the other
+		// buttons (a picture set on the button would move the text to the right); drawn after the button itself
+		if (lockImage != null)
+			lock.addListener(SWT.Paint, e -> {
+				Rectangle img = lockImage.getBounds();
+				org.eclipse.swt.graphics.Point size = lock.getSize(), te = e.gc.textExtent(lock.getText(), SWT.DRAW_MNEMONIC);
+				int x = Math.max(4, (size.x - te.x) / 2 - img.width - 6);
+				if (!lock.isEnabled())
+					e.gc.setAlpha(110);
+				e.gc.drawImage(lockImage, x, (size.y - img.height) / 2);
+			});
 		dlg.pack();
 		Rectangle area = shell.getMonitor().getClientArea(), parent = shell.getBounds();
 		Point size = dlg.getSize();
@@ -468,6 +494,26 @@ public final class BackupManager {
 		if (!ascending)
 			c = c.reversed();
 		return c.thenComparing(java.util.Comparator.comparingLong(Backup::when).reversed());
+	}
+
+	/** what a heading keeps free left and right of its picture */
+	private static final int HEADER_MARGINS = 14;
+
+	/** a transparent picture of this width with the given one in its middle */
+	static org.eclipse.swt.graphics.Image centeredImage(Display display, org.eclipse.swt.graphics.Image image, int width) {
+		org.eclipse.swt.graphics.ImageData src = image.getImageData();
+		int w = Math.max(src.width, width), left = (w - src.width) / 2;
+		org.eclipse.swt.graphics.ImageData dest = new org.eclipse.swt.graphics.ImageData(w, src.height, 24, new org.eclipse.swt.graphics.PaletteData(0xFF0000, 0xFF00, 0xFF));
+		dest.alphaData = new byte[w * src.height];
+		for (int y = 0; y < src.height; y++)
+			for (int x = 0; x < src.width; x++) {
+				int pixel = src.getPixel(x, y);
+				org.eclipse.swt.graphics.RGB rgb = src.palette.getRGB(pixel);
+				int alpha = src.alphaData != null ? src.getAlpha(x, y): src.alpha != -1 ? src.alpha: (src.transparentPixel != -1) && (pixel == src.transparentPixel) ? 0: 255;
+				dest.setPixel(left + x, y, (rgb.red << 16) | (rgb.green << 8) | rgb.blue);
+				dest.setAlpha(left + x, y, alpha);
+			}
+		return new org.eclipse.swt.graphics.Image(display, dest);
 	}
 
 	private static Button sideButton(Composite side, String label) {
