@@ -770,10 +770,10 @@ public final class GameHints {
 			return null;
 		String chosen = null;
 		boolean file = false;
-		File[] beside = main == null ? null: main.getAbsoluteFile().getParentFile().listFiles((d, n) -> n.equalsIgnoreCase("SKULL.CFG"));
-		if ((beside != null) && (beside.length > 0) && beside[0].isFile() && (beside[0].length() < 65536)) {
+		File cfg = main == null ? null: skullCfg(main.getAbsoluteFile().getParentFile());
+		if ((cfg != null) && (cfg.length() < 65536)) {
 			try {
-				chosen = hmiDigitalId(Files.readString(beside[0].toPath(), StandardCharsets.ISO_8859_1));
+				chosen = hmiDigitalId(Files.readString(cfg.toPath(), StandardCharsets.ISO_8859_1));
 				file = true;
 			} catch (java.io.IOException e) {
 				// not readable: as without the file
@@ -781,6 +781,28 @@ public final class GameHints {
 		}
 		if (file ? "e015".equals(chosen): DUNGEON_MASTER_2.matcher(titleKey(title)).matches())
 			return new Problem("dm2sbpro", title, "[sblaster] sbtype = " + type);
+		return null;
+	}
+
+	/**
+	 * SKULL.CFG of Dungeon Master II: in the folder of the program, else in one of the folders in it, else in the folder
+	 * above (the profile may start a batch file one folder up, or the game keeps the file in a folder of its own)
+	 */
+	static File skullCfg(File folder) {
+		List<File> where = new ArrayList<>();
+		where.add(folder);
+		File[] inside = folder.listFiles(File::isDirectory);
+		if (inside != null) {
+			java.util.Arrays.sort(inside);
+			where.addAll(java.util.Arrays.asList(inside));
+		}
+		if (folder.getParentFile() != null)
+			where.add(folder.getParentFile());
+		for (File dir: where) {
+			File[] found = dir.listFiles((d, n) -> n.equalsIgnoreCase("SKULL.CFG"));
+			if ((found != null) && (found.length > 0) && found[0].isFile())
+				return found[0];
+		}
 		return null;
 	}
 

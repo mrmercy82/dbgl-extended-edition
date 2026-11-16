@@ -4583,6 +4583,17 @@ public class Dbgl0102Tests {
 			assertNull(org.dbgl.util.GameHints.setupAdvice("Dungeon Master II", sb16, main)); // no digital sound chosen
 			Files.writeString(skull.toPath(), String.format(cfg, "Sound Blaster", "0xe000"), StandardCharsets.ISO_8859_1);
 			assertNull(org.dbgl.util.GameHints.setupAdvice("Dungeon Master II", sb16, main)); // another one: nothing known about it
+			// the file in a folder of the game, or the program in a folder of the game and the file above it
+			assertTrue(skull.delete());
+			File sub = new File(dir, "DATA"), deep = new File(dir, "BIN");
+			assertTrue(sub.mkdir() && deep.mkdir());
+			Files.writeString(new File(sub, "SKULL.CFG").toPath(), String.format(cfg, "Sound Blaster Pro", "0xe001"), StandardCharsets.ISO_8859_1);
+			assertNull(org.dbgl.util.GameHints.setupAdvice("Dungeon Master II", sb16, main));
+			assertTrue(new File(sub, "SKULL.CFG").delete());
+			Files.writeString(new File(dir, "SKULL.CFG").toPath(), String.format(cfg, "Sound Blaster Pro", "0xe001"), StandardCharsets.ISO_8859_1);
+			File inBin = new File(deep, "DM2.EXE");
+			Files.writeString(inBin.toPath(), "x");
+			assertNull(org.dbgl.util.GameHints.setupAdvice("Dungeon Master II", sb16, inBin));
 		} finally {
 			org.apache.commons.io.FileUtils.deleteQuietly(dir);
 		}
