@@ -146,7 +146,7 @@ public final class ProfileFindings {
 	}
 
 	/** what ProfileChecks finds that is only for information */
-	private static final Set<String> HINTS = Set.of("gusnopatches", "cohortoptional", "lurecm32l");
+	private static final Set<String> HINTS = Set.of("gusnopatches", "cohortoptional", "lurecm32l", "sounddeviceoff", "gamewantsmt32", "cdimageunused", "gameadvice", "soundmismatch");
 
 	private static final Fix REWRITE = fix((p, v) -> {
 		// nothing to change: saving writes it as DOSBox needs it
@@ -472,6 +472,52 @@ public final class ProfileFindings {
 					});
 				}
 			}
+			case "prefetchcore" -> { // DOSBox 0.74 quits with another core than normal
+				solution = "clamp";
+				fix = fix((p, vs) -> p.getConfiguration().setValue("cpu", "core", "normal"), (p, t) -> t.setRaw("cpu", "core", "normal"));
+			}
+			case "soundmismatch" -> {
+				// the profile gets what the game is set to (args from 3: port, IRQ, DMA, high DMA; empty: not named by the game)
+				// (none: a value DOSBox does not take, to be set in the setup of the game)
+				if (pr.args().length > 6) {
+					String[] items = {GameHints.itemOf(prof.getCombinedConfigurationForReading(), "sblaster", "sbbase", "base"), "irq", "dma", "hdma"};
+					String[] values = new String[items.length];
+					for (int i = 0; i < items.length; i++)
+						values[i] = String.valueOf(pr.args()[3 + i]);
+					solution = "setsound";
+					fix = fix((p, vs) -> {
+						for (int i = 0; i < items.length; i++)
+							if (!values[i].isEmpty())
+								p.getConfiguration().setValue("sblaster", items[i], values[i]);
+					}, (p, t) -> {
+						for (int i = 0; i < items.length; i++)
+							if (!values[i].isEmpty())
+								t.setRaw("sblaster", items[i], values[i]);
+					});
+				}
+			}
+			case "soundvariable" -> {
+				// a line of the profile that sets BLASTER or ULTRASND: it goes, DOSBox sets the variable from its settings
+				if ((pr.args().length > 4) && "profile".equals(pr.args()[4])) {
+					String raw = String.valueOf(pr.args()[0]);
+					solution = "removeline";
+					fix = new TextFix((p, t) -> t.replaceLine(raw, null));
+				}
+			}
+			case "cdimageunused" -> {
+				if (pr.args().length > 1) {
+					String line = String.valueOf(pr.args()[1]);
+					solution = "mountcd";
+					fix = new TextFix((p, t) -> t.insertAutoexecFirst(line));
+				}
+			}
+			case "gameadvice" -> {
+				String advised = pr.args().length > 5 ? String.valueOf(pr.args()[5]): "";
+				if (!advised.isEmpty() && (setting != null)) {
+					solution = "setadvised";
+					fix = fix((p, vs) -> p.getConfiguration().setValue(setting[0], setting[1], advised), (p, t) -> t.setRaw(setting[0], setting[1], advised));
+				}
+			}
 			case "longdosnames", "cdrelative", "drivebeforemount" -> {
 				solution = "rewrite";
 				fix = REWRITE;
@@ -481,7 +527,7 @@ public final class ProfileFindings {
 				// told only: DBGL cannot know what is right (a missing file, a Windows program, ...)
 			}
 		}
-		if ((fix != null) && (fix != REWRITE) && (setting == null) && !pr.key().equals("charsetmismatch") && !(fix instanceof TextFix))
+		if ((fix != null) && (fix != REWRITE) && (setting == null) && !pr.key().equals("charsetmismatch") && !pr.key().equals("soundmismatch") && !(fix instanceof TextFix))
 			fix = null;
 		boolean hint = HINTS.contains(pr.key()); // only for information: no warning sign, nothing to solve
 		return new Finding(prof, prof.getDosboxVersion(), pr.key(), pr.args(), shown, hint, solution, fix, rewrite);

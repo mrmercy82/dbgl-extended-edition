@@ -7,6 +7,34 @@ Grundlage: DBGL 0.100 beta 17 von Ronald Blankendaal (https://dbgl.org), Quellco
 0.101 alpha 50 (in Arbeit)
 --------------------------
 Verbessert
+- "Profile prüfen" erkennt mehr:
+  - Einstellungen, die einzeln gültig sind, aber nicht zusammenpassen:
+    Sound Blaster und Gravis Ultrasound auf demselben IRQ, DMA-Kanal oder
+    Port; bei DOSBox 0.74 ein cputype mit "prefetch" und ein anderer core
+    als normal oder auto (DOSBox bricht damit beim Start ab; das Profil
+    bekommt das Warnzeichen, die Lösung setzt core = normal); bei DOSBox
+    Staging und DOSBox-X mididevice = mt32, ohne dass vollständige ROMs da
+    sind.
+  - Eine Zeile "SET BLASTER=" oder "SET ULTRASND=" im Profil oder in der
+    Batchdatei des Spiels mit anderen Werten, als DOSBox hat: DOSBox setzt
+    diese Variablen selbst aus seinen Einstellungen. Die Lösung entfernt
+    die Zeile aus dem Profil.
+  - Hinweise ohne Warnzeichen, aus den Dateien des Spiels (DIG.INI und
+    MDI.INI des Miles Sound System, DEFAULT.CFG von Doom, Heretic, Hexen
+    und Strife, RESOURCE.CFG der Sierra-Spiele): Das Setup des Spiels hat
+    für den Sound Blaster andere Werte für Port, IRQ oder DMA gespeichert,
+    als das Profil hat (die Lösung setzt das Profil auf die Werte des
+    Spiels); das Spiel ist auf ein Gerät eingestellt, das im Profil aus
+    ist (Sound Blaster, Gravis Ultrasound); das Spiel ist auf einen Roland
+    MT-32 eingestellt, das Profil nutzt keinen (DOSBox Staging, DOSBox-X).
+  - Hinweis: Im Ordner des Spiels liegt ein CD-Abbild, das Profil bindet
+    aber keine CD ein. Die Lösung bindet es als Laufwerk ein.
+  - Eine kurze Liste von Spielen mit belegtem Bedarf, mit Quelle im Text:
+    Contra, FIFA International Soccer, The Terminator, X-Men: Madness in
+    Murderworld (cputype = 386_prefetch), Alley Cat, Sopwith (140 bis 300
+    Zyklen), Quake, Duke Nukem 3D, Tomb Raider, Descent II (memsize = 32)
+    nach dem Handbuch von DOSBox Staging; Ultima VII: The Black Gate
+    (ems = false) nach dem Wiki von DOSBox.
 - Erkennung beim Hinzufügen eines Spiels (Assistent): Die Startdatei wird
   jetzt nach dem gewählt, woraus solche Namen bestehen: der Titel am
   Stück oder ein Teil davon (DOOM2, MONKEY), seine Anfangsbuchstaben (UW,

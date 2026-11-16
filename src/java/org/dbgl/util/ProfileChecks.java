@@ -650,6 +650,13 @@ public final class ProfileChecks {
 				result.add(new Problem("gusnopatches", gusDir, String.valueOf(gusDrive), host));
 		}
 
+		// alpha 50: settings that do not go together, what the game itself is set to (the files its setup wrote), what lies
+		// in its folder, and games with a documented need
+		File gameMain = StringUtils.isBlank(autoexec.getMainWhereDosboxLooks()) ? null
+				: programFile(new FileLocation(autoexec.getMainWhereDosboxLooks(), FileLocationService.getInstance().dosrootRelative()).getCanonicalFile());
+		boolean stagingFamily = (gen != null) && (family == GenerationAwareConfigurable.familyIdx(Generation.staging_0830));
+		result.addAll(GameHints.check(prof, gameMain, netto, result, ansiDosbox, stagingFamily, dosboxX));
+
 		// umlauts in the [autoexec] in another charset than the DOSBox version reads it with: the folder is not found
 		ConfCharset.Mismatch cm = ConfCharset.mismatch(prof, prof.getDosboxVersion());
 		if (cm != null)

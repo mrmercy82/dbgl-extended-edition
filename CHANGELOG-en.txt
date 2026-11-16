@@ -7,6 +7,33 @@ Based on DBGL 0.100 beta 17 by Ronald Blankendaal (https://dbgl.org), source cod
 0.101 alpha 50 (in progress)
 ----------------------------
 Improved
+- "Check profiles" finds more:
+  - Settings that are valid each but do not go together: Sound Blaster and
+    Gravis Ultrasound on the same IRQ, DMA channel or port; for DOSBox 0.74
+    a cputype with "prefetch" and another core than normal or auto (DOSBox
+    quits with it when starting; the profile gets the warning sign, the
+    solution sets core = normal); for DOSBox Staging and DOSBox-X
+    mididevice = mt32 without complete ROMs.
+  - A line "SET BLASTER=" or "SET ULTRASND=" in the profile or in the
+    batch file of the game with other values than DOSBox has: DOSBox sets
+    these variables itself, from its settings. The solution removes the
+    line from the profile.
+  - Notes without a warning sign, from the files of the game (DIG.INI and
+    MDI.INI of the Miles Sound System, DEFAULT.CFG of Doom, Heretic, Hexen
+    and Strife, RESOURCE.CFG of the games of Sierra): the setup of the game
+    has saved other values for port, IRQ or DMA of the Sound Blaster than
+    the profile has (the solution sets the profile to the values of the
+    game); the game is set to a device that is off in the profile (Sound
+    Blaster, Gravis Ultrasound); the game is set to a Roland MT-32, the
+    profile uses none (DOSBox Staging, DOSBox-X).
+  - Note: a CD image is in the folder of the game, but the profile mounts
+    no CD. The solution mounts it as a drive.
+  - A short list of games with a documented need, the source named in the
+    text: Contra, FIFA International Soccer, The Terminator, X-Men: Madness
+    in Murderworld (cputype = 386_prefetch), Alley Cat, Sopwith (140 to 300
+    cycles), Quake, Duke Nukem 3D, Tomb Raider, Descent II (memsize = 32)
+    from the manual of DOSBox Staging; Ultima VII: The Black Gate
+    (ems = false) from the wiki of DOSBox.
 - Recognition when adding a game (wizard): the program to start is now
   chosen by what such names are made of: the title run together or a
   part of it (DOOM2, MONKEY), its first letters (UW, DOTT), the beginning

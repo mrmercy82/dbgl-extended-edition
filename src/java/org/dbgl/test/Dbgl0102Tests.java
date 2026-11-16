@@ -4127,4 +4127,163 @@ public class Dbgl0102Tests {
 		assertEquals("svga_paradise", org.dbgl.util.ConfTakeover.stagingValueFor("dosbox", "machine", "VGAONLY"));
 		assertNull(org.dbgl.util.ConfTakeover.stagingValueFor("sdl", "output", "ddraw"));
 	}
+
+	/**
+	 * alpha 50: settings that do not go together, what the game itself is set to against the profile, a CD image nobody
+	 * mounts, and the games with a documented need.
+	 */
+	@Test
+	public void testGameHints() throws Exception {
+		java.util.function.Function<String, Configuration> conf = text -> {
+			try {
+				Configuration c = new Configuration();
+				c.loadDataWithAutoexec(GenericTextService.getInstance(), text, null, null);
+				return c;
+			} catch (IOException e) {
+				throw new RuntimeException(e);
+			}
+		};
+		java.util.function.Function<List<org.dbgl.util.ProfileChecks.Problem>, String> told = list -> list.stream()
+				.map(pr -> pr.key() + java.util.Arrays.toString(pr.args())).collect(java.util.stream.Collectors.joining(" | "));
+		String defaults = "[sblaster]\nsbtype=sb16\nsbbase=220\nirq=7\ndma=1\nhdma=5\n[gus]\ngus=false\ngusbase=240\ngusirq=5\ngusdma=3\n[cpu]\ncore=auto\ncputype=auto\n[midi]\nmididevice=default\n";
+
+		// the two cards on the same IRQ, DMA channel, port: only with both switched on
+		assertEquals("", told.apply(org.dbgl.util.GameHints.conflicts(conf.apply(defaults), true)));
+		assertEquals("", told.apply(org.dbgl.util.GameHints.conflicts(conf.apply(defaults.replace("irq=7", "irq=5")), true))); // the GUS is off
+		String gusOn = defaults.replace("gus=false", "gus=true");
+		assertEquals("", told.apply(org.dbgl.util.GameHints.conflicts(conf.apply(gusOn), true)));
+		assertEquals("deviceconflict[[sblaster] irq, [gus] gusirq, 5]", told.apply(org.dbgl.util.GameHints.conflicts(conf.apply(gusOn.replace("irq=7", "irq=5")), true)));
+		assertEquals("deviceconflict[[sblaster] hdma, [gus] gusdma, 5]", told.apply(org.dbgl.util.GameHints.conflicts(conf.apply(gusOn.replace("gusdma=3", "gusdma=5")), true)));
+		assertEquals("", told.apply(org.dbgl.util.GameHints.conflicts(conf.apply(gusOn.replace("gusdma=3", "gusdma=5").replace("sb16", "sbpro2")), true))); // no high DMA
+		assertEquals("deviceconflict[[sblaster] sbbase, [gus] gusbase, 240]", told.apply(org.dbgl.util.GameHints.conflicts(conf.apply(gusOn.replace("sbbase=220", "sbbase=240")), true)));
+		assertEquals("", told.apply(org.dbgl.util.GameHints.conflicts(conf.apply(gusOn.replace("irq=7", "irq=5").replace("sb16", "none")), true)));
+		// DOSBox 0.74 quits: "prefetch queue emulation requires the normal core setting."
+		String prefetch = defaults.replace("cputype=auto", "cputype=386_prefetch");
+		assertEquals("", told.apply(org.dbgl.util.GameHints.conflicts(conf.apply(prefetch), true)));
+		assertEquals("", told.apply(org.dbgl.util.GameHints.conflicts(conf.apply(prefetch.replace("core=auto", "core=normal")), true)));
+		assertEquals("prefetchcore[[cpu] core, 386_prefetch, dynamic]", told.apply(org.dbgl.util.GameHints.conflicts(conf.apply(prefetch.replace("core=auto", "core=dynamic")), true)));
+		assertEquals("", told.apply(org.dbgl.util.GameHints.conflicts(conf.apply(prefetch.replace("core=auto", "core=dynamic")), false))); // only known of DOSBox 0.74
+
+		// the files the setup of a game writes
+		org.dbgl.util.GameHints.Sound dig = org.dbgl.util.GameHints.milesIni("DIG.INI",
+			";\r\n;AIL 3 digital audio configuration file\r\n;\r\n\r\nDRIVER      SB16.DIG\r\nDEVICE      Creative Labs Sound Blaster 16 or AWE32\r\nIO_ADDR     220h\r\nIRQ         5\r\nDMA_8_bit   1\r\nDMA_16_bit  5\r\n");
+		assertEquals("sb A220 I5 D1 H5", dig.device() + " " + dig.blaster());
+		assertEquals("sb A220 I7", org.dbgl.util.GameHints.milesIni("DIG.INI", "DRIVER SBPRO2.DIG\nIO_ADDR 220h\nIRQ 7\nDMA_8_bit -1\n").device() + " "
+				+ org.dbgl.util.GameHints.milesIni("DIG.INI", "DRIVER SBPRO2.DIG\nIO_ADDR 220h\nIRQ 7\nDMA_8_bit -1\n").blaster());
+		assertEquals("gus", org.dbgl.util.GameHints.milesIni("DIG.INI", "DRIVER ULTRA.DIG\n").device());
+		assertEquals("mt32", org.dbgl.util.GameHints.milesIni("MDI.INI", "DRIVER      MT32MPU.MDI\nDEVICE Roland MT-32 or compatible with MPU-401\nIO_ADDR 330h\n").device());
+		assertNull(org.dbgl.util.GameHints.milesIni("MDI.INI", "DRIVER SBAWE32.MDI\nIO_ADDR 620h\n")); // music on the card: nothing to compare
+		assertNull(org.dbgl.util.GameHints.milesIni("DIG.INI", "; nothing chosen\n"));
+		org.dbgl.util.GameHints.Sound doom = org.dbgl.util.GameHints.doomCfg("DEFAULT.CFG", "mouse_sensitivity\t\t5\nsnd_musicdevice\t\t3\nsnd_sfxdevice\t\t3\nsnd_sbport\t\t544\nsnd_sbirq\t\t5\nsnd_sbdma\t\t1\nsnd_mport\t\t816\n");
+		assertEquals("sb ", doom.device() + " " + doom.blaster()); // its port, IRQ and DMA are not compared: the game looks for the card itself
+		assertEquals("gus", org.dbgl.util.GameHints.doomCfg("DEFAULT.CFG", "snd_sfxdevice 5\n").device());
+		assertNull(org.dbgl.util.GameHints.doomCfg("DEFAULT.CFG", "snd_sfxdevice 1\nsnd_sbirq 5\n")); // the PC speaker
+		assertEquals("mt32", org.dbgl.util.GameHints.sierraCfg("RESOURCE.CFG", "videoDrv = VGA320.DRV\r\nsoundDrv = MTBLAST.DRV\r\naudioDrv = AUDBLAST.DRV\r\n").device());
+		assertNull(org.dbgl.util.GameHints.sierraCfg("RESOURCE.CFG", "soundDrv = ADL.DRV\n"));
+		assertNull(org.dbgl.util.GameHints.sierraCfg("RESOURCE.CFG", "soundDrv = MT540.DRV\n")); // a Casio, not the MT-32
+		assertEquals("A220 I5 D1 H5", org.dbgl.util.GameHints.blasterLine("x", "@SET BLASTER=A220 I5 D1 H5 P330 T6").blaster());
+		assertNull(org.dbgl.util.GameHints.blasterLine("x", "set path=c:\\blaster"));
+		assertNull(org.dbgl.util.GameHints.blasterLine("x", "rem set blaster=A220 I5"));
+
+		// against the profile: only what both sides name is compared, the high DMA only with a Sound Blaster 16
+		assertEquals("soundmismatch[DIG.INI, A220 I5 D1 H5, A220 I7 D1 H5, , 5, , ]", told.apply(org.dbgl.util.GameHints.soundProblems(List.of(dig), conf.apply(defaults), false)));
+		assertEquals("", told.apply(org.dbgl.util.GameHints.soundProblems(List.of(dig), conf.apply(defaults.replace("irq=7", "irq=5")), false)));
+		assertEquals("", told.apply(org.dbgl.util.GameHints.soundProblems(List.of(dig), conf.apply(defaults.replace("irq=7", "irq=5").replace("hdma=5", "hdma=7").replace("sb16", "sbpro2")), false)));
+		assertEquals("", told.apply(org.dbgl.util.GameHints.soundProblems(List.of(doom), conf.apply(defaults), false)));
+		assertEquals("sounddeviceoff[DEFAULT.CFG, Sound Blaster, [sblaster] sbtype = none]", told.apply(org.dbgl.util.GameHints.soundProblems(List.of(doom), conf.apply(defaults.replace("sb16", "none")), false)));
+		assertEquals("sounddeviceoff[DIG.INI, Sound Blaster, [sblaster] sbtype = none]", told.apply(org.dbgl.util.GameHints.soundProblems(List.of(dig, doom), conf.apply(defaults.replace("sb16", "none")), false)));
+		org.dbgl.util.GameHints.Sound gus = org.dbgl.util.GameHints.doomCfg("DEFAULT.CFG", "snd_sfxdevice 5\n"), mt32 = org.dbgl.util.GameHints.sierraCfg("RESOURCE.CFG", "soundDrv=MT32.DRV\n");
+		assertEquals("sounddeviceoff[DEFAULT.CFG, Gravis Ultrasound, [gus] gus = false]", told.apply(org.dbgl.util.GameHints.soundProblems(List.of(gus), conf.apply(defaults), false)));
+		assertEquals("", told.apply(org.dbgl.util.GameHints.soundProblems(List.of(gus), conf.apply(gusOn), false)));
+		assertEquals("gamewantsmt32[RESOURCE.CFG, [midi] mididevice = default]", told.apply(org.dbgl.util.GameHints.soundProblems(List.of(mt32), conf.apply(defaults), true)));
+		assertEquals("", told.apply(org.dbgl.util.GameHints.soundProblems(List.of(mt32), conf.apply(defaults), false))); // DOSBox 0.74: the device is outside
+		assertEquals("", told.apply(org.dbgl.util.GameHints.soundProblems(List.of(mt32), conf.apply(defaults.replace("mididevice=default", "mididevice=mt32")), true)));
+		assertEquals("", told.apply(org.dbgl.util.GameHints.soundProblems(List.of(dig), conf.apply("[cpu]\ncore=auto\n"), true))); // a version without these settings
+
+		// as the setup of Heroes of Might and Magic II writes it: capitals, -1 for "found by the game itself" - nothing to compare
+		org.dbgl.util.GameHints.Sound homm2 = org.dbgl.util.GameHints.milesIni("SOUND\\DIG.INI",
+			";\n;Miles Sound System V3.50E of 24-Sep-96\n;\nDEVICE Creative Labs Sound Blaster 16 or AWE32\nDRIVER SB16.DIG\nIO_ADDR 220h\nIRQ -1\nDMA_8_BIT -1\nDMA_16_BIT -1\n");
+		assertEquals("A220", homm2.blaster());
+		assertEquals("", told.apply(org.dbgl.util.GameHints.soundProblems(List.of(homm2), conf.apply(defaults), false)));
+		// a value DOSBox does not take (IRQ 2): told, without a solution that would set it
+		assertEquals("soundmismatch[DIG.INI, A220 I2 D1, A220 I7 D1]", told.apply(org.dbgl.util.GameHints.soundProblems(
+			List.of(org.dbgl.util.GameHints.milesIni("DIG.INI", "DRIVER SBPRO2.DIG\nIO_ADDR 220h\nIRQ 2\nDMA_8_bit 1\n")), conf.apply(defaults), false)));
+		// a line that sets BLASTER or ULTRASND: DOSBox sets them itself; a line of the profile can go, one of the game is told
+		org.dbgl.util.GameHints.Sound ownLine = org.dbgl.util.GameHints.blasterLine("[autoexec] set BLASTER=A220 I5 D1 T4", "  set BLASTER=A220 I5 D1 T4"),
+				batLine = org.dbgl.util.GameHints.blasterLine("GO.BAT: SET BLASTER=A240 I7 D1", "SET BLASTER=A240 I7 D1"),
+				ultra = org.dbgl.util.GameHints.blasterLine("[autoexec] SET ULTRASND=220,1,1,11,11", "SET ULTRASND=220,1,1,11,11");
+		assertEquals("soundvariable[set BLASTER=A220 I5 D1 T4, A220 I5 D1, A220 I7 D1, BLASTER, profile] | soundvariable[GO.BAT: SET BLASTER=A240 I7 D1, A240 I7 D1, A220 I7 D1, BLASTER, ]",
+			told.apply(org.dbgl.util.GameHints.soundProblems(List.of(ownLine, batLine), conf.apply(defaults), false)));
+		assertEquals("", told.apply(org.dbgl.util.GameHints.soundProblems(List.of(ownLine), conf.apply(defaults.replace("irq=7", "irq=5")), false))); // the same values: harmless
+		assertEquals("", told.apply(org.dbgl.util.GameHints.soundProblems(List.of(ownLine), conf.apply(defaults.replace("sb16", "none")), false)));
+		assertEquals("gus A220 I11 D1", ultra.device() + " " + ultra.blaster());
+		assertEquals("", told.apply(org.dbgl.util.GameHints.soundProblems(List.of(ultra), conf.apply(defaults), false))); // the GUS is off
+		assertEquals("soundvariable[SET ULTRASND=220,1,1,11,11, A220 I11 D1, A240 I5 D3, ULTRASND, profile]", told.apply(org.dbgl.util.GameHints.soundProblems(List.of(ultra), conf.apply(gusOn), false)));
+		assertEquals("", told.apply(org.dbgl.util.GameHints.soundProblems(List.of(org.dbgl.util.GameHints.blasterLine("x", "set ultrasnd=240,3,3,5,5")), conf.apply(gusOn), false)));
+		assertEquals("sounddeviceoff[DIG.INI, Sound Blaster, [sblaster] sbtype = off]", told.apply(org.dbgl.util.GameHints.soundProblems(List.of(dig), conf.apply(defaults.replace("sb16", "off")), false)));
+		// the names DOSBox 0.72 and older have: "base" for both cards (0.63), "irq1" and "dma1" of the Gravis Ultrasound
+		String old063 = "[sblaster]\ntype=sb16\nsbtype=sb16\nbase=220\nirq=5\ndma=1\nhdma=5\n[gus]\ngus=true\nbase=240\nirq1=5\nirq2=5\ndma1=3\ndma2=3\n";
+		assertEquals("deviceconflict[[sblaster] irq, [gus] irq1, 5]", told.apply(org.dbgl.util.GameHints.conflicts(conf.apply(old063), true)));
+		assertEquals("soundmismatch[DIG.INI, A240 I5 D1 H5, A220 I5 D1 H5, 240, , , ]", told.apply(org.dbgl.util.GameHints.soundProblems(
+			List.of(org.dbgl.util.GameHints.milesIni("DIG.INI", "DRIVER SB16.DIG\nIO_ADDR 240h\nIRQ 5\nDMA_8_bit 1\nDMA_16_bit 5\n")), conf.apply(old063), false)));
+		assertEquals("base", org.dbgl.util.GameHints.itemOf(conf.apply(old063), "sblaster", "sbbase", "base"));
+		assertEquals("sbbase", org.dbgl.util.GameHints.itemOf(conf.apply(defaults), "sblaster", "sbbase", "base"));
+
+		// the files of a game: DIG.INI in SOUND, the BLASTER variable in the batch file, a CD image nobody mounts
+		File game = Files.createTempDirectory("dbgl-hints").toFile();
+		try {
+			File sound = new File(game, "Sound");
+			assertTrue(sound.mkdir());
+			Files.writeString(new File(sound, "dig.ini").toPath(), "DRIVER SB16.DIG\r\nIO_ADDR 220h\r\nIRQ 5\r\nDMA_8_bit 1\r\nDMA_16_bit 5\r\n", StandardCharsets.ISO_8859_1);
+			File bat = new File(game, "GO.BAT");
+			Files.writeString(bat.toPath(), "@echo off\r\nset blaster=A240 I7 D1\r\ngame.exe\r\n", StandardCharsets.ISO_8859_1);
+			List<org.dbgl.util.GameHints.Sound> found = org.dbgl.util.GameHints.soundOf(bat);
+			assertEquals("Sound" + File.separator + "dig.ini=A220 I5 D1 H5, GO.BAT: set blaster=A240 I7 D1=A240 I7 D1",
+				found.stream().map(s -> s.file() + "=" + s.blaster()).collect(java.util.stream.Collectors.joining(", ")));
+			assertNull(org.dbgl.util.GameHints.unusedCdImage(bat, List.of(), List.of()));
+			Files.writeString(new File(game, "game.bin").toPath(), "x", StandardCharsets.ISO_8859_1);
+			Files.writeString(new File(game, "GAME.CUE").toPath(), "FILE \"game.bin\" BINARY\r\n", StandardCharsets.ISO_8859_1);
+			assertEquals("GAME.CUE", org.dbgl.util.GameHints.unusedCdImage(bat, List.of(), List.of("echo hello")));
+			assertNull(org.dbgl.util.GameHints.unusedCdImage(bat, List.of(), List.of("imgmount D \"x.iso\" -t iso")));
+			assertNull(org.dbgl.util.GameHints.unusedCdImage(bat, List.of(), List.of("mount D \"D:\\\" -t cdrom")));
+		} finally {
+			org.apache.commons.io.FileUtils.deleteQuietly(game);
+		}
+
+		// games with a documented need, by title or by program
+		assertEquals("ultima vii the black gate", org.dbgl.util.GameHints.titleKey("Ultima VII: The Black Gate"));
+		assertEquals("contra", org.dbgl.util.GameHints.titleKey("Contra (1988)"));
+		assertEquals("quake", org.dbgl.util.GameHints.titleKey(" Quake [CD] (id Software) "));
+		assertEquals("the terminator", org.dbgl.util.GameHints.titleKey("Terminator, The"));
+		assertEquals("x men madness in murderworld", org.dbgl.util.GameHints.titleKey("X-Men: Madness in Murderworld"));
+		Configuration normal = conf.apply("[dosbox]\nmemsize=16\n[cpu]\ncore=auto\ncputype=auto\ncycles=auto\n[dos]\nems=true\n");
+		assertEquals("gameadvice[[dos] ems, Ultima VII: The Black Gate, [dos] ems = false, dosbox.com, Wiki, [dos] ems = true, false]",
+			told.apply(org.dbgl.util.GameHints.advice("Ultima VII: The Black Gate", null, null, normal)));
+		assertEquals("gameadvice[[dos] ems, Ultima VII: The Black Gate, [dos] ems = false, dosbox.com, Wiki, [dos] ems = true, false]",
+			told.apply(org.dbgl.util.GameHints.advice("U7", new File("C:/games/u7/ULTIMA7.COM"), null, normal)));
+		assertEquals("", told.apply(org.dbgl.util.GameHints.advice("Ultima VII Part Two: Serpent Isle", new File("C:/games/si/SERPENT.COM"), null, normal)));
+		assertEquals("", told.apply(org.dbgl.util.GameHints.advice("Ultima VII", null, null, conf.apply("[dos]\nems=false\n"))));
+		assertEquals("", told.apply(org.dbgl.util.GameHints.advice("Ultima VII", null, null, conf.apply("[dos]\nems=off\n")))); // as DOSBox Staging writes it
+		assertEquals("gameadvice[[dosbox] memsize, Quake, [dosbox] memsize = 32, dosbox-staging.org, Manual, [dosbox] memsize = 16, 32]",
+			told.apply(org.dbgl.util.GameHints.advice("Quake", null, null, normal)));
+		assertEquals("", told.apply(org.dbgl.util.GameHints.advice("Quake", null, null, conf.apply("[dosbox]\nmemsize=63\n"))));
+		assertEquals("", told.apply(org.dbgl.util.GameHints.advice("Quake II", null, null, normal))); // another game
+		assertTrue(told.apply(org.dbgl.util.GameHints.advice("Quake (1996)", null, null, normal)).startsWith("gameadvice[[dosbox] memsize, Quake,"));
+		assertTrue(told.apply(org.dbgl.util.GameHints.advice("Terminator, The", null, null, normal)).startsWith("gameadvice[[cpu] cputype, The Terminator,"));
+		assertEquals("", told.apply(org.dbgl.util.GameHints.advice("Terminator 2: Judgment Day", null, null, normal)));
+		assertEquals(Character.valueOf('D'), org.dbgl.util.GameHints.freeDrive(List.of(), List.of()));
+		assertEquals("gameadvice[[cpu] cputype, Contra, [cpu] cputype = 386_prefetch, dosbox-staging.org, Manual, [cpu] cputype = auto, 386_prefetch]",
+			told.apply(org.dbgl.util.GameHints.advice("Contra", null, null, normal)));
+		assertEquals("", told.apply(org.dbgl.util.GameHints.advice("Contra", null, null, conf.apply("[cpu]\ncputype=386_prefetch\n"))));
+		assertEquals("gameadvice[[cpu] cycles, Alley Cat, [cpu] cycles = 140 ... 300, dosbox-staging.org, Manual, [cpu] cycles = auto, ]",
+			told.apply(org.dbgl.util.GameHints.advice("Alley Cat", null, null, normal)));
+		assertEquals("", told.apply(org.dbgl.util.GameHints.advice("Alley Cat", null, null, conf.apply("[cpu]\ncycles=fixed 250\n"))));
+		assertEquals("", told.apply(org.dbgl.util.GameHints.advice("Alley Cat", null, null, conf.apply("[cpu]\ncycles=170\n"))));
+		// DOSBox Staging 0.82 and later: "cpu_cycles", unless the profile itself still says "cycles"
+		Configuration staging = conf.apply("[cpu]\ncpu_cycles=3000\n"), ownCycles = conf.apply("[cpu]\ncycles=200\n"), both = conf.apply("[cpu]\ncpu_cycles=3000\ncycles=200\n");
+		assertEquals("gameadvice[[cpu] cpu_cycles, Sopwith, [cpu] cpu_cycles = 140 ... 300, dosbox-staging.org, Manual, [cpu] cpu_cycles = 3000, ]",
+			told.apply(org.dbgl.util.GameHints.advice("Sopwith", null, conf.apply("[cpu]\ncore=auto\n"), staging)));
+		assertEquals("", told.apply(org.dbgl.util.GameHints.advice("Sopwith", null, ownCycles, both)));
+		assertEquals("", told.apply(org.dbgl.util.GameHints.advice("Some other game", new File("C:/games/x/GAME.EXE"), null, normal)));
+	}
 }
