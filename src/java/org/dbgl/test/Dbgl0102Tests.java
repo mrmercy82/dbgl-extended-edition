@@ -836,6 +836,9 @@ public class Dbgl0102Tests {
 		assertEquals("JP.BAT", mainOf.apply("Jurassic Park", "INSTALL.BAT,JP.BAT,UNISOUND.COM"));
 		assertEquals("DARK.EXE", mainOf.apply("Star Wars: Dark Forces", "BOOTMKR.EXE,DARK.EXE,DOS4GW.EXE,IMUSE.EXE,SETUP.EXE"));
 		assertEquals("HMISETUP.EXE", setupOf.apply("DOS4GW.EXE,HMISETUP.EXE,INSTALL.EXE,RAN2.BAT"));
+		assertEquals("SIERRA.COM", mainOf.apply("Space Quest III", "EXISTS.COM,INSTALL.EXE,SCIV.EXE,SIERRA.COM,__INSTH.BAT"));
+		assertEquals("SQ4.BAT", mainOf.apply("Space Quest IV", "INSTALL.EXE,SIERRA.EXE,SQ4.BAT"));
+		assertEquals("TV.EXE", mainOf.apply("Terminal Velocity", "ARIA.COM,COMMIT.EXE,GAME.EXE,GF166.COM,INSTALL.EXE,NOSOUND.COM,SB16.COM,SETUP.EXE,TV.EXE"));
 		java.nio.file.Files.writeString(new File(dir, "U7.CFG").toPath(), "x");
 		assertEquals("ULTIMA7.COM", mainOf.apply("Ultima VII: The Black Gate", "ENDGAME.EXE,INSTALL.EXE,INTRO.EXE,MAINMENU.EXE,U7.BAT,U7.EXE,ULTIMA7.COM")); // not U7.EXE for its U7.CFG
 		// the sound settings other games write, as found: HMI (Dynamix), the switches of Origin, Build, the batch file of Arena

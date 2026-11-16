@@ -53,7 +53,9 @@ public class DosGameUtils {
 		"keyb.com", "mode.com", "debug.exe", "edit.com", "qbasic.exe", "deltree.exe", "attrib.exe", "format.com", "fdisk.exe", "scandisk.exe", "gogwrap.exe", "dxcfg.exe", "cloud_saves.exe",
 		// as found in a collection of games: what plays before and after the game, starts the sound card, makes a boot disk
 		"opening.exe", "closing.exe", "outro.exe", "endgame.exe", "unisound.com", "unisound.exe", "bootmkr.exe", "boottie.exe", "imuse.exe", "cwsdpmi.exe", "insticon.exe", "autorun.exe",
-		"checkcd.exe", "detvesa.exe", "command.com");
+		"checkcd.exe", "detvesa.exe", "command.com",
+		// the games of Sierra are started with SIERRA.COM or SIERRA.EXE, not with the interpreter behind it
+		"sciv.exe", "scidhuv.exe", "sciduv.exe", "sciwv.exe");
 	// an editor of maps or sounds is not the game (MAPEDIT.EXE, WAR2EDIT.EXE, SFXED95.EXE)
 	private static final java.util.regex.Pattern EDITOR_LIKE = java.util.regex.Pattern.compile("(?i).*(edit|ed95)[a-z0-9]{0,2}\\.(exe|com|bat)");
 	private static final java.util.regex.Pattern SETUP_LIKE = java.util.regex.Pattern

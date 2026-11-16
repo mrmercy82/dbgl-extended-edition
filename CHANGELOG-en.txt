@@ -20,7 +20,8 @@ Improved
   WINSETUP.EXE or IPXSETUP.EXE). As the program to start, one counts for
   more that has its settings in the folder (WG.EXE with WG.CFG of Wings of
   Glory), and "3D" at the end of a name counts as the number of the title
-  (WOLF3D.EXE, DUKE3D.EXE). A "goto" that is sure is followed
+  (WOLF3D.EXE, DUKE3D.EXE). The games of Sierra are started with
+  SIERRA.COM or SIERRA.EXE, not with SCIV.EXE. A "goto" that is sure is followed
   ("if not exist seq.exe goto continue": the first start of King's Quest
   VI unpacks with programs that are gone afterwards). Checked with 259
   batch files, 333 files of settings and 408 folders of a collection of

@@ -55,7 +55,8 @@ Verbessert
   SETMUSE.EXE, SBSETUP.EXE; nicht WINSETUP.EXE oder IPXSETUP.EXE). Als
   Startprogramm zählt mehr, wer seine Einstellungen im Ordner hat (WG.EXE
   mit WG.CFG bei Wings of Glory), und "3D" am Ende des Namens gilt als
-  Zahl des Titels (WOLF3D.EXE, DUKE3D.EXE).
+  Zahl des Titels (WOLF3D.EXE, DUKE3D.EXE). Die Spiele von Sierra werden
+  mit SIERRA.COM oder SIERRA.EXE gestartet, nicht mit SCIV.EXE.
   Ein sicheres "goto" wird verfolgt ("if not exist seq.exe goto weiter":
   King's Quest VI entpackt beim ersten Start mit Programmen, die danach
   weg sind). Geprüft an 259 Batchdateien, 333 Einstellungsdateien und
