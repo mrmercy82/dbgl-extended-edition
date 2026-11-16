@@ -4476,7 +4476,8 @@ public class Dbgl0102Tests {
 		File logs = Files.createTempDirectory("dbgl-logs").toFile();
 		try {
 			// the logs of two profiles, a diagnostic file of DBGL, and things a user put there
-			File one = new File(logs, "Game One (12)"), two = new File(logs, "Other: Game (7)"), foreign = new File(logs, "my notes");
+			// (no colon in the name of a folder: Windows does not take one, the test failed there)
+			File one = new File(logs, "Game One (12)"), two = new File(logs, "Other - Game (7)"), foreign = new File(logs, "my notes");
 			assertTrue(one.mkdir() && two.mkdir() && foreign.mkdir());
 			for (int i = 1; i <= 5; i++)
 				Files.writeString(new File(one, "2026-11-0" + i + "_10-00-00.log").toPath(), "x" + i);
