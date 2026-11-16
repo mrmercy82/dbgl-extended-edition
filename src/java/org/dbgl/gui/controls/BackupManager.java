@@ -127,31 +127,22 @@ public final class BackupManager {
 			int index = i;
 			TableColumn column = new TableColumn(table, i == 5 ? SWT.RIGHT: SWT.NONE);
 			if ((i == 0) && (lockImage != null)) { // alpha 50: a padlock as the heading, not a word
+				column.setImage(lockImage);
 				column.setToolTipText(text.get("dialog.backups.col.lock"));
 				column.setAlignment(SWT.CENTER);
-				// in the middle of the column: Windows draws the picture of a heading at its left edge, so the picture is as
-				// wide as the column, with the padlock in its middle; made again when the column gets another width
-				org.eclipse.swt.graphics.Image[] wide = new org.eclipse.swt.graphics.Image[1];
-				Runnable centered = () -> {
-					if (column.isDisposed())
-						return;
-					org.eclipse.swt.graphics.Image old = wide[0];
-					wide[0] = centeredImage(display, lockImage, column.getWidth() - HEADER_MARGINS);
-					column.setImage(wide[0]);
-					if (old != null)
-						old.dispose();
-				};
-				column.addListener(SWT.Resize, e -> centered.run());
-				column.addDisposeListener(e -> {
-					if (wide[0] != null)
-						wide[0].dispose();
-				});
-				display.asyncExec(centered); // once the stored width is set
 			} else {
 				column.setText(text.get("dialog.backups.col." + heads[i]));
 			}
 			column.setWidth(widths[i]);
 			column.setMoveable(true);
+			if ((i == 0) && (lockImage != null)) {
+				// Windows (and GTK) draw the picture of a heading at its left edge, whatever the alignment: the column is just as wide
+				// as the padlock with its margins and keeps that width, so the padlock is in its middle - in the heading and
+				// in the rows. (Test 13 had a picture as wide as the column instead, made again with each new width: with
+				// it, rows of the list were drawn out of place.)
+				column.setWidth(lockImage.getBounds().width + 12);
+				column.setResizable(false);
+			}
 			column.addListener(SWT.Selection, e -> { // a click on a heading sorts by it, another one the other way round
 				sort[1] = (sort[0] == index) && (sort[1] == SWT.UP) ? SWT.DOWN: SWT.UP;
 				sort[0] = index;
@@ -160,28 +151,12 @@ public final class BackupManager {
 		}
 		table.addListener(SWT.PaintItem, e -> {
 			if ((e.index == 0) && Boolean.TRUE.equals(e.item.getData()) && (lockImage != null)) {
-				TableItem item = (TableItem)e.item;
-				Rectangle cell = item.getBounds(0), img = lockImage.getBounds();
-				// alpha 50: where the column is, taken from the column beside it. Windows gives for the first column of a row
-				// a place that does not move with the list when it is scrolled sideways: the padlocks stayed where they were
-				// while their heading moved on.
-				int[] order = table.getColumnOrder();
-				int at = 0;
-				while ((at < order.length) && (order[at] != 0))
-					at++;
-				int width = table.getColumn(0).getWidth(), left = cell.x;
-				if (at + 1 < order.length)
-					left = item.getBounds(order[at + 1]).x - width;
-				else if (at > 0) {
-					Rectangle before = item.getBounds(order[at - 1]);
-					left = before.x + before.width;
-				}
-				e.gc.drawImage(lockImage, left + (width - img.width) / 2, cell.y + (cell.height - img.height) / 2);
+				Rectangle cell = ((TableItem)e.item).getBounds(0), img = lockImage.getBounds();
+				// GTK gives the place of the text of the cell, a few pixels right of where the column begins
+				int inset = org.dbgl.util.SystemUtils.IS_WINDOWS ? 0: 4;
+				e.gc.drawImage(lockImage, cell.x - inset + (table.getColumn(0).getWidth() - img.width) / 2, cell.y + (cell.height - img.height) / 2);
 			}
 		});
-		// drawn again when the list is moved sideways (the padlocks are drawn by DBGL)
-		if (table.getHorizontalBar() != null)
-			table.getHorizontalBar().addListener(SWT.Selection, e -> table.redraw());
 		table.setColumnOrder(stored(ints(settings, "backupscolumnorder"), new int[] {0, 1, 2, 3, 4, 5, 6}, true));
 		dlg.addListener(SWT.Close, e -> {
 			int[] now = new int[heads.length];
@@ -512,26 +487,6 @@ public final class BackupManager {
 		if (!ascending)
 			c = c.reversed();
 		return c.thenComparing(java.util.Comparator.comparingLong(Backup::when).reversed());
-	}
-
-	/** what a heading keeps free left and right of its picture */
-	private static final int HEADER_MARGINS = 14;
-
-	/** a transparent picture of this width with the given one in its middle */
-	static org.eclipse.swt.graphics.Image centeredImage(Display display, org.eclipse.swt.graphics.Image image, int width) {
-		org.eclipse.swt.graphics.ImageData src = image.getImageData();
-		int w = Math.max(src.width, width), left = (w - src.width) / 2;
-		org.eclipse.swt.graphics.ImageData dest = new org.eclipse.swt.graphics.ImageData(w, src.height, 24, new org.eclipse.swt.graphics.PaletteData(0xFF0000, 0xFF00, 0xFF));
-		dest.alphaData = new byte[w * src.height];
-		for (int y = 0; y < src.height; y++)
-			for (int x = 0; x < src.width; x++) {
-				int pixel = src.getPixel(x, y);
-				org.eclipse.swt.graphics.RGB rgb = src.palette.getRGB(pixel);
-				int alpha = src.alphaData != null ? src.getAlpha(x, y): src.alpha != -1 ? src.alpha: (src.transparentPixel != -1) && (pixel == src.transparentPixel) ? 0: 255;
-				dest.setPixel(left + x, y, (rgb.red << 16) | (rgb.green << 8) | rgb.blue);
-				dest.setAlpha(left + x, y, alpha);
-			}
-		return new org.eclipse.swt.graphics.Image(display, dest);
 	}
 
 	private static Button sideButton(Composite side, String label) {
