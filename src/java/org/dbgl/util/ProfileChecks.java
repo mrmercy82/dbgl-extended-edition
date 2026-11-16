@@ -121,6 +121,9 @@ public final class ProfileChecks {
 		new OldSetting("mouse", "dos_mouse_immediate", "mouse", "builtin_dos_mouse_driver_options", "manual"),
 		new OldSetting("voodoo", "voodoo_multithreading", "voodoo", "voodoo_threads", "manual"));
 
+	/** deprecated, but DOSBox Staging 0.82 and later still take them: section, setting, and where their successor is */
+	static final List<String[]> STAGING_ACCEPTED = List.of(new String[] {"cpu", "cycles", "cpu", "cpu_cycles"}, new String[] {"sdl", "windowresolution", "sdl", "window_size"});
+
 	/** the deprecated settings of a profile for DOSBox Staging 0.83 (none for other versions) */
 	public static List<StagingChange> stagingChanges(Profile prof) {
 		List<StagingChange> result = new ArrayList<>();
@@ -719,6 +722,17 @@ public final class ProfileChecks {
 				case "autogone" -> result.add(new Problem("autogone0831", old, ch.value()));
 				case "manual" -> result.add(new Problem("replacedsetting", old, "[" + ch.old().newSection() + "] " + ch.old().newItem()));
 				default -> result.add(new Problem("renamedsetting", old, "[" + ch.old().newSection() + "] " + ch.old().newItem() + (ch.newValue() == null ? "" : " = " + ch.newValue())));
+			}
+		}
+
+		// alpha 50: deprecated but still taken by DOSBox Staging 0.82 and later, as its log says ("The 'cycles' setting is
+		// deprecated but still accepted"). They were told as settings this version does not know and ignores.
+		if (((prof.getGeneration() == Generation.staging_0830) || (prof.getGeneration() == Generation.staging_0820)) && (prof.getDosboxVersion() != null)) {
+			Configuration ownConf = prof.getConfiguration(), ofVersion = prof.getDosboxVersion().getConfiguration();
+			for (String[] a: STAGING_ACCEPTED) {
+				String old = "[" + a[0] + "] " + a[1];
+				if (ownConf.hasValue(a[0], a[1]) && ((ofVersion == null) || !ofVersion.hasValue(a[0], a[1])) && handled.add(old))
+					result.add(new Problem("acceptedsetting", old, "[" + a[2] + "] " + a[3]));
 			}
 		}
 

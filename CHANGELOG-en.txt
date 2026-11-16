@@ -7,6 +7,23 @@ Based on DBGL 0.100 beta 17 by Ronald Blankendaal (https://dbgl.org), source cod
 0.101 alpha 50 (in progress)
 ----------------------------
 Improved
+- Recognition when adding a game (wizard): the program to start is now
+  chosen by what such names are made of: the title run together or a
+  part of it (DOOM2, MONKEY), its first letters (UW, DOTT), the beginning
+  of a word with the number of the title (WAR2, SC2000, KEEN4E). Before,
+  the name nearest to the title letter by letter won. The setup program
+  was not found at all for file names in capitals; now it is, and
+  SETUP.EXE comes before INSTALL.EXE.
+- "Check profiles" with DOSBox Staging: for values of DOSBox 0.74 it now
+  names the value DOSBox Staging itself uses for them and changes it on
+  request ("vgaonly" to "svga_paradise", "win32" to "port", "openglnb"
+  to "opengl", "none" to "disabled"). "cycles" and "windowresolution"
+  were told as unknown and without effect; DOSBox Staging still takes
+  them, and that is what it says now.
+- Recognizing the DOSBox version: configuration files of DOSBox 0.62 to
+  0.70 do not name their version; DBGL now knows them by their settings
+  and knows their defaults. DOSBox Staging 0.78 and 0.79 call themselves
+  "version v0.79.1" and were not recognized.
 - Large collections: the list of profiles (view "Table") fills its rows
   when they come into view. With 5000 profiles the list is there much
   sooner after sorting, filtering or editing (measured on Linux: about a

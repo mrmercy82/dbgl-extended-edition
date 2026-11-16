@@ -270,7 +270,16 @@ public final class ProfileFindings {
 				for (String[] v: prof.listInvalidValues()) {
 					String what = (v.length > 4) && "shader".equals(v[4]) ? text.get("dialog.checkprofiles.shadermissing"): text.get("dialog.checkprofiles.invalid", new Object[] {v[3]});
 					String section = v[0], item = v[1];
-					String near = (v.length > 4) ? null: nearValue(v[2], v[3]);
+					String nearFound = (v.length > 4) ? null: nearValue(v[2], v[3]);
+					// alpha 50: what DOSBox Staging itself uses for a value of DOSBox 0.74 ("vgaonly" -> "svga_paradise",
+					// "win32" -> "port"), if this version has it
+					if ((nearFound == null) && (v.length <= 4) && (prof.getDosboxVersion() != null)
+							&& org.dbgl.service.SettingsService.STAGING_DOSBOX_FAM.title_.equals(prof.getDosboxVersion().getFamily())) {
+						String staging = ConfTakeover.stagingValueFor(v[0], v[1], v[2]);
+						if ((staging != null) && Arrays.asList(StringUtils.defaultString(v[3]).split(",\\s*")).contains(staging))
+							nearFound = staging;
+					}
+					final String near = nearFound;
 					if (near != null) // e.g. cputype=386_slow for DOSBox Staging: 386 (what DBGL writes when switching to it), not removed
 						list.add(new Finding(prof, prof.getDosboxVersion(), "invalid", new Object[] {v[0], v[1], v[2]},
 							"[" + v[0] + "] " + v[1] + "=" + v[2] + ": " + what + ". " + text.get("dialog.checkprofiles.invalid.near", new Object[] {near}), false,

@@ -4060,4 +4060,62 @@ public class Dbgl0102Tests {
 		assertNull(org.dbgl.util.StickReturn.Stats.of("nonsense"));
 		org.apache.commons.io.FileUtils.deleteQuietly(base);
 	}
+	/** alpha 50: which program starts a game and which one sets it up, for the wizard */
+	@Test
+	public void testGameFileDetection() {
+		java.util.function.BiFunction<String, String[], String> main = (title, names) -> {
+			List<File> files = java.util.Arrays.stream(names).map(n -> new File("C:/tmp/game/" + n)).collect(java.util.stream.Collectors.toList());
+			int i = org.dbgl.util.DosGameUtils.findMostLikelyMainIndex(title, files);
+			return i < 0 ? null: names[i];
+		};
+		java.util.function.Function<String[], String> setup = names -> {
+			List<File> files = java.util.Arrays.stream(names).map(n -> new File("C:/tmp/game/" + n)).collect(java.util.stream.Collectors.toList());
+			int i = org.dbgl.util.DosGameUtils.findSetupIndex(files);
+			return i < 0 ? null: names[i];
+		};
+		assertEquals("KEEN4E.EXE", main.apply("Commander Keen 4: Secret of the Oracle", new String[] {"CATALOG.EXE", "KEEN4E.EXE", "ORDER.FRM.EXE"}));
+		assertEquals("UW.EXE", main.apply("Ultima Underworld: The Stygian Abyss", new String[] {"UINSTALL.EXE", "UW.EXE", "UWSOUND.EXE", "DATA/CNV.EXE"}));
+		assertEquals("DOOM2.EXE", main.apply("Doom II", new String[] {"DM.EXE", "DOOM2.EXE", "DWANGO.EXE", "IPXSETUP.EXE", "SERSETUP.EXE", "SETUP.EXE"}));
+		assertEquals("MONKEY.EXE", main.apply("The Secret of Monkey Island", new String[] {"INSTALL.EXE", "MONKEY.EXE", "IMUSE.EXE"}));
+		assertEquals("WAR2.EXE", main.apply("Warcraft II: Tides of Darkness", new String[] {"DOS4GW.EXE", "SETUP.EXE", "WAR2.EXE", "WAR2DAT.EXE"}));
+		assertEquals("SC2000.EXE", main.apply("SimCity 2000", new String[] {"DOS4GW.EXE", "INSTALL.EXE", "SC2000.EXE", "WILLTV.EXE"}));
+		assertEquals("SQ4.BAT", main.apply("Space Quest IV", new String[] {"INSTALL.EXE", "SCIV.EXE", "SIERRA.COM", "SQ4.BAT"}));
+		assertEquals("TENTACLE.EXE", main.apply("Day of the Tentacle", new String[] {"INSTALL.EXE", "TENTACLE.EXE", "DOSBOX.EXE", "UNINS000.EXE"}));
+		assertEquals("DOTT.EXE", main.apply("Day of the Tentacle", new String[] {"DOTT.EXE", "IMUSE.EXE"}));
+		assertEquals("UFO.BAT", main.apply("X-COM: UFO Defense", new String[] {"GEOSCAPE.EXE", "GO.BAT", "SETUP.EXE", "TACTICAL.EXE", "UFO.BAT"}));
+		assertEquals("PRINCE.EXE", main.apply("Prince of Persia", new String[] {"PRINCE.EXE"}));
+		// the same name at the top and in a folder: the one at the top; a program before a batch file of the same name
+		assertEquals("DOOM.EXE", main.apply("Doom", new String[] {"OLD/DOOM.EXE", "DOOM.EXE", "DOOM.BAT"}));
+		// nothing but helpers: one of them, not nothing
+		assertEquals("SETUP.EXE", main.apply("Some Game", new String[] {"SETUP.EXE"}));
+		assertNull(main.apply("Some Game", new String[] {}));
+		// the title run together and cut off after eight letters
+		assertEquals("SIMCITY2.EXE", main.apply("SimCity 2000", new String[] {"README.EXE", "SIMCITY2.EXE", "VESA.EXE"}));
+
+		// set up: in capitals too, SETUP before INSTALL whichever comes first
+		assertEquals("SETUP.EXE", setup.apply(new String[] {"DOOM2.EXE", "INSTALL.EXE", "SETUP.EXE"}));
+		assertEquals("setup.exe", setup.apply(new String[] {"install.exe", "setup.exe"}));
+		assertEquals("INSTALL.EXE", setup.apply(new String[] {"MONKEY.EXE", "INSTALL.EXE"}));
+		assertEquals("UWSOUND.EXE", setup.apply(new String[] {"UINSTALL.EXE", "UW.EXE", "UWSOUND.EXE"}));
+		assertEquals("SETUP.EXE", setup.apply(new String[] {"SUB/SETUP.EXE", "SETUP.EXE"}));
+		assertNull(setup.apply(new String[] {"KEEN4E.EXE", "CATALOG.EXE"}));
+		assertEquals(java.util.List.of("simcity", "2000"), org.dbgl.util.DosGameUtils.titleWords("SimCity 2000"));
+		assertEquals(java.util.List.of("space", "quest", "4"), org.dbgl.util.DosGameUtils.titleWords("Space Quest IV"));
+
+		// DOSBox 0.62 to 0.70 do not name themselves in their file
+		String c063 = "[sdl]\nfullscreen=false\nfullfixed=false\n[midi]\nmpu401=true\ndevice=default\n[modem]\nmodem=false\n", c065 = "[sdl]\nfullscreen=false\n[midi]\ndevice=default\n[bios]\njoysticktype=2axis\n",
+				c070 = "[sdl]\nfullscreen=false\n[midi]\ndevice=default\n[joystick]\njoysticktype=auto\n", c074 = "[sdl]\nfullscreen=false\n[midi]\nmididevice=default\n[joystick]\njoysticktype=auto\n";
+		assertEquals("0.63", org.dbgl.util.ConfTakeover.classicByContent(c063));
+		assertEquals("0.65", org.dbgl.util.ConfTakeover.classicByContent(c065));
+		assertEquals("0.70", org.dbgl.util.ConfTakeover.classicByContent(c070));
+		assertNull(org.dbgl.util.ConfTakeover.classicByContent(c074)); // a later one without its comments: not guessed at
+		assertNull(org.dbgl.util.ConfTakeover.classicByContent("[sdl]\noutput=opengl\n"));
+		assertEquals("1024x768", org.dbgl.util.ConfTakeover.shipped("dosbox-0.63").get("sdl\nfullresolution"));
+		// "version v0.79.1"
+		assertEquals("0.79.1", org.dbgl.util.DosboxVersionDetector.parse("2026-11-15 21:52:04.072 | dosbox-staging version v0.79.1").version_);
+		assertEquals("0.75.0", org.dbgl.util.DosboxVersionDetector.parse("dosbox-staging version 0.75.0").version_);
+		// what DOSBox Staging uses for a value of DOSBox 0.74
+		assertEquals("svga_paradise", org.dbgl.util.ConfTakeover.stagingValueFor("dosbox", "machine", "VGAONLY"));
+		assertNull(org.dbgl.util.ConfTakeover.stagingValueFor("sdl", "output", "ddraw"));
+	}
 }

@@ -18,13 +18,14 @@
 package org.dbgl.util;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import java.util.stream.Stream;
+import org.apache.commons.lang3.StringUtils;
 
 
 public class DosGameUtils {
@@ -46,15 +47,144 @@ public class DosGameUtils {
 		"ask.com", "vesatest.exe", "manual.exe", "sbwave.com", "rmidpak.com", "diagnost.exe", "pkunzip.exe", "sinstall.exe", "megaem.exe", "vesa.com", "getdrv.exe", "drv_sbd.com", "chkvesa.exe",
 		"chkmem.com", "setstick.exe"));
 
+	// alpha 50: helpers that are no game either: DOS extenders, tools of DOS, packers, what a store puts next to the game
+	private static final Set<String> MORE_UNLIKELY = Set.of("dos32a.exe", "dos4g.exe", "pmodew.exe", "dosbox.exe", "dosbox-x.exe", "unins000.exe", "uninst.exe", "uninstall.exe", "emm386.exe",
+		"mouse.com", "mouse.exe", "mscdex.exe", "smartdrv.exe", "share.exe", "choice.com", "choice.exe", "pkzip.exe", "arj.exe", "lharc.exe", "unzip.exe", "rar.exe", "unrar.exe", "xcopy.exe",
+		"keyb.com", "mode.com", "debug.exe", "edit.com", "qbasic.exe", "deltree.exe", "attrib.exe", "format.com", "fdisk.exe", "scandisk.exe", "gogwrap.exe", "dxcfg.exe", "cloud_saves.exe");
+	private static final java.util.regex.Pattern SETUP_LIKE = java.util.regex.Pattern.compile("(?i).*(setup|install|setsound|sndsetup|soundset|setsnd|config|uninst).*");
+	// the programs that set up sound and controls first, the installers last: an installed game is set up with SETUP.EXE,
+	// INSTALL.EXE would install it again (for some games it is the only one that sets the sound card: then it is taken)
+	private static final List<String> SETUP_ORDER = List.of("setup.exe", "setsound.exe", "sndsetup.exe", "soundset.exe", "setsnd.exe", "uwsound.exe", "setup.com", "setup.bat", "setsound.bat",
+		"sound.exe", "sound.bat", "config.exe", "configur.exe", "config.bat", "setd.exe", "install.exe", "install.com", "install.bat");
+	private static final Set<String> SMALL_WORDS = Set.of("the", "of", "and", "a", "an", "in", "on", "to", "for", "der", "die", "das", "und");
+
+	/**
+	 * The program that most likely starts the game. Alpha 50: before, the file whose name is nearest to the title letter by
+	 * letter was taken, which for a title like "Ultima Underworld: The Stygian Abyss" is just the longest name. Now a name
+	 * counts by what such names are made of: the title run together or a part of it (DOOM2, MONKEY), its first letters (UW,
+	 * DOTT), the beginning of a word with the number of the title (WAR2, SC2000, KEEN4E); among equals the file nearer to the
+	 * top of the folder, a program before a batch file, then the nearer name as before.
+	 */
 	public static int findMostLikelyMainIndex(String title, List<File> files) {
-		Set<String> combined = Stream.concat(SETUPFILES.stream(), UNLIKELYMAINFILES.stream()).sorted().collect(Collectors.toCollection(TreeSet::new));
-		List<File> mostLikelyFiles = files.stream().filter(x -> !combined.contains(x.getName().toLowerCase())).toList();
-		if (mostLikelyFiles.isEmpty())
-			return StringRelatedUtils.findBestMatchIndex(title, FilesUtils.listFileNamesWithoutExtension(files));
-		return files.indexOf(mostLikelyFiles.get(StringRelatedUtils.findBestMatchIndex(title, FilesUtils.listFileNamesWithoutExtension(mostLikelyFiles))));
+		if (files.isEmpty())
+			return -1;
+		List<Integer> candidates = IntStream.range(0, files.size()).filter(i -> {
+			String name = files.get(i).getName().toLowerCase(java.util.Locale.ROOT);
+			return !SETUPFILES.contains(name) && !UNLIKELYMAINFILES.contains(name) && !MORE_UNLIKELY.contains(name) && !SETUP_LIKE.matcher(name).matches();
+		}).boxed().toList();
+		if (candidates.isEmpty())
+			candidates = IntStream.range(0, files.size()).boxed().toList();
+		int minDepth = candidates.stream().mapToInt(i -> depth(files.get(i))).min().orElse(0);
+		int best = candidates.get(0);
+		long bestScore = Long.MIN_VALUE;
+		for (int i: candidates) {
+			File f = files.get(i);
+			String base = org.apache.commons.io.FilenameUtils.getBaseName(f.getName());
+			long score = titleScore(title, base) * 1000L - (depth(f) - minDepth) * 15_000L - (f.getName().toLowerCase(java.util.Locale.ROOT).endsWith(".bat") ? 2000: 0)
+					- org.apache.commons.text.similarity.LevenshteinDistance.getDefaultInstance().apply(compact(title), compact(base));
+			if (score > bestScore) {
+				bestScore = score;
+				best = i;
+			}
+		}
+		return best;
 	}
 
+	private static int depth(File f) {
+		int result = 0;
+		for (File p = f.getParentFile(); p != null; p = p.getParentFile())
+			result++;
+		return result;
+	}
+
+	private static String compact(String s) {
+		return StringUtils.defaultString(s).toLowerCase(java.util.Locale.ROOT).replaceAll("[^a-z0-9]", "");
+	}
+
+	/** the words of a title, roman numbers as digits ("Doom II" -> doom, 2), a number of its own ("SimCity 2000" -> simcity, 2000) */
+	public static List<String> titleWords(String title) {
+		List<String> result = new ArrayList<>();
+		for (String w: StringUtils.defaultString(title).toLowerCase(java.util.Locale.ROOT).split("[^a-z0-9]+")) {
+			if (w.isEmpty())
+				continue;
+			String roman = switch (w) {
+				case "ii" -> "2";
+				case "iii" -> "3";
+				case "iv" -> "4";
+				case "v" -> "5";
+				case "vi" -> "6";
+				case "vii" -> "7";
+				case "viii" -> "8";
+				case "ix" -> "9";
+				default -> null;
+			};
+			java.util.regex.Matcher m = java.util.regex.Pattern.compile("^([a-z]+)(\\d+)$").matcher(w);
+			if (roman != null) {
+				result.add(roman);
+			} else if (m.matches()) {
+				result.add(m.group(1));
+				result.add(m.group(2));
+			} else {
+				result.add(w);
+			}
+		}
+		return result;
+	}
+
+	/** how well the name of a file (without its ending) fits a title: 0 not at all, more is better */
+	public static int titleScore(String title, String baseName) {
+		String base = compact(baseName);
+		List<String> words = titleWords(title);
+		if (base.isEmpty() || words.isEmpty())
+			return 0;
+		List<String> names = words.stream().filter(w -> !w.matches("\\d+")).toList(), numbers = words.stream().filter(w -> w.matches("\\d+")).toList();
+		List<String> main = names.stream().filter(w -> !SMALL_WORDS.contains(w)).toList();
+		String all = String.join("", words), allMain = String.join("", main) + String.join("", numbers);
+		if (base.equals(all) || base.equals(allMain))
+			return 100;
+		String letters = base.replaceAll("\\d+", ""), digits = base.replaceAll("[^0-9]", "");
+		boolean number = !digits.isEmpty() && numbers.contains(digits);
+		int score = 0;
+		// the first letters of the words: DOTT, UW, with or without the small words; with the number of the title: SQ4
+		String initials = names.stream().map(w -> w.substring(0, 1)).collect(Collectors.joining()), initialsMain = main.stream().map(w -> w.substring(0, 1)).collect(Collectors.joining());
+		if ((letters.length() >= 2) && (letters.equals(initials) || letters.equals(initialsMain)))
+			score = Math.max(score, 70);
+		for (String w: main) {
+			if (letters.equals(w))
+				score = Math.max(score, 80); // MONKEY, PRINCE, UFO
+			else if ((letters.length() >= 3) && w.startsWith(letters))
+				score = Math.max(score, 55 + Math.min(letters.length(), 8)); // WAR for Warcraft
+			else if ((w.length() >= 4) && letters.startsWith(w))
+				score = Math.max(score, 60); // KEEN4E: the word and something after it
+			else if ((w.length() >= 4) && letters.contains(w))
+				score = Math.max(score, 45);
+		}
+		if ((score == 0) && (letters.length() >= 2) && (all.startsWith(base) || allMain.startsWith(base)))
+			score = 50; // the title run together and cut off (DOS names have eight letters): SIMCITY2 for SimCity 2000
+		if (number)
+			score += (score > 0) || (letters.length() <= 3) ? 20: 0; // the number alone fits many files (LEVEL2)
+		return score;
+	}
+
+	/**
+	 * The program that sets the game up. Alpha 50: the names are compared without regard to upper and lower case (the files of
+	 * DOS games are in capitals, so nothing was found), and SETUP.EXE comes before INSTALL.EXE, whichever is first in the list.
+	 */
 	public static int findSetupIndex(List<File> files) {
-		return IntStream.range(0, files.size()).filter(i -> SETUPFILES.contains(files.get(i).getName())).findFirst().orElse(-1);
+		int best = -1, bestRank = Integer.MAX_VALUE;
+		for (int i = 0; i < files.size(); i++) {
+			String name = files.get(i).getName().toLowerCase(java.util.Locale.ROOT);
+			int rank = SETUP_ORDER.indexOf(name);
+			if ((rank == -1) && SETUPFILES.contains(name))
+				rank = SETUP_ORDER.size();
+			if (rank == -1)
+				continue;
+			rank = rank * 100 + Math.min(depth(files.get(i)), 99); // among the same names the one nearer to the top
+			if (rank < bestRank) {
+				bestRank = rank;
+				best = i;
+			}
+		}
+		return best;
 	}
 }

@@ -1,4 +1,4 @@
-# the defaults of DOSBox 0.71 and 0.72 (as written by the version for Windows), for "Take over settings"
+# the defaults of DOSBox 0.70, 0.71 and 0.72 (as written by the version for Windows), for "Take over settings"
 sdl|fullscreen=false
 sdl|fulldouble=false
 sdl|fullresolution=original

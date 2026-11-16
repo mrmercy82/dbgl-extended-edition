@@ -42,12 +42,26 @@ Verbessert
   Die Standardwerte decken DOSBox-X 2023.10.06 bis 2026.10.01 ab.
 
 Neu
+- Rückweg vom USB-Stick (Menü "Profile" > "Vom USB-Stick
+  zurückholen..."): Was auf einem Stick des Assistenten "Portabel
+  (USB-Stick)" gespielt wurde, kommt in die Installation zurück, aus der
+  er erstellt wurde: Spielzeit und Starts, neue Dateien (Spielstände,
+  Bildschirmfotos) und auf dem Stick geänderte Dateien. Vorher zeigt eine
+  Vorschau jede Datei; der Bericht lässt sich speichern. Eine Datei, die
+  auf beiden Seiten geändert wurde, wird nicht angefasst und genannt.
+  Ersetzte Dateien bleiben in einem Sicherungsordner, gelöscht wird
+  nichts. Nichts wird doppelt gezählt, wenn man mehrmals zurückholt.
+  Voraussetzung: Der Stick wurde mit alpha 50 oder neuer erstellt (er
+  bekommt dabei die nötigen Angaben mit).
 - "Profile prüfen" weist darauf hin, wenn die Konfigurationsdatei einer
   DOSBox-Version von einer älteren Version geschrieben wurde als
   eingetragen ist. Im Reiter "DOSBox-Versionen" gibt es dazu per
   Rechtsklick "Konfigurationsdatei neu schreiben lassen": Die eigenen
   Einstellungen und [autoexec] bleiben, die bisherige Datei bleibt als
   .bak daneben.
+- Neuer Reiter "Ohne Bilder" neben "Alle Profile": die Profile, die weder
+  Cover noch Screenshot haben. Er wird bei jedem Aufbau neu ermittelt;
+  ein Profil verschwindet daraus, sobald es ein Bild hat.
 - "Filter bearbeiten" zeigt unter der Bedingung ihre Bedeutung in Worten
   (z. B. Titel enthält "JURASSIC" oder Entwickler ist "Apogee"). Die
   Bedingung selbst bleibt, wie sie ist; bei einer von Hand geschriebenen,

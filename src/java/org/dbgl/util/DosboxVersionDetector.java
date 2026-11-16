@@ -54,7 +54,7 @@ public class DosboxVersionDetector {
 		}
 	}
 
-	private static final Pattern STAGING_PATRN = Pattern.compile("dosbox[- ]staging,?\\s+version\\s+(\\d+\\.\\d+\\.\\d+)", Pattern.CASE_INSENSITIVE);
+	private static final Pattern STAGING_PATRN = Pattern.compile("dosbox[- ]staging,?\\s+version\\s+v?(\\d+\\.\\d+\\.\\d+)", Pattern.CASE_INSENSITIVE); // "version v0.79.1" in 0.78 and 0.79
 	private static final Pattern X_PATRN = Pattern.compile("DOSBox-X\\s+version\\s+(\\d{4}\\.\\d{2}\\.\\d{2})", Pattern.CASE_INSENSITIVE);
 	// ECE, Daum and SVN builds don't report a precise version in a uniform way ("DOSBox version SVN", "SVN-Daum", "ECE r4482"),
 	// so these are recognized by name and mapped to the version DBGL supports for that family
@@ -441,6 +441,13 @@ public class DosboxVersionDetector {
 				if (m.find())
 					return m.group(1);
 			}
+		} catch (IOException e) {
+			return null; // unreadable: unknown
+		}
+		// alpha 50: DOSBox 0.62 to 0.70 do not name themselves in their file: known by the settings they have
+		try {
+			if (conf.length() < 200_000)
+				return ConfTakeover.classicByContent(java.nio.file.Files.readString(conf.toPath(), java.nio.charset.StandardCharsets.ISO_8859_1));
 		} catch (IOException e) {
 			// unreadable: unknown
 		}

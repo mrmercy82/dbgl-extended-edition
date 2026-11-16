@@ -41,11 +41,23 @@ Improved
   2023.10.06 to 2026.10.01.
 
 New
+- The way back from a USB stick (menu "Profiles" > "Bring back from USB
+  stick..."): what was played on a stick of the assistant "Portable (USB
+  stick)" comes back into the installation it was made from: play time
+  and starts, new files (saved games, screenshots) and files changed on
+  the stick. A preview shows every file first; the report can be saved.
+  A file changed on both sides is not touched and named. Files that are
+  replaced are kept in a backup folder, nothing is deleted. Nothing is
+  counted twice when bringing back several times. Needed: the stick was
+  made with alpha 50 or later (it gets the details it needs then).
 - "Check profiles" tells when the configuration file of a DOSBox version
   was written by an older version than the one entered. The tab "DOSBox
   versions" has "Have the configuration file written again" on right
   click for it: your settings and [autoexec] stay, the file as it was is
   kept next to it as .bak.
+- New tab "Without pictures" next to "All profiles": the profiles that
+  have neither cover nor screenshot. It is found anew each time the list
+  is built; a profile leaves it as soon as it has a picture.
 - "Edit filter" shows the meaning of the condition in words below it
   (e.g. Title contains "JURASSIC" or Developer is "Apogee"). The
   condition itself stays as it is; for one written by hand that DBGL

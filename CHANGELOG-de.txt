@@ -7,6 +7,24 @@ Grundlage: DBGL 0.100 beta 17 von Ronald Blankendaal (https://dbgl.org), Quellco
 0.101 alpha 50 (in Arbeit)
 --------------------------
 Verbessert
+- Erkennung beim Hinzufügen eines Spiels (Assistent): Die Startdatei wird
+  jetzt nach dem gewählt, woraus solche Namen bestehen: der Titel am
+  Stück oder ein Teil davon (DOOM2, MONKEY), seine Anfangsbuchstaben (UW,
+  DOTT), ein Wortanfang mit der Nummer des Titels (WAR2, SC2000, KEEN4E).
+  Bisher gewann der Name, der dem Titel Buchstabe für Buchstabe am
+  nächsten kam. Die Setup-Datei wurde bei Dateinamen in Großbuchstaben
+  gar nicht gefunden; jetzt wird sie gefunden, und SETUP.EXE geht vor
+  INSTALL.EXE.
+- "Profile prüfen" bei DOSBox Staging: Für Werte von DOSBox 0.74 nennt es
+  jetzt den Wert, den DOSBox Staging selbst dafür nimmt, und stellt ihn
+  auf Wunsch um ("vgaonly" zu "svga_paradise", "win32" zu "port",
+  "openglnb" zu "opengl", "none" zu "disabled"). "cycles" und
+  "windowresolution" wurden als unbekannt und wirkungslos gemeldet; DOSBox
+  Staging nimmt sie aber noch an, das steht jetzt so da.
+- DOSBox-Version erkennen: Konfigurationsdateien von DOSBox 0.62 bis 0.70
+  nennen ihre Version nicht; DBGL erkennt sie jetzt an ihren
+  Einstellungen und kennt ihre Standardwerte. DOSBox Staging 0.78 und
+  0.79 melden sich als "version v0.79.1" und wurden nicht erkannt.
 - Große Sammlungen: Die Profilliste (Ansicht "Tabelle") füllt ihre Zeilen
   erst, wenn sie ins Bild kommen. Mit 5000 Profilen steht die Liste nach
   Sortieren, Filtern oder Bearbeiten deutlich schneller (unter Linux

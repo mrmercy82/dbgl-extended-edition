@@ -178,6 +178,8 @@ public final class ConfTakeover {
 		String[] all = lines(text);
 		for (int i = 0; (i < Math.min(5, all.length)) && result.isEmpty(); i++)
 			result.putAll(shipped(listFor(all[i]))); // also a line without "#": the Russian file of DOSBox-X has none there
+		if (result.isEmpty())
+			result.putAll(shipped(listByContent(text))); // DOSBox 0.62 to 0.70
 		// only DOSBox Staging writes a comment of its own above each setting; the others have all of them at the top of the
 		// section, where "by default" belongs to some other setting
 		if (Arrays.stream(all).limit(5).noneMatch(l -> STAGING_VERSION.matcher(l).find()))
@@ -206,7 +208,41 @@ public final class ConfTakeover {
 
 	/** which DOSBox wrote the file, going by its first lines: the start of the name of its list of defaults, "" if not known */
 	private static String kind(String text) {
-		return Arrays.stream(lines(text)).limit(5).map(ConfTakeover::listFor).filter(java.util.Objects::nonNull).map(n -> n.replaceAll("-[0-9].*", "")).findFirst().orElse("");
+		return Arrays.stream(lines(text)).limit(5).map(ConfTakeover::listFor).filter(java.util.Objects::nonNull).map(n -> n.replaceAll("-[0-9].*", "")).findFirst()
+				.orElse(classicByContent(text) != null ? "dosbox": "");
+	}
+
+	/**
+	 * Alpha 50: DOSBox 0.62 to 0.70 write no line with their name and version at the top of their file. They are known by
+	 * what only they have: 0.62 and 0.63 the sections [modem] and [directserial] (and "fullfixed"), 0.65 the type of the
+	 * joystick in a section [bios], 0.70 a section [joystick] together with the MIDI device as "device" (0.73 and later:
+	 * "mididevice"; 0.71 and 0.72 have the same settings as 0.70 and name themselves).
+	 * 
+	 * @return "0.63" (also for 0.62), "0.65", "0.70", or null for any other file
+	 */
+	public static String classicByContent(String text) {
+		if (text == null)
+			return null;
+		Map<String, String[]> settings = settings(text);
+		java.util.function.BiPredicate<String, String> has = (section, item) -> settings.containsKey(key(section, item));
+		if (!has.test("sdl", "fullscreen") || !has.test("midi", "device") || has.test("midi", "mididevice"))
+			return null;
+		if (has.test("modem", "modem") || has.test("directserial", "directserial") || has.test("sdl", "fullfixed"))
+			return "0.63";
+		if (has.test("bios", "joysticktype"))
+			return "0.65";
+		return has.test("joystick", "joysticktype") ? "0.70": null;
+	}
+
+	/** the list of defaults for a file DOSBox 0.62 to 0.70 wrote (see {@link #classicByContent}), null for any other */
+	private static String listByContent(String text) {
+		String version = classicByContent(text);
+		return version == null ? null: version.equals("0.70") ? "dosbox-0.72": "dosbox-" + version;
+	}
+
+	/** what DOSBox Staging calls a value of DOSBox 0.74 ("pentium_slow" -> "pentium"), null if it has no other name for it */
+	public static String stagingValueFor(String section, String item, String value) {
+		return CLASSIC_TO_STAGING.get(key(section, item) + "=" + (value == null ? "": value).trim().toLowerCase(Locale.ROOT));
 	}
 
 	/** the name of the list of defaults for the version a first line of a file names, null if there is none */
