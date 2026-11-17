@@ -115,7 +115,10 @@ public class Mess_ {
 			if (shell_ != null && DarkTheme.forced())
 				return darkBox(msg); // alpha 48: the message box of the system stays light
 			if (shell_ != null) {
-				MessageBox messageBox = new MessageBox(shell_, style_);
+				// alpha 51: with no window of DBGL showing (e.g. a fatal error at startup), the message stays in front: else it could
+				// go behind other windows, without a button in the taskbar, and DBGL kept running unseen
+				int style = shell_.isVisible() ? style_: (style_ & ~SWT.APPLICATION_MODAL) | SWT.SYSTEM_MODAL;
+				MessageBox messageBox = new MessageBox(shell_, style);
 				messageBox.setText(title_);
 				messageBox.setMessage(msg);
 				return messageBox.open();
@@ -165,7 +168,10 @@ public class Mess_ {
 		/** alpha 48: the message in a dialog of our own, in the colours of the dark mode; the buttons and their result as with MessageBox */
 		private int darkBox(String msg) {
 			org.eclipse.swt.widgets.Display display = shell_.getDisplay();
-			Shell dlg = new Shell(shell_, SWT.DIALOG_TRIM | SWT.APPLICATION_MODAL);
+			// alpha 51: with no window of DBGL showing (e.g. a fatal error at startup), a window of its own, with a button in the taskbar
+			// and in front of the others: as a dialog of the hidden window it could go behind them and could not be found again
+			boolean alone = !shell_.isVisible();
+			Shell dlg = alone ? new Shell(display, SWT.DIALOG_TRIM | SWT.ON_TOP): new Shell(shell_, SWT.DIALOG_TRIM | SWT.APPLICATION_MODAL);
 			dlg.setText(title_);
 			org.dbgl.gui.abstractdialog.BaseDialog.inheritWindowImage(dlg, shell_);
 			dlg.setBackground(DarkTheme.dialogBackground);
@@ -225,11 +231,14 @@ public class Mess_ {
 			}
 			DarkTheme.apply(dlg);
 			dlg.pack();
-			org.eclipse.swt.graphics.Rectangle area = shell_.getMonitor().getClientArea(), parent = shell_.getBounds();
+			org.eclipse.swt.graphics.Rectangle area = alone ? display.getPrimaryMonitor().getClientArea(): shell_.getMonitor().getClientArea();
+			org.eclipse.swt.graphics.Rectangle parent = alone ? area: shell_.getBounds();
 			org.eclipse.swt.graphics.Point size = dlg.getSize();
 			dlg.setLocation(Math.max(area.x, Math.min(parent.x + (parent.width - size.x) / 2, area.x + area.width - size.x)),
 				Math.max(area.y, Math.min(parent.y + (parent.height - size.y) / 2, area.y + area.height - size.y)));
 			dlg.open();
+			if (alone)
+				dlg.forceActive();
 			while (!dlg.isDisposed())
 				if (!display.readAndDispatch())
 					display.sleep();

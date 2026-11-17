@@ -51,6 +51,10 @@ Improved
   ten seconds instead of stopping with an error at once. If it cannot be
   read at all, the message now tells the reason too. What the new DBGL
   writes is kept in logs/restart-output.txt (see "Manage log files").
+- A message while no window of DBGL is open (e.g. a fatal error at
+  startup) is now a window of its own with a button in the taskbar and
+  stays in front. Before, it could go behind other windows; DBGL then kept
+  running unseen and held on to its files.
 - Guide of the stand-alone package: dbgl.cmd is the recommended start on
   Windows; launch.exe finds an installed Java only through the "JavaSoft"
   registry keys.

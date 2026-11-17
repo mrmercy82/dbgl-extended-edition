@@ -54,6 +54,10 @@ Verbessert
   nicht gelesen werden, nennt die Meldung jetzt auch den Grund. Was das
   neu gestartete DBGL ausgibt, steht in logs/restart-output.txt (unter
   "Logdateien verwalten").
+- Eine Meldung, während kein Fenster von DBGL offen ist (z. B. ein
+  schwerer Fehler beim Start), ist jetzt ein eigenes Fenster mit Knopf in
+  der Taskleiste und bleibt vorn. Bisher konnte sie hinter andere Fenster
+  rutschen; DBGL lief dann unsichtbar weiter und hielt seine Dateien fest.
 - Anleitung des eigenständigen Pakets: dbgl.cmd ist der empfohlene Start
   unter Windows; launch.exe findet ein installiertes Java nur über die
   "JavaSoft"-Registry-Einträge.
