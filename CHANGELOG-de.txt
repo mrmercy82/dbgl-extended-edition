@@ -62,9 +62,12 @@ Verbessert
   "Couldn't create socket" in der Ausgabe (seit alpha 48).
 - Mit Java 24 und neuer erscheint beim Start keine Warnung mehr wegen
   der Bibliothek von SWT ("restricted method").
-- Anleitung des eigenständigen Pakets: dbgl.cmd ist der empfohlene Start
-  unter Windows; launch.exe findet ein installiertes Java nur über die
-  "JavaSoft"-Registry-Einträge.
+- launch.exe (Windows) ist neu gebaut, mit Launch4j 3.50 und dem Symbol
+  von beta 17: Es sucht Java 21 oder neuer jetzt zuerst im Ordner "jre",
+  dann über JAVA_HOME und den PATH und zuletzt in der Registry. Bisher
+  fand es ein installiertes Java nur über die "JavaSoft"-Einträge der
+  Registry, die z. B. der Temurin-Installer nicht von selbst anlegt, und
+  verlangte nur Java 17. Die Konfiguration liegt in src/launcher.
 
 0.101 alpha 50 (2026-11-16)
 ---------------------------

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  launch.exe of DBGL Extended Edition (alpha 51), made with Launch4j 3.50 (https://launch4j.sourceforge.net):
+    java -jar launch4j/launch4j.jar src/launcher/launch4j.xml
+  The icon is the one of the launch.exe of DBGL 0.100 beta 17 by Ronald Blankendaal.
+  Java is looked for in the folder "jre" beside DBGL, then in JAVA_HOME and in the PATH, then in the registry
+  (the launch.exe of beta 17 looked only in "jre" and in the registry). At least Java 21, 64 bit.
+-->
+<launch4jConfig>
+  <dontWrapJar>true</dontWrapJar>
+  <headerType>gui</headerType>
+  <jar>dbgl.jar</jar>
+  <outfile>../dist/winshared/launch.exe</outfile>
+  <errTitle>DBGL Extended Edition</errTitle>
+  <cmdLine></cmdLine>
+  <chdir>.</chdir>
+  <priority>normal</priority>
+  <downloadUrl>https://adoptium.net/temurin/releases/?version=21</downloadUrl>
+  <supportUrl></supportUrl>
+  <stayAlive>false</stayAlive>
+  <restartOnCrash>false</restartOnCrash>
+  <manifest></manifest>
+  <icon>dbgl.ico</icon>
+  <jre>
+    <path>jre;%JAVA_HOME%;%PATH%</path>
+    <requiresJdk>false</requiresJdk>
+    <requires64Bit>true</requires64Bit>
+    <minVersion>21</minVersion>
+    <maxVersion></maxVersion>
+    <opt>-Djdk.util.zip.disableZip64ExtraFieldValidation=true</opt>
+  </jre>
+  <versionInfo>
+    <fileVersion>0.101.0.0</fileVersion>
+    <txtFileVersion>0.101</txtFileVersion>
+    <fileDescription>DBGL Extended Edition</fileDescription>
+    <copyright>GNU General Public License; DBGL 0.100 beta 17 by Ronald Blankendaal</copyright>
+    <productVersion>0.101.0.0</productVersion>
+    <txtProductVersion>0.101</txtProductVersion>
+    <productName>DBGL Extended Edition</productName>
+    <companyName></companyName>
+    <internalName>launch</internalName>
+    <originalFilename>launch.exe</originalFilename>
+    <trademarks></trademarks>
+    <language>ENGLISH_US</language>
+  </versionInfo>
+  <messages>
+    <startupErr>DBGL Extended Edition could not be started.</startupErr>
+    <jreNotFoundErr>DBGL Extended Edition needs Java 21 or newer (64 bit), e.g. Eclipse Temurin 21. No such Java was found in the folder "jre", in JAVA_HOME, in the PATH or in the registry. You can also start DBGL with dbgl.cmd.</jreNotFoundErr>
+    <jreVersionErr>DBGL Extended Edition needs Java 21 or newer (64 bit), e.g. Eclipse Temurin 21.</jreVersionErr>
+    <launcherErr>The Java the registry names does not exist or is damaged. Please install Java 21 or newer (64 bit) again, or start DBGL with dbgl.cmd.</launcherErr>
+  </messages>
+</launch4jConfig>

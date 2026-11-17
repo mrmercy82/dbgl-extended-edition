@@ -59,9 +59,12 @@ Improved
   to the output when DBGL ended (since alpha 48).
 - With Java 24 and newer, no warning about the library of SWT
   ("restricted method") at startup any more.
-- Guide of the stand-alone package: dbgl.cmd is the recommended start on
-  Windows; launch.exe finds an installed Java only through the "JavaSoft"
-  registry keys.
+- launch.exe (Windows) is built anew, with Launch4j 3.50 and the icon of
+  beta 17: it now looks for Java 21 or newer in the folder "jre" first,
+  then through JAVA_HOME and the PATH, and last in the registry. Before,
+  it found an installed Java only through the "JavaSoft" keys of the
+  registry, which e.g. the Temurin installer does not add by itself, and
+  asked for Java 17 only. Its configuration is in src/launcher.
 
 0.101 alpha 50 (2026-11-16)
 ---------------------------

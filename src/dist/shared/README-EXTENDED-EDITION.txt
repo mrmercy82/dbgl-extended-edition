@@ -22,14 +22,12 @@ With an older Java, DBGL says so at the start instead of opening.
 How to start
 ------------
 Windows:  unpack the archive into a folder of your own (not into "Program
-          Files"), then start dbgl.cmd. DOSBox 0.74-3 is included; other
-          versions (DOSBox Staging, DOSBox-X) can be added in DBGL on the
-          tab "DOSBox versions".
-          dbgl.cmd uses the Java found in the PATH, or the Java in a folder
-          "jre" in the DBGL folder. launch.exe finds Java only in such a
-          "jre" folder or when its installer wrote the "JavaSoft" registry
-          keys (an option in the Temurin installer); if launch.exe says
-          Java is missing although it is installed, use dbgl.cmd.
+          Files"), then start launch.exe (or dbgl.cmd). DOSBox 0.74-3 is
+          included; other versions (DOSBox Staging, DOSBox-X) can be added
+          in DBGL on the tab "DOSBox versions".
+          launch.exe looks for Java 21 or newer in a folder "jre" in the
+          DBGL folder, then in JAVA_HOME and in the PATH, then in the
+          registry. dbgl.cmd uses the Java in "jre" or the one in the PATH.
 Linux:    unpack the archive, then start ./dbgl. DOSBox is not included:
           install it with your distribution and add it on the tab "DOSBox
           versions". DBGL keeps its data in your home folder.
@@ -76,15 +74,12 @@ Mit einem aelteren Java meldet DBGL das beim Start, statt sich zu oeffnen.
 
 Starten:
 Windows:  Archiv in einen eigenen Ordner entpacken (nicht unter
-          "Programme"), dann dbgl.cmd starten. DOSBox 0.74-3 liegt bei;
-          weitere Versionen (DOSBox Staging, DOSBox-X) lassen sich in DBGL
-          auf dem Reiter "DOSBox-Versionen" hinzufuegen.
-          dbgl.cmd nimmt das Java aus dem PATH oder das Java in einem Ordner
-          "jre" im DBGL-Ordner. launch.exe findet Java nur in so einem
-          "jre"-Ordner oder wenn das Installationsprogramm die
-          "JavaSoft"-Registry-Eintraege angelegt hat (eine Option im
-          Temurin-Installer); meldet launch.exe fehlendes Java, obwohl es
-          installiert ist, bitte dbgl.cmd verwenden.
+          "Programme"), dann launch.exe (oder dbgl.cmd) starten. DOSBox
+          0.74-3 liegt bei; weitere Versionen (DOSBox Staging, DOSBox-X)
+          lassen sich in DBGL auf dem Reiter "DOSBox-Versionen" hinzufuegen.
+          launch.exe sucht Java 21 oder neuer zuerst in einem Ordner "jre"
+          im DBGL-Ordner, dann ueber JAVA_HOME und den PATH, zuletzt in der
+          Registry. dbgl.cmd nimmt das Java aus "jre" oder aus dem PATH.
 Linux:    Archiv entpacken, dann ./dbgl starten. DOSBox liegt nicht bei:
           ueber die Distribution installieren und auf dem Reiter
           "DOSBox-Versionen" eintragen. DBGL legt seine Daten im
