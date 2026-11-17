@@ -558,7 +558,7 @@ public final class ProfileReports {
 		if (created == null || info.isEmpty())
 			return info;
 		org.dbgl.service.SettingsService settings = org.dbgl.service.SettingsService.getInstance();
-		java.util.Locale locale = new java.util.Locale(settings.getValue("locale", "language"), settings.getValue("locale", "country"));
+		java.util.Locale locale = java.util.Locale.of(settings.getValue("locale", "language"), settings.getValue("locale", "country"));
 		return info + separator + text.get("dialog.main.playinfo.created", new Object[] {DateFormat.getDateInstance(DateFormat.MEDIUM, locale).format(created)});
 	}
 
@@ -582,7 +582,7 @@ public final class ProfileReports {
 			if (sessions.last() == null)
 				return text.get("dialog.main.playinfo.nosession", new Object[] {total});
 			org.dbgl.service.SettingsService settings = org.dbgl.service.SettingsService.getInstance();
-			java.util.Locale locale = new java.util.Locale(settings.getValue("locale", "language"), settings.getValue("locale", "country"));
+			java.util.Locale locale = java.util.Locale.of(settings.getValue("locale", "language"), settings.getValue("locale", "country"));
 			String when = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT, locale).format(sessions.last().started());
 			return text.get("dialog.main.playinfo", new Object[] {total, sessions.count(), when, time(sessions.last().seconds())});
 		} catch (java.sql.SQLException e) {

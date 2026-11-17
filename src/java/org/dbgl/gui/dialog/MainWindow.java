@@ -1505,7 +1505,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		try {
 			List<Profile> all = new ProfileRepository().list(StringUtils.EMPTY, StringUtils.EMPTY, dbversionsList_);
 			java.util.Date now = new java.util.Date();
-			java.util.Locale locale = new java.util.Locale(settings_.getValue("locale", "language"), settings_.getValue("locale", "country"));
+			java.util.Locale locale = java.util.Locale.of(settings_.getValue("locale", "language"), settings_.getValue("locale", "country"));
 			// alpha 49: the disk space at the top, in every form of the report
 			shell_.setCursor(display_.getSystemCursor(SWT.CURSOR_WAIT));
 			List<String> disk;
@@ -4772,7 +4772,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 	}
 
 	private java.util.Locale uiLocale() {
-		return new java.util.Locale(settings_.getValue("locale", "language"), settings_.getValue("locale", "country"));
+		return java.util.Locale.of(settings_.getValue("locale", "language"), settings_.getValue("locale", "country"));
 	}
 
 	/** alpha 49: the sizes are found when something shows them: the column, the info below the notes, the profile editor or the TV mode */

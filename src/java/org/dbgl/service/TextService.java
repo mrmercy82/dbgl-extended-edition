@@ -27,11 +27,11 @@ public class TextService extends TextServiceBase {
 	}
 
 	private static class TextServiceHolder {
-		private static final TextService instance_ = new TextService(new Locale(SettingsService.getInstance().getValue("locale", "language"),
+		private static final TextService instance_ = new TextService(Locale.of(SettingsService.getInstance().getValue("locale", "language"),
 				SettingsService.getInstance().getValue("locale", "country"), SettingsService.getInstance().getValue("locale", "variant")));
 
 		private static void refresh() {
-			instance_.refresh(new Locale(SettingsService.getInstance().getValue("locale", "language"), SettingsService.getInstance().getValue("locale", "country"),
+			instance_.refresh(Locale.of(SettingsService.getInstance().getValue("locale", "language"), SettingsService.getInstance().getValue("locale", "country"),
 					SettingsService.getInstance().getValue("locale", "variant")));
 		}
 	}

@@ -116,7 +116,7 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 		Composite generalComposite = createScrolledTabWithComposite("dialog.settings.tab.general", new GridLayout());
 
 		Map<String, Locale> locales = getLocales();
-		Locale locale = new Locale(settings_.getValue("locale", "language"), settings_.getValue("locale", "country"), settings_.getValue("locale", "variant"));
+		Locale locale = Locale.of(settings_.getValue("locale", "language"), settings_.getValue("locale", "country"), settings_.getValue("locale", "variant"));
 		String locString = locales.keySet().stream().filter(key -> locales.get(key).equals(locale)).findFirst().orElse(StringUtils.EMPTY);
 
 		// alpha 48: the language first
@@ -938,7 +938,7 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 					s.append(" - ").append(loc.getDisplayCountry()).append(" [").append(loc.getDisplayCountry(loc)).append("]");
 				if (variant != null) {
 					s.append(" (").append(variant).append(')');
-					loc = new Locale(loc.getLanguage(), loc.getCountry(), variant);
+					loc = Locale.of(loc.getLanguage(), loc.getCountry(), variant);
 				}
 				locales.put(s.toString(), loc);
 			}

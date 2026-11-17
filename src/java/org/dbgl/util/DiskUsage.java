@@ -151,7 +151,7 @@ public final class DiskUsage {
 	/** the language DBGL is shown in (for the decimal sign) */
 	public static Locale uiLocale() {
 		org.dbgl.service.SettingsService settings = org.dbgl.service.SettingsService.getInstance();
-		return new Locale(settings.getValue("locale", "language"), settings.getValue("locale", "country"));
+		return Locale.of(settings.getValue("locale", "language"), settings.getValue("locale", "country"));
 	}
 
 	/** "Disk space: 1.2 GB" for the info of a profile, "" while the size is not known */
