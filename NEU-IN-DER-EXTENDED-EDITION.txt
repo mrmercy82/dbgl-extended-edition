@@ -33,7 +33,8 @@ DAS NEUESTE IN 0.101 ALPHA 51
     unter Windows und macOS ist DOSBox 0.74-3 dabei.
   - Neue launch.exe: findet Java 21 auch über JAVA_HOME und den PATH, mit
     dem Symbol der Extended Edition.
-  - Hilfe > "Alle Fenster abfotografieren (für Fehlerberichte)".
+  - "Alle Fenster abfotografieren (für Fehlerberichte)" im Fenster
+    "Logdateien verwalten" (Menü Datei).
   - Neue Bibliotheken für die Oberfläche (SWT 4.41, Nebula Gallery 1.1.0).
   - Behoben: Fehler "create initial tables" nach dem Neustart für einen
     Wechsel in den Dunkelmodus; Meldungen, die hinter anderen Fenstern

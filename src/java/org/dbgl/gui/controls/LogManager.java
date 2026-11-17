@@ -80,7 +80,10 @@ public final class LogManager {
 	 *
 	 * @param view shows a log (the main window does that, in its window for texts)
 	 */
-	public static void open(Shell shell, Locale locale, java.util.function.BiConsumer<Shell, Entry> view) {
+	/**
+	 * @param windowTour alpha 51: what the button "Take pictures of all windows" does after this window closed (null: no button)
+	 */
+	public static void open(Shell shell, Locale locale, java.util.function.BiConsumer<Shell, Entry> view, Runnable windowTour) {
 		ITextService text = TextService.getInstance();
 		Display display = shell.getDisplay();
 		Shell dlg = new Shell(shell, SWT.DIALOG_TRIM | SWT.APPLICATION_MODAL | SWT.RESIZE | SWT.MAX);
@@ -142,7 +145,7 @@ public final class LogManager {
 		// how many logs of a profile are kept
 		Composite keepRow = new Composite(dlg, SWT.NONE);
 		keepRow.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 2, 1));
-		GridLayout keepLayout = new GridLayout(3, false);
+		GridLayout keepLayout = new GridLayout(windowTour == null ? 3: 4, false);
 		keepLayout.marginWidth = 0;
 		keepRow.setLayout(keepLayout);
 		new Label(keepRow, SWT.NONE).setText(text.get("dialog.logs.keep"));
@@ -153,6 +156,16 @@ public final class LogManager {
 		Button apply = new Button(keepRow, SWT.PUSH);
 		apply.setText(text.get("dialog.logs.keep.apply"));
 		BaseDialog.wideButton(apply);
+		if (windowTour != null) { // alpha 51: moved here from the menu Help; the tour opens this window too, so it closes first
+			Button pictures = new Button(keepRow, SWT.PUSH);
+			pictures.setText(text.get("dialog.main.menu.windowtour"));
+			pictures.setLayoutData(new GridData(SWT.END, SWT.CENTER, true, false));
+			BaseDialog.wideButton(pictures);
+			pictures.addListener(SWT.Selection, e -> {
+				dlg.close();
+				display.asyncExec(windowTour);
+			});
+		}
 
 		File logsDir = DosboxLog.logsDir();
 		List<Entry> shown = new ArrayList<>();

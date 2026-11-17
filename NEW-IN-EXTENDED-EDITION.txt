@@ -31,7 +31,8 @@ NEWEST IN 0.101 ALPHA 51
     and macOS DOSBox 0.74-3 comes with it.
   - New launch.exe: finds Java 21 also through JAVA_HOME and the PATH,
     with the icon of the Extended Edition.
-  - Help > "Take pictures of all windows (for error reports)".
+  - "Take pictures of all windows (for error reports)" in the window
+    "Manage log files" (menu File).
   - New libraries for the user interface (SWT 4.41, Nebula Gallery 1.1.0).
   - Fixed: the error "create initial tables" after the new start for a
     switch to dark mode; messages that disappeared behind other windows.

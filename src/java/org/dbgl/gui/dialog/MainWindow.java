@@ -2141,7 +2141,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				} catch (IOException e) {
 					Mess_.on(parent).exception(e).warning();
 				}
-			});
+			}, MainWindow.this::doWindowTour);
 		}
 	};
 
@@ -2657,14 +2657,6 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			@Override
 			public void widgetSelected(SelectionEvent event) {
 				showDocument("changelog", "dialog.main.menu.changelog");
-			}
-		}).build();
-		// alpha 51: for error reports: pictures of all windows
-		MenuItem_.on(helpMenu).build();
-		MenuItem_.on(helpMenu).key("dialog.main.menu.windowtour").image(ImageService.IMG_LOG).listen(new SelectionAdapter() {
-			@Override
-			public void widgetSelected(SelectionEvent event) {
-				doWindowTour();
 			}
 		}).build();
 		if (systemMenu == null) {
@@ -5708,6 +5700,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		steps.add(new org.dbgl.gui.controls.WindowTour.Step("check-profiles", none, () -> new CheckProfilesDialog(shell_).open()));
 		steps.add(new org.dbgl.gui.controls.WindowTour.Step("backups", none, () -> org.dbgl.gui.controls.BackupManager.open(shell_, uiLocale())));
 		steps.add(new org.dbgl.gui.controls.WindowTour.Step("logs", none, () -> org.dbgl.gui.controls.LogManager.open(shell_, uiLocale(), (parent, entry) -> {
+		}, () -> {
 		})));
 		steps.add(new org.dbgl.gui.controls.WindowTour.Step("statistics", none, this::doShowStatistics));
 		if (version != null) {
