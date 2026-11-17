@@ -55,6 +55,10 @@ Improved
   startup) is now a window of its own with a button in the taskbar and
   stays in front. Before, it could go behind other windows; DBGL then kept
   running unseen and held on to its files.
+- With the message port on, "Couldn't create socket" was wrongly written
+  to the output when DBGL ended (since alpha 48).
+- With Java 24 and newer, no warning about the library of SWT
+  ("restricted method") at startup any more.
 - Guide of the stand-alone package: dbgl.cmd is the recommended start on
   Windows; launch.exe finds an installed Java only through the "JavaSoft"
   registry keys.

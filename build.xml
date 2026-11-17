@@ -94,6 +94,8 @@
 				</section>
 				<attribute name="Class-Path" value="${class-path} ./"/>
 				<attribute name="Main-Class" value="org.dbgl.gui.Start"/>
+				<!-- alpha 51: SWT loads its native library; from Java 24 on that is warned about unless allowed here (Java 21 ignores it) -->
+				<attribute name="Enable-Native-Access" value="ALL-UNNAMED"/>
 			</manifest>
 		</jar>
 	</target>

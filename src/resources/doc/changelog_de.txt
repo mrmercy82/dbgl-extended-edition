@@ -58,6 +58,10 @@ Verbessert
   schwerer Fehler beim Start), ist jetzt ein eigenes Fenster mit Knopf in
   der Taskleiste und bleibt vorn. Bisher konnte sie hinter andere Fenster
   rutschen; DBGL lief dann unsichtbar weiter und hielt seine Dateien fest.
+- Mit eingeschaltetem Nachrichten-Port stand beim Beenden fälschlich
+  "Couldn't create socket" in der Ausgabe (seit alpha 48).
+- Mit Java 24 und neuer erscheint beim Start keine Warnung mehr wegen
+  der Bibliothek von SWT ("restricted method").
 - Anleitung des eigenständigen Pakets: dbgl.cmd ist der empfohlene Start
   unter Windows; launch.exe findet ein installiertes Java nur über die
   "JavaSoft"-Registry-Einträge.

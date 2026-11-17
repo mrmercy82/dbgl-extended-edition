@@ -58,7 +58,12 @@ public class Messaging extends Thread {
 			System.out.println(text_.get("communication.notice.listening", new Object[] {port_}));
 
 			while (true) {
-				Socket accepted = server_.accept();
+				Socket accepted;
+				try {
+					accepted = server_.accept();
+				} catch (SocketException se) {
+					break; // alpha 51: the port closed when DBGL ends, as in beta 17 (since alpha 48 told as "could not create socket")
+				}
 				// alpha 48: a game started from outside (Steam: "dbgl --run <id>"); the answer comes when it ended
 				accepted.setSoTimeout(5000);
 				BufferedReader reader = new BufferedReader(new InputStreamReader(accepted.getInputStream(), java.nio.charset.StandardCharsets.UTF_8));

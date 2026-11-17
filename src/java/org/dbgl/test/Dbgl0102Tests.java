@@ -4682,6 +4682,7 @@ public class Dbgl0102Tests {
 		// and the jar starts with it: as written in build.xml
 		String build = Files.readString(new File(System.getProperty("dbgl.testdata")).toPath().resolve("../../../../../../build.xml").normalize());
 		assertTrue(build.contains("<attribute name=\"Main-Class\" value=\"org.dbgl.gui.Start\"/>") && build.contains("includes=\"org/dbgl/gui/Start.java\" release=\"8\""));
+		assertTrue(build.contains("<attribute name=\"Enable-Native-Access\" value=\"ALL-UNNAMED\"/>")); // no warning for SWT from Java 24 on
 	}
 
 	/** alpha 51: after an update with SWT of two systems, the one of the other system goes before SWT is loaded */

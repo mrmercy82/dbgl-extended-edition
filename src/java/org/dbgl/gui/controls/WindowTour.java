@@ -160,6 +160,57 @@ public final class WindowTour {
 			closeAll(opened);
 			return;
 		}
+		if (step.pages() == Pages.TREE)
+			whenTreeSettled(shell, () -> capturePages(step, opened, shell, 0));
+		else
+			capturePages(step, opened, shell, 0);
+	}
+
+	/**
+	 * alpha 51: the editors may build their tree of pages anew a moment after they opened (e.g. without the settings the DOSBox
+	 * version does not have): the pages are taken only when the tree stayed the same for a while (8 seconds at most)
+	 */
+	private void whenTreeSettled(Shell shell, Runnable then) {
+		String[] last = {null};
+		int[] same = {0}, looks = {0};
+		Runnable[] look = new Runnable[1];
+		look[0] = () -> {
+			if (shell.isDisposed()) {
+				then.run();
+				return;
+			}
+			String now = treeSignature(shell);
+			same[0] = now.equals(last[0]) ? same[0] + 1: 0;
+			last[0] = now;
+			if ((same[0] >= 3) || (++looks[0] >= 27))
+				then.run();
+			else
+				display_.timerExec(300, look[0]);
+		};
+		look[0].run();
+	}
+
+	/** the entries of the tree of pages of a window, to see whether it changed */
+	static String treeSignature(Shell shell) {
+		for (Control c: allOf(shell, new ArrayList<>()))
+			if (c instanceof Tree tree) {
+				List<TreeItem> items = new ArrayList<>();
+				collect(tree.getItems(), items);
+				StringBuilder s = new StringBuilder();
+				for (TreeItem item: items)
+					s.append(item.getText()).append('\n');
+				return s.toString();
+			}
+		return "";
+	}
+
+	private void capturePages(Step step, List<Shell> opened, Shell shell, int again) {
+		if (shell.isDisposed()) {
+			closeAll(opened);
+			return;
+		}
+		String tree = step.pages() == Pages.TREE ? treeSignature(shell): null;
+		List<File> taken = new ArrayList<>();
 		List<Runnable> turns = pagesOf(shell, step.pages());
 		if (turns.isEmpty()) {
 			shoot(shell, fileName(at_, step.name(), -1));
@@ -179,8 +230,20 @@ public final class WindowTour {
 				notes_.add(step.name() + " page " + (page[0] + 1) + ": " + e);
 			}
 			display_.timerExec(PAGE, () -> {
-				if (!shell.isDisposed())
-					shoot(shell, fileName(at_, step.name(), page[0]));
+				// alpha 51: the tree of pages changed meanwhile: its pages once more, from the first (twice at most)
+				if ((tree != null) && !shell.isDisposed() && (again < 2) && !tree.equals(treeSignature(shell))) {
+					for (File f: taken)
+						if (f.delete())
+							pictures_--;
+					notes_.add(step.name() + ": the pages changed while their pictures were taken, once more");
+					whenTreeSettled(shell, () -> capturePages(step, opened, shell, again + 1));
+					return;
+				}
+				if (!shell.isDisposed()) {
+					String name = fileName(at_, step.name(), page[0]);
+					if (shoot(shell, name))
+						taken.add(new File(dir_, name));
+				}
 				page[0]++;
 				turn[0].run();
 			});
@@ -262,8 +325,8 @@ public final class WindowTour {
 		}
 	}
 
-	/** a picture of the window as it is on the screen */
-	private void shoot(Shell shell, String name) {
+	/** a picture of the window as it is on the screen; false if none could be taken */
+	private boolean shoot(Shell shell, String name) {
 		try {
 			shell.forceActive();
 			shell.update();
@@ -271,7 +334,7 @@ public final class WindowTour {
 			Rectangle b = shell.getBounds().intersection(display_.getBounds());
 			if ((b.width <= 0) || (b.height <= 0)) {
 				notes_.add(name + ": not on the screen");
-				return;
+				return false;
 			}
 			Image image = new Image(display_, b.width, b.height);
 			GC gc = new GC(display_);
@@ -282,12 +345,14 @@ public final class WindowTour {
 				loader.data = new ImageData[] {image.getImageData()};
 				loader.save(new File(dir_, name).getPath(), SWT.IMAGE_PNG);
 				pictures_++;
+				return true;
 			} finally {
 				gc.dispose();
 				image.dispose();
 			}
 		} catch (RuntimeException e) {
 			notes_.add(name + ": " + e);
+			return false;
 		}
 	}
 
