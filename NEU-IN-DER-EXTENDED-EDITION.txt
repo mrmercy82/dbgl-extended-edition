@@ -25,6 +25,21 @@ WICHTIG: JAVA 21 IST JETZT NÖTIG
   Bitte Java vor dem Update aktualisieren.
 
 
+DAS NEUESTE IN 0.101 ALPHA 51
+-----------------------------
+  - Java 21 ist jetzt nötig (siehe oben).
+  - Eigenständige Pakete für Windows, Linux und macOS: DBGL Extended
+    Edition lässt sich jetzt auch ohne DBGL 0.100 beta 17 installieren;
+    unter Windows und macOS ist DOSBox 0.74-3 dabei.
+  - Neue launch.exe: findet Java 21 auch über JAVA_HOME und den PATH, mit
+    dem Symbol der Extended Edition.
+  - Hilfe > "Alle Fenster abfotografieren (für Fehlerberichte)".
+  - Neue Bibliotheken für die Oberfläche (SWT 4.41, Nebula Gallery 1.1.0).
+  - Behoben: Fehler "create initial tables" nach dem Neustart für einen
+    Wechsel in den Dunkelmodus; Meldungen, die hinter anderen Fenstern
+    verschwanden.
+
+
 DAS NEUESTE IN 0.101 ALPHA 50
 -----------------------------
   - Vom USB-Stick zurückholen: Spielzeit, Spielstände und Bildschirmfotos
