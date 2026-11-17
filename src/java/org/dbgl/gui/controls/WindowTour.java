@@ -95,8 +95,13 @@ public final class WindowTour {
 			return;
 		}
 		WindowTour tour = new WindowTour(main, steps, dir, suffix, info, done);
-		tour.shoot(main, tour.fileName(0, "main", -1));
-		main.getDisplay().asyncExec(tour::next);
+		// the main window a moment later: Windows lets the question before the tour fade out, it was still in the picture
+		main.getDisplay().timerExec(WAIT, () -> {
+			if (main.isDisposed())
+				return;
+			tour.shoot(main, tour.fileName(0, "main", -1));
+			main.getDisplay().asyncExec(tour::next);
+		});
 	}
 
 	/** the name of a picture: number of the window, its name, the page if it has some, light or dark */
