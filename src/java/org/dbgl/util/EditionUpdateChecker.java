@@ -132,7 +132,8 @@ public final class EditionUpdateChecker {
 				for (int a = 0; (assets != null) && (a < assets.length()); a++) {
 					String name = assets.getJSONObject(a).optString("name", "");
 					String url = assets.getJSONObject(a).optString("browser_download_url", null);
-					if (name.matches("(?i)dbgl-.*-update\\.zip"))
+					// alpha 51: only the update zip itself (dbgl-<version>-update.zip), no other file whose name ends with "update"
+					if (name.matches("(?i)dbgl-[0-9][0-9a-z.]*-update\\.zip"))
 						zip = url;
 					else if (name.equalsIgnoreCase("SHA256SUMS.txt"))
 						sums = url;

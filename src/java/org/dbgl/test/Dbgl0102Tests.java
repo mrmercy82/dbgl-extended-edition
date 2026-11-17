@@ -4685,6 +4685,16 @@ public class Dbgl0102Tests {
 		assertTrue(build.contains("<attribute name=\"Enable-Native-Access\" value=\"ALL-UNNAMED\"/>")); // no warning for SWT from Java 24 on
 	}
 
+	/** alpha 51: another file of a release whose name ends with "update" is not taken for the update zip */
+	@Test
+	public void testUpdateZipName() {
+		String json = "[{\"tag_name\":\"v0.101-alpha52\",\"draft\":false,\"prerelease\":true,\"html_url\":\"u52\",\"assets\":["
+				+ "{\"name\":\"dbgl-0.101alpha52-update.zip\",\"browser_download_url\":\"https://x/dbgl-0.101alpha52-update.zip\"},"
+				+ "{\"name\":\"DBGL-Extended-Edition-0.101alpha52-source-update.zip\",\"browser_download_url\":\"https://x/source.zip\"},"
+				+ "{\"name\":\"SHA256SUMS.txt\",\"browser_download_url\":\"https://x/SHA256SUMS.txt\"}]}]";
+		assertEquals("https://x/dbgl-0.101alpha52-update.zip", org.dbgl.util.EditionUpdateChecker.newest(json, "0.101alpha51", true).updateZip());
+	}
+
 	/** alpha 51: launch.exe of an update is installed on Windows only */
 	@Test
 	public void testUpdateWindowsOnly() throws Exception {

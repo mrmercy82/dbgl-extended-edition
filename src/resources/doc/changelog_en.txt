@@ -35,40 +35,41 @@ New
 Changed
 - Libraries: SWT 4.41 (was 4.37) and Nebula Gallery 1.1.0 (was 1.0.0).
   The dark mode under Windows is adapted to the new SWT.
+- launch.exe (Windows) is built anew, with Launch4j 3.50: it looks for
+  Java 21 or newer in the folder "jre" first, then through JAVA_HOME and
+  the PATH, and last in the registry. Before, it found an installed Java
+  only through the "JavaSoft" keys of the registry, which e.g. the
+  Temurin installer does not add by itself. The update package brings the
+  new launch.exe; the update through "Help > Check for updates of the
+  DBGL Extended Edition" installs it on Windows only.
+- Program icon: launch.exe, Linux and macOS now have the same icon as the
+  windows of DBGL, with the band "Extended Edition".
 - The bar "A later version needs Java 21" is gone; the start of DBGL
   itself checks that now.
 - "Parts of this game series" and "Take over from another DOSBox
   configuration" are called so in all languages now (so far only in
   German and English).
 
+Fixed
+- Starting again (e.g. after switching to dark mode): if the database is
+  still in use at that moment, DBGL now waits up to ten seconds instead
+  of stopping with "create initial tables failed". If it cannot be read
+  at all, the message now tells the reason. What the new DBGL writes is
+  kept in logs/restart-output.txt.
+- A message while no window of DBGL is open (e.g. a fatal error at
+  startup) could go behind other windows, without a button in the
+  taskbar; DBGL then kept running unseen and held on to its files. Now it
+  is a window of its own and stays in front.
+- With the message port on, "Couldn't create socket" was wrongly written
+  to the output when DBGL ended (since alpha 48).
+- With Java 24 and newer, there is no warning about the library of SWT
+  ("restricted method") at startup any more.
+
 Improved
 - The tab "Without pictures" no longer asks the database each time the
   window comes to the front, only when the profiles may have changed.
 - Tidied up: texts no window uses any more are gone from all language
   files.
-- When DBGL starts itself again (e.g. after switching to dark mode)
-  and the database is still in use at that moment, DBGL now waits up to
-  ten seconds instead of stopping with an error at once. If it cannot be
-  read at all, the message now tells the reason too. What the new DBGL
-  writes is kept in logs/restart-output.txt (see "Manage log files").
-- A message while no window of DBGL is open (e.g. a fatal error at
-  startup) is now a window of its own with a button in the taskbar and
-  stays in front. Before, it could go behind other windows; DBGL then kept
-  running unseen and held on to its files.
-- With the message port on, "Couldn't create socket" was wrongly written
-  to the output when DBGL ended (since alpha 48).
-- With Java 24 and newer, no warning about the library of SWT
-  ("restricted method") at startup any more.
-- launch.exe (Windows) is built anew, with Launch4j 3.50 and the icon of
-  the Extended Edition (as in the windows, with the band "Extended
-  Edition"; the same icon now also for Linux and macOS): it now looks for Java 21 or newer in the folder "jre" first,
-  then through JAVA_HOME and the PATH, and last in the registry. Before,
-  it found an installed Java only through the "JavaSoft" keys of the
-  registry, which e.g. the Temurin installer does not add by itself, and
-  asked for Java 17 only. Its configuration is in src/launcher. The
-  update package brings the new launch.exe; the update through "Help >
-  Check for updates of the DBGL Extended Edition" installs it on Windows
-  only.
 
 0.101 alpha 50 (2026-11-16)
 ---------------------------
