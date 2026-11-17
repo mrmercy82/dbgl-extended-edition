@@ -4685,6 +4685,27 @@ public class Dbgl0102Tests {
 		assertTrue(build.contains("<attribute name=\"Enable-Native-Access\" value=\"ALL-UNNAMED\"/>")); // no warning for SWT from Java 24 on
 	}
 
+	/** alpha 51: launch.exe of an update is installed on Windows only */
+	@Test
+	public void testUpdateWindowsOnly() throws Exception {
+		File dir = java.nio.file.Files.createTempDirectory("dbglupd").toFile();
+		try {
+			for (String n: new String[] {"dbgl.jar", "launch.exe", "lib/json.jar"}) {
+				File f = new File(dir, n);
+				f.getParentFile().mkdirs();
+				java.nio.file.Files.writeString(f.toPath(), n);
+			}
+			java.util.List<String> all = java.util.List.of("dbgl.jar", "launch.exe", "lib/json.jar");
+			assertEquals(all, org.dbgl.util.EditionUpdater.onlyForThisSystem(all, dir, true));
+			assertTrue(new File(dir, "launch.exe").isFile());
+			assertEquals(java.util.List.of("dbgl.jar", "lib/json.jar"), org.dbgl.util.EditionUpdater.onlyForThisSystem(all, dir, false));
+			assertFalse(new File(dir, "launch.exe").exists()); // not installed on Linux or macOS
+			assertTrue(new File(dir, "dbgl.jar").isFile());
+		} finally {
+			org.apache.commons.io.FileUtils.deleteQuietly(dir);
+		}
+	}
+
 	/** alpha 51: after an update with SWT of two systems, the one of the other system goes before SWT is loaded */
 	@Test
 	public void testRemoveForeignSwt() throws Exception {

@@ -67,7 +67,10 @@ Verbessert
   dann über JAVA_HOME und den PATH und zuletzt in der Registry. Bisher
   fand es ein installiertes Java nur über die "JavaSoft"-Einträge der
   Registry, die z. B. der Temurin-Installer nicht von selbst anlegt, und
-  verlangte nur Java 17. Die Konfiguration liegt in src/launcher.
+  verlangte nur Java 17. Die Konfiguration liegt in src/launcher. Das
+  Update-Paket bringt die neue launch.exe mit; das Update über "Hilfe >
+  Nach Updates der DBGL Extended Edition suchen" spielt sie nur unter
+  Windows ein.
 
 0.101 alpha 50 (2026-11-16)
 ---------------------------

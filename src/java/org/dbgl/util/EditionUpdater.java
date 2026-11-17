@@ -172,6 +172,27 @@ public final class EditionUpdater {
 		}
 	}
 
+	/** alpha 51: the files of an update only Windows needs (launch.exe) */
+	public static final List<String> WINDOWS_ONLY = List.of("launch.exe");
+
+	/**
+	 * alpha 51: an update is one package for all systems; what only Windows needs is not installed elsewhere
+	 *
+	 * @return the files to install
+	 */
+	public static List<String> onlyForThisSystem(List<String> files, File dir, boolean windows) throws IOException {
+		if (windows)
+			return files;
+		List<String> result = new ArrayList<>();
+		for (String name: files) {
+			if (WINDOWS_ONLY.contains(name))
+				Files.deleteIfExists(new File(dir, name).toPath());
+			else
+				result.add(name);
+		}
+		return result;
+	}
+
 	/** unpack a zip into a folder; entries outside of it (../) are refused. @return the files unpacked */
 	public static List<String> unzip(File zip, File dir) throws IOException {
 		List<String> names = new ArrayList<>();
@@ -264,7 +285,7 @@ public final class EditionUpdater {
 		progress.set(920);
 
 		File pending = new File(work, "files");
-		List<String> files = unzip(zip, pending);
+		List<String> files = onlyForThisSystem(unzip(zip, pending), pending, SystemUtils.IS_WINDOWS);
 		if (!files.contains("dbgl.jar"))
 			throw new IOException(zipName + ": no dbgl.jar");
 		progress.set(940);

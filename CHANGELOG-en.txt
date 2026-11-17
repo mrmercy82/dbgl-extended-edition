@@ -64,7 +64,10 @@ Improved
   then through JAVA_HOME and the PATH, and last in the registry. Before,
   it found an installed Java only through the "JavaSoft" keys of the
   registry, which e.g. the Temurin installer does not add by itself, and
-  asked for Java 17 only. Its configuration is in src/launcher.
+  asked for Java 17 only. Its configuration is in src/launcher. The
+  update package brings the new launch.exe; the update through "Help >
+  Check for updates of the DBGL Extended Edition" installs it on Windows
+  only.
 
 0.101 alpha 50 (2026-11-16)
 ---------------------------
