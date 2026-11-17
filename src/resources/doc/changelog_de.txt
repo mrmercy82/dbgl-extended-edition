@@ -63,7 +63,8 @@ Verbessert
 - Mit Java 24 und neuer erscheint beim Start keine Warnung mehr wegen
   der Bibliothek von SWT ("restricted method").
 - launch.exe (Windows) ist neu gebaut, mit Launch4j 3.50 und dem Symbol
-  von beta 17: Es sucht Java 21 oder neuer jetzt zuerst im Ordner "jre",
+  der Extended Edition (wie in den Fenstern, mit dem Band "Extended
+  Edition"; dasselbe Symbol jetzt auch für Linux und macOS): Es sucht Java 21 oder neuer jetzt zuerst im Ordner "jre",
   dann über JAVA_HOME und den PATH und zuletzt in der Registry. Bisher
   fand es ein installiertes Java nur über die "JavaSoft"-Einträge der
   Registry, die z. B. der Temurin-Installer nicht von selbst anlegt, und

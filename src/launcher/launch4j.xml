@@ -2,7 +2,8 @@
 <!--
   launch.exe of DBGL Extended Edition (alpha 51), made with Launch4j 3.50 (https://launch4j.sourceforge.net):
     java -jar launch4j/launch4j.jar src/launcher/launch4j.xml
-  The icon is the one of the launch.exe of DBGL 0.100 beta 17 by Ronald Blankendaal.
+  The icon (dbgl.ico) is made of the window icons of the Extended Edition (src/resources/img/ico, the icon of
+  DBGL 0.100 beta 17 by Ronald Blankendaal with the band "Extended Edition"); also dbgl.png (Linux) and dbgl.icns (macOS).
   Java is looked for in the folder "jre" beside DBGL, then in JAVA_HOME and in the PATH, then in the registry
   (the launch.exe of beta 17 looked only in "jre" and in the registry). At least Java 21, 64 bit.
 -->
