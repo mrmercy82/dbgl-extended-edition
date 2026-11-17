@@ -21,10 +21,11 @@ See [`src/resources/doc/whatsnew_en.txt`](src/resources/doc/whatsnew_en.txt) (al
 > **This is an alpha. Back up your complete DBGL folder and all your DOSBox folders before installing** – copy the whole folder(s) somewhere else. If anything goes wrong, put the copy back and everything is as before.
 
 > [!IMPORTANT]
-> **Java 21 will be needed soon.** One of the next versions of DBGL Extended Edition needs Java 21 and will not start with an older Java. Please update Java in time, e.g. with [Eclipse Temurin 21](https://adoptium.net/temurin/releases/?version=21). When DBGL runs with an older Java, it says so at start.
+> **Java 21 is needed.** From 0.101 alpha 51 on, DBGL Extended Edition needs Java 21 or newer, e.g. [Eclipse Temurin 21](https://adoptium.net/temurin/releases/?version=21). With an older Java DBGL does not open but shows a window that says which Java was found. Please update Java before updating DBGL.
 >
-> *Deutsch:* **Bald ist Java 21 nötig.** Eine der nächsten Versionen von DBGL Extended Edition benötigt Java 21 und startet mit einem älteren Java nicht mehr. Bitte Java rechtzeitig aktualisieren, z. B. mit Eclipse Temurin 21. Läuft DBGL mit einem älteren Java, weist es beim Start darauf hin.
+> *Deutsch:* **Java 21 ist nötig.** Ab 0.101 alpha 51 benötigt DBGL Extended Edition Java 21 oder neuer, z. B. Eclipse Temurin 21. Mit einem älteren Java öffnet sich DBGL nicht, sondern zeigt ein Fenster, das sagt, welches Java gefunden wurde. Bitte Java vor dem Update von DBGL aktualisieren.
 
+- **New installation (from 0.101 alpha 51 on):** download the stand-alone package for your system (`DBGL-Extended-Edition-<version>-windows.zip`, `-linux.tar.xz`, `-macos-x86.tar.gz` or `-macos-arm.tar.gz`) from the [releases](https://github.com/mrmercy82/dbgl-extended-edition/releases), unpack it into a folder of your own and read `README-EXTENDED-EDITION.txt` in it. No DBGL 0.100 beta 17 is needed for it.
 - **Update an existing DBGL 0.100 beta 17 (or an earlier 0.101 alpha Extended Edition):** back up your DBGL folder and all your DOSBox folders first, then unzip `dbgl-<version>-update.zip` from the [releases](https://github.com/mrmercy82/dbgl-extended-edition/releases) over your DBGL folder. Profiles, database and settings are kept.
 - **From source:** `ant` with the `build.xml` in this folder (Java 21 or later), or apply `dbgl-0100beta17-to-<version>.patch` to the original 0.100 beta 17 source.
 

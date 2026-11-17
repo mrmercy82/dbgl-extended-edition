@@ -272,6 +272,7 @@ public final class WindowTour {
 			GC gc = new GC(display_);
 			try {
 				gc.copyArea(image, b.x, b.y);
+				hideKeys(shell, image, b);
 				ImageLoader loader = new ImageLoader();
 				loader.data = new ImageData[] {image.getImageData()};
 				loader.save(new File(dir_, name).getPath(), SWT.IMAGE_PNG);
@@ -283,6 +284,36 @@ public final class WindowTour {
 		} catch (RuntimeException e) {
 			notes_.add(name + ": " + e);
 		}
+	}
+
+	/**
+	 * alpha 51: fields that hold a key (of TheGamesDB, MobyGames, IGDB, ScreenScraper, ...) are painted over in the picture,
+	 * so a picture sent with an error report does not give the key away. Nothing in the window itself is changed.
+	 */
+	private void hideKeys(Shell shell, Image image, Rectangle shot) {
+		GC gc = new GC(image);
+		try {
+			gc.setBackground(display_.getSystemColor(SWT.COLOR_DARK_GRAY));
+			gc.setForeground(display_.getSystemColor(SWT.COLOR_WHITE));
+			for (Control c: allOf(shell, new ArrayList<>())) {
+				if (!(c instanceof org.eclipse.swt.widgets.Text t) || !t.isVisible() || !looksLikeKey(t.getText()))
+					continue;
+				Rectangle r = display_.map(t.getParent(), null, t.getBounds());
+				gc.fillRectangle(r.x - shot.x, r.y - shot.y, r.width, r.height);
+				gc.drawText("(hidden)", r.x - shot.x + 4, r.y - shot.y + 1, true);
+			}
+		} finally {
+			gc.dispose();
+		}
+	}
+
+	/**
+	 * a key, not a name, a path, a version or a web address: 16 or more letters and digits with at least 4 digits, no space,
+	 * no dot and none of \\ : /
+	 */
+	public static boolean looksLikeKey(String text) {
+		String s = text == null ? "": text.trim();
+		return (s.length() >= 16) && s.matches("[A-Za-z0-9+=_-]+") && s.matches("(.*[0-9]){4}.*") && s.matches(".*[A-Za-z].*");
 	}
 
 	/** the pictures and info.txt into one ZIP file beside their folder; the folder (only what was made here) goes */

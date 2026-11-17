@@ -56,7 +56,17 @@
 			<map from="${srcdist}/mac_arm/DBGL.app/Contents/MacOS/lib" to="lib"/>
 		</pathconvert>
 		<mkdir dir="${build}"/>
-		<javac includeantruntime="false" debug="on" srcdir="${javasrc}" destdir="${build}" classpathref="classpathfull" release="17" deprecation="on" />
+		<javac includeantruntime="false" debug="on" srcdir="${javasrc}" destdir="${build}" classpathref="classpathfull" release="21" deprecation="on" />
+		<!-- alpha 51: the class the jar starts with is compiled for Java 8 (into a folder of its own and copied over the one from above; javac of Ant would skip a class that is there already), so an older Java can still run it and say that Java 21 is needed -->
+		<mkdir dir="${build}_start"/>
+		<javac includeantruntime="false" debug="on" srcdir="${javasrc}" destdir="${build}_start" includes="org/dbgl/gui/Start.java" release="8" nowarn="on">
+			<compilerarg value="-Xlint:-options"/>
+		</javac>
+		<copy todir="${build}" overwrite="true">
+			<fileset dir="${build}_start"/>
+		</copy>
+		<delete dir="${build}_start"/>
+
 	</target>
 
 	<target name="jar" depends="compile" description="create main jar">
@@ -83,7 +93,7 @@
 					<attribute name="Implementation-Vendor" value="${vendorname}"/>
 				</section>
 				<attribute name="Class-Path" value="${class-path} ./"/>
-				<attribute name="Main-Class" value="org.dbgl.gui.Launcher"/>
+				<attribute name="Main-Class" value="org.dbgl.gui.Start"/>
 			</manifest>
 		</jar>
 	</target>

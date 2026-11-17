@@ -372,9 +372,7 @@ public class DarkTheme {
 			java.lang.reflect.Field f = org.eclipse.swt.widgets.Button.class.getDeclaredField("checkWidth");
 			f.setAccessible(true);
 			int px = f.getInt(b);
-			java.lang.reflect.Method m = org.eclipse.swt.widgets.Widget.class.getDeclaredMethod("getZoom");
-			m.setAccessible(true);
-			int zoom = (Integer)m.invoke(b);
+			int zoom = WinSubclass.zoom(b); // alpha 51: SWT 4.41 has no Widget.getZoom() any more
 			if (px > 0 && zoom > 0)
 				return Math.max(11, Math.min(32, Math.round(px * 100f / zoom)));
 		} catch (ReflectiveOperationException | RuntimeException e) {

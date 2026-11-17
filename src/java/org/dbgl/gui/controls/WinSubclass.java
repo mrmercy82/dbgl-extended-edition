@@ -254,11 +254,25 @@ final class WinSubclass {
 		return Control.class.getField("handle").getLong(c);
 	}
 
+	/**
+	 * the zoom SWT scales this control by (100 = unscaled). SWT keeps it to itself: up to 4.37 Widget.getZoom(), since then
+	 * (seen in 4.41) Widget.getAutoscalingZoom(); if neither is there, the zoom Windows gave the control, else that of its
+	 * monitor.
+	 */
 	static int zoom(Control c) {
+		for (String name: new String[] {"getZoom", "getAutoscalingZoom"}) {
+			try {
+				Method m = org.eclipse.swt.widgets.Widget.class.getDeclaredMethod(name);
+				m.setAccessible(true);
+				int z = (Integer)m.invoke(c);
+				if (z > 0)
+					return z;
+			} catch (ReflectiveOperationException | RuntimeException e) {
+				// the next one
+			}
+		}
 		try {
-			Method m = org.eclipse.swt.widgets.Widget.class.getDeclaredMethod("getZoom");
-			m.setAccessible(true);
-			int z = (Integer)m.invoke(c);
+			int z = org.eclipse.swt.widgets.Widget.class.getField("nativeZoom").getInt(c);
 			if (z > 0)
 				return z;
 		} catch (ReflectiveOperationException | RuntimeException e) {

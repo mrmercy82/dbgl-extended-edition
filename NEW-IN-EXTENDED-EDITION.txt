@@ -14,13 +14,13 @@ Extended Edition (source code, downloads, reporting problems):
 https://github.com/mrmercy82/dbgl-extended-edition
 
 
-IMPORTANT: JAVA 21 WILL BE NEEDED SOON
---------------------------------------
-  One of the next versions of DBGL Extended Edition needs Java 21 and will
-  not start with an older Java. Please update Java in time, e.g. with
-  Eclipse Temurin 21:
+IMPORTANT: JAVA 21 IS NEEDED NOW
+--------------------------------
+  From 0.101 alpha 51 on, DBGL Extended Edition needs Java 21 or newer and
+  does not open with an older Java any more; it then shows a window that
+  says which Java was found. Java 21 is available e.g. as Eclipse Temurin:
   https://adoptium.net/temurin/releases/?version=21
-  When DBGL runs with an older Java, it says so at start.
+  Please update Java before the update.
 
 
 NEWEST IN 0.101 ALPHA 50

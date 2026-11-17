@@ -345,7 +345,6 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		if (diskSpaceWanted())
 			scheduleDiskUsage(listed_); // alpha 49: the sizes of the game folders not known yet
 		createTvHint(); // alpha 48: once there are profiles
-		createJavaHint(); // alpha 49: a later version will need Java 21
 		createToolbarResetHint(); // alpha 49: once, if the order of the toolbar was reset
 		createUpdateHint(); // alpha 49: once: the automatic update check can be turned on
 		display_.asyncExec(this::offerOldFilesCleanup); // alpha 49: when the window is there
@@ -3707,18 +3706,6 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		hintParent_.layout(true, true);
 	}
 
-	/** the Java version a later release will need (SWT 4.38 and later, and the Nebula Gallery 1.1, are built for it) */
-	public static final int JAVA_NEEDED_SOON = 21;
-
-	/** the Java version DBGL runs with: 17, 21, ... (the property is for tests) */
-	public static int javaFeature() {
-		return Integer.getInteger("dbgl.java.feature", Runtime.version().feature());
-	}
-
-	/**
-	 * Alpha 49: with a Java older than 21, a bar says that a later version of the Extended Edition will need Java 21, with the
-	 * page to get it from. "Understood" hides it for this version of DBGL; after the next update it is back while Java is old.
-	 */
 	private Composite tbRow_;
 	private boolean toolbarResetHintShown_;
 
@@ -3761,45 +3748,6 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		Button ok = new Button(bar, SWT.PUSH);
 		ok.setText(text_.get("dialog.main.javahint.ok"));
 		ok.addListener(SWT.Selection, e -> close.run());
-		if (DarkTheme.forced()) {
-			for (Control c: new Control[] {bar, icon, text}) {
-				c.setBackground(DarkTheme.toolbarBackground);
-				c.setForeground(DarkTheme.defaultForeground);
-			}
-		}
-		bar.moveBelow(hintBelow_);
-		hintParent_.layout(true, true);
-	}
-
-	private void createJavaHint() {
-		if ((javaFeature() >= JAVA_NEEDED_SOON) || Constants.PROGRAM_VERSION.equals(settings_.getValue("gui", "javahintshown")) || (hintParent_ == null) || hintParent_.isDisposed())
-			return;
-		Composite bar = new Composite(hintParent_, SWT.BORDER);
-		bar.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
-		GridLayout layout = new GridLayout(4, false);
-		layout.marginHeight = 2;
-		bar.setLayout(layout);
-		Label icon = new Label(bar, SWT.NONE);
-		icon.setImage(ImageService.getResourceImage(shell_.getDisplay(), ImageService.IMG_NOTICE)); // alpha 49: the same sign for every hint
-		icon.setLayoutData(new GridData(SWT.BEGINNING, SWT.BEGINNING, false, false));
-		Label text = new Label(bar, SWT.WRAP);
-		text.setText(text_.get("dialog.main.javahint", new Object[] {SystemUtils.JVM_VERSION, JAVA_NEEDED_SOON, Constants.EDITION_NAME}));
-		GridData td = new GridData(SWT.FILL, SWT.CENTER, true, false);
-		td.widthHint = 400;
-		text.setLayoutData(td);
-		Button get = new Button(bar, SWT.PUSH);
-		get.setText(text_.get("dialog.main.javahint.get", new Object[] {JAVA_NEEDED_SOON}));
-		get.addListener(SWT.Selection, e -> SystemUtils.openForBrowsing("https://adoptium.net/temurin/releases/?version=" + JAVA_NEEDED_SOON, shell_));
-		Button ok = new Button(bar, SWT.PUSH);
-		ok.setText(text_.get("dialog.main.javahint.ok"));
-		ok.addListener(SWT.Selection, e -> {
-			settings_.setValue("gui", "javahintshown", Constants.PROGRAM_VERSION);
-			if (!bar.isDisposed()) {
-				Composite p = bar.getParent();
-				bar.dispose();
-				p.layout(true, true);
-			}
-		});
 		if (DarkTheme.forced()) {
 			for (Control c: new Control[] {bar, icon, text}) {
 				c.setBackground(DarkTheme.toolbarBackground);

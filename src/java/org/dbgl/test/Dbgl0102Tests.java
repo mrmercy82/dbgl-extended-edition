@@ -1290,8 +1290,8 @@ public class Dbgl0102Tests {
 	@Test
 	public void testImportantHeadingAndListExportName() {
 		assertTrue(org.dbgl.gui.dialog.DocumentDialog.important("Wichtig"));
-		assertTrue(org.dbgl.gui.dialog.DocumentDialog.important("IMPORTANT: JAVA 21 WILL BE NEEDED SOON"));
-		assertTrue(org.dbgl.gui.dialog.DocumentDialog.important("  WICHTIG: BALD IST JAVA 21 NÖTIG"));
+		assertTrue(org.dbgl.gui.dialog.DocumentDialog.important("IMPORTANT: JAVA 21 IS NEEDED NOW"));
+		assertTrue(org.dbgl.gui.dialog.DocumentDialog.important("  WICHTIG: JAVA 21 IST JETZT NÖTIG"));
 		assertFalse(org.dbgl.gui.dialog.DocumentDialog.important("Neu"));
 		assertFalse(org.dbgl.gui.dialog.DocumentDialog.important("Fixed"));
 		// the changelog of this version starts with such a heading, and names the page Java 21 comes from
@@ -4651,5 +4651,65 @@ public class Dbgl0102Tests {
 		// no text of the windows of the tour is missing in any language
 		for (String key: new String[] {"dialog.main.menu.windowtour", "dialog.windowtour.confirm", "dialog.windowtour.done", "dialog.windowtour.failed"})
 			assertFalse(key, org.dbgl.service.TextService.getInstance().get(key, new Object[] {1, "x"}).contains(key));
+	}
+
+	/**
+	 * alpha 51: the class the jar starts with tells an older Java that Java 21 is needed; it is compiled for Java 8 so that
+	 * such a Java can run it at all
+	 */
+	@Test
+	public void testStartNeedsJava21() throws Exception {
+		assertEquals(8, org.dbgl.gui.Start.feature("1.8"));
+		assertEquals(11, org.dbgl.gui.Start.feature("11"));
+		assertEquals(17, org.dbgl.gui.Start.feature("17"));
+		assertEquals(21, org.dbgl.gui.Start.feature("21"));
+		assertEquals(21, org.dbgl.gui.Start.feature("21.0.2"));
+		assertEquals(25, org.dbgl.gui.Start.feature(" 25-ea"));
+		assertEquals(0, org.dbgl.gui.Start.feature(""));
+		assertEquals(0, org.dbgl.gui.Start.feature(null));
+		assertEquals(0, org.dbgl.gui.Start.feature("x"));
+		assertTrue(org.dbgl.gui.Start.feature(System.getProperty("java.specification.version")) >= org.dbgl.gui.Start.JAVA_NEEDED);
+		String de = org.dbgl.gui.Start.message(17, "C:\\Java\\jre17", "de"), en = org.dbgl.gui.Start.message(8, null, "fr");
+		assertTrue(de, de.contains("ben\u00f6tigt Java 21") && de.contains("Java 17 (C:\\Java\\jre17)") && de.contains(org.dbgl.gui.Start.JAVA_PAGE));
+		assertTrue(en, en.contains("needs Java 21") && en.contains("Found: Java 8.") && en.contains(org.dbgl.gui.Start.JAVA_PAGE));
+		assertTrue(org.dbgl.gui.Start.message(0, null, "en").contains("Found: Java ?."));
+		// the class file is one of Java 8 (52), the others are of Java 21 (65)
+		try (java.io.InputStream in = org.dbgl.gui.Start.class.getResourceAsStream("Start.class"); java.io.InputStream other = org.dbgl.gui.Launcher.class.getResourceAsStream("Launcher.class")) {
+			assertEquals(52, in.readNBytes(8)[7]);
+			assertEquals(65, other.readNBytes(8)[7]);
+		}
+		// and the jar starts with it: as written in build.xml
+		String build = Files.readString(new File(System.getProperty("dbgl.testdata")).toPath().resolve("../../../../../../build.xml").normalize());
+		assertTrue(build.contains("<attribute name=\"Main-Class\" value=\"org.dbgl.gui.Start\"/>") && build.contains("includes=\"org/dbgl/gui/Start.java\" release=\"8\""));
+	}
+
+	/** alpha 51: after an update with SWT of two systems, the one of the other system goes before SWT is loaded */
+	@Test
+	public void testRemoveForeignSwt() throws Exception {
+		File lib = Files.createTempDirectory("dbgl-lib").toFile();
+		try {
+			for (String n: new String[] {"swtwin64.jar", "swtlin64.jar", "gallery_1.1.0.jar", "mine.jar"})
+				Files.writeString(new File(lib, n).toPath(), "x");
+			assertEquals(List.of(), org.dbgl.gui.Start.removeForeignSwt(lib, "Mac OS X")); // the own one is not there: nothing goes
+			assertEquals(List.of(), org.dbgl.gui.Start.removeForeignSwt(lib, "SunOS"));
+			assertEquals(List.of(), org.dbgl.gui.Start.removeForeignSwt(null, "Linux"));
+			assertEquals(List.of("swtwin64.jar"), org.dbgl.gui.Start.removeForeignSwt(lib, "Linux"));
+			assertEquals("gallery_1.1.0.jar,mine.jar,swtlin64.jar", java.util.Arrays.stream(lib.list()).sorted().collect(java.util.stream.Collectors.joining(",")));
+			Files.writeString(new File(lib, "swtwin64.jar").toPath(), "x");
+			assertEquals(List.of("swtlin64.jar"), org.dbgl.gui.Start.removeForeignSwt(lib, "Windows 10"));
+			assertEquals(List.of(), org.dbgl.gui.Start.removeForeignSwt(lib, "Windows 11"));
+		} finally {
+			org.apache.commons.io.FileUtils.deleteQuietly(lib);
+		}
+		// what the pictures of the windows paint over
+		assertTrue(org.dbgl.gui.controls.WindowTour.looksLikeKey("8364ae0f983f8484afbb70a4d1030292"));
+		assertTrue(org.dbgl.gui.controls.WindowTour.looksLikeKey(" abcDEF123456ghijkl "));
+		assertFalse(org.dbgl.gui.controls.WindowTour.looksLikeKey("D:\\Spiele\\DOS\\dosroot"));
+		assertFalse(org.dbgl.gui.controls.WindowTour.looksLikeKey("https://www.mobygames.com/game/123"));
+		assertFalse(org.dbgl.gui.controls.WindowTour.looksLikeKey("DOSBox Staging 0.83.1"));
+		assertFalse(org.dbgl.gui.controls.WindowTour.looksLikeKey("DOSBox-Staging-0.83.1"));
+		assertFalse(org.dbgl.gui.controls.WindowTour.looksLikeKey("abcdefghijklmnopqrstuvwxyz"));
+		assertFalse(org.dbgl.gui.controls.WindowTour.looksLikeKey(""));
+		assertFalse(org.dbgl.gui.controls.WindowTour.looksLikeKey(null));
 	}
 }

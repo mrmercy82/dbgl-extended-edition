@@ -7,13 +7,22 @@ Grundlage: DBGL 0.100 beta 17 von Ronald Blankendaal (https://dbgl.org), Quellco
 0.101 alpha 51 (in Arbeit)
 --------------------------
 Wichtig
-- Bald ist Java 21 nötig: Eine der nächsten Versionen von DBGL Extended
-  Edition benötigt Java 21 und startet mit einem älteren Java nicht mehr.
-  Läuft DBGL mit einem älteren Java, zeigt es beim Start einen Hinweis.
-  Java 21 gibt es z. B. als Eclipse Temurin:
+- Java 21 ist jetzt nötig: Diese Version von DBGL Extended Edition
+  benötigt Java 21 oder neuer. Mit einem älteren Java öffnet sich DBGL
+  nicht, sondern zeigt ein Fenster, das sagt, welches Java gefunden wurde
+  und wo es Java 21 gibt, z. B. als Eclipse Temurin:
   https://adoptium.net/temurin/releases/?version=21
+  Bitte Java VOR dem Update aktualisieren. Grund: Die Bibliotheken für
+  die Oberfläche (SWT 4.41, Nebula Gallery 1.1.0) gibt es nur noch für
+  Java 21.
 
 Neu
+- DBGL Extended Edition gibt es jetzt auch als eigenständiges Paket für
+  Windows, Linux und macOS, neben dem Update-Paket. Es braucht kein
+  vorhandenes DBGL 0.100 beta 17; enthalten sind das Programm, seine
+  Bibliotheken mit ihren Lizenztexten (Ordner "licenses"), eine Anleitung
+  (README-EXTENDED-EDITION.txt) und unter Windows und macOS DOSBox 0.74-3.
+  Wer DBGL schon benutzt, nimmt weiterhin das Update-Paket.
 - Hilfe > "Alle Fenster abfotografieren (für Fehlerberichte)": DBGL
   öffnet nacheinander seine Fenster, macht von jedem ein Bild (bei den
   Einstellungen und den Editoren von jeder Seite) und schließt es wieder;
@@ -21,9 +30,14 @@ Neu
   ZIP-Datei im Ordner "logs" und werden nirgendwohin gesendet. Gedacht
   für Fehler, die nur auf einem Betriebssystem oder nur in einer
   Darstellung sichtbar sind. "Logdateien verwalten" zeigt die Datei und
-  kann sie löschen.
+  kann sie löschen. Felder mit einem Schlüssel (TheGamesDB, MobyGames,
+  IGDB, ...) sind auf den Bildern übermalt.
 
 Geändert
+- Bibliotheken: SWT 4.41 (bisher 4.37) und Nebula Gallery 1.1.0 (bisher
+  1.0.0). Der Windows-Dunkelmodus ist an das neue SWT angepasst.
+- Der Balken "Eine kommende Version benötigt Java 21" entfällt; die
+  Prüfung übernimmt jetzt der Start von DBGL selbst.
 - "Teile dieser Spielereihe" und "Aus anderer DOSBox-Konfiguration
   übernehmen" heißen jetzt in allen Sprachen so (bisher nur Deutsch und
   Englisch).

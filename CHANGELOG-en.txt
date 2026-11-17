@@ -7,22 +7,36 @@ Based on DBGL 0.100 beta 17 by Ronald Blankendaal (https://dbgl.org), source cod
 0.101 alpha 51 (in progress)
 ----------------------------
 Important
-- Java 21 will be needed soon: one of the next versions of DBGL Extended
-  Edition needs Java 21 and will not start with an older Java. When DBGL
-  runs with an older Java, it says so at the start. Java 21 is available
-  e.g. as Eclipse Temurin:
+- Java 21 is needed now: this version of DBGL Extended Edition needs
+  Java 21 or newer. With an older Java DBGL does not open but shows a
+  window that says which Java was found and where to get Java 21, e.g.
+  as Eclipse Temurin:
   https://adoptium.net/temurin/releases/?version=21
+  Please update Java BEFORE the update. The reason: the libraries for
+  the user interface (SWT 4.41, Nebula Gallery 1.1.0) are only made for
+  Java 21 any more.
 
 New
+- DBGL Extended Edition is now also available as a stand-alone package
+  for Windows, Linux and macOS, beside the update package. It needs no
+  existing DBGL 0.100 beta 17; it holds the program, its libraries with
+  their license texts (folder "licenses"), instructions
+  (README-EXTENDED-EDITION.txt) and, for Windows and macOS, DOSBox 0.74-3.
+  Those who use DBGL already keep taking the update package.
 - Help > "Take pictures of all windows (for error reports)": DBGL opens
   its windows one after the other, takes a picture of each (of each page
   of the settings and of the editors) and closes it again; nothing is
   saved or changed. The pictures go into a ZIP file in the folder "logs"
   and are not sent anywhere. Meant for errors that show on one operating
   system or in one appearance only. "Manage log files" lists the file
-  and can delete it.
+  and can delete it. Fields with a key (TheGamesDB, MobyGames, IGDB, ...)
+  are painted over in the pictures.
 
 Changed
+- Libraries: SWT 4.41 (was 4.37) and Nebula Gallery 1.1.0 (was 1.0.0).
+  The dark mode under Windows is adapted to the new SWT.
+- The bar "A later version needs Java 21" is gone; the start of DBGL
+  itself checks that now.
 - "Parts of this game series" and "Take over from another DOSBox
   configuration" are called so in all languages now (so far only in
   German and English).
