@@ -2131,6 +2131,10 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		@Override
 		public void widgetSelected(SelectionEvent event) {
 			org.dbgl.gui.controls.LogManager.open(shell_, uiLocale(), (parent, entry) -> {
+				if (entry.file().getName().toLowerCase().endsWith(".zip")) { // alpha 51: the pictures of the windows: nothing to read
+					SystemUtils.openDirForViewing(entry.file().getParentFile(), parent);
+					return;
+				}
 				try {
 					String content = org.dbgl.util.DosboxLog.read(entry.file(), 2_000_000).replace("\r\n", "\n").replace("\n", org.eclipse.swt.widgets.Text.DELIMITER);
 					new DifferencesDialog(parent, (entry.profile().isEmpty() ? "DBGL": entry.profile()) + " - " + entry.file().getName(), content, entry.file().getName(), "lastlogdialog")
@@ -2654,6 +2658,14 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			@Override
 			public void widgetSelected(SelectionEvent event) {
 				showDocument("changelog", "dialog.main.menu.changelog");
+			}
+		}).build();
+		// alpha 51: for error reports: pictures of all windows
+		MenuItem_.on(helpMenu).build();
+		MenuItem_.on(helpMenu).key("dialog.main.menu.windowtour").image(ImageService.IMG_LOG).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				doWindowTour();
 			}
 		}).build();
 		if (systemMenu == null) {
@@ -3289,6 +3301,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				updateProfilesList(new HashSet<>(Arrays.asList(profile.getId())));
 			} else {
 				profilesList_.add(profile);
+				noImagesCaptures_ = null;
 				addProfileToTable(profile);
 				profileTable_.setSelection(profileTable_.getItemCount() - 1);
 				profileTable_.setFocus();
@@ -4702,6 +4715,11 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 	/** alpha 50: is there a profile without pictures? null: not looked yet */
 	private Boolean noImagesFound_;
 	private long noImagesLooked_;
+	/**
+	 * alpha 51: the folders of the screenshots of all profiles, as read last; null once the profiles may have changed. So the
+	 * database is not asked each time the window comes to the front (with thousands of profiles that took a moment).
+	 */
+	private List<String> noImagesCaptures_;
 
 	/** the setting: 0 never, 1 always, 2 while there are profiles without pictures */
 	private boolean noImagesTabWanted() {
@@ -4749,12 +4767,13 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			return;
 		}
 		noImagesLooked_ = System.currentTimeMillis();
-		List<String> captures;
 		try {
-			captures = new ProfileRepository().list(StringUtils.EMPTY, null, dbversionsList_).stream().map(Profile::getCapturesString).toList();
+			if (noImagesCaptures_ == null)
+				noImagesCaptures_ = new ProfileRepository().list(StringUtils.EMPTY, null, dbversionsList_).stream().map(Profile::getCapturesString).toList();
 		} catch (SQLException | RuntimeException e) {
 			return;
 		}
+		List<String> captures = noImagesCaptures_;
 		Thread t = new Thread(() -> {
 			boolean found = false;
 			try {
@@ -4785,6 +4804,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 
 	/** the profiles of the current filter tab; for 'With problems' every profile is checked (once, the result is kept) */
 	private List<Profile> listProfiles() throws SQLException {
+		noImagesCaptures_ = null; // read again: profiles may have come or gone
 		boolean problems = PROBLEMS_FILTER.equals(filterClause_), noImages = NOIMAGES_FILTER.equals(filterClause_);
 		List<Profile> list = new ProfileRepository().list(orderingVector_.toClause(), problems || noImages ? null: filterClause_, dbversionsList_);
 		sortByDiskSpace(list);
@@ -5445,6 +5465,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			for (int i = idxs.length - 1; i >= 0; i--) {
 				profileTable_.remove(idxs[i]);
 				profilesList_.remove(idxs[i]);
+				noImagesCaptures_ = null;
 			}
 			if (idxs[0] > 0)
 				profileTable_.setSelection(idxs[0] - 1);
@@ -5710,6 +5731,88 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 	}
 
 	/** alpha 48: the assistant for a USB stick (a ZIP file with the chosen profiles and a DBGL that keeps everything in its folder) */
+	/**
+	 * alpha 51: for error reports - the windows of DBGL are opened one after the other, a picture is taken of each and they are
+	 * closed again; nothing is saved (what a window returns is not used). The pictures go into a ZIP file in the folder "logs".
+	 */
+	private void doWindowTour() {
+		List<org.dbgl.gui.controls.WindowTour.Step> steps = windowTourSteps();
+		if (Mess_.on(shell_).key("dialog.windowtour.confirm", new Object[] {steps.size() + 1}).confirm())
+			startWindowTour(steps);
+	}
+
+	/** the windows of the tour: each is opened as the menu opens it, but what it returns is not used */
+	private List<org.dbgl.gui.controls.WindowTour.Step> windowTourSteps() {
+		List<org.dbgl.gui.controls.WindowTour.Step> steps = new ArrayList<>();
+		final org.dbgl.gui.controls.WindowTour.Pages none = org.dbgl.gui.controls.WindowTour.Pages.NONE, tabs = org.dbgl.gui.controls.WindowTour.Pages.TABS,
+				tree = org.dbgl.gui.controls.WindowTour.Pages.TREE;
+		int sel = profileTable_.getSelectionIndex();
+		Profile prof = profilesList_.isEmpty() ? null: profilesList_.get(Math.max(0, Math.min(sel, profilesList_.size() - 1)));
+		DosboxVersion version = dbversionsList_.isEmpty() ? null: BaseRepository.findDefault(dbversionsList_) != null ? BaseRepository.findDefault(dbversionsList_): dbversionsList_.get(0);
+		steps.add(new org.dbgl.gui.controls.WindowTour.Step("settings", tabs, () -> new SettingsDialog(shell_, columnNames_).open()));
+		if (prof != null)
+			steps.add(new org.dbgl.gui.controls.WindowTour.Step("profile", tree, () -> new EditSingleProfileDialog(shell_, prof, null, false).open()));
+		if (version != null)
+			steps.add(new org.dbgl.gui.controls.WindowTour.Step("dosbox-version", tree, () -> new EditDosboxVersionDialog(shell_, false, version).open()));
+		if (version != null)
+			steps.add(new org.dbgl.gui.controls.WindowTour.Step("template", tree, () -> new EditTemplateDialog(shell_, templatesList_.isEmpty() ? null: templatesList_.get(0)).open()));
+		steps.add(new org.dbgl.gui.controls.WindowTour.Step("filter", none, () -> new EditFilterDialog(shell_, null, null, columnNames_).open()));
+		steps.add(new org.dbgl.gui.controls.WindowTour.Step("check-profiles", none, () -> new CheckProfilesDialog(shell_).open()));
+		steps.add(new org.dbgl.gui.controls.WindowTour.Step("backups", none, () -> org.dbgl.gui.controls.BackupManager.open(shell_, uiLocale())));
+		steps.add(new org.dbgl.gui.controls.WindowTour.Step("logs", none, () -> org.dbgl.gui.controls.LogManager.open(shell_, uiLocale(), (parent, entry) -> {
+		})));
+		steps.add(new org.dbgl.gui.controls.WindowTour.Step("statistics", none, this::doShowStatistics));
+		if (version != null) {
+			steps.add(new org.dbgl.gui.controls.WindowTour.Step("add-game-wizard", none, () -> new AddGameWizardDialog(shell_).open()));
+			steps.add(new org.dbgl.gui.controls.WindowTour.Step("switch-dosbox", none, () -> new SwitchDosboxVersionDialog(shell_).open()));
+			steps.add(new org.dbgl.gui.controls.WindowTour.Step("dfend-import", none, () -> new DFendImportDialog(shell_, version).open()));
+			steps.add(new org.dbgl.gui.controls.WindowTour.Step("dfendx-import", none, () -> new DFendImportDialog(shell_, version, true).open()));
+		}
+		steps.add(new org.dbgl.gui.controls.WindowTour.Step("migrate", none, () -> new MigrateDialog(shell_).open()));
+		if (prof != null) {
+			steps.add(new org.dbgl.gui.controls.WindowTour.Step("controller", none, () -> new ControllerDialog(shell_, prof).open()));
+			// (not the earlier versions of a profile: without any it only shows a message, which has to be closed by hand)
+			steps.add(new org.dbgl.gui.controls.WindowTour.Step("usb-stick", none, () -> {
+				try {
+					PortableDialog.open(shell_, new ProfileRepository().list(" ORDER BY LOWER(GAM.TITLE)", null, dbversionsList_), new HashSet<>(List.of(prof.getId())), prof.getId());
+				} catch (SQLException e) {
+					throw new IllegalStateException(e);
+				}
+			}));
+			// the preview of bringing a stick back, with made-up lines (nothing is taken over: what it returns is not used)
+			steps.add(new org.dbgl.gui.controls.WindowTour.Step("usb-stick-return", none, () -> {
+				File data = FileLocationService.getInstance().getDataDir(), game = new File(FileLocationService.getInstance().getDosroot(), "GAME");
+				List<org.dbgl.util.StickReturn.StatChange> stats = List.of(new org.dbgl.util.StickReturn.StatChange(prof.getId(), prof.getTitle(), 2, 4500, 0));
+				List<org.dbgl.util.StickReturn.FileAction> files = List.of(new org.dbgl.util.StickReturn.FileAction(new File("SAVE1.DAT"), new File(game, "SAVE1.DAT"), false),
+					new org.dbgl.util.StickReturn.FileAction(new File("SAVE0.DAT"), new File(game, "SAVE0.DAT"), true));
+				org.dbgl.util.StickReturn.Plan plan = new org.dbgl.util.StickReturn.Plan("window-tour", System.currentTimeMillis(), stats, files, List.of(new File(game, "GAME.CFG")), List.of("Example"),
+						new java.util.HashMap<>(), true);
+				org.dbgl.gui.controls.StickReturnPreview.open(shell_, text_.get("dialog.main.menu.windowtour"), plan, java.util.Map.of(game, prof.getTitle()), data, FileLocationService.getInstance().getDosroot(), uiLocale());
+			}));
+		}
+		steps.add(new org.dbgl.gui.controls.WindowTour.Step("shortcuts", none, () -> new ShortcutsDialog(shell_, text_.get("dialog.shortcuts.title"), text_.get("dialog.shortcuts.text")).open()));
+		steps.add(new org.dbgl.gui.controls.WindowTour.Step("changelog", none, () -> showDocument("changelog", "dialog.main.menu.changelog")));
+		steps.add(new org.dbgl.gui.controls.WindowTour.Step("about", none, () -> new AboutDialog(shell_).open()));
+		return steps;
+	}
+
+	private void startWindowTour(List<org.dbgl.gui.controls.WindowTour.Step> steps) {
+		boolean dark = org.dbgl.gui.controls.DarkTheme.forced();
+		org.eclipse.swt.graphics.Point dpi = display_.getDPI();
+		Rectangle screen = shell_.getMonitor().getBounds();
+		List<String> info = new ArrayList<>(List.of("DBGL Extended Edition " + Constants.PROGRAM_VERSION,
+			System.getProperty("os.name") + " " + System.getProperty("os.version") + " " + System.getProperty("os.arch"), "Java " + System.getProperty("java.version"),
+			"SWT " + SWT.getVersion() + " " + SWT.getPlatform(), "theme: " + (dark ? "dark": "light") + " (setting " + settings_.getValue("gui", "theme") + ")",
+			"language: " + settings_.getValue("locale", "language"), "screen: " + screen.width + "x" + screen.height + ", " + dpi.x + " dpi", ""));
+		String stamp = new java.text.SimpleDateFormat("yyyyMMdd-HHmmss").format(new java.util.Date());
+		org.dbgl.gui.controls.WindowTour.run(shell_, steps, org.dbgl.util.DosboxLog.logsDir(), stamp, dark ? "dark": "light", info, (zip, pictures) -> {
+			if (zip == null)
+				Mess_.on(shell_).key("dialog.windowtour.failed").warning();
+			else if (Mess_.on(shell_).key("dialog.windowtour.done", new Object[] {pictures, zip.getName()}).confirm())
+				SystemUtils.openDirForViewing(zip.getParentFile(), shell_);
+		});
+	}
+
 	private void doMakePortable() {
 		try {
 			List<Profile> all = new ProfileRepository().list(" ORDER BY LOWER(GAM.TITLE)", null, dbversionsList_);

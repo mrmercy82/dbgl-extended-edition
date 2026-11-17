@@ -42,6 +42,8 @@ public final class OldFiles {
 	/** how to install the update: under another name now, still in the main folder (where it is not overlooked) */
 	public static final String OLD_README = "UPDATE-LIESMICH.txt", README = "update-readme.txt";
 	private static final Pattern FREEZE = Pattern.compile("freeze-\\d{8}-\\d{6}\\.txt");
+	/** alpha 51: the pictures of the windows, made for an error report (Help menu) */
+	private static final Pattern WINDOW_TOUR = Pattern.compile("window-tour-\\d{8}-\\d{6}\\.zip");
 	private static final List<String> DIAGNOSTICS = List.of("menubar-check.txt", "toolbar-metrics.txt");
 
 	private OldFiles() {
@@ -49,7 +51,7 @@ public final class OldFiles {
 
 	/** alpha 50: is this the name of a diagnostic file DBGL writes into its folder "logs"? */
 	public static boolean isDiagnostic(String name) {
-		return DIAGNOSTICS.contains(name) || FREEZE.matcher(name).matches();
+		return DIAGNOSTICS.contains(name) || FREEZE.matcher(name).matches() || WINDOW_TOUR.matcher(name).matches();
 	}
 
 	private static Map<String, String> docs() {

@@ -48,8 +48,6 @@ import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Dialog;
 import org.eclipse.swt.widgets.Display;
-import org.eclipse.swt.widgets.ExpandBar;
-import org.eclipse.swt.widgets.ExpandItem;
 import org.eclipse.swt.widgets.Link;
 import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.widgets.MenuItem;
@@ -353,16 +351,6 @@ public abstract class BaseDialog<T> extends Dialog {
 		return button;
 	}
 
-	/* ExpandItem */
-	protected static ExpandItem createExpandItem(ExpandBar expandBar, String text, boolean expanded, Composite composite) {
-		ExpandItem expandItem = new ExpandItem(expandBar, SWT.NONE);
-		expandItem.setText(TextService.getInstance().get(text));
-		expandItem.setExpanded(expanded);
-		expandItem.setControl(composite);
-		expandItem.setHeight(composite.computeSize(SWT.DEFAULT, SWT.DEFAULT).y);
-		return expandItem;
-	}
-
 	/* Link */
 	protected static Link createLink(Composite composite, String text, SelectionListener listener) {
 		Link link = new Link(composite, SWT.NONE);
@@ -471,14 +459,5 @@ public abstract class BaseDialog<T> extends Dialog {
 			toolBar.setForeground(DarkTheme.defaultForeground);
 		}
 		return toolBar;
-	}
-
-	/* ExpandBar */
-	protected static ExpandBar createExpandBar(Composite composite) {
-		ExpandBar expandBar = new ExpandBar(composite, SWT.V_SCROLL);
-		if (DarkTheme.forced()) {
-			expandBar.setBackground(composite.getBackground());
-		}
-		return expandBar;
 	}
 }

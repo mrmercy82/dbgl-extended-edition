@@ -4628,4 +4628,28 @@ public class Dbgl0102Tests {
 		}
 		assertFalse(org.dbgl.service.TextService.getInstance().get("dialog.checkprofiles.paw1942jemmex", new Object[] {"X", "Y"}).contains("paw1942jemmex"));
 	}
+
+	/** alpha 51: the ZIP file with the pictures of the windows is one of the diagnostic files of DBGL: listed, and it can go */
+	@Test
+	public void testWindowTourFile() throws Exception {
+		assertTrue(org.dbgl.util.OldFiles.isDiagnostic("window-tour-20261117-062743.zip"));
+		assertFalse(org.dbgl.util.OldFiles.isDiagnostic("window-tour-mine.zip"));
+		assertFalse(org.dbgl.util.OldFiles.isDiagnostic("window-tour-20261117-062743.zip.bak"));
+		assertFalse(org.dbgl.util.OldFiles.isDiagnostic("holiday.zip"));
+		File logs = Files.createTempDirectory("dbgl-tour").toFile();
+		try {
+			File zip = new File(logs, "window-tour-20261117-062743.zip"), other = new File(logs, "holiday.zip");
+			Files.writeString(zip.toPath(), "x");
+			Files.writeString(other.toPath(), "of the user");
+			assertEquals(1, org.dbgl.util.DosboxLog.list(logs).size());
+			assertFalse(org.dbgl.util.DosboxLog.delete(logs, other));
+			assertTrue(org.dbgl.util.DosboxLog.delete(logs, zip));
+			assertTrue(other.isFile() && !zip.exists());
+		} finally {
+			org.apache.commons.io.FileUtils.deleteQuietly(logs);
+		}
+		// no text of the windows of the tour is missing in any language
+		for (String key: new String[] {"dialog.main.menu.windowtour", "dialog.windowtour.confirm", "dialog.windowtour.done", "dialog.windowtour.failed"})
+			assertFalse(key, org.dbgl.service.TextService.getInstance().get(key, new Object[] {1, "x"}).contains(key));
+	}
 }

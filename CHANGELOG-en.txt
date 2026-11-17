@@ -4,6 +4,35 @@ DBGL Extended Edition - Changes since 0.100 beta 17
 Based on DBGL 0.100 beta 17 by Ronald Blankendaal (https://dbgl.org), source code.
 
 
+0.101 alpha 51 (in progress)
+----------------------------
+Important
+- Java 21 will be needed soon: one of the next versions of DBGL Extended
+  Edition needs Java 21 and will not start with an older Java. When DBGL
+  runs with an older Java, it says so at the start. Java 21 is available
+  e.g. as Eclipse Temurin:
+  https://adoptium.net/temurin/releases/?version=21
+
+New
+- Help > "Take pictures of all windows (for error reports)": DBGL opens
+  its windows one after the other, takes a picture of each (of each page
+  of the settings and of the editors) and closes it again; nothing is
+  saved or changed. The pictures go into a ZIP file in the folder "logs"
+  and are not sent anywhere. Meant for errors that show on one operating
+  system or in one appearance only. "Manage log files" lists the file
+  and can delete it.
+
+Changed
+- "Parts of this game series" and "Take over from another DOSBox
+  configuration" are called so in all languages now (so far only in
+  German and English).
+
+Improved
+- The tab "Without pictures" no longer asks the database each time the
+  window comes to the front, only when the profiles may have changed.
+- Tidied up: texts no window uses any more are gone from all language
+  files.
+
 0.101 alpha 50 (2026-11-16)
 ---------------------------
 Important
