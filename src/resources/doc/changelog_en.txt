@@ -46,6 +46,14 @@ Improved
   window comes to the front, only when the profiles may have changed.
 - Tidied up: texts no window uses any more are gone from all language
   files.
+- When DBGL starts itself again (e.g. after switching to dark mode)
+  and the database is still in use at that moment, DBGL now waits up to
+  ten seconds instead of stopping with an error at once. If it cannot be
+  read at all, the message now tells the reason too. What the new DBGL
+  writes is kept in logs/restart-output.txt (see "Manage log files").
+- Guide of the stand-alone package: dbgl.cmd is the recommended start on
+  Windows; launch.exe finds an installed Java only through the "JavaSoft"
+  registry keys.
 
 0.101 alpha 50 (2026-11-16)
 ---------------------------

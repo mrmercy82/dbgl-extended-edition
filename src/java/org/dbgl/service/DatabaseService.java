@@ -208,9 +208,8 @@ public class DatabaseService {
 	}
 
 	private void initializeIfNecessary() throws SQLException {
-		try (Connection con = getConnection(); Statement stmt = con.createStatement()) {
-			stmt.executeQuery(TEST_QRY);
-		} catch (SQLException emptydatabase) {
+		SQLException emptydatabase = testQuery();
+		if (emptydatabase != null) {
 			// Probably empty database, fill it
 			try (Transaction transaction = startTransaction(); Statement stmt2 = transaction.createStatement()) {
 				for (String s: CREATE_INITIAL_DB.split(";"))
@@ -220,7 +219,37 @@ public class DatabaseService {
 				initializedNewDatabase_ = true;
 			} catch (SQLException e) {
 				e.printStackTrace();
-				throw new SQLException(TextService.getInstance().get("database.error.query", new Object[] {"create initial tables"}));
+				// alpha 51: the reason the database could not be read is told too (e.g. still in use by another DBGL)
+				throw new SQLException(TextService.getInstance().get("database.error.query", new Object[] {"create initial tables"}) + "\n\n"
+						+ StringUtils.defaultIfBlank(emptydatabase.getMessage(), emptydatabase.toString()), e);
+			}
+		}
+	}
+
+	/**
+	 * alpha 51: the test query, tried again for some seconds when the database is there but cannot be read yet: after a new start
+	 * of DBGL (e.g. for another theme) Windows may still keep the files of the DBGL before in use for a moment. Only "table not
+	 * found" means an empty database at once (HSQLDB error code -5501).
+	 *
+	 * @return null when the database could be read, else the last error
+	 */
+	private SQLException testQuery() {
+		long end = System.currentTimeMillis() + 10000;
+		for (boolean told = false;; told = true) {
+			try (Connection con = getConnection(); Statement stmt = con.createStatement()) {
+				stmt.executeQuery(TEST_QRY);
+				return null;
+			} catch (SQLException e) {
+				if ((e.getErrorCode() == -5501) || (System.currentTimeMillis() > end))
+					return e;
+				if (!told)
+					System.out.println("Database not ready yet, trying again for some seconds: " + e.getMessage());
+			}
+			try {
+				Thread.sleep(500);
+			} catch (InterruptedException ie) {
+				Thread.currentThread().interrupt();
+				return null;
 			}
 		}
 	}

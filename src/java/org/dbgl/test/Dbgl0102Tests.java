@@ -4633,6 +4633,7 @@ public class Dbgl0102Tests {
 	@Test
 	public void testWindowTourFile() throws Exception {
 		assertTrue(org.dbgl.util.OldFiles.isDiagnostic("window-tour-20261117-062743.zip"));
+		assertTrue(org.dbgl.util.OldFiles.isDiagnostic("restart-output.txt"));
 		assertFalse(org.dbgl.util.OldFiles.isDiagnostic("window-tour-mine.zip"));
 		assertFalse(org.dbgl.util.OldFiles.isDiagnostic("window-tour-20261117-062743.zip.bak"));
 		assertFalse(org.dbgl.util.OldFiles.isDiagnostic("holiday.zip"));

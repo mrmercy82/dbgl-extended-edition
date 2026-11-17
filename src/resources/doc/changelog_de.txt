@@ -48,6 +48,15 @@ Verbessert
   geändert haben können.
 - Aufgeräumt: Texte, die kein Fenster mehr benutzt, sind aus allen
   Sprachdateien entfernt.
+- Startet DBGL sich selbst neu (z. B. nach dem Wechsel in den Dunkelmodus)
+  und ist die Datenbank in diesem Moment noch belegt, wartet DBGL bis zu
+  zehn Sekunden, statt gleich mit einem Fehler abzubrechen. Kann sie gar
+  nicht gelesen werden, nennt die Meldung jetzt auch den Grund. Was das
+  neu gestartete DBGL ausgibt, steht in logs/restart-output.txt (unter
+  "Logdateien verwalten").
+- Anleitung des eigenständigen Pakets: dbgl.cmd ist der empfohlene Start
+  unter Windows; launch.exe findet ein installiertes Java nur über die
+  "JavaSoft"-Registry-Einträge.
 
 0.101 alpha 50 (2026-11-16)
 ---------------------------

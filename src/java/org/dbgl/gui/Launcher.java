@@ -76,7 +76,19 @@ public class Launcher {
 			if (!cmd.isEmpty()) {
 				try {
 					org.eclipse.swt.widgets.Shell waiting = restartNotice();
-					new ProcessBuilder(cmd).directory(new java.io.File(".").getAbsoluteFile()).start();
+					// alpha 51: what the new DBGL writes (e.g. why it could not start) is kept in logs/restart-output.txt; nobody would
+					// read it otherwise, and on Windows a full pipe could even stop the new DBGL
+					ProcessBuilder pb = new ProcessBuilder(cmd).directory(new java.io.File(".").getAbsoluteFile()).redirectErrorStream(true);
+					try {
+						File logs = org.dbgl.util.DosboxLog.logsDir();
+						if (logs.isDirectory() || logs.mkdirs())
+							pb.redirectOutput(new File(logs, org.dbgl.util.OldFiles.RESTART_OUTPUT));
+						else
+							pb.redirectOutput(ProcessBuilder.Redirect.DISCARD);
+					} catch (RuntimeException e) {
+						pb.redirectOutput(ProcessBuilder.Redirect.DISCARD);
+					}
+					pb.start();
 					waitForNewStart(waiting);
 				} catch (java.io.IOException e) {
 					System.err.println("DBGL could not start again: " + e);

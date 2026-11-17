@@ -44,7 +44,9 @@ public final class OldFiles {
 	private static final Pattern FREEZE = Pattern.compile("freeze-\\d{8}-\\d{6}\\.txt");
 	/** alpha 51: the pictures of the windows, made for an error report (Help menu) */
 	private static final Pattern WINDOW_TOUR = Pattern.compile("window-tour-\\d{8}-\\d{6}\\.zip");
-	private static final List<String> DIAGNOSTICS = List.of("menubar-check.txt", "toolbar-metrics.txt");
+	/** alpha 51: what DBGL wrote after it started itself again (e.g. for another theme) */
+	public static final String RESTART_OUTPUT = "restart-output.txt";
+	private static final List<String> DIAGNOSTICS = List.of("menubar-check.txt", "toolbar-metrics.txt", RESTART_OUTPUT);
 
 	private OldFiles() {
 	}
