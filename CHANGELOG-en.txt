@@ -42,8 +42,6 @@ Changed
   Temurin installer does not add by itself. The update package brings the
   new launch.exe; the update through "Help > Check for updates of the
   DBGL Extended Edition" installs it on Windows only.
-- Program icon: launch.exe, Linux and macOS now have the same icon as the
-  windows of DBGL, with the band "Extended Edition".
 - The bar "A later version needs Java 21" is gone; the start of DBGL
   itself checks that now.
 - "Parts of this game series" and "Take over from another DOSBox

@@ -44,8 +44,6 @@ Geändert
   nicht von selbst anlegt. Das Update-Paket bringt die neue launch.exe
   mit; das Update über "Hilfe > Nach Updates der DBGL Extended Edition
   suchen" spielt sie nur unter Windows ein.
-- Programmsymbol: launch.exe, Linux und macOS haben jetzt dasselbe Symbol
-  wie die Fenster von DBGL, mit dem Band "Extended Edition".
 - Der Balken "Eine kommende Version benötigt Java 21" entfällt; die
   Prüfung übernimmt jetzt der Start von DBGL selbst.
 - "Teile dieser Spielereihe" und "Aus anderer DOSBox-Konfiguration

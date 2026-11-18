@@ -29,8 +29,7 @@ NEWEST IN 0.101 ALPHA 51
   - Stand-alone packages for Windows, Linux and macOS: DBGL Extended
     Edition can now be installed without DBGL 0.100 beta 17; on Windows
     and macOS DOSBox 0.74-3 comes with it.
-  - New launch.exe: finds Java 21 also through JAVA_HOME and the PATH,
-    with the icon of the Extended Edition.
+  - New launch.exe: finds Java 21 also through JAVA_HOME and the PATH.
   - "Take pictures of all windows (for error reports)" in the window
     "Manage log files" (menu File).
   - New libraries for the user interface (SWT 4.41, Nebula Gallery 1.1.0).
