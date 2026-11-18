@@ -4717,6 +4717,20 @@ public class Dbgl0102Tests {
 				assertEquals(c[0], c[1], org.dbgl.util.VersionBackup.dbglInBackup(zip));
 			}
 			assertNull(org.dbgl.util.VersionBackup.dbglInBackup(new File(dir, "missing.zip")));
+			// in the list: a name a test version wrote ("0.75") is told anew from the database, a version of the Extended Edition stays
+			File list = new File(dir, "list");
+			list.mkdirs();
+			for (String n: new String[] {"before-0.101alpha51-from-0.75-20261118-120000.zip", "before-0.101alpha51-from-0.101alpha50-20261118-120001.zip"})
+				try (java.util.zip.ZipOutputStream out = new java.util.zip.ZipOutputStream(new java.io.FileOutputStream(new File(list, n)))) {
+					out.putNextEntry(new java.util.zip.ZipEntry("db/database.script"));
+					out.write("INSERT INTO VERSION VALUES(0,75)\n".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+					out.closeEntry();
+				}
+			java.util.Map<String, String> versions = new java.util.HashMap<>();
+			for (org.dbgl.util.BackupCatalog.Backup b: org.dbgl.util.BackupCatalog.list(java.util.List.of(list)))
+				versions.put(b.file().getName(), b.version());
+			assertEquals("pre0.92", versions.get("before-0.101alpha51-from-0.75-20261118-120000.zip"));
+			assertEquals("0.101alpha50", versions.get("before-0.101alpha51-from-0.101alpha50-20261118-120001.zip"));
 		} finally {
 			org.apache.commons.io.FileUtils.deleteQuietly(dir);
 		}

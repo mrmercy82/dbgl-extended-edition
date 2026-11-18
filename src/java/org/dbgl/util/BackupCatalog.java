@@ -200,7 +200,9 @@ public final class BackupCatalog {
 				String version = versionInName(f.getName(), kind);
 				if (version.isEmpty() && kind.restorable())
 					version = versionInside(f);
-				if ((kind == Kind.VERSION) && "older".equals(version)) { // alpha 51: which DBGL it was, by its database
+				// alpha 51: which DBGL it was, by its database: for "older" and for what test versions of alpha 51 wrote into the name (e.g.
+				// "0.75" for DBGL 0.79); only a version of the Extended Edition (0.101 on) was taken from the settings and stays
+				if ((kind == Kind.VERSION) && !version.isEmpty() && !version.matches("(?i)(ee-)?0\\.1(0[1-9]|[1-9]\\d).*")) {
 					String dbgl = VersionBackup.dbglInBackup(f);
 					if (dbgl != null)
 						version = dbgl;
