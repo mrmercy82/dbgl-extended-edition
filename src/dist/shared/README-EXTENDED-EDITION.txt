@@ -38,8 +38,8 @@ This is an alpha version. Keep backups of your games and of the DBGL
 folder (File menu > Manage backups).
 
 
-Already using DBGL 0.100 beta 17 or an earlier Extended Edition?
-----------------------------------------------------------------
+Already using DBGL 0.99, 0.100 beta 17 or an earlier Extended Edition?
+-----------------------------------------------------------------------
 You do not need this package: the update package (dbgl-<version>-update.zip
 from the same download page, or Help > Check for updates of the Extended
 Edition) keeps your profiles, database and settings.
@@ -90,10 +90,11 @@ macOS:    Archiv entpacken und DBGL.app oeffnen. DBGL legt seine Daten im
 Dies ist eine Alpha-Version. Bitte Sicherungen der Spiele und des
 DBGL-Ordners behalten (Menue Datei > Sicherungen verwalten).
 
-Wer schon DBGL 0.100 beta 17 oder eine fruehere Extended Edition benutzt,
-braucht dieses Paket nicht: Das Update-Paket (dbgl-<Version>-update.zip von
-derselben Download-Seite oder Hilfe > Nach Updates der Extended Edition
-suchen) behaelt Profile, Datenbank und Einstellungen.
+Wer schon DBGL 0.99, 0.100 beta 17 oder eine fruehere Extended Edition
+benutzt, braucht dieses Paket nicht: Das Update-Paket
+(dbgl-<Version>-update.zip von derselben Download-Seite oder Hilfe > Nach
+Updates der Extended Edition suchen) behaelt Profile, Datenbank und
+Einstellungen.
 
 Was neu ist: docs/whats-new-de.txt und docs/changelog-de.txt (auch im
 Hilfe-Menue). DBGL ist freie Software unter der GNU General Public License,

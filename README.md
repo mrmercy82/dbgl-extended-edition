@@ -26,7 +26,7 @@ See [`src/resources/doc/whatsnew_en.txt`](src/resources/doc/whatsnew_en.txt) (al
 > *Deutsch:* **Java 21 ist nötig.** Ab 0.101 alpha 51 benötigt DBGL Extended Edition Java 21 oder neuer, z. B. Eclipse Temurin 21. Mit einem älteren Java öffnet sich DBGL nicht, sondern zeigt ein Fenster, das sagt, welches Java gefunden wurde. Bitte Java vor dem Update von DBGL aktualisieren.
 
 - **New installation (from 0.101 alpha 51 on):** download the stand-alone package for your system (`DBGL-Extended-Edition-<version>-windows.zip`, `-linux.tar.xz`, `-macos-x86.tar.gz` or `-macos-arm.tar.gz`) from the [releases](https://github.com/mrmercy82/dbgl-extended-edition/releases), unpack it into a folder of your own and read `README-EXTENDED-EDITION.txt` in it. No DBGL 0.100 beta 17 is needed for it.
-- **Update an existing DBGL 0.100 beta 17 (or an earlier 0.101 alpha Extended Edition):** back up your DBGL folder and all your DOSBox folders first, then unzip `dbgl-<version>-update.zip` from the [releases](https://github.com/mrmercy82/dbgl-extended-edition/releases) over your DBGL folder. Profiles, database and settings are kept.
+- **Update an existing DBGL 0.99 or 0.100 beta 17 (or an earlier 0.101 alpha Extended Edition):** back up your DBGL folder and all your DOSBox folders first, then unzip `dbgl-<version>-update.zip` from the [releases](https://github.com/mrmercy82/dbgl-extended-edition/releases) over your DBGL folder. Profiles, database and settings are kept.
 - **From source:** `ant` with the `build.xml` in this folder (Java 21 or later), or apply `dbgl-0100beta17-to-<version>.patch` to the original 0.100 beta 17 source.
 
 Please compare the SHA-256 checksums of the downloads with those published next to them.
