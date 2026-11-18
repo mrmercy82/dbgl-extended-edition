@@ -43,4 +43,4 @@ Bundled libraries keep their own licenses (Eclipse SWT and Nebula Gallery: EPL; 
 
 ## Feedback
 
-Problems and test results (especially on Windows and macOS): please open an issue.
+Problems and test results: please open an issue. Tested on Windows and Linux; reports from macOS are especially welcome.
