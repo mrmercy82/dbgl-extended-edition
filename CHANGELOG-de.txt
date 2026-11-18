@@ -36,6 +36,8 @@ Geändert
   1.0.0). Der Windows-Dunkelmodus ist an das neue SWT angepasst.
 - Der Balken "Eine kommende Version benötigt Java 21" entfällt; die
   Prüfung übernimmt jetzt der Start von DBGL selbst.
+- Menü DOSBox: "Bericht zu den Einstellungen dieser Version"
+  erscheint nur noch, wenn eine Version gewählt ist, die DBGL nicht kennt.
 - "Teile dieser Spielereihe" und "Aus anderer DOSBox-Konfiguration
   übernehmen" heißen jetzt in allen Sprachen so (bisher nur Deutsch und
   Englisch).

@@ -36,6 +36,8 @@ Changed
   The dark mode under Windows is adapted to the new SWT.
 - The bar "A later version needs Java 21" is gone; the start of DBGL
   itself checks that now.
+- Menu DOSBox versions: "Report on the settings of this version" shows
+  only while a version DBGL does not know is selected.
 - "Parts of this game series" and "Take over from another DOSBox
   configuration" are called so in all languages now (so far only in
   German and English).

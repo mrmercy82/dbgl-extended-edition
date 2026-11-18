@@ -2537,7 +2537,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				doDownloadDosbox();
 			}
 		}).build();
-		MenuItem_.on(dbversionsMenu).key("dialog.main.menu.switchdosboxversion2").image(ImageService.IMG_MIGRATE).listen(new SelectionAdapter() {
+		MenuItem switchItem = MenuItem_.on(dbversionsMenu).key("dialog.main.menu.switchdosboxversion2").image(ImageService.IMG_MIGRATE).listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
 				if (Boolean.TRUE.equals(new SwitchDosboxVersionDialog(shell_).open())) {
@@ -2546,17 +2546,29 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				}
 			}
 		}).build();
-		// alpha 50: for a version DBGL does not know yet: what is new in its settings, to send to the developer
-		MenuItem_.on(dbversionsMenu).key("dialog.main.menu.dosboxreport").image(ImageService.IMG_ZOOM).listen(new SelectionAdapter() {
-			@Override
-			public void widgetSelected(SelectionEvent event) {
-				int index = dbversionTable_.getSelectionIndex();
-				if (index != -1) {
-					DosboxVersion dbversion = dbversionsList_.get(index);
-					EditDosboxVersionDialog.showSupportReport(shell_, dbversion.getFamily(), dbversion.getVersion(), dbversion.getConfigurationCanonicalFile());
-				}
+		// alpha 50: for a version DBGL does not know yet: what is new in its settings, to send to the developer;
+		// alpha 51: only in the menu while such a version is selected
+		MenuItem[] reportItem = new MenuItem[1];
+		dbversionsMenu.addListener(SWT.Show, e -> {
+			int index = dbversionTable_ == null ? -1: dbversionTable_.getSelectionIndex();
+			boolean unknown = (index != -1) && (index < dbversionsList_.size())
+					&& (org.dbgl.util.DosboxSupport.status(dbversionsList_.get(index).getFamily(), dbversionsList_.get(index).getVersion()) != org.dbgl.util.DosboxSupport.Status.KNOWN);
+			boolean shown = (reportItem[0] != null) && !reportItem[0].isDisposed();
+			if (shown && !unknown) {
+				reportItem[0].dispose();
+			} else if (!shown && unknown) {
+				reportItem[0] = MenuItem_.on(dbversionsMenu).pos(dbversionsMenu.indexOf(switchItem) + 1).key("dialog.main.menu.dosboxreport").image(ImageService.IMG_ZOOM).listen(new SelectionAdapter() {
+					@Override
+					public void widgetSelected(SelectionEvent event) {
+						int sel = dbversionTable_.getSelectionIndex();
+						if (sel != -1) {
+							DosboxVersion dbversion = dbversionsList_.get(sel);
+							EditDosboxVersionDialog.showSupportReport(shell_, dbversion.getFamily(), dbversion.getVersion(), dbversion.getConfigurationCanonicalFile());
+						}
+					}
+				}).build();
 			}
-		}).build();
+		});
 		// alpha 49: what DOSBox said at its last start (the status window closes when DOSBox ends without a problem)
 		MenuItem_.on(dbversionsMenu).build();
 		MenuItem_.on(dbversionsMenu).key("dialog.main.menu.lastdosboxlog").image(ImageService.IMG_LOG).listen(new SelectionAdapter() {
