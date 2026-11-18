@@ -145,24 +145,21 @@ public final class VersionBackup {
 	/** the version table in a database.script of HSQLDB, e.g. "INSERT INTO VERSION VALUES(0,99)" */
 	private static final java.util.regex.Pattern DB_VERSION = java.util.regex.Pattern.compile("INSERT INTO (?:PUBLIC\\.)?VERSION VALUES\\((\\d+),\\s*(\\d+)\\)");
 
-	/** the versions of the database since DBGL 0.50 (see the upgrades in DatabaseService): each came with that DBGL */
-	private static final int[] DB_STEPS = {50, 51, 56, 62, 65, 67, 68, 72, 73, 74, 75, 76, 77, 81, 90, 92, 93, 94, 98, 99};
-
 	/**
-	 * alpha 51: the DBGL a database comes from when no Extended Edition ran on it before. The database changed only with some
-	 * versions, so it is a range where it did not (94: DBGL 0.94 to 0.97); 100 to 103 are the betas of 0.100. Else "older".
+	 * alpha 51: the DBGL a database comes from when no Extended Edition ran on it before. Its version does not follow the
+	 * numbers of DBGL (DBGL 0.79 has 75), only these are sure: 92 is DBGL 0.92, 99 is 0.99, 100 to 103 are the betas of 0.100;
+	 * 93 to 98 lie between them, anything below 92 is from before 0.92 (the old format, which 0.92 converts). Else "older".
 	 */
 	static String dbglOfDatabaseVersion(int major, int minor) {
-		if (major != 0)
+		if ((major != 0) || (minor < 50) || (minor > 103))
 			return "older";
-		if ((minor >= 100) && (minor <= 103))
+		if (minor >= 100)
 			return "0.100";
-		for (int i = 0; i < DB_STEPS.length; i++)
-			if (DB_STEPS[i] == minor) {
-				int last = (i + 1 < DB_STEPS.length ? DB_STEPS[i + 1]: 100) - 1;
-				return last == minor ? "0." + minor: "0." + minor + "-0." + last;
-			}
-		return "older";
+		if ((minor == 92) || (minor == 99))
+			return "0." + minor;
+		if (minor > 92)
+			return "0.93-0.98";
+		return "pre0.92";
 	}
 
 	/** alpha 51: the DBGL of a database.script (its lines), "older" if it does not say */

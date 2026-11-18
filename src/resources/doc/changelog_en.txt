@@ -75,9 +75,9 @@ Improved
   old address for shared configurations (squadrablu.nl) is changed to
   share.dbgl.org by itself.
 - Manage backups: the backup before the first start of a new version now
-  tells which DBGL it comes from (e.g. 0.99, 0.100, or for older ones a
-  range like 0.94 – 0.97) instead of "older", also for backups already
-  there.
+  tells which DBGL it comes from (0.92, 0.99, 0.100, between them 0.93 –
+  0.98, and "< 0.92" for older ones) instead of "older", also for backups
+  already there.
 - The tab "Without pictures" no longer asks the database each time the
   window comes to the front, only when the profiles may have changed.
 - Tidied up: texts no window uses any more are gone from all language

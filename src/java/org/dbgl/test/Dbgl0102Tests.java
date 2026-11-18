@@ -3562,7 +3562,8 @@ public class Dbgl0102Tests {
 		assertEquals("0.101 alpha 48", org.dbgl.util.BackupCatalog.pretty("0.101alpha48"));
 		assertEquals("0.101 alpha 49", org.dbgl.util.BackupCatalog.pretty("ee-0.101alpha49"));
 		assertEquals("0.101 alpha 48", org.dbgl.util.BackupCatalog.pretty("0.101 alpha 48"));
-		assertEquals("0.94 \u2013 0.97", org.dbgl.util.BackupCatalog.pretty("0.94-0.97")); // alpha 51
+		assertEquals("0.93 \u2013 0.98", org.dbgl.util.BackupCatalog.pretty("0.93-0.98")); // alpha 51
+		assertEquals("< 0.92", org.dbgl.util.BackupCatalog.pretty("pre0.92"));
 		assertEquals("older", org.dbgl.util.BackupCatalog.pretty("older"));
 		assertNull(org.dbgl.util.BackupCatalog.kindOf("dbgl-backup-20261114-153000.zip.part"));
 		assertTrue(auto.restorable());
@@ -4702,9 +4703,9 @@ public class Dbgl0102Tests {
 		File dir = java.nio.file.Files.createTempDirectory("dbglver").toFile();
 		try {
 			String[][] cases = {{"INSERT INTO VERSION VALUES(0,99)", "0.99"}, {"INSERT INTO VERSION VALUES(0,103)", "0.100"},
-					{"INSERT INTO PUBLIC.VERSION VALUES(0,101)", "0.100"}, {"INSERT INTO VERSION VALUES(0,104)", null}, {"INSERT INTO VERSION VALUES(0,94)", "0.94-0.97"},
-					{"INSERT INTO VERSION VALUES(0,98)", "0.98"}, {"INSERT INTO VERSION VALUES(0,81)", "0.81-0.89"}, {"INSERT INTO VERSION VALUES(0,50)", "0.50"},
-					{"INSERT INTO VERSION VALUES(0,95)", null}, {"", null}};
+					{"INSERT INTO PUBLIC.VERSION VALUES(0,101)", "0.100"}, {"INSERT INTO VERSION VALUES(0,104)", null}, {"INSERT INTO VERSION VALUES(0,94)", "0.93-0.98"},
+					{"INSERT INTO VERSION VALUES(0,92)", "0.92"}, {"INSERT INTO VERSION VALUES(0,75)", "pre0.92"}, {"INSERT INTO VERSION VALUES(0,50)", "pre0.92"},
+					{"INSERT INTO VERSION VALUES(0,20)", null}, {"", null}};
 			int i = 0;
 			for (String[] c: cases) {
 				File zip = new File(dir, "before-0.101alpha51-from-older-" + (i++) + ".zip");
