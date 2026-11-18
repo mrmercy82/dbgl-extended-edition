@@ -4,8 +4,8 @@ DBGL Extended Edition - Changes since 0.100 beta 17
 Based on DBGL 0.100 beta 17 by Ronald Blankendaal (https://dbgl.org), source code.
 
 
-0.101 alpha 51 (in progress)
-----------------------------
+0.101 alpha 51 (2026-11-18)
+---------------------------
 Important
 - Java 21 is needed now: this version of DBGL Extended Edition needs
   Java 21 or newer. With an older Java DBGL does not open but shows a
