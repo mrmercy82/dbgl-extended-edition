@@ -70,6 +70,13 @@ Fehler behoben
 Verbessert
 - Das Update-Paket bringt jetzt alle Bibliotheken mit (auch die
   Datenbank), so funktioniert es auch über das offizielle DBGL 0.99.
+- Datenbank von DBGL 0.91 oder älter (altes Format von HSQLDB 1.8): Statt
+  "unsupported old database version" sagt DBGL jetzt, wie sie sich
+  übernehmen lässt (erst DBGL 0.92 darüber, einmal starten). Nichts
+  wird verändert, und die Sicherung vor dem ersten Start wird nach der
+  Umwandlung noch einmal gemacht. Die alte Adresse für geteilte
+  Konfigurationen (squadrablu.nl) wird von selbst auf share.dbgl.org
+  umgestellt.
 - Sicherungen verwalten: Bei der Sicherung vor dem ersten Start einer
   neuen Version steht statt "older" jetzt, von welchem DBGL sie stammt
   (z. B. 0.99, 0.100 oder bei älteren ein Bereich wie 0.94 – 0.97), auch

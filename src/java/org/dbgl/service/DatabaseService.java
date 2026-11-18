@@ -198,6 +198,12 @@ public class DatabaseService {
 			upgradeIfNecessary();
 		} catch (SQLException e) {
 			Shell shell = new Shell();
+			if (isOldFormat(e)) { // alpha 51: a database of DBGL 0.91 or older (HSQLDB 1.8): what to do, and its backup again next time
+				org.dbgl.util.VersionBackup.forget();
+				e.printStackTrace();
+				Mess_.on(shell).key("database.error.olddatabase").fatal();
+				throw new RuntimeException();
+			}
 			Mess_.on(shell).key("database.error.initconnection", StringRelatedUtils.toString(e)).exception(e).fatal();
 			throw new RuntimeException();
 		} catch (ClassNotFoundException e) {
@@ -207,8 +213,21 @@ public class DatabaseService {
 		}
 	}
 
+	/**
+	 * alpha 51: the database has the format of HSQLDB 1.8 (DBGL 0.91 and older), which HSQLDB 2.6 and later cannot open; DBGL 0.92
+	 * converts it
+	 */
+	public static boolean isOldFormat(Throwable e) {
+		for (Throwable t = e; t != null; t = t.getCause())
+			if ((t.getMessage() != null) && t.getMessage().toLowerCase(java.util.Locale.ROOT).contains("unsupported old database version"))
+				return true;
+		return false;
+	}
+
 	private void initializeIfNecessary() throws SQLException {
 		SQLException emptydatabase = testQuery();
+		if ((emptydatabase != null) && isOldFormat(emptydatabase))
+			throw emptydatabase; // alpha 51: not empty, only too old: nothing is created in it
 		if (emptydatabase != null) {
 			// Probably empty database, fill it
 			try (Transaction transaction = startTransaction(); Statement stmt2 = transaction.createStatement()) {
@@ -240,7 +259,7 @@ public class DatabaseService {
 				stmt.executeQuery(TEST_QRY);
 				return null;
 			} catch (SQLException e) {
-				if ((e.getErrorCode() == -5501) || (System.currentTimeMillis() > end))
+				if ((e.getErrorCode() == -5501) || isOldFormat(e) || (System.currentTimeMillis() > end))
 					return e;
 				if (!told)
 					System.out.println("Database not ready yet, trying again for some seconds: " + e.getMessage());

@@ -68,6 +68,12 @@ Fixed
 Improved
 - The update package now brings all libraries (also the database), so
   it works over the official DBGL 0.99 too.
+- A database of DBGL 0.91 or older (old format of HSQLDB 1.8): instead of
+  "unsupported old database version", DBGL now says how to bring it over
+  (first DBGL 0.92 over it, start it once). Nothing is changed, and the
+  backup before the first start is made again after the conversion. The
+  old address for shared configurations (squadrablu.nl) is changed to
+  share.dbgl.org by itself.
 - Manage backups: the backup before the first start of a new version now
   tells which DBGL it comes from (e.g. 0.99, 0.100, or for older ones a
   range like 0.94 – 0.97) instead of "older", also for backups already

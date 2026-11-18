@@ -78,6 +78,22 @@ public final class VersionBackup {
 		}
 	}
 
+	/**
+	 * alpha 51: the database could not be opened (e.g. too old a format): the backup before the first start is made again next
+	 * time, after the database was converted
+	 */
+	public static synchronized void forget() {
+		try {
+			SettingsService settings = SettingsService.getInstance();
+			if (Constants.PROGRAM_VERSION.equals(settings.getValue(SECTION, ITEM))) {
+				settings.setValue(SECTION, ITEM, "");
+				settings.save();
+			}
+		} catch (IOException | RuntimeException e) {
+			e.printStackTrace();
+		}
+	}
+
 	/** the folder of the database of DBGL (by default "db" in the data folder), null if it is not a file database */
 	static File databaseDir() {
 		String conn = SettingsService.getInstance().getValue("database", "connectionstring");

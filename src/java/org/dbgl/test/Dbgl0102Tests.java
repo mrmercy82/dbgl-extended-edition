@@ -4721,6 +4721,16 @@ public class Dbgl0102Tests {
 		}
 	}
 
+	/** alpha 51: the database of DBGL 0.91 or older (HSQLDB 1.8) is recognised, also as the cause of another exception */
+	@Test
+	public void testOldDatabaseFormat() {
+		java.sql.SQLException old = new java.sql.SQLException("wrong database file version: unsupported old database version");
+		assertTrue(org.dbgl.service.DatabaseService.isOldFormat(old));
+		assertTrue(org.dbgl.service.DatabaseService.isOldFormat(new java.sql.SQLException("x", old)));
+		assertFalse(org.dbgl.service.DatabaseService.isOldFormat(new java.sql.SQLException("user lacks privilege or object not found: GAMES")));
+		assertFalse(org.dbgl.service.DatabaseService.isOldFormat(new java.sql.SQLException((String)null)));
+	}
+
 	/** alpha 51: launch.exe of an update is installed on Windows only */
 	@Test
 	public void testUpdateWindowsOnly() throws Exception {

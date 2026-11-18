@@ -100,6 +100,9 @@ public class SettingsService {
 				settings_.setValue("gui", "column9width", "38");
 			settings_.setValue("gui", "uidefaults", (settings_.getValue("gui", "uidefaults") + " a48cols").strip());
 		}
+		// alpha 51: the address of the shared configurations of DBGL 0.91 and older is gone (DBGL 0.92 asked to change it by hand)
+		if ("http://www.squadrablu.nl:8080/DBConfWS/apiv1/".equals(settings_.getValue("confsharing", "endpoint")))
+			settings_.setValue("confsharing", "endpoint", "https://share.dbgl.org/DBConfWS/apiv1/");
 		// MobyGames is no longer the default source: without an API key (paid) it gives nothing, so use TheGamesDB instead
 		if ("mobygames".equalsIgnoreCase(settings_.getValue("gui", "searchengine")) && StringUtils.isBlank(settings_.getValue("mobygames", "api_key")))
 			settings_.setValue("gui", "searchengine", "thegamesdb");
