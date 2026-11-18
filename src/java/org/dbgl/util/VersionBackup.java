@@ -100,7 +100,7 @@ public final class VersionBackup {
 		FileLocationService fls = FileLocationService.getInstance();
 		File dir = new File(fls.getDataDir(), DIR);
 		Files.createDirectories(dir.toPath());
-		String from = (last == null || last.isEmpty()) ? "older": last.replaceAll("[^A-Za-z0-9.\\-]", "_");
+		String from = (last == null || last.isEmpty()) ? fromDatabase(dbDir): last.replaceAll("[^A-Za-z0-9.\\-]", "_");
 		File zip = new File(dir, "before-" + Constants.PROGRAM_VERSION.replaceAll("[^A-Za-z0-9.\\-]", "_") + "-from-" + from + "-" + new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date()) + ".zip");
 		File tmp = new File(zip.getPath() + ".part");
 		try (ZipOutputStream out = new ZipOutputStream(Files.newOutputStream(tmp.toPath()))) {
@@ -124,6 +124,69 @@ public final class VersionBackup {
 				Files.deleteIfExists(sorted.get(i).toPath());
 		}
 		return zip;
+	}
+
+	/** the version table in a database.script of HSQLDB, e.g. "INSERT INTO VERSION VALUES(0,99)" */
+	private static final java.util.regex.Pattern DB_VERSION = java.util.regex.Pattern.compile("INSERT INTO (?:PUBLIC\\.)?VERSION VALUES\\((\\d+),\\s*(\\d+)\\)");
+
+	/** the versions of the database since DBGL 0.50 (see the upgrades in DatabaseService): each came with that DBGL */
+	private static final int[] DB_STEPS = {50, 51, 56, 62, 65, 67, 68, 72, 73, 74, 75, 76, 77, 81, 90, 92, 93, 94, 98, 99};
+
+	/**
+	 * alpha 51: the DBGL a database comes from when no Extended Edition ran on it before. The database changed only with some
+	 * versions, so it is a range where it did not (94: DBGL 0.94 to 0.97); 100 to 103 are the betas of 0.100. Else "older".
+	 */
+	static String dbglOfDatabaseVersion(int major, int minor) {
+		if (major != 0)
+			return "older";
+		if ((minor >= 100) && (minor <= 103))
+			return "0.100";
+		for (int i = 0; i < DB_STEPS.length; i++)
+			if (DB_STEPS[i] == minor) {
+				int last = (i + 1 < DB_STEPS.length ? DB_STEPS[i + 1]: 100) - 1;
+				return last == minor ? "0." + minor: "0." + minor + "-0." + last;
+			}
+		return "older";
+	}
+
+	/** alpha 51: the DBGL of a database.script (its lines), "older" if it does not say */
+	static String dbglOfScript(java.io.BufferedReader script) throws IOException {
+		for (String line; (line = script.readLine()) != null;) {
+			java.util.regex.Matcher m = DB_VERSION.matcher(line);
+			if (m.find())
+				return dbglOfDatabaseVersion(Integer.parseInt(m.group(1)), Integer.parseInt(m.group(2)));
+		}
+		return "older";
+	}
+
+	/** alpha 51: the DBGL of the database in this folder, "older" if it cannot be told */
+	private static String fromDatabase(File dbDir) {
+		for (File f: databaseFiles(dbDir))
+			if (f.getName().endsWith(".script"))
+				try (java.io.BufferedReader r = Files.newBufferedReader(f.toPath(), java.nio.charset.StandardCharsets.UTF_8)) {
+					return dbglOfScript(r);
+				} catch (IOException | RuntimeException e) {
+					return "older";
+				}
+		return "older";
+	}
+
+	/** alpha 51: for a backup named "...-from-older-..." of before: the DBGL of the database in it, null if it does not say */
+	public static String dbglInBackup(File zip) {
+		try (java.util.zip.ZipFile z = new java.util.zip.ZipFile(zip)) {
+			java.util.Enumeration<? extends ZipEntry> entries = z.entries();
+			while (entries.hasMoreElements()) {
+				ZipEntry e = entries.nextElement();
+				if (e.getName().startsWith("db/") && e.getName().endsWith(".script"))
+					try (java.io.BufferedReader r = new java.io.BufferedReader(new java.io.InputStreamReader(z.getInputStream(e), java.nio.charset.StandardCharsets.UTF_8))) {
+						String v = dbglOfScript(r);
+						return "older".equals(v) ? null: v;
+					}
+			}
+		} catch (IOException | RuntimeException e) {
+			// not readable: stays "older"
+		}
+		return null;
 	}
 
 	private static void addDir(ZipOutputStream out, File dir, String prefix) throws IOException {

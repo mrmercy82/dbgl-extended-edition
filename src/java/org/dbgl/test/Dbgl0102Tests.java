@@ -3562,6 +3562,7 @@ public class Dbgl0102Tests {
 		assertEquals("0.101 alpha 48", org.dbgl.util.BackupCatalog.pretty("0.101alpha48"));
 		assertEquals("0.101 alpha 49", org.dbgl.util.BackupCatalog.pretty("ee-0.101alpha49"));
 		assertEquals("0.101 alpha 48", org.dbgl.util.BackupCatalog.pretty("0.101 alpha 48"));
+		assertEquals("0.94 \u2013 0.97", org.dbgl.util.BackupCatalog.pretty("0.94-0.97")); // alpha 51
 		assertEquals("older", org.dbgl.util.BackupCatalog.pretty("older"));
 		assertNull(org.dbgl.util.BackupCatalog.kindOf("dbgl-backup-20261114-153000.zip.part"));
 		assertTrue(auto.restorable());
@@ -4693,6 +4694,31 @@ public class Dbgl0102Tests {
 				+ "{\"name\":\"DBGL-Extended-Edition-0.101alpha52-source-update.zip\",\"browser_download_url\":\"https://x/source.zip\"},"
 				+ "{\"name\":\"SHA256SUMS.txt\",\"browser_download_url\":\"https://x/SHA256SUMS.txt\"}]}]";
 		assertEquals("https://x/dbgl-0.101alpha52-update.zip", org.dbgl.util.EditionUpdateChecker.newest(json, "0.101alpha51", true).updateZip());
+	}
+
+	/** alpha 51: a backup "before ... from older" tells the DBGL of its database (0.99, 0.100) */
+	@Test
+	public void testVersionBackupFromDatabase() throws Exception {
+		File dir = java.nio.file.Files.createTempDirectory("dbglver").toFile();
+		try {
+			String[][] cases = {{"INSERT INTO VERSION VALUES(0,99)", "0.99"}, {"INSERT INTO VERSION VALUES(0,103)", "0.100"},
+					{"INSERT INTO PUBLIC.VERSION VALUES(0,101)", "0.100"}, {"INSERT INTO VERSION VALUES(0,104)", null}, {"INSERT INTO VERSION VALUES(0,94)", "0.94-0.97"},
+					{"INSERT INTO VERSION VALUES(0,98)", "0.98"}, {"INSERT INTO VERSION VALUES(0,81)", "0.81-0.89"}, {"INSERT INTO VERSION VALUES(0,50)", "0.50"},
+					{"INSERT INTO VERSION VALUES(0,95)", null}, {"", null}};
+			int i = 0;
+			for (String[] c: cases) {
+				File zip = new File(dir, "before-0.101alpha51-from-older-" + (i++) + ".zip");
+				try (java.util.zip.ZipOutputStream out = new java.util.zip.ZipOutputStream(new java.io.FileOutputStream(zip))) {
+					out.putNextEntry(new java.util.zip.ZipEntry("db/database.script"));
+					out.write(("SET DATABASE UNIQUE NAME HSQLDB\nCREATE MEMORY TABLE VERSION(MAJORVERSION INTEGER)\n" + c[0] + "\n").getBytes(java.nio.charset.StandardCharsets.UTF_8));
+					out.closeEntry();
+				}
+				assertEquals(c[0], c[1], org.dbgl.util.VersionBackup.dbglInBackup(zip));
+			}
+			assertNull(org.dbgl.util.VersionBackup.dbglInBackup(new File(dir, "missing.zip")));
+		} finally {
+			org.apache.commons.io.FileUtils.deleteQuietly(dir);
+		}
 	}
 
 	/** alpha 51: launch.exe of an update is installed on Windows only */

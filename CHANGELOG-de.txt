@@ -70,6 +70,10 @@ Fehler behoben
 Verbessert
 - Das Update-Paket bringt jetzt alle Bibliotheken mit (auch die
   Datenbank), so funktioniert es auch über das offizielle DBGL 0.99.
+- Sicherungen verwalten: Bei der Sicherung vor dem ersten Start einer
+  neuen Version steht statt "older" jetzt, von welchem DBGL sie stammt
+  (z. B. 0.99, 0.100 oder bei älteren ein Bereich wie 0.94 – 0.97), auch
+  bei schon vorhandenen Sicherungen.
 - Der Reiter "Ohne Bilder" fragt die Datenbank nicht mehr jedes Mal ab,
   wenn das Fenster nach vorn kommt, sondern nur, wenn sich die Profile
   geändert haben können.

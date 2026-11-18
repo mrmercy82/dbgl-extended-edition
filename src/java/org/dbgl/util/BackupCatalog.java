@@ -148,7 +148,7 @@ public final class BackupCatalog {
 
 	/** a version as it is in a file name, written to be read: "ee-0.101alpha48" becomes "0.101 alpha 48" */
 	public static String pretty(String version) {
-		return version.replaceFirst("(?i)^ee-", "").replaceAll("(?i)(\\d)\\s*(alpha|beta|rc)\\s*(\\d)", "$1 $2 $3").strip();
+		return version.replaceFirst("(?i)^ee-", "").replaceAll("(?i)(\\d)\\s*(alpha|beta|rc)\\s*(\\d)", "$1 $2 $3").replaceAll("(\\d)-(0\\.\\d)", "$1 \u2013 $2").strip(); // alpha 51: "0.94-0.97" a range
 	}
 
 	/** the version DBGL wrote into the backup itself (since alpha 49), "" if there is none */
@@ -200,6 +200,11 @@ public final class BackupCatalog {
 				String version = versionInName(f.getName(), kind);
 				if (version.isEmpty() && kind.restorable())
 					version = versionInside(f);
+				if ((kind == Kind.VERSION) && "older".equals(version)) { // alpha 51: which DBGL it was, by its database
+					String dbgl = VersionBackup.dbglInBackup(f);
+					if (dbgl != null)
+						version = dbgl;
+				}
 				result.add(new Backup(f, kind, version, f.lastModified(), f.length(), locked.contains(f.getName()) || always.contains(kind)));
 			}
 		}
