@@ -23,10 +23,6 @@ Neu
   Bibliotheken mit ihren Lizenztexten (Ordner "licenses"), eine Anleitung
   (README-EXTENDED-EDITION.txt) und unter Windows und macOS DOSBox 0.74-3.
   Wer DBGL schon benutzt, nimmt weiterhin das Update-Paket.
-
-Geändert
-- Bibliotheken: SWT 4.41 (bisher 4.37) und Nebula Gallery 1.1.0 (bisher
-  1.0.0). Der Windows-Dunkelmodus ist an das neue SWT angepasst.
 - launch.exe (Windows) ist neu gebaut, mit Launch4j 3.50: Sie sucht Java
   21 oder neuer zuerst im Ordner "jre", dann über JAVA_HOME und den PATH,
   zuletzt in der Registry. Bisher fand sie ein installiertes Java nur über
@@ -34,6 +30,10 @@ Geändert
   nicht von selbst anlegt. Das Update-Paket bringt die neue launch.exe
   mit; das Update über "Hilfe > Nach Updates der DBGL Extended Edition
   suchen" spielt sie nur unter Windows ein.
+
+Geändert
+- Bibliotheken: SWT 4.41 (bisher 4.37) und Nebula Gallery 1.1.0 (bisher
+  1.0.0). Der Windows-Dunkelmodus ist an das neue SWT angepasst.
 - Der Balken "Eine kommende Version benötigt Java 21" entfällt; die
   Prüfung übernimmt jetzt der Start von DBGL selbst.
 - "Teile dieser Spielereihe" und "Aus anderer DOSBox-Konfiguration
