@@ -148,7 +148,7 @@ public final class BackupCatalog {
 
 	/** a version as it is in a file name, written to be read: "ee-0.101alpha48" becomes "0.101 alpha 48" */
 	public static String pretty(String version) {
-		return version.replaceFirst("(?i)^ee-", "").replaceAll("(?i)(\\d)\\s*(alpha|beta|rc)\\s*(\\d)", "$1 $2 $3").replaceAll("(\\d)-(0\\.\\d)", "$1 \u2013 $2").replaceFirst("^pre(\\d)", "< $1").strip(); // alpha 51: "0.93-0.98" a range, "pre0.92" older than 0.92
+		return version.replaceFirst("(?i)^ee-", "").replaceAll("(?i)(\\d)\\s*(alpha|beta|rc)\\s*(\\d)", "$1 $2 $3").replaceAll("(\\d)-(0\\.\\d)", "$1 \u2013 $2").replaceFirst("^pre(\\d)", "< $1").replaceFirst("(?i)(\\d)(alpha|beta)$", "$1 $2").strip(); // alpha 51: "0.93-0.98" a range, "pre0.92" older than 0.92, "0.101alpha" an early alpha
 	}
 
 	/** the version DBGL wrote into the backup itself (since alpha 49), "" if there is none */

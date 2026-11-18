@@ -147,16 +147,19 @@ public final class VersionBackup {
 
 	/**
 	 * alpha 51: the DBGL a database comes from when no Extended Edition ran on it before. Its version does not follow the
-	 * numbers of DBGL (DBGL 0.79 has 75), only these are sure: 92 is DBGL 0.92, 99 is 0.99, 100 to 103 are the betas of 0.100;
-	 * 93 to 98 lie between them, anything below 92 is from before 0.92 (the old format, which 0.92 converts). Else "older".
+	 * numbers of DBGL (DBGL 0.79 has 75), only these are sure: 92 is DBGL 0.92, 99 is 0.99 up to 0.100 beta 17 (the same), 101
+	 * to 103 an early alpha of the Extended Edition (before it kept its version); 93 to 98 lie between 0.92 and 0.99, anything
+	 * below 92 is from before 0.92 (the old format, which 0.92 converts). Else "older".
 	 */
 	static String dbglOfDatabaseVersion(int major, int minor) {
-		if ((major != 0) || (minor < 50) || (minor > 103))
+		if ((major != 0) || (minor < 50) || (minor > 103) || (minor == 100))
 			return "older";
-		if (minor >= 100)
-			return "0.100";
-		if ((minor == 92) || (minor == 99))
-			return "0." + minor;
+		if (minor > 100)
+			return "0.101alpha";
+		if (minor == 99)
+			return "0.99-0.100";
+		if (minor == 92)
+			return "0.92";
 		if (minor > 92)
 			return "0.93-0.98";
 		return "pre0.92";

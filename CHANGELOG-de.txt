@@ -79,8 +79,8 @@ Verbessert
   umgestellt.
 - Sicherungen verwalten: Bei der Sicherung vor dem ersten Start einer
   neuen Version steht statt "older" jetzt, von welchem DBGL sie stammt
-  (0.92, 0.99, 0.100, dazwischen 0.93 – 0.98, und "< 0.92" für ältere),
-  auch bei schon vorhandenen Sicherungen.
+  ("0.99 – 0.100" bis beta 17, "0.92", dazwischen "0.93 – 0.98", "< 0.92"
+  für ältere), auch bei schon vorhandenen Sicherungen.
 - Der Reiter "Ohne Bilder" fragt die Datenbank nicht mehr jedes Mal ab,
   wenn das Fenster nach vorn kommt, sondern nur, wenn sich die Profile
   geändert haben können.

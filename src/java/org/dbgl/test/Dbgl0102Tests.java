@@ -3564,6 +3564,8 @@ public class Dbgl0102Tests {
 		assertEquals("0.101 alpha 48", org.dbgl.util.BackupCatalog.pretty("0.101 alpha 48"));
 		assertEquals("0.93 \u2013 0.98", org.dbgl.util.BackupCatalog.pretty("0.93-0.98")); // alpha 51
 		assertEquals("< 0.92", org.dbgl.util.BackupCatalog.pretty("pre0.92"));
+		assertEquals("0.99 \u2013 0.100", org.dbgl.util.BackupCatalog.pretty("0.99-0.100"));
+		assertEquals("0.101 alpha", org.dbgl.util.BackupCatalog.pretty("0.101alpha"));
 		assertEquals("older", org.dbgl.util.BackupCatalog.pretty("older"));
 		assertNull(org.dbgl.util.BackupCatalog.kindOf("dbgl-backup-20261114-153000.zip.part"));
 		assertTrue(auto.restorable());
@@ -4702,8 +4704,8 @@ public class Dbgl0102Tests {
 	public void testVersionBackupFromDatabase() throws Exception {
 		File dir = java.nio.file.Files.createTempDirectory("dbglver").toFile();
 		try {
-			String[][] cases = {{"INSERT INTO VERSION VALUES(0,99)", "0.99"}, {"INSERT INTO VERSION VALUES(0,103)", "0.100"},
-					{"INSERT INTO PUBLIC.VERSION VALUES(0,101)", "0.100"}, {"INSERT INTO VERSION VALUES(0,104)", null}, {"INSERT INTO VERSION VALUES(0,94)", "0.93-0.98"},
+			String[][] cases = {{"INSERT INTO VERSION VALUES(0,99)", "0.99-0.100"}, {"INSERT INTO VERSION VALUES(0,103)", "0.101alpha"},
+					{"INSERT INTO PUBLIC.VERSION VALUES(0,101)", "0.101alpha"}, {"INSERT INTO VERSION VALUES(0,104)", null}, {"INSERT INTO VERSION VALUES(0,94)", "0.93-0.98"},
 					{"INSERT INTO VERSION VALUES(0,92)", "0.92"}, {"INSERT INTO VERSION VALUES(0,75)", "pre0.92"}, {"INSERT INTO VERSION VALUES(0,50)", "pre0.92"},
 					{"INSERT INTO VERSION VALUES(0,20)", null}, {"", null}};
 			int i = 0;
