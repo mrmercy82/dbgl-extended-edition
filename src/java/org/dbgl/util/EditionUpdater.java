@@ -144,6 +144,31 @@ public final class EditionUpdater {
 		return removed;
 	}
 
+	/**
+	 * alpha 51: the libraries in the lib folder of an installation that a new dbgl.jar makes superfluous (see
+	 * supersededLibraries), as "lib/name.jar"
+	 */
+	public static List<String> librariesReplacedBy(File newJar, File installDir) {
+		List<String> result = new ArrayList<>();
+		String[] present = new File(installDir, "lib").list();
+		if (present == null)
+			return result;
+		try (java.util.jar.JarFile jf = new java.util.jar.JarFile(newJar)) {
+			String classPath = jf.getManifest() == null ? null: jf.getManifest().getMainAttributes().getValue("Class-Path");
+			if (classPath == null)
+				return result;
+			List<String> wanted = new ArrayList<>();
+			for (String entry: classPath.trim().split("\\s+"))
+				if (entry.startsWith("lib/") && entry.endsWith(".jar"))
+					wanted.add(entry.substring(4));
+			for (String name: supersededLibraries(wanted, List.of(present)))
+				result.add("lib/" + name);
+		} catch (IOException | RuntimeException e) {
+			e.printStackTrace();
+		}
+		return result;
+	}
+
 	/** the folder for the downloads and the files to install */
 	public static File workDir() {
 		return new File(org.dbgl.service.FileLocationService.getInstance().getDataDir(), "update");
@@ -300,8 +325,14 @@ public final class EditionUpdater {
 		progress.set(980);
 		File installDir = jar.getParentFile();
 		File programBackup = new File(backupDir, "dbgl-program-" + from + "-" + stamp + ".zip");
+		// alpha 51: also the libraries the new version makes superfluous (they are removed at its first start), so that going back
+		// with this backup is complete
+		List<String> keep = new ArrayList<>(files);
+		for (String old: librariesReplacedBy(new File(pending, "dbgl.jar"), installDir))
+			if (!keep.contains(old))
+				keep.add(old);
 		try (ZipOutputStream out = new ZipOutputStream(Files.newOutputStream(programBackup.toPath()))) {
-			for (String name: files) {
+			for (String name: keep) {
 				File existing = new File(installDir, name);
 				if (existing.isFile()) {
 					out.putNextEntry(new ZipEntry(name));

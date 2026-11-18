@@ -60,6 +60,10 @@ Fixed
 Improved
 - The update package now brings all libraries (also the database), so
   it works over the official DBGL 0.99 too.
+- Update through "Help > Check for updates of the DBGL Extended Edition":
+  the backup "Before update: program" now also keeps the libraries the
+  new version makes superfluous and removes at its first start, so going
+  back to the version before with this backup is complete.
 - A database of DBGL 0.91 or older (old format of HSQLDB 1.8): instead of
   "unsupported old database version", DBGL now says how to bring it over
   (first DBGL 0.92 over it, start it once). Nothing is changed, and the

@@ -61,6 +61,10 @@ Fehler behoben
 Verbessert
 - Das Update-Paket bringt jetzt alle Bibliotheken mit (auch die
   Datenbank), so funktioniert es auch über das offizielle DBGL 0.99.
+- Update über "Hilfe > Nach Updates der DBGL Extended Edition suchen": Die
+  Sicherung "Vor Update: Programm" enthält jetzt auch die Bibliotheken,
+  die die neue Version überflüssig macht und beim ersten Start entfernt.
+  Zurück zur vorigen Version mit dieser Sicherung ist damit vollständig.
 - Datenbank von DBGL 0.91 oder älter (altes Format von HSQLDB 1.8): Statt
   "unsupported old database version" sagt DBGL jetzt, wie sie sich
   übernehmen lässt (erst DBGL 0.92 darüber, einmal starten). Nichts

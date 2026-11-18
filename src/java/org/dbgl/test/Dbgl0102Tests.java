@@ -4748,6 +4748,28 @@ public class Dbgl0102Tests {
 		assertFalse(org.dbgl.service.DatabaseService.isOldFormat(new java.sql.SQLException((String)null)));
 	}
 
+	/** alpha 51: the program backup of an update also keeps the libraries the new version makes superfluous */
+	@Test
+	public void testLibrariesReplacedByUpdate() throws Exception {
+		File dir = java.nio.file.Files.createTempDirectory("dbgllibs").toFile();
+		try {
+			File lib = new File(dir, "lib");
+			lib.mkdirs();
+			for (String n: new String[] {"gallery_1.0.0.202509131601.jar", "hsqldb-2.7.4.jar", "swtwin64.jar", "my-own-tool.jar"})
+				java.nio.file.Files.writeString(new File(lib, n).toPath(), n);
+			File jar = new File(dir, "new-dbgl.jar");
+			java.util.jar.Manifest mf = new java.util.jar.Manifest();
+			mf.getMainAttributes().put(java.util.jar.Attributes.Name.MANIFEST_VERSION, "1.0");
+			mf.getMainAttributes().put(java.util.jar.Attributes.Name.CLASS_PATH, "lib/gallery_1.1.0.202606141240.jar lib/hsqldb-2.7.4.jar lib/swtwin64.jar ./");
+			try (java.util.jar.JarOutputStream out = new java.util.jar.JarOutputStream(new java.io.FileOutputStream(jar), mf)) {
+				// only the manifest
+			}
+			assertEquals(java.util.List.of("lib/gallery_1.0.0.202509131601.jar"), org.dbgl.util.EditionUpdater.librariesReplacedBy(jar, dir));
+		} finally {
+			org.apache.commons.io.FileUtils.deleteQuietly(dir);
+		}
+	}
+
 	/** alpha 51: launch.exe of an update is installed on Windows only */
 	@Test
 	public void testUpdateWindowsOnly() throws Exception {
