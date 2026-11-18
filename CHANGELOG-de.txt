@@ -68,6 +68,8 @@ Fehler behoben
   Bibliothek von SWT ("restricted method").
 
 Verbessert
+- Das Update-Paket bringt jetzt alle Bibliotheken mit (auch die
+  Datenbank), so funktioniert es auch über das offizielle DBGL 0.99.
 - Der Reiter "Ohne Bilder" fragt die Datenbank nicht mehr jedes Mal ab,
   wenn das Fenster nach vorn kommt, sondern nur, wenn sich die Profile
   geändert haben können.

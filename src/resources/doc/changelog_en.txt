@@ -66,6 +66,8 @@ Fixed
   ("restricted method") at startup any more.
 
 Improved
+- The update package now brings all libraries (also the database), so
+  it works over the official DBGL 0.99 too.
 - The tab "Without pictures" no longer asks the database each time the
   window comes to the front, only when the profiles may have changed.
 - Tidied up: texts no window uses any more are gone from all language
