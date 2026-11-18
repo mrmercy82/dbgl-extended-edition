@@ -28,11 +28,16 @@ Windows:  unpack the archive into a folder of your own (not into "Program
           launch.exe looks for Java 21 or newer in a folder "jre" in the
           DBGL folder, then in JAVA_HOME and in the PATH, then in the
           registry. dbgl.cmd uses the Java in "jre" or the one in the PATH.
+          launch.exe is not signed: if SmartScreen says "Windows protected
+          your PC", click "More info", then "Run anyway".
 Linux:    unpack the archive, then start ./dbgl. DOSBox is not included:
           install it with your distribution and add it on the tab "DOSBox
           versions". DBGL keeps its data in your home folder.
 macOS:    unpack the archive and open DBGL.app. DBGL keeps its data in
-          your home folder.
+          your home folder. DBGL.app is not signed by Apple: if macOS says it
+          "cannot be opened" or "is damaged", right-click DBGL.app > Open >
+          Open, or run once in Terminal:
+            xattr -dr com.apple.quarantine /path/to/DBGL.app
 
 This is an alpha version. Keep backups of your games and of the DBGL
 folder (File menu > Manage backups).
@@ -83,12 +88,19 @@ Windows:  Archiv in einen eigenen Ordner entpacken (nicht unter
           launch.exe sucht Java 21 oder neuer zuerst in einem Ordner "jre"
           im DBGL-Ordner, dann ueber JAVA_HOME und den PATH, zuletzt in der
           Registry. dbgl.cmd nimmt das Java aus "jre" oder aus dem PATH.
+          launch.exe ist nicht signiert: Meldet SmartScreen "Der Computer
+          wurde durch Windows geschuetzt", auf "Weitere Informationen" und
+          dann "Trotzdem ausfuehren" klicken.
 Linux:    Archiv entpacken, dann ./dbgl starten. DOSBox liegt nicht bei:
           ueber die Distribution installieren und auf dem Reiter
           "DOSBox-Versionen" eintragen. DBGL legt seine Daten im
           Benutzerordner ab.
 macOS:    Archiv entpacken und DBGL.app oeffnen. DBGL legt seine Daten im
-          Benutzerordner ab.
+          Benutzerordner ab. DBGL.app ist nicht von Apple signiert: Meldet
+          macOS, es "kann nicht geoeffnet werden" oder "ist beschaedigt",
+          mit Rechtsklick auf DBGL.app > Oeffnen > Oeffnen starten, oder
+          einmal im Terminal:
+            xattr -dr com.apple.quarantine /Pfad/zu/DBGL.app
 
 Dies ist eine Alpha-Version. Bitte Sicherungen der Spiele und des
 DBGL-Ordners behalten (Menue Datei > Sicherungen verwalten).
