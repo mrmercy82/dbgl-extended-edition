@@ -23,14 +23,6 @@ New
   their license texts (folder "licenses"), instructions
   (README-EXTENDED-EDITION.txt) and, for Windows and macOS, DOSBox 0.74-3.
   Those who use DBGL already keep taking the update package.
-- File > "Manage log files" > "Take pictures of all windows (for error
-  reports)": DBGL opens its windows one after the other, takes a picture
-  of each (of each page of the settings and of the editors) and closes it
-  again; nothing is saved or changed. The pictures go into a ZIP file in
-  the folder "logs" and are not sent anywhere. Meant for errors that show
-  on one operating system or in one appearance only. "Manage log files"
-  lists the file afterwards and can delete it. Fields with a key
-  (TheGamesDB, MobyGames, IGDB, ...) are painted over in the pictures.
 
 Changed
 - Libraries: SWT 4.41 (was 4.37) and Nebula Gallery 1.1.0 (was 1.0.0).
@@ -78,6 +70,14 @@ Improved
   "older", also for backups already there.
 - The tab "Without pictures" no longer asks the database each time the
   window comes to the front, only when the profiles may have changed.
+- File > "Manage log files" > "Take pictures of all windows (for error
+  reports)": DBGL opens its windows one after the other, takes a picture
+  of each (of each page of the settings and of the editors) and closes it
+  again; nothing is saved or changed. The pictures go into a ZIP file in
+  the folder "logs" and are not sent anywhere. Meant for errors that show
+  on one operating system or in one appearance only. "Manage log files"
+  lists the file afterwards and can delete it. Fields with a key
+  (TheGamesDB, MobyGames, IGDB, ...) are painted over in the pictures.
 - Tidied up: texts no window uses any more are gone from all language
   files.
 

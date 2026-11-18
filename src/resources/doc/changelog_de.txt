@@ -23,16 +23,6 @@ Neu
   Bibliotheken mit ihren Lizenztexten (Ordner "licenses"), eine Anleitung
   (README-EXTENDED-EDITION.txt) und unter Windows und macOS DOSBox 0.74-3.
   Wer DBGL schon benutzt, nimmt weiterhin das Update-Paket.
-- Datei > "Logdateien verwalten" > "Alle Fenster abfotografieren (für
-  Fehlerberichte)": DBGL öffnet nacheinander seine Fenster, macht von
-  jedem ein Bild (bei den Einstellungen und den Editoren von jeder Seite)
-  und schließt es wieder; gespeichert oder geändert wird dabei nichts.
-  Die Bilder kommen in eine ZIP-Datei im Ordner "logs" und werden
-  nirgendwohin gesendet. Gedacht für Fehler, die nur auf einem
-  Betriebssystem oder nur in einer Darstellung sichtbar sind.
-  "Logdateien verwalten" zeigt danach die Datei und kann sie löschen.
-  Felder mit einem Schlüssel (TheGamesDB, MobyGames, IGDB, ...) sind auf
-  den Bildern übermalt.
 
 Geändert
 - Bibliotheken: SWT 4.41 (bisher 4.37) und Nebula Gallery 1.1.0 (bisher
@@ -83,6 +73,16 @@ Verbessert
 - Der Reiter "Ohne Bilder" fragt die Datenbank nicht mehr jedes Mal ab,
   wenn das Fenster nach vorn kommt, sondern nur, wenn sich die Profile
   geändert haben können.
+- Datei > "Logdateien verwalten" > "Alle Fenster abfotografieren (für
+  Fehlerberichte)": DBGL öffnet nacheinander seine Fenster, macht von
+  jedem ein Bild (bei den Einstellungen und den Editoren von jeder Seite)
+  und schließt es wieder; gespeichert oder geändert wird dabei nichts.
+  Die Bilder kommen in eine ZIP-Datei im Ordner "logs" und werden
+  nirgendwohin gesendet. Gedacht für Fehler, die nur auf einem
+  Betriebssystem oder nur in einer Darstellung sichtbar sind.
+  "Logdateien verwalten" zeigt danach die Datei und kann sie löschen.
+  Felder mit einem Schlüssel (TheGamesDB, MobyGames, IGDB, ...) sind auf
+  den Bildern übermalt.
 - Aufgeräumt: Texte, die kein Fenster mehr benutzt, sind aus allen
   Sprachdateien entfernt.
 
