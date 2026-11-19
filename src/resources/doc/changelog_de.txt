@@ -12,6 +12,12 @@ Neu
   startet, als Profile, mit ihrer DOSBox-Konfiguration, den Angaben aus
   LaunchBox, dem Titelbild und dem Handbuch. eXoDOS-Spiele bleiben beim
   eigenen eXoDOS-Import; in LaunchBox wird nichts verändert.
+- Profil-Kontextmenü > „Zu LaunchBox hinzufügen“ (Windows): trägt die
+  gewählten Profile als Spiele der Plattform MS-DOS in LaunchBox ein, mit
+  den Angaben des Profils, dem Handbuch, dem Titelbild und den
+  Bildschirmfotos. Gestartet wird über DBGL (die Spielzeit wird erfasst)
+  oder direkt mit DOSBox. Vorhandene Spiele bleiben unverändert; eine
+  Kopie der Plattform-Datei bleibt als MS-DOS.xml.dbgl-backup erhalten.
 
 Verbessert
 - Anleitung der eigenständigen Pakete: was zu tun ist, wenn Windows

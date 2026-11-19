@@ -61,7 +61,7 @@ public final class LaunchBoxImport {
 	}
 
 	/** the LaunchBox folder: the one chosen or one above it, with Data\Platforms in it */
-	static File rootOf(File chosen) {
+	public static File rootOf(File chosen) {
 		int up = 0;
 		for (File d = chosen; (d != null) && (up < 3); d = d.getParentFile(), up++)
 			if (new File(d, "Data" + File.separator + "Platforms").isDirectory())
@@ -135,7 +135,7 @@ public final class LaunchBoxImport {
 	}
 
 	/** like ExoImport.readGames, for any element below the root */
-	static void readElements(InputStream in, String element, java.util.function.Consumer<Map<String, String>> each) throws javax.xml.stream.XMLStreamException {
+	public static void readElements(InputStream in, String element, java.util.function.Consumer<Map<String, String>> each) throws javax.xml.stream.XMLStreamException {
 		javax.xml.stream.XMLInputFactory f = javax.xml.stream.XMLInputFactory.newFactory();
 		f.setProperty(javax.xml.stream.XMLInputFactory.SUPPORT_DTD, false);
 		f.setProperty(javax.xml.stream.XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, false);

@@ -2997,6 +2997,85 @@ public class Dbgl0102Tests {
 		assertNull(org.dbgl.util.LaunchBoxImport.find(game, work)); // no collection: nothing
 	}
 
+	/**
+	 * alpha 52: profiles into LaunchBox: appended at the end, what was there stays byte for byte (with its BOM), a copy of the file
+	 * before, a game there already left alone, the pictures named as LaunchBox does and not over pictures it has; read back by
+	 * the import
+	 */
+	@Test
+	public void testLaunchBoxExport() throws IOException, javax.xml.stream.XMLStreamException {
+		File root = Files.createTempDirectory("dbgl-lbx-").toFile();
+		File platforms = new File(root, "Data/Platforms");
+		platforms.mkdirs();
+		assertNull(org.dbgl.util.LaunchBoxExport.platformFile(root));
+		String before = "<?xml version=\"1.0\" standalone=\"yes\"?>\r\n<LaunchBox>\r\n  <Game>\r\n    <ApplicationPath>C:\\Games\\old.exe</ApplicationPath>\r\n"
+				+ "    <Title>Altes Spiel &amp; mehr</Title>\r\n    <Unknown>bleibt</Unknown>\r\n  </Game>\r\n</LaunchBox>";
+		File xml = new File(platforms, "MS-DOS.xml");
+		byte[] bom = {(byte)0xEF, (byte)0xBB, (byte)0xBF};
+		Files.write(xml.toPath(), org.apache.commons.lang3.ArrayUtils.addAll(bom, before.getBytes(StandardCharsets.UTF_8)));
+		assertEquals(xml, org.dbgl.util.LaunchBoxExport.platformFile(root));
+		assertEquals(root.getCanonicalFile(), org.dbgl.util.LaunchBoxExport.rootOf(platforms).getCanonicalFile());
+
+		File pics = Files.createTempDirectory("dbgl-lbxpic-").toFile();
+		File cover = new File(pics, "cover.jpg"), shot1 = new File(pics, "a.png"), shot2 = new File(pics, "b.png");
+		for (File f: new File[] {cover, shot1, shot2})
+			Files.write(f.toPath(), new byte[] {1});
+		File had = new File(root, "Images/MS-DOS/Box - Front/North America/Monkey Island 2_ LeChuck_s Revenge-01.jpg");
+		had.getParentFile().mkdirs();
+		Files.write(had.toPath(), new byte[] {9});
+		java.util.List<org.dbgl.util.LaunchBoxExport.Entry> entries = java.util.List.of(
+			new org.dbgl.util.LaunchBoxExport.Entry("Doom: \"Ultimate\" <1>", new File("C:\\DBGL\\launch.exe"), new File("C:\\DBGL"), "--run 7", "id Software", "GT", "1995", "Shooter",
+					"Zeile 1\nZeile 2 & \u0001", null, cover, java.util.List.of(shot1, shot2)),
+			new org.dbgl.util.LaunchBoxExport.Entry("Monkey Island 2: LeChuck's Revenge", new File("C:\\DBGL\\launch.exe"), new File("C:\\DBGL"), "--run 8", null, null, "", null, null, null, cover,
+					java.util.List.of()));
+		org.dbgl.util.LaunchBoxExport.Result r = org.dbgl.util.LaunchBoxExport.add(root, entries, true);
+		assertEquals(2, r.added());
+		assertEquals(0, r.already());
+		org.junit.Assert.assertArrayEquals(org.apache.commons.lang3.ArrayUtils.addAll(bom, before.getBytes(StandardCharsets.UTF_8)), Files.readAllBytes(r.backup().toPath()));
+		byte[] after = Files.readAllBytes(xml.toPath());
+		String text = new String(after, 3, after.length - 3, StandardCharsets.UTF_8);
+		assertEquals((byte)0xEF, after[0]);
+		assertTrue(text.startsWith(before.substring(0, before.indexOf("</LaunchBox>"))));
+		assertTrue(text.endsWith("</LaunchBox>"));
+		assertFalse(text.contains("\u0001"));
+		assertFalse(text.replace("\r\n", "").contains("\n"));
+		java.util.List<java.util.Map<String, String>> games = new java.util.ArrayList<>();
+		try (java.io.InputStream in = new java.io.FileInputStream(xml)) {
+			org.dbgl.util.LaunchBoxImport.readElements(in, "Game", games::add);
+		}
+		assertEquals(3, games.size());
+		assertEquals("bleibt", games.get(0).get("Unknown"));
+		assertEquals("Doom: \"Ultimate\" <1>", games.get(1).get("Title"));
+		assertEquals("--run 7", games.get(1).get("CommandLine"));
+		assertEquals("Zeile 1\nZeile 2 & ", games.get(1).get("Notes").replace("\r\n", "\n"));
+		assertTrue(games.get(1).get("ReleaseDate").startsWith("1995-01-01T00:00:00"));
+		assertEquals("MS-DOS", games.get(1).get("Platform"));
+		assertEquals("false", games.get(1).get("UseDosBox"));
+		assertEquals(36, games.get(1).get("ID").length());
+		assertNull(games.get(2).get("ReleaseDate"));
+		File front = new File(root, "Images/MS-DOS/Box - Front");
+		assertTrue(new File(front, "Doom_ _Ultimate_ _1_-01.jpg").isFile());
+		assertTrue(new File(root, "Images/MS-DOS/Screenshot - Gameplay/Doom_ _Ultimate_ _1_-02.png").isFile());
+		assertFalse(new File(front, "Monkey Island 2_ LeChuck_s Revenge-01.jpg").exists()); // LaunchBox has one (in a region folder)
+
+		r = org.dbgl.util.LaunchBoxExport.add(root, entries, true); // again: nothing new
+		assertEquals(0, r.added());
+		assertEquals(2, r.already());
+		org.junit.Assert.assertArrayEquals(after, Files.readAllBytes(xml.toPath()));
+
+		Files.writeString(xml.toPath(), "<?xml version=\"1.0\"?>\n<LaunchBox />\n"); // an empty platform
+		assertEquals(2, org.dbgl.util.LaunchBoxExport.add(root, entries, false).added());
+		games.clear();
+		try (java.io.InputStream in = new java.io.FileInputStream(xml)) {
+			org.dbgl.util.LaunchBoxImport.readElements(in, "Game", games::add);
+		}
+		assertEquals(2, games.size());
+
+		assertEquals("Ein Spiel.", org.dbgl.util.LaunchBoxExport.notesFor("Ein Spiel.\n\nGOG: C:\\GOG Games\\Doom"));
+		assertEquals("", org.dbgl.util.LaunchBoxExport.notesFor("LaunchBox: /games/doom"));
+		assertEquals("Hinweis: siehe Handbuch", org.dbgl.util.LaunchBoxExport.notesFor("Hinweis: siehe Handbuch"));
+	}
+
 	/** alpha 48: empty images DOSBox can use at once: formatted, read again by DBGL's own FAT reader, the geometry as said */
 	@Test
 	public void testDiskImageMaker() throws IOException {

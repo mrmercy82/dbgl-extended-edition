@@ -3090,6 +3090,16 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 					SteamDialog.addToSteam(shell_, chosen);
 			}
 		}).build();
+		// alpha 52: as games in LaunchBox (platform MS-DOS); LaunchBox is there for Windows only
+		if (SystemUtils.IS_WINDOWS)
+			MenuItem_.on(menu).key("dialog.main.profile.addtolaunchbox").image(ImageService.IMG_SHORTCUT).listen(new SelectionAdapter() {
+				@Override
+				public void widgetSelected(SelectionEvent event) {
+					List<Profile> chosen = IntStream.of(profileTable_.getSelectionIndices()).mapToObj(profilesList_::get).toList();
+					if (!chosen.isEmpty())
+						LaunchBoxDialog.addToLaunchBox(shell_, chosen);
+				}
+			}).build();
 		if (SystemUtils.IS_WINDOWS || SystemUtils.IS_LINUX) {
 			MenuItem_.on(menu).key("dialog.main.profile.createshortcut").image(ImageService.IMG_SHORTCUT).listen(new SelectionAdapter() {
 				@Override
