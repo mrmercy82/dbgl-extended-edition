@@ -139,6 +139,11 @@ public final class ScummvmEditDialogs {
 
 	/** @return the profile as saved, or null if cancelled */
 	public static Profile editProfile(Shell parent, Profile profile) {
+		return editProfile(parent, profile, false);
+	}
+
+	/** @param search asking the game database at once (menu "Online info") */
+	public static Profile editProfile(Shell parent, Profile profile, boolean search) {
 		ITextService text = TextService.getInstance();
 		try {
 			profile.resetAndLoadConfiguration();
@@ -218,6 +223,67 @@ public final class ScummvmEditDialogs {
 		notes.setLayoutData(nd);
 		notes.setText(StringUtils.defaultString(profile.getNotes()));
 
+		// alpha 52: the data and pictures from the game database chosen in the settings, as in the profile window of DOSBox games
+		org.dbgl.service.SettingsService settings = org.dbgl.service.SettingsService.getInstance();
+		org.dbgl.util.searchengine.WebSearchEngine engine = org.dbgl.util.searchengine.WebSearchEngine.getBySimpleName(settings.getValue("gui", "searchengine"));
+		new Label(dlg, SWT.NONE);
+		Button consult = new Button(dlg, SWT.PUSH);
+		consult.setText(text.get("dialog.profile.consultsearchengine", new Object[] {engine.getName()}));
+		consult.setImage(org.dbgl.service.ImageService.getResourceImage(dlg.getDisplay(), org.dbgl.service.ImageService.IMG_GLOBE));
+		consult.setLayoutData(new GridData(SWT.BEGINNING, SWT.CENTER, false, false, 3, 1));
+		List<org.dbgl.model.SearchEngineImageInformation> chosenImages = new ArrayList<>();
+		Runnable doSearch = () -> {
+			String currTitle = title.getText().trim();
+			if (currTitle.isEmpty())
+				return;
+			String searching = text.get("searchengine.searching", new Object[] {engine.getName()});
+			try {
+				String[] platformFilter = settings.getValues(engine.getSimpleName(), "platform_filter");
+				List<org.dbgl.model.WebProfile> found = org.dbgl.gui.controls.BusyTask.run(dlg, searching, () -> engine.getEntries(currTitle, platformFilter));
+				org.dbgl.model.WebProfile webGame = null;
+				if (found.isEmpty())
+					Mess_.on(dlg).key("general.notice.searchenginenoresults", new String[] {engine.getName(), currTitle}).display();
+				else
+					webGame = found.size() == 1 ? found.get(0): new BrowseSearchEngineDialog(dlg, currTitle, found, engine).open();
+				if (webGame == null)
+					return;
+				org.dbgl.model.WebProfile chosen = webGame;
+				org.dbgl.model.WebProfile ext = org.dbgl.gui.controls.BusyTask.run(dlg, searching, () -> engine.getEntryDetailedInformation(chosen));
+				String s = engine.getSimpleName();
+				if (settings.getBooleanValue(s, "set_title"))
+					title.setText(ext.getTitle());
+				if (settings.getBooleanValue(s, "set_developer"))
+					developer.setText(ext.getDeveloperName());
+				if (settings.getBooleanValue(s, "set_publisher"))
+					publisher.setText(ext.getPublisherName());
+				if (settings.getBooleanValue(s, "set_year"))
+					year.setText(ext.getYear());
+				if (settings.getBooleanValue(s, "set_genre"))
+					genre.setText(ext.getGenre());
+				if (settings.getBooleanValue(s, "set_description") && StringUtils.isNotBlank(ext.getNotes())) {
+					String p = ext.getNotes().replace("\n", notes.getLineDelimiter());
+					if (!notes.getText().endsWith(p))
+						notes.append((notes.getText().isEmpty() ? "": notes.getLineDelimiter() + notes.getLineDelimiter()) + p);
+				}
+				int ca = settings.getBooleanValue(s, "choose_coverart") ? Integer.MAX_VALUE: 0;
+				int ss = settings.getBooleanValue(s, "choose_screenshot") ? Integer.MAX_VALUE: 0;
+				if ((ca > 0) || (ss > 0)) {
+					boolean allRegions = settings.getBooleanValue(s, "force_all_regions_coverart");
+					org.dbgl.model.SearchEngineImageInformation[] images = org.dbgl.gui.controls.BusyTask.run(dlg, searching, () -> engine.getEntryImages(ext, ca, ss, allRegions));
+					if (images.length == 0)
+						Mess_.on(dlg).key("dialog.profile.notice.noimagesfound", new Object[] {engine.getName()}).display();
+					else
+						chosenImages.addAll(pickImages(dlg, text, ext, images));
+				}
+			} catch (org.dbgl.gui.controls.BusyTask.Cancelled e) {
+				// nothing changed
+			} catch (Exception e) {
+				org.dbgl.util.searchengine.SearchEngineException explained = org.dbgl.util.searchengine.SearchEngineException.explain(engine.getName(), e);
+				Mess_.on(dlg).key("searchengine.error.retrieve", new Object[] {engine.getName(), currTitle, explained.getMessage()}).warning();
+			}
+		};
+		consult.addListener(SWT.Selection, e -> doSearch.run());
+
 		Profile[] result = new Profile[1];
 		buttons(dlg, text, () -> {
 			if (StringUtils.isBlank(title.getText())) {
@@ -241,6 +307,7 @@ public final class ScummvmEditDialogs {
 				profile.getConfiguration().setValue(Scummvm.SECTION, "target", chosen);
 				profile.getConfiguration().setValue(Scummvm.SECTION, "config", ini.getText().trim());
 				new ProfileRepository().update(profile);
+				saveImages(dlg, text, profile, chosenImages);
 				result[0] = profile;
 				return true;
 			} catch (java.sql.SQLException | RuntimeException ex) {
@@ -248,8 +315,107 @@ public final class ScummvmEditDialogs {
 				return false;
 			}
 		});
+		if (search)
+			dlg.getDisplay().asyncExec(() -> {
+				if (!dlg.isDisposed())
+					doSearch.run();
+			});
 		run(parent, dlg, title);
 		return result[0];
+	}
+
+	/** the pictures found, to tick (all loaded in the background); @return those ticked */
+	private static List<org.dbgl.model.SearchEngineImageInformation> pickImages(Shell parent, ITextService text, org.dbgl.model.WebProfile ext,
+			org.dbgl.model.SearchEngineImageInformation[] images) {
+		Display display = parent.getDisplay();
+		int w = Math.max(80, org.dbgl.service.SettingsService.getInstance().getIntValue("mobygames", "image_width"));
+		int h = Math.max(60, org.dbgl.service.SettingsService.getInstance().getIntValue("mobygames", "image_height"));
+		Shell dlg = shell(parent, text.get("dialog.scummvmprofile.images"), 1);
+		org.eclipse.swt.custom.ScrolledComposite scroll = new org.eclipse.swt.custom.ScrolledComposite(dlg, SWT.V_SCROLL | SWT.BORDER);
+		GridData sd = new GridData(SWT.FILL, SWT.FILL, true, true);
+		sd.widthHint = 4 * (w + 14);
+		sd.heightHint = Math.min(3, (images.length + 3) / 4) * (h + 40);
+		scroll.setLayoutData(sd);
+		Composite grid = new Composite(scroll, SWT.NONE);
+		grid.setLayout(new GridLayout(4, true));
+		scroll.setContent(grid);
+		Button[] boxes = new Button[images.length];
+		for (int i = 0; i < images.length; i++) {
+			Composite cell = new Composite(grid, SWT.NONE);
+			cell.setLayout(new GridLayout(1, false));
+			Label picture = new Label(cell, SWT.CENTER);
+			GridData pd = new GridData(SWT.CENTER, SWT.CENTER, false, false);
+			pd.widthHint = w;
+			pd.heightHint = h;
+			picture.setLayoutData(pd);
+			boxes[i] = new Button(cell, SWT.CHECK);
+			boxes[i].setText(StringUtils.abbreviate(StringUtils.defaultString(images[i].getDescription()), 28));
+			boxes[i].setToolTipText(images[i].getDescription());
+			int j = i;
+			Thread loader = new Thread(() -> {
+				try {
+					org.eclipse.swt.graphics.ImageData data = ext.getWebImage(j);
+					if (!display.isDisposed())
+						display.asyncExec(() -> {
+							if (!picture.isDisposed()) {
+								org.eclipse.swt.graphics.Image img = org.dbgl.service.ImageService.getWidthLimitedImage(display, w, data);
+								picture.setImage(img);
+								picture.addDisposeListener(e -> img.dispose());
+							}
+						});
+				} catch (Exception e) {
+					// shown without its picture
+				}
+			}, "picture");
+			loader.setDaemon(true);
+			loader.start();
+		}
+		Point gridSize = grid.computeSize(SWT.DEFAULT, SWT.DEFAULT); // all four columns visible, however long the names are
+		grid.setSize(gridSize);
+		sd.widthHint = gridSize.x + 24;
+		List<org.dbgl.model.SearchEngineImageInformation> result = new ArrayList<>();
+		buttons(dlg, text, () -> {
+			for (int i = 0; i < images.length; i++)
+				if (boxes[i].getSelection())
+					result.add(images[i]);
+			return true;
+		});
+		DarkTheme.apply(dlg);
+		dlg.pack();
+		Rectangle area = parent.getMonitor().getClientArea(), p = parent.getBounds();
+		Point size = dlg.getSize();
+		dlg.setLocation(Math.max(area.x, p.x + (p.width - size.x) / 2), Math.max(area.y, p.y + (p.height - size.y) / 2));
+		dlg.open();
+		while (!dlg.isDisposed())
+			if (!display.readAndDispatch())
+				display.sleep();
+		return result;
+	}
+
+	/** the pictures ticked into the folder of the profile, named as the profile window of DOSBox games names them */
+	private static void saveImages(Shell shell, ITextService text, Profile profile, List<org.dbgl.model.SearchEngineImageInformation> images) {
+		if (images.isEmpty())
+			return;
+		File dir = profile.getCanonicalCaptures();
+		dir.mkdirs();
+		int i = 0;
+		for (org.dbgl.model.SearchEngineImageInformation info: images) {
+			if (info.getData() == null)
+				continue; // not loaded
+			String description = org.dbgl.util.FilesUtils.toSafeFilenameForWebImages(info.getDescription());
+			String filename = (info.getType() == org.dbgl.model.SearchEngineImageInformation.SearchEngineImageType.COVER_ART)
+					? text.get("dialog.profile.mobygames.coverartfilename", new Object[] {i, description}) + ".jpg"
+					: text.get("dialog.profile.mobygames.screenshotfilename", new Object[] {i, description}) + ".png";
+			i++;
+			File file = new File(dir, filename);
+			if (file.exists())
+				continue;
+			try {
+				org.dbgl.service.ImageService.save(shell.getDisplay(), info.getData(), file.getPath());
+			} catch (RuntimeException e) {
+				Mess_.on(shell).key("general.error.savefile", file.getPath()).exception(e).warning();
+			}
+		}
 	}
 
 	private static Shell shell(Shell parent, String title, int columns) {

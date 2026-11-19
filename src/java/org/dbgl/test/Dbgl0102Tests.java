@@ -3121,6 +3121,23 @@ public class Dbgl0102Tests {
 		assertEquals(org.dbgl.util.Scummvm.FAMILY, newest.family());
 		assertTrue(newest.assets().isEmpty()); // only its page, nothing set up
 		assertTrue(org.dbgl.util.DosboxUpdateChecker.compareVersions("2026.3.0", "2.9.1") > 0);
+
+		// the screenshots of the game: from the folder of scummvm.ini (screenshotpath), copied, only new ones of ScummVM or the game
+		File portable = Files.createTempDirectory("dbgl-svmp-").toFile(), shots = new File(portable, "shots"), captures = new File(portable, "captures");
+		shots.mkdirs();
+		File portableExe = new File(portable, "scummvm.exe");
+		Files.writeString(portableExe.toPath(), "");
+		Files.writeString(new File(portable, "scummvm.ini").toPath(), "[scummvm]\nscreenshotpath=" + shots.getPath() + "\n");
+		assertEquals(shots, org.dbgl.util.Scummvm.screenshotDir(portableExe));
+		long start = System.currentTimeMillis();
+		File old = new File(shots, "scummvm-lol-cd-00000.png"), fresh = new File(shots, "scummvm-lol-cd-00001.png"), other = new File(shots, "holiday.png"), text = new File(shots, "scummvm-log.txt");
+		for (File f: new File[] {old, fresh, other, text})
+			Files.write(f.toPath(), new byte[] {1});
+		old.setLastModified(start - 60_000);
+		assertEquals(1, org.dbgl.util.Scummvm.copyScreenshots(shots, "lol-cd", start, captures));
+		assertTrue(new File(captures, fresh.getName()).isFile());
+		assertTrue(fresh.isFile()); // copied, not moved
+		assertEquals(0, org.dbgl.util.Scummvm.copyScreenshots(shots, "lol-cd", start, captures)); // there already
 	}
 
 	/** alpha 52: the SoundFonts to choose from: in the folder chosen in DBGL (and one level below), in soundfont_dir, beside DOSBox */

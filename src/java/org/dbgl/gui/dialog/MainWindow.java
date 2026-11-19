@@ -1266,7 +1266,9 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			doEditProfile(false);
 			return;
 		}
-		Profile profile = new EditSingleProfileDialog(shell_, profilesList_.get(index), null, false).consultSearchEngine().open();
+		Profile profile = org.dbgl.util.Scummvm.is(profilesList_.get(index).getDosboxVersion()) // alpha 52: its own window, asking at once
+				? ScummvmEditDialogs.editProfile(shell_, profilesList_.get(index), true)
+				: new EditSingleProfileDialog(shell_, profilesList_.get(index), null, false).consultSearchEngine().open();
 		if (profile != null) {
 			updateProfileListAfterEdit(index, profile);
 			displayProfileInformation(false);

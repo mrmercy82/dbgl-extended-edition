@@ -456,6 +456,8 @@ public class ExecuteUtils {
 			long startNanos = System.nanoTime();
 			try {
 				execute(cmd, v.getCanonicalExecutable().getParentFile(), true);
+				// the screenshots made in the game (Alt+S) into the folder of the profile, copied: ScummVM keeps its own
+				Scummvm.copyScreenshots(Scummvm.screenshotDir(v.getCanonicalExecutable()), Scummvm.targetOf(prof), start, prof.getCanonicalCaptures());
 				registerPlayTime(playTimeProfileId, start, (System.nanoTime() - startNanos) / 1_000_000L);
 			} catch (IOException e) {
 				if ((display != null) && !display.isDisposed())

@@ -29,7 +29,11 @@ Neu
   liest DBGL aus der scummvm.ini). Der ScummVM-Eintrag hat ein eigenes
   Fenster (Titel, Ordner, Programm, Parameter; die Versionsnummer kommt
   von selbst aus der scummvm.ini), ScummVM-Profile einen eigenen, schlanken
-  Editor (Angaben, ScummVM-Spiel aus der Liste, scummvm.ini, Informationen).
+  Editor (Angaben, ScummVM-Spiel aus der Liste, scummvm.ini, Informationen)
+  mit „Abfrage bei ...“ für Spieldaten, Cover und Bildschirmfotos aus der
+  gewählten Spieldatenbank; auch „Online-Infos“ öffnet ihn. Bildschirmfotos,
+  die man im Spiel mit Alt+S macht, kopiert DBGL nach dem Spielen in den
+  Bilderordner des Profils (ScummVM behält seine).
 
 Verbessert
 - Profil > Midi > FluidSynth: Das SoundFont-Feld bietet die gefundenen

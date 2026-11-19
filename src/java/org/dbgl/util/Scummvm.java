@@ -190,6 +190,102 @@ public final class Scummvm {
 		return null;
 	}
 
+	/** a value of the section [scummvm] of ScummVM itself in its scummvm.ini (next to the program, else the one of the user) */
+	static String globalValue(File executable, String key) {
+		File[] inis = {executable == null ? null: new File(executable.getAbsoluteFile().getParentFile(), "scummvm.ini"), defaultIni()};
+		for (File ini: inis) {
+			if ((ini == null) || !ini.isFile())
+				continue;
+			try {
+				String v = sectionValue(decode(Files.readAllBytes(ini.toPath())), "scummvm", key);
+				return v; // the file ScummVM uses: its value, or none
+			} catch (IOException e) {
+				// the next one
+			}
+		}
+		return null;
+	}
+
+	static String sectionValue(String text, String section, String key) {
+		boolean in = false;
+		String prefix = key.toLowerCase(Locale.ROOT) + "=";
+		for (String line: text.split("\\r?\\n")) {
+			String t = line.trim();
+			if (t.startsWith("[") && t.endsWith("]"))
+				in = t.equalsIgnoreCase("[" + section + "]");
+			else if (in && t.toLowerCase(Locale.ROOT).startsWith(prefix))
+				return StringUtils.trimToNull(t.substring(prefix.length()));
+		}
+		return null;
+	}
+
+	/**
+	 * alpha 52: where ScummVM saves its screenshots (Alt+S): screenshotpath in its scummvm.ini, else its default: Windows
+	 * Pictures\ScummVM Screenshots, macOS the desktop, Linux the XDG folder of pictures\ScummVM Screenshots
+	 */
+	public static File screenshotDir(File executable) {
+		String set = globalValue(executable, "screenshotpath");
+		if (StringUtils.isNotBlank(set))
+			return new File(set);
+		String home = System.getProperty("user.home");
+		if (SystemUtils.IS_WINDOWS) {
+			String profile = StringUtils.defaultIfBlank(System.getenv("USERPROFILE"), home);
+			return new File(profile, "Pictures" + File.separator + "ScummVM Screenshots");
+		}
+		if (SystemUtils.IS_OSX)
+			return new File(home, "Desktop");
+		File pictures = new File(home, "Pictures");
+		File dirs = new File(home, ".config/user-dirs.dirs");
+		if (dirs.isFile()) {
+			try {
+				for (String line: Files.readAllLines(dirs.toPath())) {
+					String t = line.trim();
+					if (t.startsWith("XDG_PICTURES_DIR=")) {
+						String v = t.substring(17).replace("\"", "").replace("$HOME", home).trim();
+						if (!v.isEmpty())
+							pictures = new File(v);
+					}
+				}
+			} catch (IOException | RuntimeException e) {
+				// ~/Pictures then
+			}
+		}
+		return new File(pictures, "ScummVM Screenshots");
+	}
+
+	/**
+	 * alpha 52: copies the screenshots of the game made while it ran into the folder of the profile (ScummVM's stay where they
+	 * are): pictures in the folder of ScummVM made since the start (only this game ran then) that are named after ScummVM or the game; one of the same
+	 * name already there is left alone.
+	 *
+	 * @return how many were copied
+	 */
+	public static int copyScreenshots(File from, String target, long sinceMillis, File to) {
+		File[] files = from == null ? null: from.listFiles();
+		if (files == null)
+			return 0;
+		int copied = 0;
+		String t = target == null ? "": target.toLowerCase(Locale.ROOT);
+		for (File f: files) {
+			String n = f.getName().toLowerCase(Locale.ROOT);
+			if (!f.isFile() || !n.matches(".*\\.(png|bmp|jpg|jpeg)$") || (f.lastModified() < sinceMillis - 2000))
+				continue;
+			if (!n.startsWith("scummvm") && (t.isEmpty() || !n.contains(t)))
+				continue; // not of ScummVM (on the desktop of a Mac there may be anything)
+			File dest = new File(to, f.getName());
+			if (dest.exists())
+				continue;
+			try {
+				to.mkdirs();
+				Files.copy(f.toPath(), dest.toPath(), java.nio.file.StandardCopyOption.COPY_ATTRIBUTES);
+				copied++;
+			} catch (IOException e) {
+				// the next one
+			}
+		}
+		return copied;
+	}
+
 	/** UTF-8 if it is that, else Latin-1 */
 	static String decode(byte[] bytes) {
 		try {
