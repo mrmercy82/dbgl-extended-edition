@@ -163,7 +163,12 @@ public final class Scummvm {
 	 * [scummvm]); the file next to the program first (portable), then the one of the user. Null if not known. Not started for it.
 	 */
 	public static String installedVersion(DosboxVersion v) {
-		File[] inis = {new File(v.getCanonicalExecutable().getParentFile(), "scummvm.ini"), defaultIni()};
+		return installedVersion(v.getCanonicalExecutable());
+	}
+
+	/** the same for the program at this place (in the window of the ScummVM version, before it is saved) */
+	public static String installedVersion(File executable) {
+		File[] inis = {new File(executable.getAbsoluteFile().getParentFile(), "scummvm.ini"), defaultIni()};
 		for (File ini: inis) {
 			if ((ini == null) || !ini.isFile())
 				continue;

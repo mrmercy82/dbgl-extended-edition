@@ -25,7 +25,10 @@ New
   LaunchBox and shortcuts on the desktop start ScummVM too. The settings of
   the games stay in ScummVM; scummvm.ini is only read. The daily search for
   new DOSBox versions tells about new ScummVM versions too (DBGL reads the
-  installed version from scummvm.ini).
+  installed version from scummvm.ini). The ScummVM entry has a window of its
+  own (title, folder, program, parameters; the version number comes from
+  scummvm.ini by itself), ScummVM profiles a lean editor of their own (data,
+  the ScummVM game from the list, scummvm.ini, information).
 
 Improved
 - Profile > Midi > FluidSynth: the SoundFont field offers the SoundFonts

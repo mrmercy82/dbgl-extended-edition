@@ -26,7 +26,10 @@ Neu
   starten ScummVM ebenso. Die Einstellungen der Spiele bleiben in ScummVM;
   scummvm.ini wird nur gelesen. Die tägliche Suche nach neuen DOSBox-
   Versionen meldet auch neue ScummVM-Versionen (die installierte Version
-  liest DBGL aus der scummvm.ini).
+  liest DBGL aus der scummvm.ini). Der ScummVM-Eintrag hat ein eigenes
+  Fenster (Titel, Ordner, Programm, Parameter; die Versionsnummer kommt
+  von selbst aus der scummvm.ini), ScummVM-Profile einen eigenen, schlanken
+  Editor (Angaben, ScummVM-Spiel aus der Liste, scummvm.ini, Informationen).
 
 Verbessert
 - Profil > Midi > FluidSynth: Das SoundFont-Feld bietet die gefundenen

@@ -337,6 +337,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		if (settings_.getBooleanValue("dosbox", "checkforupdates"))
 			checkForDosboxUpdatesInBackground();
 		checkForEditionUpdateInBackground(); // has its own setting
+		display_.asyncExec(this::syncScummvmVersions);
 		checkAllProfilesInBackground();
 
 		display_.asyncExec(this::autoBackupIfDue);
@@ -2426,7 +2427,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				doImportLaunchBox();
 			}
 		}).build();
-		MenuItem_.on(profilesMenu).key("dialog.main.menu.importscummvm").image(ImageService.IMG_IMPORT).listen(new SelectionAdapter() {
+		MenuItem_.on(profilesMenu).key("dialog.main.menu.importscummvm").image(ImageService.IMG_ADVENTURE).listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
 				doImportScummvm();
@@ -5252,6 +5253,27 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		}
 	}
 
+	/** alpha 52: the version number of ScummVM as its scummvm.ini says it (it writes it there at every start) */
+	private void syncScummvmVersions() {
+		DosboxVersion changed = null;
+		for (DosboxVersion v: dbversionsList_) {
+			if (!org.dbgl.util.Scummvm.is(v))
+				continue;
+			String found = org.dbgl.util.Scummvm.installedVersion(v);
+			if ((found != null) && !found.equals(v.getVersion())) {
+				v.setVersion(found);
+				try {
+					new DosboxVersionRepository().update(v);
+					changed = v;
+				} catch (SQLException e) {
+					// shown again at the next start
+				}
+			}
+		}
+		if ((changed != null) && !shell_.isDisposed())
+			updateDosboxVersionList(changed);
+	}
+
 	/** alpha 52: the games of ScummVM as profiles; ScummVM is entered on the tab "DOSBox versions" if it is not there */
 	private void doImportScummvm() {
 		ScummvmDialog.Result result = ScummvmDialog.importGames(shell_, dbversionsList_);
@@ -5390,7 +5412,9 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 					}
 				}
 			} else {
-				Profile profile = new EditSingleProfileDialog(shell_, profilesList_.get(index), null, focusTitle).open();
+				Profile profile = org.dbgl.util.Scummvm.is(profilesList_.get(index).getDosboxVersion()) // alpha 52: a game of ScummVM, its own window
+						? ScummvmEditDialogs.editProfile(shell_, profilesList_.get(index))
+						: new EditSingleProfileDialog(shell_, profilesList_.get(index), null, focusTitle).open();
 				if (profile != null) {
 					updateProfileListAfterEdit(index, profile);
 					displayProfileInformation(false);
@@ -5404,7 +5428,9 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		if (index != -1) {
 			// the version it says, before (alpha 48: changed to the one found, its profiles are still written for the old one)
 			org.dbgl.model.entity.GenerationAwareConfigurable.Generation genBefore = org.dbgl.model.entity.GenerationAwareConfigurable.determineGen(dbversionsList_.get(index));
-			DosboxVersion dbversion = new EditDosboxVersionDialog(shell_, false, dbversionsList_.get(index)).open();
+			DosboxVersion dbversion = org.dbgl.util.Scummvm.is(dbversionsList_.get(index)) // alpha 52: its own window
+					? ScummvmEditDialogs.editVersion(shell_, dbversionsList_.get(index))
+					: new EditDosboxVersionDialog(shell_, false, dbversionsList_.get(index)).open();
 			if (dbversion != null) {
 				updateDosboxVersionList(dbversion);
 				updateProfilesList(getSelectedProfileIds());

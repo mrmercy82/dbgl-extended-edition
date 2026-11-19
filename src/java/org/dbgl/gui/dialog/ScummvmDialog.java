@@ -87,8 +87,8 @@ public final class ScummvmDialog {
 					return null;
 				}
 				File conf = Scummvm.versionConf(FileLocationService.getInstance().getDataDir());
-				version = new DosboxVersionRepository().add(DosboxVersionFactory.create(Scummvm.FAMILY, Scummvm.FAMILY, "", false, false, false, null, exe.getParent(), exe.getPath(), "",
-					conf.getPath()));
+				version = new DosboxVersionRepository().add(DosboxVersionFactory.create(Scummvm.FAMILY, Scummvm.FAMILY, org.apache.commons.lang3.StringUtils.defaultString(Scummvm.installedVersion(exe)), false, false,
+					false, null, exe.getParent(), exe.getPath(), "", conf.getPath()));
 				newVersion = true;
 			}
 
