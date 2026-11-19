@@ -138,6 +138,26 @@ public final class Scummvm {
 		return games;
 	}
 
+	/**
+	 * whether ScummVM goes back to its list of games when a game is left, instead of closing ("Always return to the launcher
+	 * when leaving a game", in its section [scummvm]); then DBGL counts the play time until ScummVM is closed
+	 */
+	public static boolean returnsToLauncher(File ini) {
+		try {
+			boolean in = false;
+			for (String line: decode(Files.readAllBytes(ini.toPath())).split("\\r?\\n")) {
+				String t = line.trim();
+				if (t.startsWith("[") && t.endsWith("]"))
+					in = t.equalsIgnoreCase("[scummvm]");
+				else if (in && t.toLowerCase(Locale.ROOT).startsWith("gui_return_to_launcher_at_exit="))
+					return t.substring(t.indexOf('=') + 1).trim().equalsIgnoreCase("true");
+			}
+		} catch (IOException e) {
+			// then it is not known: no hint
+		}
+		return false;
+	}
+
 	/** UTF-8 if it is that, else Latin-1 */
 	static String decode(byte[] bytes) {
 		try {

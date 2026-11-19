@@ -111,7 +111,7 @@ public final class ScummvmDialog {
 				return newVersion ? new Result(version, true, 0): null;
 			}
 			Set<String> known = knownTargets(versions, version);
-			boolean[] chosen = choose(shell, text, games, known, newVersion ? version.getCanonicalExecutable().getPath(): null);
+			boolean[] chosen = choose(shell, text, games, known, newVersion ? version.getCanonicalExecutable().getPath(): null, Scummvm.returnsToLauncher(ini));
 			if (chosen == null)
 				return newVersion ? new Result(version, true, 0): null;
 			int added = 0;
@@ -159,7 +159,7 @@ public final class ScummvmDialog {
 		return p;
 	}
 
-	private static boolean[] choose(Shell parent, ITextService text, List<Scummvm.Game> games, Set<String> known, String newExe) {
+	private static boolean[] choose(Shell parent, ITextService text, List<Scummvm.Game> games, Set<String> known, String newExe, boolean returnsToLauncher) {
 		Display display = parent.getDisplay();
 		Shell dlg = new Shell(parent, SWT.DIALOG_TRIM | SWT.RESIZE | SWT.APPLICATION_MODAL);
 		dlg.setText(text.get("dialog.scummvmimport.title"));
@@ -173,6 +173,8 @@ public final class ScummvmDialog {
 		String infoText = text.get("dialog.scummvmimport.info", new Object[] {games.size(), already});
 		if (newExe != null)
 			infoText = text.get("dialog.scummvmimport.versionadded", new Object[] {newExe}) + "\n\n" + infoText;
+		if (returnsToLauncher) // alpha 52: ScummVM stays open after the game, and the play time goes on until it is closed
+			infoText += "\n\n" + text.get("dialog.scummvmimport.returntolauncher");
 		info.setText(infoText);
 		GridData infoData = new GridData(SWT.FILL, SWT.BEGINNING, true, false);
 		infoData.widthHint = 700;

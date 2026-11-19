@@ -3092,6 +3092,10 @@ public class Dbgl0102Tests {
 		assertEquals("pc", games.get(0).platform());
 		assertEquals("Beneath a Steel Sky", games.get(1).title());
 		assertEquals(new File(dir, "sky"), games.get(1).path()); // relative to the file
+		assertFalse(org.dbgl.util.Scummvm.returnsToLauncher(ini));
+		File ini2 = new File(dir, "scummvm2.ini");
+		Files.writeString(ini2.toPath(), "[monkey2]\ngui_return_to_launcher_at_exit=true\n[scummvm]\ngui_return_to_launcher_at_exit=true\n");
+		assertTrue(org.dbgl.util.Scummvm.returnsToLauncher(ini2));
 
 		String conf = org.dbgl.util.Scummvm.confOf(games.get(0), ini);
 		assertEquals("monkey2", org.dbgl.util.Scummvm.valueInConf("[sdl]\r\nfullscreen=true\r\n" + conf, "target"));
