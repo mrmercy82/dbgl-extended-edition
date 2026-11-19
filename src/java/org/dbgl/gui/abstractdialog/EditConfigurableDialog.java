@@ -2052,14 +2052,71 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		return result;
 	}
 
+	/** alpha 52: below the SoundFont: a folder for SoundFonts (kept in DBGL), and how many were found where */
+	private void createSoundfontRow(Composite grid, org.eclipse.swt.widgets.Combo combo) {
+		new org.eclipse.swt.widgets.Label(grid, SWT.NONE);
+		Composite row = new Composite(grid, SWT.NONE);
+		row.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 2, 1));
+		GridLayout layout = new GridLayout(2, false);
+		layout.marginWidth = layout.marginHeight = 0;
+		row.setLayout(layout);
+		org.eclipse.swt.widgets.Label info = new org.eclipse.swt.widgets.Label(row, SWT.WRAP);
+		Runnable fill = () -> {
+			TemplateProfileBase c = currentConfigurable();
+			String dir = null;
+			try {
+				dir = c == null ? null: c.getCombinedConfigurationForReading().getValue("fluidsynth", "soundfont_dir");
+			} catch (RuntimeException e) {
+				// none
+			}
+			org.dbgl.util.SoundFonts.Found found = org.dbgl.util.SoundFonts.find(c == null ? null: c.getDosboxVersion(), dir);
+			String current = combo.getText();
+			combo.setItems(found.files().stream().map(java.io.File::getPath).toArray(String[]::new));
+			combo.setText(current);
+			// the folders the SoundFonts are in (the others in the tooltip): at most two, the list stays short
+			java.util.List<String> with = found.folders().stream().filter(d -> found.files().stream().anyMatch(f -> f.toPath().startsWith(d.toPath()))).map(java.io.File::getPath).toList();
+			String shown = String.join(", ", with.subList(0, Math.min(2, with.size()))) + (with.size() > 2 ? ", ...": "");
+			info.setText(found.files().isEmpty() ? text_.get("dialog.template.fluidsynth.soundfonts.none")
+					: text_.get("dialog.template.fluidsynth.soundfonts.found", new Object[] {found.files().size(), shown}));
+			info.setToolTipText(found.folders().stream().map(java.io.File::getPath).collect(java.util.stream.Collectors.joining("\n")));
+			row.layout(true);
+			grid.layout(true);
+		};
+		Button_.on(row).imageText(org.dbgl.service.ImageService.IMG_FOLDER, "dialog.template.fluidsynth.soundfontfolder").tooltip("dialog.template.fluidsynth.soundfontfolder.tooltip")
+				.listen(new SelectionAdapter() {
+					@Override
+					public void widgetSelected(SelectionEvent event) {
+						org.eclipse.swt.widgets.DirectoryDialog dialog = new org.eclipse.swt.widgets.DirectoryDialog(shell_);
+						SettingsService settings = SettingsService.getInstance();
+						if (settings.hasValue("gui", org.dbgl.util.SoundFonts.SETTING))
+							dialog.setFilterPath(settings.getValue("gui", org.dbgl.util.SoundFonts.SETTING));
+						String chosen = dialog.open();
+						if (chosen == null)
+							return;
+						settings.setValue("gui", org.dbgl.util.SoundFonts.SETTING, chosen);
+						fill.run();
+					}
+				}).ctrl();
+		GridData infoData = new GridData(SWT.FILL, SWT.CENTER, true, false);
+		infoData.widthHint = 380;
+		info.setLayoutData(infoData);
+		info.moveBelow(null); // after the button
+		fill.run();
+	}
+
 	protected Composite createFluidsynthPage(TemplateProfileBase configurable, Composite parent) {
 		Composite composite = createPage("dialog.template.tab.midi", "dialog.template.tab.fluidsynth", parent, 1);
 		Group fluidExpGroup = Group_.on(composite).layoutData(new GridData(SWT.FILL, SWT.FILL, true, false)).layout(new GridLayout(3, false)).key(
 			"dialog.template.tab.experimentaloptions").build();
 		Chain.on(fluidExpGroup).lbl(l -> l.key("dialog.template.fluidsynth.driver")).cmb(c -> c.tooltip("dialog.template.fluidsynth.driver.tooltip").horSpan(2).items("profile", configurable.fluidsynthdriverSectionItem()).dynItem(GenerationAwareConfigurable::fluidsynthdriverSectionItem))
 			.section("midi").item("fluid.driver").build(metaControls_).init(configurable);
-		Chain.on(fluidExpGroup).lbl(l -> l.key("dialog.template.fluidsynth.soundfont")).txt(t -> t.tooltip("dialog.template.fluidsynth.soundfont.tooltip")).but(b -> b.browse(true, Button_.BrowseType.FILE, Button_.CanonicalType.NONE, false)).section(
+		// alpha 52: a list of the SoundFonts found (still to be typed in or chosen with "..."), a folder for them, what was found
+		Chain soundfontChain = Chain.on(fluidExpGroup).lbl(l -> l.key("dialog.template.fluidsynth.soundfont")).cmb(c -> c.tooltip("dialog.template.fluidsynth.soundfont.tooltip").editable().wide()
+				.items(configurable.soundfontValues()).dynItems(GenerationAwareConfigurable::soundfontValues)).but(b -> b.browse(true, Button_.BrowseType.FILE, Button_.CanonicalType.NONE, false)).section(
 				"midi", "fluidsynth").item("fluid.soundfont", "soundfont").build(metaControls_).init(configurable);
+		((GridData)soundfontChain.getCombo().getLayoutData()).widthHint = 420; // a path
+		soundfontChain.getCombo().setData(org.dbgl.gui.controls.GridCompactor.KEEP_WIDTH, Boolean.TRUE);
+		createSoundfontRow(fluidExpGroup, soundfontChain.getCombo());
 		Chain.on(fluidExpGroup).lbl(l -> l.key("dialog.template.fluidsynth.samplerate")).cmb(c -> c.tooltip("dialog.template.fluidsynth.samplerate.tooltip").horSpan(2).items("profile", "fluidsynthsamplerate_ecer4482")).section("midi").item("fluid.samplerate").build(
 				metaControls_).init(configurable);
 		Chain.on(fluidExpGroup).lbl(l -> l.key("dialog.template.fluidsynth.gain")).spn(s -> s.digits(1).tooltip("dialog.template.fluidsynth.gain.tooltip").horSpan(2)).section("midi").item("fluid.gain").build(metaControls_).init(configurable);
@@ -2068,8 +2125,13 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		Chain.on(fluidExpGroup).lbl(l -> l.key("dialog.template.fluidsynth.reverb")).cmb(c -> c.tooltip("dialog.template.fluidsynth.reverb.tooltip").horSpan(2).editable().items("profile", "fluidsynthreverb_staging0810")).section("fluidsynth").item("fsynth_reverb").build(
 				metaControls_).init(configurable);
 		Chain.on(fluidExpGroup).lbl(l -> l.key("dialog.template.fluidsynth.filter")).txt(t -> t.tooltip("dialog.template.fluidsynth.filter.tooltip").horSpan(2)).section("fluidsynth").item("fsynth_filter").build(metaControls_).init(configurable);
-		Chain.on(fluidExpGroup).lbl(l -> l.key("dialog.template.fluidsynth.soundfontdir")).txt(t -> t.tooltip("dialog.template.fluidsynth.soundfontdir.tooltip")).but(b -> b.browse(false, Button_.BrowseType.DIR, Button_.CanonicalType.NONE, false))
-			.section("fluidsynth").item("soundfont_dir").build(metaControls_).init(configurable);
+		Text soundfontDir = Chain.on(fluidExpGroup).lbl(l -> l.key("dialog.template.fluidsynth.soundfontdir")).txt(t -> t.tooltip("dialog.template.fluidsynth.soundfontdir.tooltip")).but(b -> b.browse(false, Button_.BrowseType.DIR, Button_.CanonicalType.NONE, false))
+			.section("fluidsynth").item("soundfont_dir").build(metaControls_).init(configurable).getText();
+		if (soundfontDir.getLayoutData() instanceof GridData sd) { // alpha 52: as wide as the SoundFont above it, its button below the other
+			sd.widthHint = 420;
+			sd.horizontalAlignment = SWT.FILL;
+			soundfontDir.setData(org.dbgl.gui.controls.GridCompactor.KEEP_WIDTH, Boolean.TRUE);
+		}
 		Chain.on(fluidExpGroup).lbl(l -> l.key("dialog.template.fluidsynth.soundfontvolume")).spn(s -> s.min(1).max(800).tooltip("dialog.template.fluidsynth.soundfontvolume.tooltip").horSpan(2))
 			.section("fluidsynth").item("soundfont_volume").build(metaControls_).init(configurable);
 		addAdditionalOptions(composite, 1, configurable,

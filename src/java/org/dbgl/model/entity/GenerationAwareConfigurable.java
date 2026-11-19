@@ -301,6 +301,11 @@ public class GenerationAwareConfigurable extends Configurable {
 		return glShaders;
 	}
 	
+	/** alpha 52: the SoundFonts to choose from (see SoundFonts) */
+	public String[] soundfontValues() {
+		return org.dbgl.util.SoundFonts.values(null, null);
+	}
+
 	public String glshaderSectionItem() {
 		return switch (gen_) {
 			case svn_r4483 -> "glshader_svn4483";

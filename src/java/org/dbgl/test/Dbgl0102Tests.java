@@ -3123,6 +3123,42 @@ public class Dbgl0102Tests {
 		assertTrue(org.dbgl.util.DosboxUpdateChecker.compareVersions("2026.3.0", "2.9.1") > 0);
 	}
 
+	/** alpha 52: the SoundFonts to choose from: in the folder chosen in DBGL (and one level below), in soundfont_dir, beside DOSBox */
+	@Test
+	public void testSoundFonts() throws IOException {
+		File mine = Files.createTempDirectory("dbgl-sf-").toFile();
+		Files.write(new File(mine, "GeneralUser GS.sf2").toPath(), new byte[] {1});
+		new File(mine, "more/deeper").mkdirs();
+		Files.write(new File(mine, "more/Arachno.SF3").toPath(), new byte[] {1});
+		Files.write(new File(mine, "more/deeper/too deep.sf2").toPath(), new byte[] {1});
+		Files.write(new File(mine, "readme.txt").toPath(), new byte[] {1});
+		File dosbox = Files.createTempDirectory("dbgl-sfdb-").toFile();
+		new File(dosbox, "soundfonts").mkdirs();
+		Files.write(new File(dosbox, "soundfonts/FluidR3_GM.sf2").toPath(), new byte[] {1});
+		File own = new File(dosbox, "sf");
+		own.mkdirs();
+		Files.write(new File(own, "Roland SC-55.sf2").toPath(), new byte[] {1});
+		File exe = new File(dosbox, "dosbox");
+		Files.write(exe.toPath(), new byte[] {1});
+		org.dbgl.model.aggregate.DosboxVersion v = DosboxVersionFactory.create("Staging", SettingsService.STAGING_DOSBOX_FAM.title_, "0.83.0", false, true, false, null, dosbox.getPath(), exe.getPath(), "",
+			new File(dosbox, "dosbox.conf").getPath());
+		SettingsService settings = SettingsService.getInstance();
+		String before = settings.hasValue("gui", org.dbgl.util.SoundFonts.SETTING) ? settings.getValue("gui", org.dbgl.util.SoundFonts.SETTING): null;
+		try {
+			settings.setValue("gui", org.dbgl.util.SoundFonts.SETTING, mine.getPath());
+			org.dbgl.util.SoundFonts.Found found = org.dbgl.util.SoundFonts.find(v, "sf"); // relative to DOSBox
+			java.util.List<String> names = found.files().stream().map(File::getName).toList();
+			assertTrue(names.toString(), names.containsAll(java.util.List.of("GeneralUser GS.sf2", "Arachno.SF3", "FluidR3_GM.sf2", "Roland SC-55.sf2")));
+			assertFalse(names.contains("too deep.sf2"));
+			assertFalse(names.contains("readme.txt"));
+			assertEquals(mine.getAbsoluteFile(), found.folders().get(0));
+			assertEquals(own.getAbsoluteFile(), found.folders().get(1));
+			assertEquals(new File(dosbox, "soundfonts").getAbsoluteFile(), found.folders().get(2));
+		} finally {
+			settings.setValue("gui", org.dbgl.util.SoundFonts.SETTING, before == null ? "": before);
+		}
+	}
+
 	/** alpha 52: the description below the shader field, by the name of the shader, in every language */
 	@Test
 	public void testShaderInfo() {

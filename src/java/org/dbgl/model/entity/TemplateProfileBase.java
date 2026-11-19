@@ -475,6 +475,18 @@ public abstract class TemplateProfileBase extends GenerationAwareConfigurable {
 		return java.util.List.of();
 	}
 
+	/** alpha 52: the SoundFonts beside DOSBox, in its soundfont_dir, in the folder chosen in DBGL and where the system keeps them */
+	@Override
+	public String[] soundfontValues() {
+		String dir = null;
+		try {
+			dir = getCombinedConfigurationForReading().getValue("fluidsynth", "soundfont_dir");
+		} catch (RuntimeException e) {
+			// no configuration yet
+		}
+		return org.dbgl.util.SoundFonts.values(dosboxVersion_, dir);
+	}
+
 	/** for DOSBox Staging, also the shaders the executable finds in its resource folders (--list-shaders) */
 	@Override
 	public String[] glshaderValues() {
