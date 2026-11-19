@@ -7,6 +7,10 @@ Based on DBGL 0.100 beta 17 by Ronald Blankendaal (https://dbgl.org), source cod
 0.101 alpha 52 (in progress)
 ----------------------------
 New
+- RAWG as one more source of online info (Settings > Web Information
+  Archives > RAWG), with an own free key: game data, description, rating
+  and screenshots. RAWG is named as the source with a link to its page of
+  the game, as it asks.
 - Menu Profiles > "Import games from LaunchBox": takes over the MS-DOS
   games of an own LaunchBox collection that LaunchBox starts with DOSBox as
   profiles, with their DOSBox configuration, the data from LaunchBox, the

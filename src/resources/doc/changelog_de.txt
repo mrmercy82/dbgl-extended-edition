@@ -7,6 +7,10 @@ Grundlage: DBGL 0.100 beta 17 von Ronald Blankendaal (https://dbgl.org), Quellco
 0.101 alpha 52 (in Arbeit)
 --------------------------
 Neu
+- RAWG als weitere Quelle für Online-Infos (Einstellungen > Online-
+  Informationsarchive > RAWG), mit eigenem kostenlosem Schlüssel: Spieldaten,
+  Beschreibung, Bewertung und Screenshots. RAWG wird wie verlangt mit einem
+  Link auf seine Seite des Spiels als Quelle genannt.
 - Menü Profile > „Spiele aus LaunchBox importieren“: übernimmt die
   MS-DOS-Spiele einer eigenen LaunchBox-Sammlung, die LaunchBox mit DOSBox
   startet, als Profile, mit ihrer DOSBox-Konfiguration, den Angaben aus

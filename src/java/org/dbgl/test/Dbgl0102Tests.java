@@ -3140,6 +3140,43 @@ public class Dbgl0102Tests {
 		assertEquals(0, org.dbgl.util.Scummvm.copyScreenshots(shots, "lol-cd", start, captures)); // there already
 	}
 
+	/** alpha 52: RAWG: the answers as its API gives them (search, game, screenshots), the platform filter, the source among the others */
+	@Test
+	public void testRawg() {
+		org.json.JSONObject search = new org.json.JSONObject("{\"count\":2,\"results\":[{\"id\":53551,\"slug\":\"the-secret-of-monkey-island\",\"name\":\"The Secret of Monkey Island\","
+				+ "\"released\":\"1990-10-01\",\"platforms\":[{\"platform\":{\"id\":4,\"name\":\"PC\"}},{\"platform\":{\"id\":166,\"name\":\"Commodore / Amiga\"}}]},"
+				+ "{\"id\":2,\"slug\":\"x\",\"name\":\"Monkey Island 2\",\"released\":null,\"platforms\":null}]}");
+		java.util.List<org.dbgl.model.WebProfile> found = org.dbgl.util.searchengine.RawgSearchEngine.parseEntries(search);
+		assertEquals(2, found.size());
+		assertEquals("The Secret of Monkey Island", found.get(0).getTitle());
+		assertEquals("1990", found.get(0).getYear());
+		assertEquals("PC, Commodore / Amiga", found.get(0).getPlatform());
+		assertEquals("https://rawg.io/games/the-secret-of-monkey-island", found.get(0).getUrl());
+		assertEquals("", found.get(1).getYear());
+
+		org.dbgl.model.WebProfile game = found.get(0);
+		org.dbgl.util.searchengine.RawgSearchEngine.parseDetails(game, new org.json.JSONObject("{\"id\":53551,\"slug\":\"the-secret-of-monkey-island\",\"name\":\"The Secret of Monkey Island\","
+				+ "\"released\":\"1990-10-01\",\"description_raw\":\"Guybrush wants to be a pirate.\",\"rating\":4.3,\"background_image\":\"https://media.rawg.io/media/games/a/b.jpg\","
+				+ "\"genres\":[{\"name\":\"Adventure\"}],\"developers\":[{\"name\":\"Lucasfilm Games\"}],\"publishers\":[{\"name\":\"Lucasfilm Games\"},{\"name\":\"U.S. Gold\"}]}"));
+		assertEquals("Guybrush wants to be a pirate.", game.getNotes());
+		assertEquals("Adventure", game.getGenre());
+		assertEquals("Lucasfilm Games", game.getDeveloperName());
+		assertEquals("Lucasfilm Games, U.S. Gold", game.getPublisherName());
+		assertEquals(86, game.getRank());
+		assertEquals("https://media.rawg.io/media/games/a/b.jpg", game.getCoreGameCoverUrl());
+
+		java.util.List<org.dbgl.model.SearchEngineImageInformation> shots = org.dbgl.util.searchengine.RawgSearchEngine.parseScreenshots(new org.json.JSONObject(
+			"{\"results\":[{\"id\":1,\"image\":\"https://media.rawg.io/1.jpg\"},{\"id\":2,\"image\":\"\"},{\"id\":3,\"image\":\"https://media.rawg.io/3.jpg\"},{\"id\":4,\"image\":\"https://media.rawg.io/4.jpg\"}]}"), 2);
+		assertEquals(2, shots.size());
+		assertEquals("https://media.rawg.io/3.jpg", shots.get(1).getUrl());
+
+		assertEquals(java.util.Set.of(4), org.dbgl.util.searchengine.RawgSearchEngine.platformIds(new String[] {"PC DOS", "Windows"}));
+		assertEquals(java.util.Set.of(166), org.dbgl.util.searchengine.RawgSearchEngine.platformIds(new String[] {"166"}));
+		assertNotNull(org.dbgl.util.searchengine.WebSearchEngine.getBySimpleName("rawg"));
+		assertTrue(SettingsService.availableWebSearchEngines().indexOf(org.dbgl.util.searchengine.WebSearchEngine.getBySimpleName("rawg"))
+				< SettingsService.availableWebSearchEngines().indexOf(org.dbgl.util.searchengine.WebSearchEngine.getBySimpleName("mobygames"))); // MobyGames stays last
+	}
+
 	/** alpha 52: the SoundFonts to choose from: in the folder chosen in DBGL (and one level below), in soundfont_dir, beside DOSBox */
 	@Test
 	public void testSoundFonts() throws IOException {

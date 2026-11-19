@@ -59,7 +59,7 @@ public class SettingsService {
 	// MobyGames last: its API key is paid now, and without one its web pages are blocked (since alpha 44)
 	public static final List<WebSearchEngine> ALL_WEBSEARCH_ENGINES = Arrays.asList(TheGamesDBSearchEngine.getInstance(), MetropolisSearchEngine.getInstance(), PouetSearchEngine.getInstance(),
 		org.dbgl.util.searchengine.IgdbSearchEngine.getInstance(), org.dbgl.util.searchengine.SteamGridDbSearchEngine.getInstance(),
-		org.dbgl.util.searchengine.ScreenScraperSearchEngine.getInstance(), MobyGamesSearchEngine.getInstance());
+		org.dbgl.util.searchengine.ScreenScraperSearchEngine.getInstance(), org.dbgl.util.searchengine.RawgSearchEngine.getInstance(), MobyGamesSearchEngine.getInstance());
 
 	private static final String SETTINGS_CONF = "settings.conf";
 
@@ -630,9 +630,9 @@ public class SettingsService {
 		settings_.setValue("thegamesdb", "image_base", "original");
 		settings_.setValue("thegamesdb", "api_key", "8364ae0f983f8484afbb70a4d1030292137deaa4131c7765c9b8c0fdfdda1cf7");
 		// IGDB and SteamGridDB: each user enters own keys (free), see the settings
-		for (String engine: new String[] {"igdb", "steamgriddb", "screenscraper"}) {
-			boolean igdb = engine.equals("igdb") || engine.equals("screenscraper"); // both give everything
-			settings_.setValue(engine, "platform_filter", engine.equals("screenscraper") ? "DOS": igdb ? "PC DOS": "");
+		for (String engine: new String[] {"igdb", "steamgriddb", "screenscraper", "rawg"}) {
+			boolean igdb = engine.equals("igdb") || engine.equals("screenscraper") || engine.equals("rawg"); // they give everything (RAWG no box covers)
+			settings_.setValue(engine, "platform_filter", engine.equals("screenscraper") ? "DOS": engine.equals("rawg") ? "PC": igdb ? "PC DOS": "");
 			settings_.setValue(engine, "set_title", true);
 			settings_.setValue(engine, "set_developer", igdb);
 			settings_.setValue(engine, "set_publisher", igdb);
@@ -641,14 +641,15 @@ public class SettingsService {
 			settings_.setValue(engine, "set_link", true);
 			settings_.setValue(engine, "set_description", igdb);
 			settings_.setValue(engine, "set_rank", false);
-			settings_.setValue(engine, "choose_coverart", true);
+			settings_.setValue(engine, "choose_coverart", !engine.equals("rawg")); // RAWG: only a background picture
 			settings_.setValue(engine, "choose_screenshot", igdb);
-			settings_.setValue(engine, "multi_max_coverart", igdb ? 1: 0);
+			settings_.setValue(engine, "multi_max_coverart", igdb && !engine.equals("rawg") ? 1: 0);
 			settings_.setValue(engine, "multi_max_screenshot", 0);
 		}
 		settings_.setValue("igdb", "client_id", "");
 		settings_.setValue("igdb", "client_secret", "");
 		settings_.setValue("steamgriddb", "api_key", "");
+		settings_.setValue("rawg", "api_key", ""); // alpha 52: the user's own (free) key
 		settings_.setValue("screenscraper", "ssid", ""); // the user's ScreenScraper account (more requests per day)
 		settings_.setValue("screenscraper", "sspassword", "");
 		settings_.setValue("screenscraper", "devid", ""); // the developer access of DBGL, if not built in
