@@ -23,7 +23,9 @@ New
   entered on the tab "DOSBox versions" if it is not there yet. They start
   with ScummVM instead of DOSBox; the play time is counted, and Steam,
   LaunchBox and shortcuts on the desktop start ScummVM too. The settings of
-  the games stay in ScummVM; scummvm.ini is only read.
+  the games stay in ScummVM; scummvm.ini is only read. The daily search for
+  new DOSBox versions tells about new ScummVM versions too (DBGL reads the
+  installed version from scummvm.ini).
 
 Improved
 - Guide of the stand-alone packages: what to do when Windows (SmartScreen)

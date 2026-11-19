@@ -1906,10 +1906,20 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				String family = r != null ? r.family_: v.getFamily(), version = r != null ? r.version_: v.getVersion();
 				installed.merge(family, version, (a, b) -> DosboxUpdateChecker.compareVersions(a, b) >= 0 ? a: b);
 			}
-			if (!installed.containsKey(SettingsService.STAGING_DOSBOX_FAM.title_) && !installed.containsKey(SettingsService.DOSBOX_X_DOSBOX_FAM.title_))
+			// alpha 52: ScummVM too, when it is entered: its version from its scummvm.ini (it is not started for it)
+			String scummvm = versions.stream().filter(org.dbgl.util.Scummvm::is).map(org.dbgl.util.Scummvm::installedVersion).filter(java.util.Objects::nonNull).findFirst().orElse(null);
+			boolean dosbox = installed.containsKey(SettingsService.STAGING_DOSBOX_FAM.title_) || installed.containsKey(SettingsService.DOSBOX_X_DOSBOX_FAM.title_);
+			if (!dosbox && (scummvm == null))
 				return; // only for the DOSBox families in use
-			List<DosboxUpdateChecker.Release> newer = DosboxUpdateChecker.latestReleases().stream()
-					.filter(r -> installed.containsKey(r.family()) && (DosboxUpdateChecker.compareVersions(r.version(), installed.get(r.family())) > 0)).toList();
+			List<DosboxUpdateChecker.Release> newer = new ArrayList<>(dosbox ? DosboxUpdateChecker.latestReleases().stream()
+					.filter(r -> installed.containsKey(r.family()) && (DosboxUpdateChecker.compareVersions(r.version(), installed.get(r.family())) > 0)).toList(): List.of());
+			if (scummvm != null) {
+				DosboxUpdateChecker.Release latest = DosboxUpdateChecker.latestScummvm();
+				if ((latest != null) && (DosboxUpdateChecker.compareVersions(latest.version(), scummvm) > 0)) {
+					newer.add(latest);
+					installed.put(latest.family(), scummvm);
+				}
+			}
 			if (newer.isEmpty() || display_.isDisposed())
 				return;
 			display_.asyncExec(() -> {
@@ -1922,7 +1932,12 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 						continue;
 					shown = (shown + ';' + id).replaceFirst("^;", "");
 					settings_.setValue("gui", "updatenoticeshown", shown);
-					offerDosboxRelease(r, text_.get("dialog.main.confirm.dosboxupdate", new Object[] {r.family(), r.version(), installed.get(r.family())}));
+					String question = text_.get("dialog.main.confirm.dosboxupdate", new Object[] {r.family(), r.version(), installed.get(r.family())});
+					if (org.dbgl.util.Scummvm.FAMILY.equals(r.family())) { // installed with its own installer: only its page
+						if (Mess_.on(shell_).txt(question).confirm())
+							SystemUtils.openForBrowsing(r.url(), getParent());
+					} else
+						offerDosboxRelease(r, question);
 				}
 			});
 		}, "DOSBox update check");

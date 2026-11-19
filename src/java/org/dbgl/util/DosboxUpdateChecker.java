@@ -73,6 +73,49 @@ public final class DosboxUpdateChecker {
 		return 0;
 	}
 
+	/** alpha 52: the release of ScummVM in a tag like "v2.9.1" or "v2026.3.0", nothing else (no "desc/..." or "...git") */
+	private static final Pattern SCUMMVM_TAG_PATRN = Pattern.compile("^v?(\\d+\\.\\d+(?:\\.\\d+)?)$");
+	static final String SCUMMVM_PAGE = "https://www.scummvm.org/downloads/";
+
+	static String scummvmVersionOfTag(String tag) {
+		Matcher m = SCUMMVM_TAG_PATRN.matcher(tag == null ? "": tag.trim());
+		return m.matches() ? m.group(1): null;
+	}
+
+	/**
+	 * alpha 52: the latest ScummVM, from its latest release on GitHub or else the highest version among its tags; its page is
+	 * the one of the downloads (ScummVM is installed with its own installer, DBGL sets nothing up). Null if not found.
+	 */
+	public static Release latestScummvm() {
+		HttpClient client = HttpClient.newBuilder().proxy(ProxySelector.getDefault()).connectTimeout(Duration.ofSeconds(10)).followRedirects(HttpClient.Redirect.NORMAL).build();
+		try {
+			HttpResponse<String> response = client.send(HttpRequest.newBuilder(URI.create("https://api.github.com/repos/scummvm/scummvm/releases/latest")).timeout(Duration.ofSeconds(15))
+					.header("Accept", "application/vnd.github+json").header("User-Agent", "DBGL").GET().build(), HttpResponse.BodyHandlers.ofString());
+			if (response.statusCode() == 200) {
+				String version = scummvmVersionOfTag(new JSONObject(response.body()).optString("tag_name", null));
+				if (version != null)
+					return new Release(Scummvm.FAMILY, version, SCUMMVM_PAGE, List.of());
+			}
+			response = client.send(HttpRequest.newBuilder(URI.create("https://api.github.com/repos/scummvm/scummvm/tags?per_page=100")).timeout(Duration.ofSeconds(15))
+					.header("Accept", "application/vnd.github+json").header("User-Agent", "DBGL").GET().build(), HttpResponse.BodyHandlers.ofString());
+			if (response.statusCode() == 200)
+				return newestScummvmTag(new org.json.JSONArray(response.body()));
+		} catch (Exception e) {
+			System.out.println("Update check for ScummVM failed: " + e);
+		}
+		return null;
+	}
+
+	public static Release newestScummvmTag(org.json.JSONArray tags) {
+		String best = null;
+		for (int i = 0; i < tags.length(); i++) {
+			String v = scummvmVersionOfTag(tags.getJSONObject(i).optString("name", null));
+			if ((v != null) && ((best == null) || (compareVersions(v, best) > 0)))
+				best = v;
+		}
+		return best == null ? null: new Release(Scummvm.FAMILY, best, SCUMMVM_PAGE, List.of());
+	}
+
 	/** @return the latest releases that could be found; failures are left out */
 	public static List<Release> latestReleases() {
 		List<Release> result = new ArrayList<>();

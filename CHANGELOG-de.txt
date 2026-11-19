@@ -24,7 +24,9 @@ Neu
   es noch nicht da ist. Gestartet wird mit ScummVM statt DOSBox; die
   Spielzeit wird erfasst, Steam, LaunchBox und Desktop-Verknüpfungen
   starten ScummVM ebenso. Die Einstellungen der Spiele bleiben in ScummVM;
-  scummvm.ini wird nur gelesen.
+  scummvm.ini wird nur gelesen. Die tägliche Suche nach neuen DOSBox-
+  Versionen meldet auch neue ScummVM-Versionen (die installierte Version
+  liest DBGL aus der scummvm.ini).
 
 Verbessert
 - Anleitung der eigenständigen Pakete: was zu tun ist, wenn Windows

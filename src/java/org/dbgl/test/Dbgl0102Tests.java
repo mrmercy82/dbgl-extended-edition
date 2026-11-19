@@ -3112,6 +3112,15 @@ public class Dbgl0102Tests {
 		assertEquals("monkey2", org.dbgl.util.Scummvm.targetOf(p));
 		assertEquals(java.util.List.of("--config=" + ini.getAbsolutePath(), "-f", "monkey2"), org.dbgl.util.Scummvm.arguments(p, v));
 		assertNull(org.dbgl.util.DosboxVersionDetector.detect(exe, dir)); // not started to ask it
+
+		// the update check: the version installed from scummvm.ini next to the program, the newest from the tags
+		assertEquals("2.9.1", org.dbgl.util.Scummvm.installedVersion(v));
+		org.json.JSONArray tags = new org.json.JSONArray("[{\"name\":\"desc/2.9.1\"},{\"name\":\"v2.9.1\"},{\"name\":\"v2026.3.0\"},{\"name\":\"v2026.4.0git\"},{\"name\":\"v2.10.0\"}]");
+		org.dbgl.util.DosboxUpdateChecker.Release newest = org.dbgl.util.DosboxUpdateChecker.newestScummvmTag(tags);
+		assertEquals("2026.3.0", newest.version());
+		assertEquals(org.dbgl.util.Scummvm.FAMILY, newest.family());
+		assertTrue(newest.assets().isEmpty()); // only its page, nothing set up
+		assertTrue(org.dbgl.util.DosboxUpdateChecker.compareVersions("2026.3.0", "2.9.1") > 0);
 	}
 
 	/** alpha 48: empty images DOSBox can use at once: formatted, read again by DBGL's own FAT reader, the geometry as said */

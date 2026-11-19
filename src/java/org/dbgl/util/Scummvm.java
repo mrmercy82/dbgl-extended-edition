@@ -158,6 +158,33 @@ public final class Scummvm {
 		return false;
 	}
 
+	/**
+	 * alpha 52: the version of ScummVM that is installed, as it writes it into its scummvm.ini at every start (versioninfo in
+	 * [scummvm]); the file next to the program first (portable), then the one of the user. Null if not known. Not started for it.
+	 */
+	public static String installedVersion(DosboxVersion v) {
+		File[] inis = {new File(v.getCanonicalExecutable().getParentFile(), "scummvm.ini"), defaultIni()};
+		for (File ini: inis) {
+			if ((ini == null) || !ini.isFile())
+				continue;
+			try {
+				boolean in = false;
+				for (String line: decode(Files.readAllBytes(ini.toPath())).split("\\r?\\n")) {
+					String t = line.trim();
+					if (t.startsWith("[") && t.endsWith("]"))
+						in = t.equalsIgnoreCase("[scummvm]");
+					else if (in && t.toLowerCase(Locale.ROOT).startsWith("versioninfo=")) {
+						java.util.regex.Matcher m = java.util.regex.Pattern.compile("^(\\d+\\.\\d+(?:\\.\\d+)?)").matcher(t.substring(12).trim());
+						return m.find() ? m.group(1): null;
+					}
+				}
+			} catch (IOException e) {
+				// the next one
+			}
+		}
+		return null;
+	}
+
 	/** UTF-8 if it is that, else Latin-1 */
 	static String decode(byte[] bytes) {
 		try {
