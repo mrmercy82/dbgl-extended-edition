@@ -28,7 +28,12 @@ New
   installed version from scummvm.ini).
 
 Improved
-- Profile > Rendering: below the shader a short line now tells what the
+- Profile > Midi > FluidSynth: the SoundFont field offers the SoundFonts
+  found (.sf2, .sf3) to choose from: in an own folder ("Look for SoundFonts
+  in...", for all profiles), in the SoundFont folder of the configuration,
+  in a folder "soundfonts" beside DOSBox and in the usual folders of the
+  system.
+- Profile > Rendering: below the shader a short line now tells what the
   picture looks like with it (e.g. scanlines, curved screen, sharp pixels),
   for the shaders of DOSBox, DOSBox Staging and DOSBox-X.
 - Guide of the stand-alone packages: what to do when Windows (SmartScreen)
