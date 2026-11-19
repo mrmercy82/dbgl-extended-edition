@@ -926,7 +926,10 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 		if (title_.getText().length() == 0) {
 			mess.key("dialog.profile.required.title").bind(title_, getTreeItemByControl(title_));
 		}
-		if (dosRadio_.getSelection()) {
+		boolean scummvm = (profile_ != null) && org.dbgl.util.Scummvm.is(profile_.getDosboxVersion()); // alpha 52: started by its target, no DOS program
+		if (scummvm) {
+			// nothing to check: ScummVM finds the game by its target
+		} else if (dosRadio_.getSelection()) {
 			if (FilesUtils.isExecutable(main_.getText())) {
 				requiredMount = dealWithField(false, main_.getText());
 				if (!validDosFilename(main_))

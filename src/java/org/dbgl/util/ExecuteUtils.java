@@ -233,6 +233,8 @@ public class ExecuteUtils {
 	 */
 	public static void runMapper(Profile prof) throws IOException {
 		DosboxVersion v = prof.getDosboxVersion();
+		if (Scummvm.is(v))
+			return; // alpha 52: ScummVM has no key mapper of DOSBox
 		GenerationAwareConfigurable.Generation gen = GenerationAwareConfigurable.determineGen(v);
 		boolean staging = (gen != null) && (GenerationAwareConfigurable.familyIdx(gen) == GenerationAwareConfigurable.familyIdx(GenerationAwareConfigurable.Generation.staging_0830));
 		doRunDosbox(v, new String[] {"-conf", prof.getConfigurationCanonicalFile().getPath(), staging ? "--startmapper": "-startmapper"}, false, v.getCwd(), true, false);
@@ -262,6 +264,12 @@ public class ExecuteUtils {
 	}
 
 	public static void doCreateDosboxConf(DosboxVersion dbversion) throws IOException {
+		if (Scummvm.is(dbversion)) { // alpha 52: no DOSBox to write it; the file of DBGL with no settings
+			File conf = dbversion.getConfigurationCanonicalFile();
+			if (!conf.isFile())
+				java.nio.file.Files.writeString(conf.toPath(), "# ScummVM: DBGL keeps no settings for it here. ScummVM keeps its own in scummvm.ini.\r\n");
+			return;
+		}
 		String quote = SystemUtils.IS_WINDOWS ? "'": "\"";
 		if ((dbversion.getVersionAsInt() <= 650))
 			quote = StringUtils.EMPTY;
@@ -303,6 +311,10 @@ public class ExecuteUtils {
 			return;
 		}
 		Profile prof = (Profile)configurable;
+		if (Scummvm.is(prof.getDosboxVersion())) {
+			runScummvm(prof, prof.getDosboxVersion(), -1, display);
+			return;
+		}
 		Profile tryProfile = ProfileFactory.createCopy(prof);
 		tryProfile.loadConfigurationData(TextService.getInstance(), prof.getConfigurationString(), prof.getConfigurationCanonicalFile());
 		tryProfile.getConfiguration().setCharset(prof.getConfiguration().getCharset());
@@ -352,6 +364,11 @@ public class ExecuteUtils {
 	}
 
 	public static void doRunProfile(ProfileRunMode mode, Profile prof, DosboxVersion dosboxVersion, boolean prepareOnly, Display display) throws IOException {
+		if (Scummvm.is(dosboxVersion)) { // alpha 52: a game of ScummVM, no DOSBox at all
+			if (!prepareOnly)
+				runScummvm(prof, dosboxVersion, mode == ProfileRunMode.NORMAL ? prof.getId(): -1, display);
+			return;
+		}
 		Profile preparedProfile = prof;
 
 		if (!prepareOnly && (mode != ProfileRunMode.INSTALLER) && (display != null) && !display.isDisposed()) {
@@ -425,6 +442,33 @@ public class ExecuteUtils {
 
 	private static volatile Thread lastStarted_;
 
+	/** alpha 52: ScummVM with the game of the profile (its target), in a thread like DOSBox; the play time counted for playTimeProfileId */
+	private static void runScummvm(Profile prof, DosboxVersion v, int playTimeProfileId, Display display) throws IOException {
+		if (Scummvm.targetOf(prof) == null)
+			throw new IOException(TextService.getInstance().get("general.error.scummvmtarget", new Object[] {prof.getTitle()}));
+		List<String> cmd = new ArrayList<>();
+		cmd.add(v.getCanonicalExecutable().getPath());
+		cmd.addAll(Scummvm.arguments(prof, v));
+		if (!v.getCanonicalExecutable().isFile())
+			throw new IOException(TextService.getInstance().get("general.error.startdosbox", new Object[] {StringUtils.join(cmd, ' ')}));
+		Thread game = new Thread(() -> {
+			long start = System.currentTimeMillis();
+			long startNanos = System.nanoTime();
+			try {
+				execute(cmd, v.getCanonicalExecutable().getParentFile(), true);
+				registerPlayTime(playTimeProfileId, start, (System.nanoTime() - startNanos) / 1_000_000L);
+			} catch (IOException e) {
+				if ((display != null) && !display.isDisposed())
+					display.syncExec(() -> Mess_.on(display.getActiveShell()).exception(e).warning());
+			} finally {
+				if ((display != null) && !display.isDisposed())
+					display.wake(); // for "--run", which waits for the end
+			}
+		}, "ScummVM");
+		lastStarted_ = game;
+		game.start();
+	}
+
 	/** alpha 48: the thread of the DOSBox started last; it ends with DOSBox (after the play time is written) */
 	public static Thread lastStarted() {
 		return lastStarted_;
@@ -445,12 +489,17 @@ public class ExecuteUtils {
 		DosboxVersion dbversion = profile.getDosboxVersion();
 		String strictFilename = profile.getTitle().replaceAll("[\\/:*?\"<>|]", " ").trim();
 		StringBuilder params = new StringBuilder(128);
+		if (Scummvm.is(dbversion)) { // alpha 52
+			for (String arg: Scummvm.arguments(profile, dbversion))
+				params.append(params.length() > 0 ? " ": "").append(arg.contains(" ") ? "\"\"" + arg + "\"\"": arg);
+		} else {
 		if (dbversion.isMultiConfig()) {
 			params.append("-conf \"\"").append(dbversion.getConfigurationCanonicalFile()).append("\"\" ");
 		}
 		params.append("-conf \"\"").append(profile.getConfigurationCanonicalFile()).append("\"\"");
 		if (SettingsService.getInstance().getBooleanValue("dosbox", "hideconsole")) {
 			params.append(" -noconsole");
+		}
 		}
 
 		if (SystemUtils.IS_WINDOWS) {
@@ -561,6 +610,10 @@ public class ExecuteUtils {
 	}
 
 	private static void doRunDosbox(DosboxVersion dbversion, String[] parameters, boolean forceDBConf, File cwd, boolean waitFor, boolean allowStatusWindow) throws IOException {
+		if (Scummvm.is(dbversion)) { // alpha 52: ScummVM knows none of the options of DOSBox: it opens its own list of games
+			execute(List.of(dbversion.getCanonicalExecutable().getPath()), dbversion.getCanonicalExecutable().getParentFile(), waitFor);
+			return;
+		}
 		List<String> commandItems = new ArrayList<>();
 		if (dbversion.isUsingCurses()) {
 			if (SystemUtils.IS_WINDOWS) {

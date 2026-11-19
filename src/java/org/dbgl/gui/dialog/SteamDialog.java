@@ -101,6 +101,12 @@ public final class SteamDialog {
 	/** DOSBox with the configuration(s) of the profile, started in the DOSroot, as for a shortcut on the desktop */
 	static SteamShortcuts.Game gameOf(Profile profile) {
 		DosboxVersion db = profile.getDosboxVersion();
+		if (org.dbgl.util.Scummvm.is(db)) { // alpha 52: ScummVM with the game
+			StringBuilder args = new StringBuilder();
+			for (String arg: org.dbgl.util.Scummvm.arguments(profile, db))
+				args.append(args.length() > 0 ? " ": "").append(arg.contains(" ") ? "\"" + arg + "\"": arg);
+			return new SteamShortcuts.Game(profile.getTitle(), db.getCanonicalExecutable(), db.getCanonicalExecutable().getParentFile(), args.toString(), coverOf(profile));
+		}
 		StringBuilder options = new StringBuilder();
 		if (db.isMultiConfig())
 			options.append("-conf \"").append(db.getConfigurationCanonicalFile()).append("\" ");

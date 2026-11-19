@@ -18,6 +18,12 @@ New
   through DBGL (the play time is counted) or directly with DOSBox. Games
   that are there stay unchanged; a copy of the platform file is kept as
   MS-DOS.xml.dbgl-backup.
+- ScummVM: menu Profiles > "Import ScummVM games" takes over the games in
+  the scummvm.ini of ScummVM as profiles (status "ScummVM"). ScummVM is
+  entered on the tab "DOSBox versions" if it is not there yet. They start
+  with ScummVM instead of DOSBox; the play time is counted, and Steam,
+  LaunchBox and shortcuts on the desktop start ScummVM too. The settings of
+  the games stay in ScummVM; scummvm.ini is only read.
 
 Improved
 - Guide of the stand-alone packages: what to do when Windows (SmartScreen)

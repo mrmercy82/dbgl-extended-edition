@@ -3076,6 +3076,40 @@ public class Dbgl0102Tests {
 		assertEquals("Hinweis: siehe Handbuch", org.dbgl.util.LaunchBoxExport.notesFor("Hinweis: siehe Handbuch"));
 	}
 
+	/** alpha 52: the games in scummvm.ini (not ScummVM itself), their titles, the command line for ScummVM, the target read back */
+	@Test
+	public void testScummvm() throws IOException {
+		File dir = Files.createTempDirectory("dbgl-svm-").toFile();
+		File ini = new File(dir, "scummvm.ini");
+		Files.writeString(ini.toPath(), "[scummvm]\r\nlastselectedgame=monkey2\r\nversioninfo=2.9.1\r\n\r\n[monkey2]\r\ndescription=Monkey Island 2: LeChuck\u2019s Revenge (DOS/Deutsch)\r\n"
+				+ "path=C:\\Spiele\\Monkey2\r\nengineid=scumm\r\ngameid=monkey2\r\nlanguage=de\r\nplatform=pc\r\n\r\n# a comment\r\n[sky]\r\ngameid=sky\r\npath=sky\r\n"
+				+ "description=Beneath a Steel Sky (v0.0372 CD/DOS)\r\n\r\n[keymapper]\r\nkeymap_global_MENU=F5\r\n\r\n[bad target]\r\ngameid=x\r\n\r\n[nogame]\r\npath=x\r\n",
+				StandardCharsets.UTF_8);
+		java.util.List<org.dbgl.util.Scummvm.Game> games = org.dbgl.util.Scummvm.readIni(ini);
+		assertEquals(2, games.size());
+		assertEquals("monkey2", games.get(0).target());
+		assertEquals("Monkey Island 2: LeChuck\u2019s Revenge", games.get(0).title());
+		assertEquals("pc", games.get(0).platform());
+		assertEquals("Beneath a Steel Sky", games.get(1).title());
+		assertEquals(new File(dir, "sky"), games.get(1).path()); // relative to the file
+
+		String conf = org.dbgl.util.Scummvm.confOf(games.get(0), ini);
+		assertEquals("monkey2", org.dbgl.util.Scummvm.valueInConf("[sdl]\r\nfullscreen=true\r\n" + conf, "target"));
+		assertNull(org.dbgl.util.Scummvm.valueInConf("[dosbox]\ntarget=x\n", "target"));
+
+		File exe = new File(dir, "scummvm");
+		Files.writeString(exe.toPath(), "");
+		org.dbgl.model.aggregate.DosboxVersion v = DosboxVersionFactory.create("ScummVM", org.dbgl.util.Scummvm.FAMILY, "", false, false, false, null, dir.getPath(), exe.getPath(), "-f", ini.getPath());
+		assertTrue(org.dbgl.util.Scummvm.is(v));
+		assertTrue(org.dbgl.util.Scummvm.isExecutable(new File("ScummVM", "scummvm.exe")));
+		assertFalse(org.dbgl.util.Scummvm.isExecutable(new File("dosbox.exe")));
+		org.dbgl.model.aggregate.Profile p = org.dbgl.model.factory.ProfileFactory.create(v, null);
+		p.loadConfigurationData(GenericTextService.getInstance(), conf, ini, dir);
+		assertEquals("monkey2", org.dbgl.util.Scummvm.targetOf(p));
+		assertEquals(java.util.List.of("--config=" + ini.getAbsolutePath(), "-f", "monkey2"), org.dbgl.util.Scummvm.arguments(p, v));
+		assertNull(org.dbgl.util.DosboxVersionDetector.detect(exe, dir)); // not started to ask it
+	}
+
 	/** alpha 48: empty images DOSBox can use at once: formatted, read again by DBGL's own FAT reader, the geometry as said */
 	@Test
 	public void testDiskImageMaker() throws IOException {

@@ -2411,6 +2411,12 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				doImportLaunchBox();
 			}
 		}).build();
+		MenuItem_.on(profilesMenu).key("dialog.main.menu.importscummvm").image(ImageService.IMG_IMPORT).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				doImportScummvm();
+			}
+		}).build();
 		MenuItem_.on(profilesMenu).key("dialog.main.menu.importdfendprofiles").image(ImageService.IMG_DFEND).listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
@@ -2557,7 +2563,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		MenuItem[] reportItem = new MenuItem[1];
 		dbversionsMenu.addListener(SWT.Show, e -> {
 			int index = dbversionTable_ == null ? -1: dbversionTable_.getSelectionIndex();
-			boolean unknown = (index != -1) && (index < dbversionsList_.size())
+			boolean unknown = (index != -1) && (index < dbversionsList_.size()) && !org.dbgl.util.Scummvm.is(dbversionsList_.get(index))
 					&& (org.dbgl.util.DosboxSupport.status(dbversionsList_.get(index).getFamily(), dbversionsList_.get(index).getVersion()) != org.dbgl.util.DosboxSupport.Status.KNOWN);
 			boolean shown = (reportItem[0] != null) && !reportItem[0].isDisposed();
 			if (shown && !unknown) {
@@ -5228,6 +5234,20 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			updateProfilesList(getSelectedProfileIds());
 			displayProfileInformation(false);
 			Mess_.on(shell_).key("dialog.storeimport.done", new Object[] {added}).display();
+		}
+	}
+
+	/** alpha 52: the games of ScummVM as profiles; ScummVM is entered on the tab "DOSBox versions" if it is not there */
+	private void doImportScummvm() {
+		ScummvmDialog.Result result = ScummvmDialog.importGames(shell_, dbversionsList_);
+		if (result == null)
+			return;
+		if (result.newVersion())
+			updateDosboxVersionList(result.version());
+		if (result.added() > 0) {
+			updateProfilesList(getSelectedProfileIds());
+			displayProfileInformation(false);
+			Mess_.on(shell_).key("dialog.storeimport.done", new Object[] {result.added()}).display();
 		}
 	}
 

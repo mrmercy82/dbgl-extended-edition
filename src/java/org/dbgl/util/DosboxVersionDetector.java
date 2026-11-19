@@ -83,8 +83,8 @@ public class DosboxVersionDetector {
 	 *            (a console, or DOSBox-X its own), which must not happen in the background or when a dialog opens.
 	 */
 	public static Result detect(File executable, File cwd, boolean mayRun) {
-		if ((executable == null) || !executable.isFile())
-			return null;
+		if ((executable == null) || !executable.isFile() || Scummvm.isExecutable(executable))
+			return null; // alpha 52: ScummVM is no DOSBox, and is not started to ask it
 		// DOSBox-X and DOSBox Staging carry their version as text in the executable; reading it opens no window
 		// Staging first: its executable also contains the text "DOSBox-X" (a CD-ROM name), DOSBox-X never "DOSBox Staging"
 		String text = readAsText(executable); // read once, the executable of DOSBox Staging has about 30 MB

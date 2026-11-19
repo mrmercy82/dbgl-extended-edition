@@ -467,6 +467,8 @@ public final class ProfileChecks {
 	 */
 	public static List<Problem> check(Profile prof, boolean windows, Charset systemCharset, List<DosboxVersion> versions) {
 		List<Problem> result = new ArrayList<>();
+		if (Scummvm.is(prof.getDosboxVersion()))
+			return result; // alpha 52: a game of ScummVM, none of the DOSBox checks apply
 		Autoexec autoexec = prof.getConfiguration().getAutoexec();
 		List<Mount> netto = prof.getNettoMountingPoints();
 		Generation gen = prof.getGeneration();

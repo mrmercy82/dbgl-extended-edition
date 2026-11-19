@@ -481,6 +481,8 @@ public class Profile extends TemplateProfileBase {
 	}
 
 	public boolean isIncomplete() {
+		if (org.dbgl.util.Scummvm.is(getDosboxVersion()))
+			return false; // alpha 52: ScummVM starts the game by its target, there is no DOS program to start
 		return getConfiguration().getAutoexec().isIncomplete(getNettoMountingPoints());
 	}
 
