@@ -2922,6 +2922,81 @@ public class Dbgl0102Tests {
 		assertNull(org.dbgl.util.ExoImport.find(game)); // no collection: nothing
 	}
 
+	/**
+	 * alpha 52: an own LaunchBox collection: a game with DOSBox and its own configuration (settings kept, an [autoexec] that mounts
+	 * its folder), one that starts with a configuration of its own (taken as it is), eXoDOS left out, a Windows game counted
+	 */
+	@Test
+	public void testLaunchBoxImport() throws IOException {
+		File root = Files.createTempDirectory("dbgl-lb-").toFile();
+		File game = new File(root, "Games/MS-DOS/Doom/BIN");
+		game.mkdirs();
+		Files.writeString(new File(game, "DOOM.EXE").toPath(), "MZ");
+		File ownConf = new File(root, "Games/MS-DOS/Doom/doom.conf");
+		Files.writeString(ownConf.toPath(), "# This is the configuration file for DOSBox 0.74-3.\r\n[sdl]\r\nfullscreen=true\r\n\r\n[cpu]\r\ncycles=fixed 20000\r\n\r\n"
+				+ "[autoexec]\r\n@echo off\r\n");
+		File keen = new File(root, "Games/MS-DOS/Keen");
+		keen.mkdirs();
+		Files.writeString(new File(keen, "KEEN1.EXE").toPath(), "MZ");
+		File keenConf = new File(keen, "keen.conf");
+		Files.writeString(keenConf.toPath(), "[cpu]\r\ncycles=auto\r\n\r\n[autoexec]\r\nmount c \"" + keen.getPath() + "\"\r\nc:\r\nKEEN1.EXE\r\n");
+		File manual = new File(root, "Manuals/MS-DOS/Doom.pdf");
+		manual.getParentFile().mkdirs();
+		Files.write(manual.toPath(), new byte[] {1});
+		File platforms = new File(root, "Data/Platforms");
+		platforms.mkdirs();
+		Files.writeString(new File(root, "Data/Emulators.xml").toPath(), "<?xml version=\"1.0\" standalone=\"yes\"?>\r\n<LaunchBox>\r\n  <Emulator>\r\n"
+				+ "    <ID>11111111-2222-3333-4444-555555555555</ID>\r\n    <Title>DOSBox Staging</Title>\r\n    <ApplicationPath>Emulators\\DOSBox Staging\\dosbox.exe</ApplicationPath>\r\n"
+				+ "  </Emulator>\r\n</LaunchBox>\r\n");
+		Files.writeString(new File(platforms, "MS-DOS.xml").toPath(), "<?xml version=\"1.0\" standalone=\"yes\"?>\r\n<LaunchBox>\r\n"
+				+ "  <Game>\r\n    <ApplicationPath>Games\\MS-DOS\\Doom\\BIN\\DOOM.EXE</ApplicationPath>\r\n    <CommandLine>-warp 1 1</CommandLine>\r\n"
+				+ "    <RootFolder>Games\\MS-DOS\\Doom</RootFolder>\r\n    <DosBoxConfigurationPath>Games\\MS-DOS\\Doom\\doom.conf</DosBoxConfigurationPath>\r\n"
+				+ "    <UseDosBox>true</UseDosBox>\r\n    <Title>Doom</Title>\r\n    <Developer>id Software</Developer>\r\n    <ReleaseDate>1993-12-10T00:00:00+01:00</ReleaseDate>\r\n"
+				+ "    <ManualPath>Manuals\\MS-DOS\\Doom.pdf</ManualPath>\r\n    <Platform>MS-DOS</Platform>\r\n  </Game>\r\n"
+				+ "  <Game>\r\n    <ApplicationPath>" + keenConf.getPath() + "</ApplicationPath>\r\n    <Emulator>11111111-2222-3333-4444-555555555555</Emulator>\r\n"
+				+ "    <UseDosBox>false</UseDosBox>\r\n    <Title>Commander Keen</Title>\r\n    <Platform>MS-DOS</Platform>\r\n  </Game>\r\n"
+				+ "  <Game>\r\n    <ApplicationPath>eXo\\eXoDOS\\!dos\\1942\\1942.bat</ApplicationPath>\r\n    <Title>1942</Title>\r\n    <Platform>MS-DOS</Platform>\r\n  </Game>\r\n"
+				+ "  <Game>\r\n    <ApplicationPath>Games\\Windows\\game.exe</ApplicationPath>\r\n    <UseDosBox>false</UseDosBox>\r\n    <Title>Windows game</Title>\r\n"
+				+ "    <Platform>MS-DOS</Platform>\r\n  </Game>\r\n</LaunchBox>\r\n");
+		File covers = new File(root, "Images/MS-DOS/Box - Front/Europe");
+		covers.mkdirs();
+		Files.write(new File(covers, "Doom-01.jpg").toPath(), new byte[] {1, 2, 3});
+		File work = Files.createTempDirectory("dbgl-lbwork-").toFile();
+
+		org.dbgl.util.LaunchBoxImport.Result r = org.dbgl.util.LaunchBoxImport.find(platforms, work); // a folder below is fine
+		assertNotNull(r);
+		assertEquals(root.getCanonicalFile(), r.root().getCanonicalFile());
+		assertEquals(2, r.games().size());
+		assertEquals(1, r.exo());
+		assertEquals(1, r.skipped());
+		org.dbgl.util.StoreGameImport.Found k = r.games().get(0), d = r.games().get(1);
+		assertEquals("Commander Keen", k.title());
+		assertEquals(keenConf.getCanonicalFile(), k.confs().get(0)); // mounts by itself: as it is
+		assertEquals("Doom", d.title());
+		assertEquals("LaunchBox", d.store());
+		assertEquals("1993", d.meta().year());
+		assertEquals("id Software", d.meta().developer());
+		assertEquals("Doom-01.jpg", d.meta().cover().get().getName());
+		assertEquals(1, d.meta().extras().size());
+		assertEquals(new File(root, "Games/MS-DOS/Doom").getCanonicalFile(), d.gameDir());
+		String made = Files.readString(d.confs().get(0).toPath(), java.nio.charset.StandardCharsets.ISO_8859_1);
+		assertTrue(made, made.startsWith("# This is the configuration file for DOSBox 0.74-3."));
+		assertTrue(made, made.contains("cycles=fixed 20000"));
+		assertFalse(made, made.contains("@echo off"));
+		assertTrue(made, made.contains("mount c \"" + d.gameDir().getPath() + "\"\nc:\ncd \\BIN\nDOOM.EXE -warp 1 1\n"));
+
+		File dosboxConf = new File(DATA_DIR, "dosbox-staging-0.83.0.conf");
+		org.dbgl.model.aggregate.DosboxVersion v = DosboxVersionFactory.create("DOSBox Staging 0.83.0", SettingsService.STAGING_DOSBOX_FAM.title_, "0.83.0", false, true, false, null, "staging083", "", "",
+			dosboxConf.getAbsolutePath());
+		v.resetAndLoadConfiguration();
+		org.dbgl.model.aggregate.Profile p = org.dbgl.util.StoreGameImport.toProfile(d, v, GenericTextService.getInstance());
+		assertEquals("DOOM.EXE", new File(p.getConfiguration().getAutoexec().getMain()).getName());
+		assertEquals("-warp 1 1", p.getConfiguration().getAutoexec().getParameters());
+		assertTrue(p.getNotes(), p.getNotes().endsWith("LaunchBox: " + d.gameDir().getPath()));
+
+		assertNull(org.dbgl.util.LaunchBoxImport.find(game, work)); // no collection: nothing
+	}
+
 	/** alpha 48: empty images DOSBox can use at once: formatted, read again by DBGL's own FAT reader, the geometry as said */
 	@Test
 	public void testDiskImageMaker() throws IOException {
@@ -4534,13 +4609,14 @@ public class Dbgl0102Tests {
 			org.apache.commons.io.FileUtils.deleteQuietly(backups);
 		}
 
-		// the newest part of the changelog starts with the note on Java 21, in both languages (until it is taken back)
+		// the newest released part of the changelog starts with the note on Java 21, in both languages (until it is taken back); a part
+		// still in progress is not looked at, so this fails at the release until that part has the note too
 		for (String[] doc: new String[][] {{"changelog_de.txt", "Wichtig"}, {"changelog_en.txt", "Important"}}) {
 			String text;
 			try (java.io.InputStream in = org.dbgl.gui.dialog.DocumentDialog.class.getResourceAsStream("/doc/" + doc[0])) {
 				text = new String(in.readAllBytes(), StandardCharsets.UTF_8).replace("\r\n", "\n");
 			}
-			java.util.regex.Matcher first = java.util.regex.Pattern.compile("(?m)^0\\.\\d+ (alpha|beta) \\d+.*\\n-+\\n").matcher(text);
+			java.util.regex.Matcher first = java.util.regex.Pattern.compile("(?m)^0\\.\\d+ (alpha|beta) \\d++(?! \\(in (Arbeit|progress)\\)).*\\n-+\\n").matcher(text);
 			assertTrue(doc[0], first.find());
 			String part = text.substring(first.end());
 			assertTrue(doc[0], part.startsWith(doc[1] + "\n") && part.substring(0, 400).contains("Java 21") && part.substring(0, 600).contains("https://adoptium.net/temurin/releases/?version=21"));

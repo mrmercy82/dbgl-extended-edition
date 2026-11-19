@@ -6,6 +6,13 @@ Grundlage: DBGL 0.100 beta 17 von Ronald Blankendaal (https://dbgl.org), Quellco
 
 0.101 alpha 52 (in Arbeit)
 --------------------------
+Neu
+- Menü Profile > „Spiele aus LaunchBox importieren“: übernimmt die
+  MS-DOS-Spiele einer eigenen LaunchBox-Sammlung, die LaunchBox mit DOSBox
+  startet, als Profile, mit ihrer DOSBox-Konfiguration, den Angaben aus
+  LaunchBox, dem Titelbild und dem Handbuch. eXoDOS-Spiele bleiben beim
+  eigenen eXoDOS-Import; in LaunchBox wird nichts verändert.
+
 Verbessert
 - Anleitung der eigenständigen Pakete: was zu tun ist, wenn Windows
   (SmartScreen) die nicht signierte launch.exe oder macOS (Gatekeeper)

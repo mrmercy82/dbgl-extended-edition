@@ -6,6 +6,13 @@ Based on DBGL 0.100 beta 17 by Ronald Blankendaal (https://dbgl.org), source cod
 
 0.101 alpha 52 (in progress)
 ----------------------------
+New
+- Menu Profiles > "Import games from LaunchBox": takes over the MS-DOS
+  games of an own LaunchBox collection that LaunchBox starts with DOSBox as
+  profiles, with their DOSBox configuration, the data from LaunchBox, the
+  cover and the manual. eXoDOS games stay with the eXoDOS import of their
+  own; nothing in LaunchBox is changed.
+
 Improved
 - Guide of the stand-alone packages: what to do when Windows (SmartScreen)
   blocks the unsigned launch.exe or macOS (Gatekeeper) the unsigned

@@ -72,16 +72,28 @@ public class StoreImportDialog extends SizeControlledButtonDialog<Integer> {
 		exo_ = notInstalled >= 0;
 	}
 
+	/** alpha 52: an own LaunchBox collection, like an eXo collection (filter, the user picks); its own title and text */
+	private String titleKey_;
+	private String info_;
+
+	public static StoreImportDialog forLaunchBox(Shell parent, List<StoreGameImport.Found> found, List<DosboxVersion> versions, DosboxVersion defaultVersion,
+			Set<String> existing, String info) {
+		StoreImportDialog d = new StoreImportDialog(parent, found, versions, defaultVersion, existing, 0);
+		d.titleKey_ = "dialog.launchboximport.title";
+		d.info_ = info;
+		return d;
+	}
+
 	@Override
 	protected String getDialogTitle() {
-		return text_.get(exo_ ? "dialog.exoimport.title": "dialog.storeimport.title");
+		return text_.get(titleKey_ != null ? titleKey_: exo_ ? "dialog.exoimport.title": "dialog.storeimport.title");
 	}
 
 	@Override
 	protected void onShellCreated() {
 		contents_.setLayout(new GridLayout(2, false));
 		Label info = new Label(contents_, SWT.WRAP);
-		info.setText(exo_ ? text_.get("dialog.exoimport.info", new Object[] {found_.size(), notInstalled_}): text_.get("dialog.storeimport.info"));
+		info.setText(info_ != null ? info_: exo_ ? text_.get("dialog.exoimport.info", new Object[] {found_.size(), notInstalled_}): text_.get("dialog.storeimport.info"));
 		GridData infoData = new GridData(SWT.FILL, SWT.BEGINNING, true, false, 2, 1);
 		infoData.widthHint = 640;
 		info.setLayoutData(infoData);
@@ -113,7 +125,7 @@ public class StoreImportDialog extends SizeControlledButtonDialog<Integer> {
 		table.setHeaderVisible(true);
 		table.setLinesVisible(true);
 		String[] keys = {"dialog.storeimport.column.game", "dialog.storeimport.column.store", "dialog.storeimport.column.advice", "dialog.storeimport.column.folder"};
-		int[] widths = {240, 70, 260, 360};
+		int[] widths = {240, 90, 240, 360};
 		for (int i = 0; i < keys.length; i++) {
 			TableColumn col = new TableColumn(table, SWT.NONE);
 			col.setText(text_.get(exo_ && (i == 1) ? "dialog.exoimport.column.collection": keys[i]));

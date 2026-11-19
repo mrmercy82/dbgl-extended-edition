@@ -2405,6 +2405,12 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				doImportExo();
 			}
 		}).build();
+		MenuItem_.on(profilesMenu).key("dialog.main.menu.importlaunchbox").image(ImageService.IMG_IMPORT).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				doImportLaunchBox();
+			}
+		}).build();
 		MenuItem_.on(profilesMenu).key("dialog.main.menu.importdfendprofiles").image(ImageService.IMG_DFEND).listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
@@ -5208,6 +5214,55 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			return;
 		}
 		Integer added = new StoreImportDialog(shell_, found.games(), dbversionsList_, defaultVersion, existing, found.notInstalled()).open();
+		if ((added != null) && (added > 0)) {
+			updateProfilesList(getSelectedProfileIds());
+			displayProfileInformation(false);
+			Mess_.on(shell_).key("dialog.storeimport.done", new Object[] {added}).display();
+		}
+	}
+
+	/** alpha 52: the MS-DOS games of an own LaunchBox collection (see LaunchBoxImport) */
+	private void doImportLaunchBox() {
+		DosboxVersion defaultVersion = requireDefaultDBVersion();
+		if (defaultVersion == null)
+			return;
+		DirectoryDialog dialog = new DirectoryDialog(shell_);
+		dialog.setMessage(text_.get("dialog.launchboximport.choose"));
+		String dir = dialog.open();
+		if (dir == null)
+			return;
+		org.dbgl.util.LaunchBoxImport.Result found;
+		java.util.Set<String> existing;
+		try {
+			File work = java.nio.file.Files.createTempDirectory("dbgl-launchbox").toFile();
+			work.deleteOnExit();
+			List<Profile> all = new ProfileRepository().list("", "", dbversionsList_);
+			Object[] result = org.dbgl.gui.controls.BusyTask.run(shell_, text_.get("dialog.launchboximport.searching"),
+				() -> new Object[] {org.dbgl.util.LaunchBoxImport.find(new File(dir), work), StoreImportDialog.existingKeys(all)});
+			found = (org.dbgl.util.LaunchBoxImport.Result)result[0];
+			@SuppressWarnings("unchecked")
+			java.util.Set<String> e = (java.util.Set<String>)result[1];
+			existing = e;
+			File[] made = work.listFiles();
+			if (made != null)
+				for (File f: made)
+					f.deleteOnExit();
+		} catch (org.dbgl.gui.controls.BusyTask.Cancelled e) {
+			return;
+		} catch (Exception e) {
+			Mess_.on(shell_).exception(e).warning();
+			return;
+		}
+		if (found == null) {
+			Mess_.on(shell_).key("dialog.launchboximport.none", new Object[] {dir}).display();
+			return;
+		}
+		if (found.games().isEmpty()) {
+			Mess_.on(shell_).key("dialog.launchboximport.nogames", new Object[] {found.root().getPath(), found.exo(), found.skipped()}).display();
+			return;
+		}
+		String info = text_.get("dialog.launchboximport.info", new Object[] {found.games().size(), found.exo(), found.skipped()});
+		Integer added = StoreImportDialog.forLaunchBox(shell_, found.games(), dbversionsList_, defaultVersion, existing, info).open();
 		if ((added != null) && (added > 0)) {
 			updateProfilesList(getSelectedProfileIds());
 			displayProfileInformation(false);
