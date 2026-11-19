@@ -3123,6 +3123,32 @@ public class Dbgl0102Tests {
 		assertTrue(org.dbgl.util.DosboxUpdateChecker.compareVersions("2026.3.0", "2.9.1") > 0);
 	}
 
+	/** alpha 52: the description below the shader field, by the name of the shader, in every language */
+	@Test
+	public void testShaderInfo() {
+		String p = "dialog.template.glshader.info.";
+		assertEquals(p + "crtauto", org.dbgl.util.ShaderInfo.keyOf("crt-auto"));
+		assertEquals(p + "crtautoarcadesharp", org.dbgl.util.ShaderInfo.keyOf("crt-auto-arcade-sharp"));
+		assertEquals(p + "sharp", org.dbgl.util.ShaderInfo.keyOf("interpolation/sharp"));
+		assertEquals(p + "nearest", org.dbgl.util.ShaderInfo.keyOf("none"));
+		assertEquals(p + "crtcurved", org.dbgl.util.ShaderInfo.keyOf("crt/geom"));
+		assertEquals(p + "crtcurved", org.dbgl.util.ShaderInfo.keyOf("crt-lottes.glsl"));
+		assertEquals(p + "crt", org.dbgl.util.ShaderInfo.keyOf("crt/easymode-flat"));
+		assertEquals(p + "crt", org.dbgl.util.ShaderInfo.keyOf("crt/vga-1080p"));
+		assertEquals(p + "xbr", org.dbgl.util.ShaderInfo.keyOf("scaler/xbr-lv3"));
+		assertEquals(p + "advmame", org.dbgl.util.ShaderInfo.keyOf("advinterp3x"));
+		assertEquals(p + "scanlines", org.dbgl.util.ShaderInfo.keyOf("TV2X"));
+		assertEquals(p + "interpolation", org.dbgl.util.ShaderInfo.keyOf("interpolation/catmull-rom"));
+		assertNull(org.dbgl.util.ShaderInfo.keyOf("C:\\shaders\\mine.glsl"));
+		assertNull(org.dbgl.util.ShaderInfo.keyOf(""));
+		for (String kind: new String[] {"nearest", "bilinear", "sharp", "crtauto", "crtautomachine", "crtautoarcade", "crtautoarcadesharp", "scanlines", "rgb", "advmame", "xbr",
+				"interpolation", "crtcurved", "crt"})
+			for (String lang: new String[] {"", "_de", "_fr", "_es", "_it", "_nl", "_pt_BR", "_da", "_sv", "_fi", "_pl", "_sk", "_sl", "_ru", "_el", "_ar", "_ko", "_zh", "_zh_TW"}) {
+				java.util.ResourceBundle b = java.util.ResourceBundle.getBundle("i18n/MessagesBundle", lang.isEmpty() ? java.util.Locale.ROOT: java.util.Locale.forLanguageTag(lang.substring(1).replace('_', '-')));
+				assertTrue(kind + lang, b.getString(p + kind).length() > 10);
+			}
+	}
+
 	/** alpha 48: empty images DOSBox can use at once: formatted, read again by DBGL's own FAT reader, the geometry as said */
 	@Test
 	public void testDiskImageMaker() throws IOException {

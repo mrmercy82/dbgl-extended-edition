@@ -661,6 +661,24 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 			}
 		}).ctrl();
 		tryRun.setEnabled(canTryRun());
+
+		// alpha 52: below, what the chosen shader does to the picture (own shader files have no description)
+		new org.eclipse.swt.widgets.Label(grid, SWT.NONE);
+		org.eclipse.swt.widgets.Label info = new org.eclipse.swt.widgets.Label(grid, SWT.WRAP);
+		GridData infoData = new GridData(SWT.FILL, SWT.BEGINNING, true, false, 5, 1);
+		infoData.widthHint = 480;
+		info.setLayoutData(infoData);
+		Runnable describe = () -> {
+			String key = org.dbgl.util.ShaderInfo.keyOf(shaderCombo.getText());
+			String text = key == null ? "": text_.get(key);
+			if (!text.equals(info.getText())) {
+				info.setText(text);
+				grid.layout(new org.eclipse.swt.widgets.Control[] {info});
+			}
+		};
+		shaderCombo.addModifyListener(e -> describe.run());
+		shaderCombo.addListener(SWT.Selection, e -> describe.run());
+		describe.run();
 	}
 
 	protected void updateConfigurableByControls(TemplateProfileBase configurable) {

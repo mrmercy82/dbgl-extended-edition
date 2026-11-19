@@ -29,6 +29,9 @@ Neu
   liest DBGL aus der scummvm.ini).
 
 Verbessert
+- Profil > Darstellung: Unter dem Shader steht jetzt kurz, wie das Bild
+  damit aussieht (z. B. Rasterzeilen, gewölbter Bildschirm, scharfe Pixel),
+  für die Shader von DOSBox, DOSBox Staging und DOSBox-X.
 - Anleitung der eigenständigen Pakete: was zu tun ist, wenn Windows
   (SmartScreen) die nicht signierte launch.exe oder macOS (Gatekeeper)
   die nicht signierte DBGL.app beim ersten Start blockiert.
