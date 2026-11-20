@@ -429,10 +429,17 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 			});
 		}
 		// alpha 52: the background: a colour (made darker where it is light, for the writing), a picture behind if wanted
-		Label tvBackLabel = new Label(tvGroup, SWT.NONE);
+		// in a row of its own across the group: its path field must not widen the columns of the four buttons above
+		Composite tvBackRow = new Composite(tvGroup, SWT.NONE);
+		tvBackRow.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 6, 1));
+		GridLayout backLayout = new GridLayout(5, false);
+		backLayout.marginWidth = 0;
+		backLayout.marginHeight = 0;
+		tvBackRow.setLayout(backLayout);
+		Label tvBackLabel = new Label(tvBackRow, SWT.NONE);
 		tvBackLabel.setText(TextService.getInstance().get("dialog.settings.tv.background"));
 		org.eclipse.swt.graphics.RGB[] tvBack = {org.dbgl.gui.tv.TvMode.background()};
-		Button tvBackColor = new Button(tvGroup, SWT.PUSH);
+		Button tvBackColor = new Button(tvBackRow, SWT.PUSH);
 		tvBackColor.setText(TextService.getInstance().get("dialog.settings.tv.color"));
 		Runnable backSwatch = () -> {
 			org.eclipse.swt.graphics.Image old = tvBackColor.getImage();
@@ -460,13 +467,13 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 				backSwatch.run();
 			}
 		});
-		Text tvBackImage = new Text(tvGroup, SWT.BORDER);
+		Text tvBackImage = new Text(tvBackRow, SWT.BORDER);
 		tvBackImage.setText(settings_.getValue("gui", "tvbackgroundimage"));
 		tvBackImage.setMessage(TextService.getInstance().get("dialog.settings.tv.background.noimage"));
-		GridData backImageData = new GridData(SWT.FILL, SWT.CENTER, true, false, 2, 1);
-		backImageData.widthHint = 220;
+		GridData backImageData = new GridData(SWT.BEGINNING, SWT.CENTER, false, false);
+		backImageData.widthHint = 200;
 		tvBackImage.setLayoutData(backImageData);
-		Button tvBackBrowse = new Button(tvGroup, SWT.PUSH);
+		Button tvBackBrowse = new Button(tvBackRow, SWT.PUSH);
 		tvBackBrowse.setText(TextService.getInstance().get("dialog.settings.tv.background.image"));
 		tvBackBrowse.addListener(SWT.Selection, e -> {
 			org.eclipse.swt.widgets.FileDialog fd = new org.eclipse.swt.widgets.FileDialog(shell_, SWT.OPEN);
@@ -477,7 +484,7 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 			if (chosen != null)
 				tvBackImage.setText(chosen);
 		});
-		Button tvBackReset = new Button(tvGroup, SWT.PUSH);
+		Button tvBackReset = new Button(tvBackRow, SWT.PUSH);
 		tvBackReset.setText(TextService.getInstance().get("dialog.settings.tv.background.reset"));
 		tvBackReset.addListener(SWT.Selection, e -> {
 			tvBack[0] = new org.eclipse.swt.graphics.RGB(18, 18, 20);
