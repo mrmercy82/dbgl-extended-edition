@@ -158,7 +158,7 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 		Button showPlayTime = Chain.on(editorGroup).lbl(l -> l.key("dialog.settings.showplaytimeininfo")).but(b -> b.horSpan(2).select(settings_.getBooleanValue("gui", "showplaytimeininfo"))).button();
 		Button findExtras = Chain.on(editorGroup).lbl(l -> l.key("dialog.settings.findextras")).but(b -> b.horSpan(2).tooltip("dialog.settings.findextras.tooltip")
 				.select(settings_.getBooleanValue(org.dbgl.util.ExtrasFinder.SECTION, org.dbgl.util.ExtrasFinder.ON_ADD))).button();
-		Button scummvmWanted = Chain.on(editorGroup).lbl(l -> l.key("dialog.settings.scummvm")).but(b -> b.horSpan(2).tooltip("dialog.settings.scummvm.tooltip")
+		Button scummvmWanted = Chain.on(editorGroup).lbl(l -> l.key("dialog.settings.scummvm")).but(b -> b.horSpan(2).tooltip("dialog.settings.scummvm.tooltip2")
 				.select(settings_.getBooleanValue("gui", org.dbgl.util.Scummvm.SETTING))).button();
 		Button hideUnsupported = Chain.on(editorGroup).lbl(l -> l.key("dialog.settings.hideunsupportedsettings")).but(b -> b.horSpan(2).select(settings_.getBooleanValue("gui", "hideunsupportedsettings"))).button();
 		String[] expandModes = {"collapsed", "always", "changed"};
@@ -428,6 +428,62 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 				}
 			});
 		}
+		// alpha 52: the background: a colour (made darker where it is light, for the writing), a picture behind if wanted
+		Label tvBackLabel = new Label(tvGroup, SWT.NONE);
+		tvBackLabel.setText(TextService.getInstance().get("dialog.settings.tv.background"));
+		org.eclipse.swt.graphics.RGB[] tvBack = {org.dbgl.gui.tv.TvMode.background()};
+		Button tvBackColor = new Button(tvGroup, SWT.PUSH);
+		tvBackColor.setText(TextService.getInstance().get("dialog.settings.tv.color"));
+		Runnable backSwatch = () -> {
+			org.eclipse.swt.graphics.Image old = tvBackColor.getImage();
+			org.eclipse.swt.graphics.Image img = new org.eclipse.swt.graphics.Image(shell_.getDisplay(), 16, 12);
+			org.eclipse.swt.graphics.GC gc = new org.eclipse.swt.graphics.GC(img);
+			gc.setBackground(new org.eclipse.swt.graphics.Color(tvBack[0]));
+			gc.fillRectangle(0, 0, 16, 12);
+			gc.dispose();
+			tvBackColor.setImage(img);
+			if (old != null)
+				old.dispose();
+		};
+		backSwatch.run();
+		tvBackColor.addDisposeListener(e -> {
+			if (tvBackColor.getImage() != null)
+				tvBackColor.getImage().dispose();
+		});
+		tvBackColor.setToolTipText(TextService.getInstance().get("dialog.settings.tv.background.tooltip"));
+		tvBackColor.addListener(SWT.Selection, e -> {
+			org.eclipse.swt.widgets.ColorDialog cd = new org.eclipse.swt.widgets.ColorDialog(shell_);
+			cd.setRGB(tvBack[0]);
+			org.eclipse.swt.graphics.RGB rgb = cd.open();
+			if (rgb != null) {
+				tvBack[0] = org.dbgl.gui.tv.TvMode.readable(rgb);
+				backSwatch.run();
+			}
+		});
+		Text tvBackImage = new Text(tvGroup, SWT.BORDER);
+		tvBackImage.setText(settings_.getValue("gui", "tvbackgroundimage"));
+		tvBackImage.setMessage(TextService.getInstance().get("dialog.settings.tv.background.noimage"));
+		GridData backImageData = new GridData(SWT.FILL, SWT.CENTER, true, false, 2, 1);
+		backImageData.widthHint = 220;
+		tvBackImage.setLayoutData(backImageData);
+		Button tvBackBrowse = new Button(tvGroup, SWT.PUSH);
+		tvBackBrowse.setText(TextService.getInstance().get("dialog.settings.tv.background.image"));
+		tvBackBrowse.addListener(SWT.Selection, e -> {
+			org.eclipse.swt.widgets.FileDialog fd = new org.eclipse.swt.widgets.FileDialog(shell_, SWT.OPEN);
+			fd.setFilterExtensions(new String[] {"*.png;*.jpg;*.jpeg;*.gif;*.bmp", "*.*"});
+			if (!tvBackImage.getText().isBlank())
+				fd.setFilterPath(new java.io.File(tvBackImage.getText()).getParent());
+			String chosen = fd.open();
+			if (chosen != null)
+				tvBackImage.setText(chosen);
+		});
+		Button tvBackReset = new Button(tvGroup, SWT.PUSH);
+		tvBackReset.setText(TextService.getInstance().get("dialog.settings.tv.background.reset"));
+		tvBackReset.addListener(SWT.Selection, e -> {
+			tvBack[0] = new org.eclipse.swt.graphics.RGB(18, 18, 20);
+			backSwatch.run();
+			tvBackImage.setText("");
+		});
 		// alpha 49: the disk space of the chosen game
 		Label tvDiskLabel = new Label(tvGroup, SWT.NONE);
 		tvDiskLabel.setText(TextService.getInstance().get("dialog.settings.tv.diskspace"));
@@ -736,6 +792,8 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 				settings_.setBooleanValue("gui", "showdiskspaceininfo", showDiskSpace.getSelection());
 				settings_.setBooleanValue("gui", "showdiskspaceinnotes", showDiskSpaceInNotes.getSelection());
 				settings_.setBooleanValue("gui", "showdiskspaceintv", tvDiskSpace.getSelection());
+				settings_.setValue("gui", "tvbackground", tvBack[0].red + "," + tvBack[0].green + "," + tvBack[0].blue); // alpha 52
+				settings_.setValue("gui", "tvbackgroundimage", tvBackImage.getText().trim());
 				settings_.setBooleanValue("gui", "showplaytimeinnotes", showPlayTimeInNotes.getSelection());
 				for (int i = 0; i < 3; i++)
 					settings_.setIntValue("gui", shotKeys[i], Math.max(0, shotCombos[i].getSelectionIndex()));

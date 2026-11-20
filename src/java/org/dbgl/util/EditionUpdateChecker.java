@@ -109,6 +109,50 @@ public final class EditionUpdateChecker {
 		return Long.compare(ka[numbersA + 1], kb[numbersB + 1]);
 	}
 
+	/** a heading of a version in the changelog: "0.101 alpha 52 (2026-11-21)", underlined below */
+	private static final Pattern CHANGELOG_HEAD = Pattern.compile("^(\\d+\\.\\d+(?:\\.\\d+)*(?: ?(?:alpha|beta|rc) ?\\d+)?)(?: \\(.*\\))?\\s*$", Pattern.CASE_INSENSITIVE);
+
+	/**
+	 * alpha 52: of the changelog of the release (CHANGELOG-de.txt or -en.txt, as in the menu Help), its beginning and the versions
+	 * newer than the one running; null if there is none (then the text of the release is shown)
+	 */
+	public static String newerPart(String changelog, String installed) {
+		if (changelog == null)
+			return null;
+		String[] lines = changelog.replace("\r\n", "\n").split("\n", -1);
+		StringBuilder sb = new StringBuilder();
+		boolean keep = true, any = false;
+		for (int i = 0; i < lines.length; i++) {
+			Matcher m = CHANGELOG_HEAD.matcher(lines[i].trim());
+			boolean head = m.matches() && (i + 1 < lines.length) && lines[i + 1].trim().matches("-{3,}");
+			if (head) {
+				keep = compare(m.group(1).replace(" ", ""), installed) > 0;
+				if (!keep)
+					break; // newest first: the rest is older
+				any = true;
+			}
+			if (keep)
+				sb.append(lines[i]).append('\n');
+		}
+		return any ? sb.toString(): null;
+	}
+
+	/** alpha 52: where the changelog of a release is (its tag in the repository), in the language of DBGL (German or English) */
+	public static String changelogUrl(String tag, String language) {
+		if ((tag == null) || !tag.matches("[A-Za-z0-9._-]+") || !Constants.EDITION_URL.startsWith("https://github.com/"))
+			return null;
+		return Constants.EDITION_URL.replace("https://github.com/", "https://raw.githubusercontent.com/") + "/" + tag + "/CHANGELOG-" + ("de".equals(language) ? "de": "en") + ".txt";
+	}
+
+	/** the changelog since the version running, downloaded; null if there is none to show */
+	public static String changelogSince(String tag, String language, String installed) throws java.io.IOException, InterruptedException {
+		String url = changelogUrl(tag, language);
+		if (url == null)
+			return null;
+		String text = EditionUpdater.getText(url);
+		return (text == null) || (text.length() > 5_000_000) ? null: newerPart(text, installed);
+	}
+
 	/** "v0.101-alpha30" -> "0.101 alpha 30" */
 	public static String readable(String version) {
 		return version.replaceFirst("^v", "").replaceAll("[-_]", " ").replaceAll("(?i)(alpha|beta|rc)(\\d)", "$1 $2").replaceAll("(\\d)(?i)(alpha|beta|rc)", "$1 $2")

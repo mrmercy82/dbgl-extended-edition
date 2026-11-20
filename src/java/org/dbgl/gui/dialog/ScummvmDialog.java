@@ -191,13 +191,17 @@ public final class ScummvmDialog {
 			TableColumn col = new TableColumn(table, SWT.NONE);
 			col.setText(text.get(keys[i]));
 			col.setWidth(widths[i]);
+			int column = i;
+			col.addListener(SWT.Selection, e -> sortBy(table, col, column)); // alpha 52: a click on the title sorts, a second one the other way
 		}
+		int index = 0;
 		for (Scummvm.Game g: games) {
 			boolean isKnown = known.contains(g.target().toLowerCase(Locale.ROOT));
 			TableItem item = new TableItem(table, SWT.NONE);
 			String kind = String.join(" / ", java.util.stream.Stream.of(g.platform(), g.language()).filter(s -> !s.isBlank()).toList());
 			item.setText(new String[] {isKnown ? text.get("dialog.storeimport.known", new Object[] {g.title()}): g.title(), g.target(), kind, g.path() == null ? "": g.path().getPath()});
 			item.setChecked(!isKnown);
+			item.setData(index++); // its game, whatever the order
 		}
 
 		Composite pick = new Composite(dlg, SWT.NONE);
@@ -228,8 +232,8 @@ public final class ScummvmDialog {
 		boolean[][] result = new boolean[1][];
 		ok.addListener(SWT.Selection, e -> {
 			boolean[] r = new boolean[games.size()];
-			for (int i = 0; i < r.length; i++)
-				r[i] = table.getItem(i).getChecked();
+			for (TableItem item: table.getItems())
+				r[(Integer)item.getData()] = item.getChecked();
 			result[0] = r;
 			dlg.close();
 		});
@@ -245,5 +249,41 @@ public final class ScummvmDialog {
 			if (!display.readAndDispatch())
 				display.sleep();
 		return result[0];
+	}
+
+	/** the rows by the text of a column (case and the numbers in it as people read them: "Indy 2" before "Indy 10") */
+	static void sortBy(Table table, TableColumn col, int column) {
+		int dir = (table.getSortColumn() == col) && (table.getSortDirection() == SWT.UP) ? SWT.DOWN: SWT.UP;
+		TableItem[] items = table.getItems();
+		List<Object[]> rows = new java.util.ArrayList<>();
+		int columns = table.getColumnCount();
+		for (TableItem it: items) {
+			String[] texts = new String[columns];
+			for (int c = 0; c < columns; c++)
+				texts[c] = it.getText(c);
+			rows.add(new Object[] {texts, it.getChecked(), it.getData(), it.getForeground()});
+		}
+		java.util.Comparator<Object[]> by = (a, b) -> naturalCompare(((String[])a[0])[column], ((String[])b[0])[column]);
+		rows.sort(dir == SWT.UP ? by: by.reversed());
+		for (int r = 0; r < items.length; r++) {
+			Object[] row = rows.get(r);
+			items[r].setText((String[])row[0]);
+			items[r].setChecked((Boolean)row[1]);
+			items[r].setData(row[2]);
+			items[r].setForeground((org.eclipse.swt.graphics.Color)row[3]);
+		}
+		table.setSortColumn(col);
+		table.setSortDirection(dir);
+	}
+
+	public static int naturalCompare(String a, String b) {
+		java.util.regex.Matcher ma = java.util.regex.Pattern.compile("\\d+|\\D+").matcher(a.toLowerCase(Locale.ROOT)), mb = java.util.regex.Pattern.compile("\\d+|\\D+").matcher(b.toLowerCase(Locale.ROOT));
+		while (ma.find() && mb.find()) {
+			String x = ma.group(), y = mb.group();
+			int c = (Character.isDigit(x.charAt(0)) && Character.isDigit(y.charAt(0))) ? new java.math.BigInteger(x).compareTo(new java.math.BigInteger(y)): x.compareTo(y);
+			if (c != 0)
+				return c;
+		}
+		return Integer.compare(a.length(), b.length());
 	}
 }

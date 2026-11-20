@@ -372,11 +372,30 @@ public final class Scummvm {
 		return args;
 	}
 
-	/** the configuration file of the ScummVM version: written once, with a comment only */
+	/** alpha 52: the folder of it in the data of DBGL (before, it was at the top, beside dbgl.jar on Windows) */
+	public static final String CONF_DIR = "scummvm";
+
+	/** the configuration file of the ScummVM version: written once, with a comment only, in the folder "scummvm" of the data */
 	public static File versionConf(File dataDir) throws IOException {
-		File f = new File(dataDir, VERSION_CONF);
+		File dir = new File(dataDir, CONF_DIR);
+		Files.createDirectories(dir.toPath());
+		File f = new File(dir, VERSION_CONF);
 		if (!f.isFile())
 			Files.writeString(f.toPath(), "# ScummVM: DBGL keeps no settings for it here. ScummVM keeps its own in scummvm.ini.\r\n");
 		return f;
+	}
+
+	/** alpha 52: whether the file is the one DBGL wrote (its comment only), so it can go */
+	public static boolean writtenByDbgl(File f) {
+		try {
+			return Files.readString(f.toPath(), java.nio.charset.StandardCharsets.ISO_8859_1).trim().equals("# ScummVM: DBGL keeps no settings for it here. ScummVM keeps its own in scummvm.ini.");
+		} catch (IOException e) {
+			return false;
+		}
+	}
+
+	/** alpha 52: the file where it was before (at the top of the data), to move */
+	public static File oldVersionConf(File dataDir) {
+		return new File(dataDir, VERSION_CONF);
 	}
 }

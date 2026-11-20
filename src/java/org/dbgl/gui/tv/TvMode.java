@@ -68,6 +68,9 @@ public final class TvMode {
 	private final Consumer<Profile> runner_;
 	private final ITextService text_ = TextService.getInstance();
 	private final Color bg_, tile_, selected_, fg_, dim_;
+	private final org.eclipse.swt.graphics.Image bgImage_; // alpha 52
+	private org.eclipse.swt.graphics.Image bgScaled_;
+	private Rectangle bgScaledFor_;
 	private final Color stackNear_ = new Color(74, 74, 80), stackFar_ = new Color(56, 56, 62); // alpha 49: the covers behind a stack
 	private final Font big_, medium_, small_;
 	private List<Profile> shown_;
@@ -132,8 +135,11 @@ public final class TvMode {
 		shell_.setText(text_.get("dialog.tv.title"));
 		shell_.setImages(parent.getImages());
 		shell_.setLayout(new FillLayout());
-		bg_ = new Color(display, 18, 18, 20);
-		tile_ = new Color(display, 40, 40, 44);
+		// alpha 52: the background as set (dark enough for the white writing), a picture behind it if wanted
+		org.eclipse.swt.graphics.RGB back = background();
+		bg_ = new Color(display, back);
+		tile_ = new Color(display, Math.min(255, back.red + 22), Math.min(255, back.green + 22), Math.min(255, back.blue + 24));
+		bgImage_ = backgroundImage(display);
 		selected_ = new Color(display, 168, 78, 70); // the red of the banderole, darker: white on it 6:1 (WCAG AA)
 		fg_ = new Color(display, 236, 236, 236);
 		dim_ = new Color(display, 150, 150, 155);
@@ -166,7 +172,7 @@ public final class TvMode {
 				store.setValue("gui", "tvlastprofile", String.valueOf(shown_.get(index_).getId()));
 			if (pad_ != null)
 				pad_.stop();
-			for (Object r: new Object[] {bg_, tile_, selected_, fg_, dim_, big_, medium_, small_})
+			for (Object r: new Object[] {bg_, tile_, selected_, fg_, dim_, big_, medium_, small_, bgImage_, bgScaled_})
 				if (r instanceof org.eclipse.swt.graphics.Resource res)
 					res.dispose();
 		});
@@ -767,25 +773,40 @@ public final class TvMode {
 		gc.setInterpolation(SWT.HIGH);
 		gc.setBackground(bg_);
 		gc.fillRectangle(area);
+		paintBackgroundImage(gc, area);
 
 		// header: the name of DBGL, which games
-		gc.setForeground(fg_);
-		gc.setFont(big_);
-		// alpha 48: the full name, the version small next to it
-		String name = "DOSBox Game Launcher - " + org.dbgl.constants.Constants.EDITION_NAME;
-		gc.drawText(name, MARGIN, 24, true);
-		Point nameSize = gc.textExtent(name);
-		gc.setFont(small_);
-		gc.setForeground(dim_);
-		Point versionSize = gc.textExtent("Ag");
-		gc.drawText(org.dbgl.util.EditionUpdateChecker.readable(org.dbgl.constants.Constants.PROGRAM_VERSION), MARGIN + nameSize.x + 16, 24 + nameSize.y - versionSize.y - 4, true);
-		gc.setForeground(fg_);
-		gc.setFont(medium_);
 		Filter f = filters_.get(filter_);
 		String which = (f.genre() == null) ? text_.get(f.key(), new Object[] {filtered_.size()}): text_.get("dialog.tv.genre", new Object[] {f.genre(), filtered_.size()});
 		if (openSeries_ != null) // alpha 49: in a series: its name and how many parts
 			which = text_.get("dialog.tv.genre", new Object[] {shown_.isEmpty() ? openSeries_: seriesOf(shown_.get(0)), shown_.size()});
+		gc.setFont(medium_);
 		Point w = gc.textExtent(which);
+		// alpha 48: the full name, the version small next to it; alpha 52: shorter where the window is narrow (they ran into each other)
+		String version = org.dbgl.util.EditionUpdateChecker.readable(org.dbgl.constants.Constants.PROGRAM_VERSION);
+		gc.setFont(small_);
+		Point versionSize = gc.textExtent(version);
+		gc.setFont(big_);
+		int room = area.width - 2 * MARGIN - w.x - 32;
+		String[] names = {"DOSBox Game Launcher - " + org.dbgl.constants.Constants.EDITION_NAME, "DBGL - " + org.dbgl.constants.Constants.EDITION_NAME, "DBGL"};
+		String name = names[names.length - 1];
+		boolean withVersion = false;
+		search: for (boolean v: new boolean[] {true, false})
+			for (String n: names)
+				if (gc.textExtent(n).x + (v ? versionSize.x + 16: 0) <= room) {
+					name = n;
+					withVersion = v;
+					break search;
+				}
+		gc.setForeground(fg_);
+		gc.drawText(name, MARGIN, 24, true);
+		Point nameSize = gc.textExtent(name);
+		if (withVersion) {
+			gc.setFont(small_);
+			gc.setForeground(dim_);
+			gc.drawText(version, MARGIN + nameSize.x + 16, 24 + nameSize.y - versionSize.y - 4, true);
+		}
+		gc.setFont(medium_);
 		gc.setForeground(dim_);
 		gc.drawText(which, area.width - MARGIN - w.x, 36, true);
 
@@ -1003,6 +1024,73 @@ public final class TvMode {
 	private static final int[][] DEFAULT_COLORS = {{16, 124, 16}, {196, 43, 28}, {16, 92, 196}, {214, 160, 0}};
 
 	/** the colour of button 1 to 4 (settings "tvbuttonNcolor": r,g,b) */
+	/** alpha 52: the colour of the background (setting [gui] tvbackground), made darker where it is light, so that the white writing stays easy to read */
+	public static org.eclipse.swt.graphics.RGB background() {
+		org.eclipse.swt.graphics.RGB rgb;
+		try {
+			String[] v = org.dbgl.service.SettingsService.getInstance().getValue("gui", "tvbackground").split(",");
+			rgb = new org.eclipse.swt.graphics.RGB(Integer.parseInt(v[0].trim()), Integer.parseInt(v[1].trim()), Integer.parseInt(v[2].trim()));
+		} catch (RuntimeException e) {
+			rgb = new org.eclipse.swt.graphics.RGB(18, 18, 20);
+		}
+		return readable(rgb);
+	}
+
+	/** at most as light as a dark grey: white on it stays at a contrast of about 7:1 or more */
+	public static org.eclipse.swt.graphics.RGB readable(org.eclipse.swt.graphics.RGB c) {
+		double lum = 0.2126 * c.red + 0.7152 * c.green + 0.0722 * c.blue;
+		if (lum <= MAX_BACKGROUND_LUMA)
+			return c;
+		double f = MAX_BACKGROUND_LUMA / lum;
+		return new org.eclipse.swt.graphics.RGB((int)Math.round(c.red * f), (int)Math.round(c.green * f), (int)Math.round(c.blue * f));
+	}
+
+	static final double MAX_BACKGROUND_LUMA = 70;
+
+	/** alpha 52: the picture behind (setting [gui] tvbackgroundimage); none if it cannot be read or is very big */
+	private static org.eclipse.swt.graphics.Image backgroundImage(org.eclipse.swt.widgets.Display display) {
+		String path = org.dbgl.service.SettingsService.getInstance().getValue("gui", "tvbackgroundimage");
+		if (StringUtils.isBlank(path))
+			return null;
+		java.io.File f = new java.io.File(path);
+		if (!f.isFile() || (f.length() > 15_000_000L))
+			return null;
+		try {
+			return new org.eclipse.swt.graphics.Image(display, f.getPath());
+		} catch (RuntimeException e) {
+			return null;
+		}
+	}
+
+	/** the picture filling the window (cut at the sides or at top and bottom, not stretched), darkened for the writing */
+	private void paintBackgroundImage(GC gc, Rectangle area) {
+		if ((bgImage_ == null) || bgImage_.isDisposed() || (area.width <= 0) || (area.height <= 0))
+			return;
+		if ((bgScaled_ == null) || !area.equals(bgScaledFor_)) {
+			if (bgScaled_ != null)
+				bgScaled_.dispose();
+			Rectangle ib = bgImage_.getBounds();
+			double scale = Math.max(area.width / (double)ib.width, area.height / (double)ib.height);
+			int sw = (int)Math.min(ib.width, Math.round(area.width / scale)), sh = (int)Math.min(ib.height, Math.round(area.height / scale));
+			bgScaled_ = new org.eclipse.swt.graphics.Image(gc.getDevice(), area.width, area.height);
+			GC g = new GC(bgScaled_);
+			try {
+				g.setInterpolation(SWT.HIGH);
+				g.drawImage(bgImage_, (ib.width - sw) / 2, (ib.height - sh) / 2, sw, sh, 0, 0, area.width, area.height);
+				g.setAlpha(BACKGROUND_SHADE);
+				g.setBackground(gc.getDevice().getSystemColor(SWT.COLOR_BLACK));
+				g.fillRectangle(0, 0, area.width, area.height);
+			} finally {
+				g.dispose();
+			}
+			bgScaledFor_ = new Rectangle(area.x, area.y, area.width, area.height);
+		}
+		gc.drawImage(bgScaled_, area.x, area.y);
+	}
+
+	/** how much the picture is darkened (of 255) */
+	static final int BACKGROUND_SHADE = 160;
+
 	public static org.eclipse.swt.graphics.RGB buttonColor(int n) {
 		int[] d = DEFAULT_COLORS[n - 1];
 		try {

@@ -285,6 +285,25 @@ public final class PortableDialog {
 				else
 					games += s;
 			}
+			// alpha 52: a DOSBox version is needed (ticked and locked) only when a chosen game uses it
+			List<Profile> chosenNow = new ArrayList<>();
+			for (TableItem i: table.getItems())
+				if (i.getChecked())
+					chosenNow.add((Profile)i.getData());
+			for (TableItem i: parts.getItems()) {
+				if (!(i.getData() instanceof PortableExport.Part part) || part.required())
+					continue;
+				boolean need = PortableExport.neededBy(part, chosenNow), was = Boolean.TRUE.equals(i.getData("dbgl.byGame"));
+				if (need && !was) {
+					i.setData("dbgl.byGame", Boolean.TRUE);
+					checks.set(i, true, true);
+					i.setForeground(dim);
+				} else if (!need && was) {
+					i.setData("dbgl.byGame", null);
+					checks.set(i, false, false);
+					i.setForeground(null);
+				}
+			}
 			long common = 0;
 			for (TableItem i: parts.getItems())
 				if (i.getData() instanceof PortableExport.Part part && org.dbgl.gui.controls.CheckColumn.checked(i))

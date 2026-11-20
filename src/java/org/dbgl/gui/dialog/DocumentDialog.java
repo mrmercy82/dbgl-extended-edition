@@ -30,6 +30,7 @@ import org.eclipse.swt.graphics.Font;
 import org.eclipse.swt.graphics.FontData;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
+import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Shell;
@@ -62,6 +63,18 @@ public class DocumentDialog extends SizeControlledButtonDialog<Object> {
 	@Override
 	protected String getDialogTitle() {
 		return title_;
+	}
+
+	/** alpha 52: how many versions of a changelog are shown at first */
+	static final int SECTIONS_AT_FIRST = 6;
+
+	/** the blocks up to the section after the first n (all of them if there are not more) */
+	public static List<Block> firstSections(List<Block> blocks, int n) {
+		int sections = 0;
+		for (int i = 0; i < blocks.size(); i++)
+			if ((blocks.get(i).kind() == Kind.SECTION) && (++sections > n))
+				return blocks.subList(0, i);
+		return blocks;
 	}
 
 	/** alpha 49: a heading that is shown in red: "Wichtig", "IMPORTANT: JAVA 21 WILL BE NEEDED SOON" */
@@ -185,48 +198,81 @@ public class DocumentDialog extends SizeControlledButtonDialog<Object> {
 			head.dispose();
 			titleFont.dispose();
 		});
-		boolean first = true;
-		for (Block b: blocks(content_)) {
-			switch (b.kind()) {
-				case TITLE, SECTION, SUB -> {
-					Label l = new Label(page, SWT.WRAP);
-					l.setText(b.text().replace("&", "&&"));
-					l.setFont(b.kind() == Kind.TITLE ? titleFont: b.kind() == Kind.SECTION ? head: bold);
-					l.setData(DarkTheme.KEEP_FOREGROUND, Boolean.TRUE);
-					l.setForeground(important(b.text()) ? warn: strong); // alpha 49: "Wichtig"/"Important" in red
-					GridData gd = new GridData(SWT.FILL, SWT.BEGINNING, true, false, 2, 1);
-					gd.verticalIndent = first ? 0: (b.kind() == Kind.SUB ? 6: 16);
-					gd.horizontalIndent = b.kind() == Kind.SUB ? 8: 0;
-					l.setLayoutData(gd);
+		// alpha 52: a long changelog: the newest versions first, the older ones on request (each entry is a control of its own)
+		List<Block> all = blocks(content_);
+		List<Block> newest = firstSections(all, SECTIONS_AT_FIRST);
+		java.util.function.Consumer<List<Block>> render = list -> {
+			boolean first = page.getChildren().length == 0;
+			for (Block b: list) {
+				switch (b.kind()) {
+					case TITLE, SECTION, SUB -> {
+						Label l = new Label(page, SWT.WRAP);
+						l.setText(b.text().replace("&", "&&"));
+						l.setFont(b.kind() == Kind.TITLE ? titleFont: b.kind() == Kind.SECTION ? head: bold);
+						l.setData(DarkTheme.KEEP_FOREGROUND, Boolean.TRUE);
+						l.setForeground(important(b.text()) ? warn: strong); // alpha 49: "Wichtig"/"Important" in red
+						GridData gd = new GridData(SWT.FILL, SWT.BEGINNING, true, false, 2, 1);
+						gd.verticalIndent = first ? 0: (b.kind() == Kind.SUB ? 6: 16);
+						gd.horizontalIndent = b.kind() == Kind.SUB ? 8: 0;
+						l.setLayoutData(gd);
+					}
+					case BULLET -> {
+						Label dot = new Label(page, SWT.NONE);
+						dot.setText("•");
+						dot.setFont(bold);
+						dot.setData(DarkTheme.KEEP_FOREGROUND, Boolean.TRUE);
+						dot.setForeground(strong);
+						GridData dd = new GridData(SWT.END, SWT.BEGINNING, false, false);
+						dd.horizontalIndent = 8 + 16 * b.level();
+						dot.setLayoutData(dd);
+						org.eclipse.swt.widgets.Control what = text(page, b.text());
+						what.setData(DarkTheme.KEEP_FOREGROUND, Boolean.TRUE);
+						what.setForeground(normal);
+						GridData wd = new GridData(SWT.FILL, SWT.BEGINNING, true, false);
+						wd.widthHint = 200;
+						what.setLayoutData(wd);
+					}
+					default -> {
+						org.eclipse.swt.widgets.Control sentence = text(page, b.text());
+						sentence.setData(DarkTheme.KEEP_FOREGROUND, Boolean.TRUE);
+						sentence.setForeground(normal);
+						GridData sd = new GridData(SWT.FILL, SWT.BEGINNING, true, false, 2, 1);
+						sd.widthHint = 200;
+						sd.verticalIndent = 4;
+						sentence.setLayoutData(sd);
+					}
 				}
-				case BULLET -> {
-					Label dot = new Label(page, SWT.NONE);
-					dot.setText("•");
-					dot.setFont(bold);
-					dot.setData(DarkTheme.KEEP_FOREGROUND, Boolean.TRUE);
-					dot.setForeground(strong);
-					GridData dd = new GridData(SWT.END, SWT.BEGINNING, false, false);
-					dd.horizontalIndent = 8 + 16 * b.level();
-					dot.setLayoutData(dd);
-					org.eclipse.swt.widgets.Control what = text(page, b.text());
-					what.setData(DarkTheme.KEEP_FOREGROUND, Boolean.TRUE);
-					what.setForeground(normal);
-					GridData wd = new GridData(SWT.FILL, SWT.BEGINNING, true, false);
-					wd.widthHint = 200;
-					what.setLayoutData(wd);
-				}
-				default -> {
-					org.eclipse.swt.widgets.Control sentence = text(page, b.text());
-					sentence.setData(DarkTheme.KEEP_FOREGROUND, Boolean.TRUE);
-					sentence.setForeground(normal);
-					GridData sd = new GridData(SWT.FILL, SWT.BEGINNING, true, false, 2, 1);
-					sd.widthHint = 200;
-					sd.verticalIndent = 4;
-					sentence.setLayoutData(sd);
-				}
+				first = false;
 			}
-			first = false;
-		}
+		};
+		render.accept(newest);
+		// the older versions a few at a time (all at once took seconds with a long changelog)
+		int[] shownTo = {newest.size()};
+		Runnable[] addMore = new Runnable[1];
+		addMore[0] = () -> {
+			if (shownTo[0] >= all.size())
+				return;
+			long older = all.subList(shownTo[0], all.size()).stream().filter(x -> x.kind() == Kind.SECTION).count();
+			Button more = new Button(page, SWT.PUSH);
+			more.setText(org.dbgl.service.TextService.getInstance().get("dialog.document.older", new Object[] {older}));
+			GridData md = new GridData(SWT.BEGINNING, SWT.BEGINNING, false, false, 2, 1);
+			md.verticalIndent = 16;
+			more.setLayoutData(md);
+			more.addListener(SWT.Selection, e -> {
+				page.setRedraw(false);
+				more.dispose();
+				List<Block> rest = all.subList(shownTo[0], all.size());
+				List<Block> next = firstSections(rest, SECTIONS_AT_FIRST);
+				render.accept(next);
+				shownTo[0] += next.size();
+				addMore[0].run();
+				DarkTheme.apply(page);
+				scroll.setMinSize(page.computeSize(scroll.getClientArea().width, SWT.DEFAULT));
+				page.layout(true, true);
+				page.setRedraw(true);
+			});
+		};
+		addMore[0].run();
 		scroll.setContent(page);
 		scroll.addListener(SWT.Resize, e -> {
 			int width = scroll.getClientArea().width;

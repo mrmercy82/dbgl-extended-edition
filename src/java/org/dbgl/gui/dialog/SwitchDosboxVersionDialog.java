@@ -812,7 +812,7 @@ public class SwitchDosboxVersionDialog extends SizeControlledButtonDialog<Boolea
 		for (org.dbgl.util.ProfileFindings.DiffLine d: org.dbgl.util.ProfileFindings.diff(before, after, null, full)) {
 			boolean section = d.text().startsWith("[") && d.text().endsWith("]");
 			if (section && (d.kind() == ' '))
-				result.add(d.text());
+				result.add(full ? "  " + d.text(): d.text()); // alpha 52: the whole file: the sections as far in as their values
 			else if (d.kind() == '-' || d.kind() == '+') {
 				result.add(d.kind() + " " + d.text()); // the values below their section, not indented
 				changes = true;

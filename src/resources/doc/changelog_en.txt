@@ -39,9 +39,13 @@ New
   copied into the picture folder of the profile after playing (ScummVM keeps
   its own). ScummVM cannot become the default version and does not appear
   when switching the DOSBox version or in the choice of versions of the
-  profiles; the search for duplicates knows ScummVM games by their ID.
-  Settings > General > "Show the functions for ScummVM" hides the import
-  and the update search.
+  profiles; the search for duplicates knows ScummVM games by their ID; the
+  import list can be sorted by each column. ScummVM cannot be removed from
+  the list of DOSBox versions (button and menu greyed out; the Delete key
+  tells where to hide it). Settings > General > "Show the functions for
+  ScummVM" hides the import, the update search and its entry in the list of
+  DOSBox versions. Its small configuration file is in the folder scummvm of
+  the data, not in the main folder.
 - Menu DOSBox > "Look for sound files...": searches the whole computer or
   a folder for SoundFonts (.sf2, .sf3), MT-32 and CM-32L ROMs (known by
   their checksums), Roland Sound Canvas ROMs and Gravis Ultrasound patches
@@ -69,8 +73,35 @@ New
   up to date. With Java 21 installed already, the second Windows package
   without Java (...-windows-without-java.zip) does. On Linux and macOS
   Java is still installed by the user.
+- Profiles > "Export profiles list": a new kind "Table with columns of
+  your choice" (CSV for Excel/LibreOffice, a web page or text with the
+  columns lined up). Ticked at first
+  are the columns of the profile list in their order; each column can be
+  added, left out and moved up or down, and the last choice is kept. The
+  profiles come as filtered and sorted in the list, setup and
+  favourite as Yes/No.
+- TV mode: a background colour and a background picture under Preferences >
+  GUI options > TV mode. A light colour is made darker and the picture is
+  shaded, so that the writing stays easy to read; the picture fills the
+  screen without being stretched.
+
+Fixed
+- USB stick assistant: DOSBox versions (e.g. DOSBox-X) were locked as
+  needed as soon as any profile used them, even when none of the chosen
+  games did. Now only the versions of the chosen games are locked, and that
+  follows the choice.
+- TV mode: in a narrower window the version number ran into the games
+  shown at the top right. The name is now shorter ("DBGL - Extended
+  Edition") where there is not enough room.
 
 Improved
+- Update window > "Changelog": the changelog of the release as in the menu
+  Help (laid out, in German or English), from the installed version on;
+  for older releases its text on GitHub as before.
+- Changelog window: the six newest versions first, older ones six more at
+  a time with a button; the whole changelog at once took a few seconds.
+- "Switch to another DOSBox version", preview with the whole
+  configuration: the sections are indented as far as their values.
 - Profile > Midi > FluidSynth: the SoundFont field offers the SoundFonts
   found (.sf2, .sf3) to choose from: in an own folder ("Look for SoundFonts
   in...", for all profiles), in the SoundFont folder of the configuration,

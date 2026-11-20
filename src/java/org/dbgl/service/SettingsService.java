@@ -448,6 +448,10 @@ public class SettingsService {
 		settings_.setValue("gui", "tvbutton2color", "196,43,28");
 		settings_.setValue("gui", "tvbutton3color", "16,92,196");
 		settings_.setValue("gui", "tvbutton4color", "214,160,0");
+		settings_.setValue("gui", "tvbackground", "18,18,20"); // alpha 52: TV mode: the colour behind, a picture behind (none)
+		settings_.setValue("gui", "tvbackgroundimage", "");
+		settings_.setValue("gui", "exportcolumns", ""); // alpha 52: the columns of the exported table chosen last, in their order
+		settings_.setValue("gui", "exportcolumnskind", "csv");
 		settings_.setValue("gui", "linking", 0);
 
 		settings_.setValue("gui", "viewstyle", ProfilesListType.TABLE.toString().toLowerCase());

@@ -170,6 +170,8 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 	private File currentThumbFile_ = null;
 	private Menu thumbMenu_;
 	private Table dbversionTable_, templateTable_;
+	private org.eclipse.swt.widgets.ToolItem dbRemoveTool_; // alpha 52: not for ScummVM
+	private MenuItem dbRemoveMenu_, dbRemoveFolderMenu_;
 
 	public MainWindow() {
 		super(mainShell(), SWT.PRIMARY_MODAL, StringUtils.EMPTY);
@@ -251,7 +253,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			return false;
 
 		try {
-			dbversionsList_ = new DosboxVersionRepository().listAll();
+			dbversionsList_ = scummvmLast(new DosboxVersionRepository().listAll());
 
 			ProfileRepository profileRepo = new ProfileRepository();
 
@@ -312,7 +314,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 
 		// init values
 		showProfileRows(); // alpha 50: a table fills its rows when they come into view
-		dbversionsList_.forEach(this::addDosboxVersionToTable);
+		dbversionsList_.stream().filter(this::versionShown).forEach(this::addDosboxVersionToTable);
 		templatesList_.forEach(this::addTemplateToTable);
 
 		if (DatabaseService.getInstance().isInitializedNewDatabase()) {
@@ -1415,11 +1417,29 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		for (String t: templates)
 			names.add(t + "  (*." + listExportEnding(t) + ")");
 		names.add("XML  (*.xml)");
+		names.add(text_.get("dialog.exportlist.columns.choice").replace("*.html)", "*.html, *.txt)")); // alpha 52: a table with the columns chosen
 		Integer pick = new ChoiceDialog(shell_, text_.get("dialog.exportlist.title"), text_.get("dialog.exportlist.exportfiletype"), names).open();
 		if (pick == null)
 			return;
-		boolean xml = pick >= templates.length;
-		String ending = xml ? "xml": listExportEnding(templates[pick]);
+		ExportColumnsDialog.Choice columns = null;
+		if (pick == templates.length + 1) {
+			int[] ids = IntStream.range(0, columnNames_.length).filter(i -> (i != 20) && (columnNames_[i] != null)).toArray(); // not the picture
+			// the columns of the profile list in the order they are shown there (they can be moved by dragging their titles)
+			List<Integer> shown = new ArrayList<>();
+			int[] order = settings_.getIntValues("gui", "columnorder");
+			if ((order != null) && (order.length == columnIds_.length))
+				for (int k: order)
+					if ((k >= 0) && (k < columnIds_.length) && (columnIds_[k] != 20) && !shown.contains(columnIds_[k]))
+						shown.add(columnIds_[k]);
+			for (int id: columnIds_)
+				if ((id != 20) && !shown.contains(id))
+					shown.add(id);
+			columns = ExportColumnsDialog.open(shell_, ids, columnNames_, shown);
+			if (columns == null)
+				return;
+		}
+		boolean xml = pick == templates.length;
+		String ending = columns != null ? columns.kind(): xml ? "xml": listExportEnding(templates[pick]);
 		FileDialog dialog = new FileDialog(shell_, SWT.SAVE);
 		dialog.setText(text_.get("dialog.exportlist.title"));
 		dialog.setFilterPath(locations.getExportDir().getAbsolutePath());
@@ -1433,12 +1453,34 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			file += "." + ending;
 		try {
 			File target = new File(file);
-			org.dbgl.service.ImportExportProfilesService.export(profilesList_, null, xml ? null: locations.xslBaseNameToFile(templates[pick]), target);
+			if (columns != null)
+				java.nio.file.Files.writeString(target.toPath(), listTable(columns), java.nio.charset.StandardCharsets.UTF_8);
+			else
+				org.dbgl.service.ImportExportProfilesService.export(profilesList_, null, xml ? null: locations.xslBaseNameToFile(templates[pick]), target);
 			if (Mess_.on(shell_).key("dialog.exportlist.confirm.viewexport").confirm())
 				SystemUtils.openForBrowsing(target.getPath(), shell_);
 		} catch (IOException | javax.xml.transform.TransformerException | javax.xml.parsers.ParserConfigurationException e) {
 			Mess_.on(shell_).exception(e).warning();
 		}
+	}
+
+	/** alpha 52: the profiles of the list (as filtered and sorted there) with the columns chosen; ticks and stars as words */
+	private String listTable(ExportColumnsDialog.Choice c) {
+		List<String> headers = new ArrayList<>();
+		for (int id: c.columns())
+			headers.add(columnNames_[id]);
+		List<List<String>> rows = new ArrayList<>();
+		for (Profile p: profilesList_) {
+			List<String> row = new ArrayList<>();
+			for (int id: c.columns())
+				row.add(id == 1 ? text_.get(p.hasSetup() ? "button.yes": "button.no"): id == 7 ? text_.get(Boolean.TRUE.equals(p.isFavorite()) ? "button.yes": "button.no"): columnValue(p, id));
+			rows.add(row);
+		}
+		if ("csv".equals(c.kind()))
+			return org.dbgl.util.ListTable.csv(uiLocale(), headers, rows);
+		String date = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT, uiLocale()).format(new java.util.Date());
+		String title = text_.get("dialog.exportlist.columns.pagetitle");
+		return c.html() ? org.dbgl.util.ListTable.html(title, date, headers, rows): org.dbgl.util.ListTable.txt(title, date, headers, rows);
 	}
 
 	/**
@@ -1714,6 +1756,21 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 
 	/** alpha 48: what is new in the release (its text on GitHub), or its page if it has none */
 	private void showReleaseNotes(org.dbgl.util.EditionUpdateChecker.Release r) {
+		// alpha 52: the changelog of the release as in the menu Help (laid out, in German or English), from the version running on
+		String lang = "de".equals(settings_.getValue("locale", "language")) ? "de": "en";
+		try {
+			String since = org.dbgl.gui.controls.BusyTask.run(shell_, text_.get("dialog.main.editionupdate.changelog.loading"),
+				() -> org.dbgl.util.EditionUpdateChecker.changelogSince(r.version(), lang, Constants.PROGRAM_VERSION));
+			if (since != null) {
+				new DocumentDialog(shell_, text_.get("dialog.main.editionupdate.changelog.title", new Object[] {Constants.EDITION_NAME, org.dbgl.util.EditionUpdateChecker.readable(r.version())}), since,
+						ImageService.IMG_LOG).open();
+				return;
+			}
+		} catch (org.dbgl.gui.controls.BusyTask.Cancelled e) {
+			return;
+		} catch (Exception e) {
+			// not there (an older release): its text from GitHub as before
+		}
 		if (StringUtils.isBlank(r.notes())) {
 			SystemUtils.openForBrowsing(r.url(), shell_);
 			return;
@@ -2479,7 +2536,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			if (shown && !wanted)
 				scummvmItem[0].dispose();
 			else if (!shown && wanted)
-				scummvmItem[0] = MenuItem_.on(profilesMenu).pos(profilesMenu.indexOf(launchBoxItem) + 1).key("dialog.main.menu.importscummvm").image(ImageService.IMG_ADVENTURE)
+				scummvmItem[0] = MenuItem_.on(profilesMenu).pos(profilesMenu.indexOf(launchBoxItem) + 1).key("dialog.main.menu.importscummvm").image(ImageService.IMG_IMPORT)
 						.listen(new SelectionAdapter() {
 							@Override
 							public void widgetSelected(SelectionEvent event) {
@@ -4136,7 +4193,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		ToolBar toolBar = createToolBar(createRow(composite));
 		createImageToolItem(toolBar, "dialog.main.addversion", ImageService.IMG_TB_NEW, addDosboxAdapter);
 		createImageToolItem(toolBar, "dialog.main.editversion", ImageService.IMG_TB_EDIT, editDosboxAdapter);
-		createImageToolItem(toolBar, "dialog.main.removeversion", ImageService.IMG_TB_DELETE, removeDosboxAdapter);
+		dbRemoveTool_ = createImageToolItem(toolBar, "dialog.main.removeversion", ImageService.IMG_TB_DELETE, removeDosboxAdapter);
 		createImageToolItem(toolBar, "dialog.main.runversion", ImageService.IMG_TB_RUN, runDosboxAdapter);
 		dbversionTable_ = Table_.on(composite).layoutData(new GridData(SWT.FILL, SWT.FILL, true, true)).header().build();
 		addDBColumn("dialog.main.dosboxversions.column.title", 0);
@@ -4225,8 +4282,8 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		MenuItem_.on(menu).build();
 		MenuItem_.on(menu).key("dialog.main.dosboxversion.add").image(ImageService.IMG_NEW).listen(addDosboxAdapter).build();
 		MenuItem_.on(menu).key("dialog.main.dosboxversion.edit").image(ImageService.IMG_EDIT).listen(editDosboxAdapter).build();
-		MenuItem_.on(menu).key("dialog.main.dosboxversion.remove").image(ImageService.IMG_DELETE).listen(removeDosboxAdapter).build();
-		MenuItem_.on(menu).key("dialog.main.dosboxversion.removewithfolder").image(ImageService.IMG_DELETE).listen(new SelectionAdapter() {
+		dbRemoveMenu_ = MenuItem_.on(menu).key("dialog.main.dosboxversion.remove").image(ImageService.IMG_DELETE).listen(removeDosboxAdapter).build();
+		dbRemoveFolderMenu_ = MenuItem_.on(menu).key("dialog.main.dosboxversion.removewithfolder").image(ImageService.IMG_DELETE).listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
 				doRemoveDosboxVersionWithFolder();
@@ -4241,6 +4298,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		}).build();
 
 		dbversionTable_.setMenu(menu);
+		dbversionTable_.addListener(SWT.Selection, e -> updateDosboxVersionButtons());
 		dbversionTable_.addKeyListener(new KeyAdapter() {
 			@Override
 			public void keyPressed(KeyEvent event) {
@@ -4663,16 +4721,56 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 
 	private void updateDosboxVersionList(DosboxVersion dbversion) {
 		try {
-			dbversionsList_ = new DosboxVersionRepository().listAll();
+			dbversionsList_ = scummvmLast(new DosboxVersionRepository().listAll());
 		} catch (SQLException e) {
 			Mess_.on(shell_).exception(e).warning();
 		}
 		dbversionTable_.removeAll();
 		for (DosboxVersion version: dbversionsList_) {
-			addDosboxVersionToTable(version);
+			if (versionShown(version))
+				addDosboxVersionToTable(version);
 		}
-		dbversionTable_.setSelection(BaseRepository.indexOf(dbversionsList_, dbversion));
+		int index = BaseRepository.indexOf(dbversionsList_, dbversion);
+		if (index < dbversionTable_.getItemCount())
+			dbversionTable_.setSelection(index);
 		dbversionTable_.setFocus();
+		updateDosboxVersionButtons();
+	}
+
+	/**
+	 * alpha 52: ScummVM at the end of the list of versions. Hidden by the setting, it is not in the table; the rows of the table
+	 * keep the places of the list that way (the table is used by index all over).
+	 */
+	private static List<DosboxVersion> scummvmLast(List<DosboxVersion> versions) {
+		List<DosboxVersion> result = new java.util.ArrayList<>(versions.stream().filter(v -> !org.dbgl.util.Scummvm.is(v)).toList());
+		versions.stream().filter(org.dbgl.util.Scummvm::is).forEach(result::add);
+		return result;
+	}
+
+	private boolean versionShown(DosboxVersion v) {
+		return !org.dbgl.util.Scummvm.is(v) || settings_.getBooleanValue("gui", org.dbgl.util.Scummvm.SETTING);
+	}
+
+	/** alpha 52: ScummVM cannot be removed from the list (it can be hidden in the settings) */
+	private void updateDosboxVersionButtons() {
+		int index = dbversionTable_.getSelectionIndex();
+		boolean removable = (index == -1) || (index >= dbversionsList_.size()) || !org.dbgl.util.Scummvm.is(dbversionsList_.get(index));
+		if (dbRemoveTool_ != null && !dbRemoveTool_.isDisposed())
+			dbRemoveTool_.setEnabled(removable);
+		if (dbRemoveMenu_ != null && !dbRemoveMenu_.isDisposed())
+			dbRemoveMenu_.setEnabled(removable);
+		if (dbRemoveFolderMenu_ != null && !dbRemoveFolderMenu_.isDisposed())
+			dbRemoveFolderMenu_.setEnabled(removable);
+	}
+
+	/** alpha 52: instead of removing ScummVM (e.g. with the Delete key): where it can be hidden */
+	private boolean scummvmNotRemoved(int index) {
+		if ((index < 0) || (index >= dbversionsList_.size()) || !org.dbgl.util.Scummvm.is(dbversionsList_.get(index)))
+			return false;
+		java.util.function.Function<String, String> plain = k -> text_.get(k).replace("&", "").replace("...", "").replace("\u2026", "").trim();
+		Mess_.on(shell_).key("dialog.main.scummvm.noremove", new Object[] {plain.apply("dialog.main.menu.adjustsettings"), plain.apply("dialog.settings.tab.general"), plain.apply("dialog.settings.scummvm")})
+				.display();
+		return true;
 	}
 
 	private void updateTemplateList(Template template) {
@@ -5317,9 +5415,21 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 	/** alpha 52: the version number of ScummVM as its scummvm.ini says it (it writes it there at every start) */
 	private void syncScummvmVersions() {
 		DosboxVersion changed = null;
+		File dataDir = FileLocationService.getInstance().getDataDir(), old = org.dbgl.util.Scummvm.oldVersionConf(dataDir);
 		for (DosboxVersion v: dbversionsList_) {
 			if (!org.dbgl.util.Scummvm.is(v))
 				continue;
+			// alpha 52: its configuration file from the top of the data (beside dbgl.jar) into the folder "scummvm"
+			try {
+				File conf = v.getConfigurationCanonicalFile();
+				if ((conf != null) && conf.getCanonicalFile().equals(old.getCanonicalFile())) {
+					v.setConfigurationFileLocation(org.dbgl.util.Scummvm.versionConf(dataDir).getPath());
+					new DosboxVersionRepository().update(v);
+					changed = v;
+				}
+			} catch (IOException | SQLException | RuntimeException e) {
+				// tried again at the next start
+			}
 			String found = org.dbgl.util.Scummvm.installedVersion(v);
 			if ((found != null) && !found.equals(v.getVersion())) {
 				v.setVersion(found);
@@ -5331,6 +5441,15 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				}
 			}
 		}
+		if (old.isFile() && (old.length() < 1000) && org.dbgl.util.Scummvm.writtenByDbgl(old) && dbversionsList_.stream().noneMatch(v -> {
+			try {
+				File c = v.getConfigurationCanonicalFile();
+				return (c != null) && c.getCanonicalFile().equals(old.getCanonicalFile());
+			} catch (IOException | RuntimeException e) {
+				return true;
+			}
+		}))
+			org.apache.commons.io.FileUtils.deleteQuietly(old); // no version uses it any more (DBGL wrote it, a comment only)
 		if ((changed != null) && !shell_.isDisposed())
 			updateDosboxVersionList(changed);
 	}
@@ -5618,6 +5737,8 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 
 	private void doRemoveDosboxVersion() {
 		int index = dbversionTable_.getSelectionIndex();
+		if (scummvmNotRemoved(index))
+			return;
 		if ((index != -1) && Mess_.on(shell_).key("dialog.main.confirm.removedosboxversion").confirm()) {
 			try {
 				new DosboxVersionRepository().remove(dbversionsList_.get(index));
@@ -5636,7 +5757,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 	 */
 	private void doRemoveDosboxVersionWithFolder() {
 		int index = dbversionTable_.getSelectionIndex();
-		if (index == -1)
+		if ((index == -1) || scummvmNotRemoved(index))
 			return;
 		DosboxVersion dbversion = dbversionsList_.get(index);
 		File folder = dbversion.getCanonicalPath();
@@ -5793,6 +5914,10 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		notesField_.setFont(stringToFont(display_, settings_.getValues("gui", "notesfont"), notesField_.getFont()));
 		f.dispose();
 		refreshMarkers(); // warning signs and notes turned on or off: at once, not only after a restart
+		if (dbversionsList_.stream().filter(this::versionShown).count() != dbversionTable_.getItemCount()) { // alpha 52: ScummVM shown or hidden as set now
+			int dbIndex = dbversionTable_.getSelectionIndex();
+			updateDosboxVersionList((dbIndex >= 0) && (dbIndex < dbversionsList_.size()) ? dbversionsList_.get(dbIndex): null);
+		}
 		applyScreenshotRule(); // alpha 49
 		lookForNoImages(true); // alpha 50: the tab of the profiles without pictures as set now
 	}

@@ -124,8 +124,6 @@ public class ImageService {
 	public static final String IMG_EXTRA_WEB = "extra_web.png";
 	public static final String IMG_TOOLS = "tools.png";
 	public static final String IMG_CONTROLLER = "controller.png";
-	/** alpha 52: games of ScummVM (a speech bubble, as in adventures; not the logo of ScummVM) */
-	public static final String IMG_ADVENTURE = "adventure.png";
 	public static final String IMG_KEYBOARD = "keyboard.png"; // alpha 48
 	public static final String IMG_USB = "usb.png"; // alpha 48
 	public static final String IMG_LOCK = "lock.png"; // alpha 49: a locked backup

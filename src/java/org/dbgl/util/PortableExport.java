@@ -516,20 +516,9 @@ public final class PortableExport {
 		java.util.function.Predicate<File> common = commonFiles();
 		List<Part> parts = new ArrayList<>();
 		Set<String> required = Set.of("lib", "plugins", "xsl", "templates", "dosboxconf");
-		// folders with a DOSBox version or its configuration: needed as well
-		List<File> dosbox = new ArrayList<>();
-		for (Profile p: options_.all()) {
-			try {
-				DosboxVersion v = p.getDosboxVersion();
-				if (v != null) {
-					dosbox.add(v.getCanonicalPath().getCanonicalFile());
-					if (v.getConfigurationCanonicalFile() != null)
-						dosbox.add(v.getConfigurationCanonicalFile().getCanonicalFile());
-				}
-			} catch (IOException | RuntimeException e) {
-				// without it
-			}
-		}
+		// folders with a DOSBox version or its configuration: needed as well (alpha 52: of the chosen profiles only, not of all;
+		// the assistant asks neededBy as the choice changes)
+		List<File> dosbox = dosboxOf(options_.profiles());
 		for (File base: program_.equals(data_) ? List.of(program_): List.of(program_, data_)) {
 			File[] children = base.listFiles();
 			if (children == null)
@@ -565,6 +554,38 @@ public final class PortableExport {
 		return parts;
 	}
 
+
+	/** the folders of the DOSBox versions of the profiles and their configurations */
+	static List<File> dosboxOf(List<Profile> profiles) {
+		List<File> dosbox = new ArrayList<>();
+		for (Profile p: profiles) {
+			try {
+				DosboxVersion v = p.getDosboxVersion();
+				if (v != null) {
+					dosbox.add(v.getCanonicalPath().getCanonicalFile());
+					if (v.getConfigurationCanonicalFile() != null)
+						dosbox.add(v.getConfigurationCanonicalFile().getCanonicalFile());
+				}
+			} catch (IOException | RuntimeException e) {
+				// without it
+			}
+		}
+		return dosbox;
+	}
+
+	/** alpha 52: whether a part holds the DOSBox version (or its configuration) of one of the chosen profiles */
+	public static boolean neededBy(Part part, List<Profile> chosen) {
+		if (part.file() == null)
+			return false;
+		File c = part.file();
+		try {
+			c = c.getCanonicalFile();
+		} catch (IOException e) {
+			// as it is
+		}
+		File dir = c;
+		return dosboxOf(chosen).stream().anyMatch(d -> d.equals(dir) || inside(dir, d));
+	}
 
 	private void check() throws InterruptedException {
 		if (cancelled_.getAsBoolean())

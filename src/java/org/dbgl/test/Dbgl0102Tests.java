@@ -3199,6 +3199,42 @@ public class Dbgl0102Tests {
 				< SettingsService.availableWebSearchEngines().indexOf(org.dbgl.util.searchengine.WebSearchEngine.getBySimpleName("mobygames"))); // MobyGames stays last
 	}
 
+	/** alpha 52: the changelog in the update window from the version running on; the exported table; the TV background readable */
+	@Test
+	public void testChangelogSinceAndListTable() {
+		String log = "DBGL Extended Edition - changes\n================\n\nIntro.\n\n0.101 alpha 53 (2026-12-01)\n---------------------------\nNew\n- c\n\n"
+				+ "0.101 alpha 52 (2026-11-21)\n---------------------------\nNew\n- b\n\n0.101 alpha 51 (2026-11-18)\n---------------------------\nNew\n- a\n";
+		String since = org.dbgl.util.EditionUpdateChecker.newerPart(log, "0.101alpha51");
+		assertTrue(since, since.contains("alpha 53") && since.contains("alpha 52") && !since.contains("alpha 51") && since.startsWith("DBGL Extended Edition"));
+		assertFalse(org.dbgl.util.EditionUpdateChecker.newerPart(log, "0.101alpha52").contains("alpha 52"));
+		assertNull(org.dbgl.util.EditionUpdateChecker.newerPart(log, "0.101alpha53"));
+		assertNull(org.dbgl.util.EditionUpdateChecker.changelogUrl("v0.101-alpha52/../x", "de"));
+		assertTrue(org.dbgl.util.EditionUpdateChecker.changelogUrl("v0.101-alpha52", "de").endsWith("/v0.101-alpha52/CHANGELOG-de.txt"));
+		assertTrue(org.dbgl.util.EditionUpdateChecker.changelogUrl("v0.101-alpha52", "fr").endsWith("/CHANGELOG-en.txt"));
+
+		java.util.List<org.dbgl.gui.dialog.DocumentDialog.Block> blocks = org.dbgl.gui.dialog.DocumentDialog.blocks(log);
+		assertEquals(2, org.dbgl.gui.dialog.DocumentDialog.firstSections(blocks, 2).stream().filter(b -> b.kind() == org.dbgl.gui.dialog.DocumentDialog.Kind.SECTION).count());
+		assertEquals(blocks.size(), org.dbgl.gui.dialog.DocumentDialog.firstSections(blocks, 3).size());
+
+		String csv = org.dbgl.util.ListTable.csv(java.util.Locale.GERMANY, java.util.List.of("Titel", "Setup"), java.util.List.of(java.util.List.of("Monkey; Island \"2\"", "Ja")));
+		assertEquals("﻿Titel;Setup\r\n\"Monkey; Island \"\"2\"\"\";Ja\r\n", csv);
+		assertTrue(org.dbgl.util.ListTable.csv(java.util.Locale.US, java.util.List.of("a", "b"), java.util.List.of()).startsWith("﻿a,b"));
+		String html = org.dbgl.util.ListTable.html("DBGL", "today", java.util.List.of("Title"), java.util.List.of(java.util.List.of("<b>&</b>")));
+		assertTrue(html.contains("<td>&lt;b&gt;&amp;&lt;/b&gt;</td>"));
+		String txt = org.dbgl.util.ListTable.txt("DBGL", "today", java.util.List.of("Title", "Year"), java.util.List.of(java.util.List.of("Doom", "1993"), java.util.List.of("x".repeat(80), "")));
+		String[] lines = txt.split("\r\n");
+		assertEquals("Title" + " ".repeat(55) + "  Year", lines[3]);
+		assertEquals("-".repeat(60) + "  ----", lines[4]);
+		assertEquals("Doom" + " ".repeat(56) + "  1993", lines[5]);
+		assertEquals("x".repeat(57) + "...", lines[6]); // cut, no spaces at the end
+
+		org.eclipse.swt.graphics.RGB white = org.dbgl.gui.tv.TvMode.readable(new org.eclipse.swt.graphics.RGB(255, 255, 255));
+		assertTrue(white.red <= 72 && white.red == white.green);
+		assertEquals(new org.eclipse.swt.graphics.RGB(18, 18, 20), org.dbgl.gui.tv.TvMode.readable(new org.eclipse.swt.graphics.RGB(18, 18, 20)));
+		assertTrue(org.dbgl.gui.dialog.ScummvmDialog.naturalCompare("Indy 2", "Indy 10") < 0);
+		assertTrue(org.dbgl.gui.dialog.ScummvmDialog.naturalCompare("b", "A") > 0);
+	}
+
 	/** alpha 52: Java along with the update: what Adoptium offers, the version of a Java folder, unpacking the archive for Linux safely */
 	@Test
 	public void testJavaRuntime() throws Exception {
