@@ -244,7 +244,7 @@ public final class EditionUpdater {
 		return HttpClient.newBuilder().proxy(ProxySelector.getDefault()).connectTimeout(Duration.ofSeconds(15)).followRedirects(HttpClient.Redirect.NORMAL).build();
 	}
 
-	private static String getText(String url) throws IOException, InterruptedException {
+	static String getText(String url) throws IOException, InterruptedException {
 		HttpResponse<String> r = client().send(HttpRequest.newBuilder(URI.create(url)).timeout(Duration.ofSeconds(30)).header("User-Agent", "DBGL").GET().build(),
 			HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
 		if (r.statusCode() != 200)
@@ -253,7 +253,7 @@ public final class EditionUpdater {
 	}
 
 	/** download to a file; progress counts up to 1000 */
-	private static void download(String url, File to, AtomicInteger progress) throws IOException, InterruptedException {
+	static void download(String url, File to, AtomicInteger progress) throws IOException, InterruptedException {
 		HttpResponse<InputStream> r = client().send(HttpRequest.newBuilder(URI.create(url)).timeout(Duration.ofMinutes(10)).header("User-Agent", "DBGL").GET().build(),
 			HttpResponse.BodyHandlers.ofInputStream());
 		if (r.statusCode() != 200)
@@ -351,12 +351,20 @@ public final class EditionUpdater {
 	 * @return false if it could not be started
 	 */
 	public static boolean launchInstaller(Prepared p) {
+		return launchInstaller(p, null);
+	}
+
+	/** alpha 52: with a new Java of DBGL's own (see JavaRuntime): the installer runs with it and puts it in place */
+	public static boolean launchInstaller(Prepared p, File newJre) {
 		try {
 			File jar = runningJar();
 			File copy = new File(workDir(), "dbgl-updater.jar"); // the running dbgl.jar is replaced, so the installer runs from a copy
 			Files.copy(jar.toPath(), copy.toPath(), StandardCopyOption.REPLACE_EXISTING);
-			String java = new File(new File(System.getProperty("java.home"), "bin"), SystemUtils.IS_WINDOWS ? "javaw.exe": "java").getPath();
-			List<String> cmd = new ArrayList<>(List.of(java, "-cp", copy.getPath(), EditionUpdater.class.getName(), String.valueOf(ProcessHandle.current().pid()),
+			String java = new File(new File(newJre != null ? newJre.getPath(): System.getProperty("java.home"), "bin"), SystemUtils.IS_WINDOWS ? "javaw.exe": "java").getPath();
+			List<String> cmd = new ArrayList<>(List.of(java));
+			if (newJre != null)
+				cmd.add("-D" + JRE_PROPERTY + "=" + newJre.getPath());
+			cmd.addAll(List.of("-cp", copy.getPath(), EditionUpdater.class.getName(), String.valueOf(ProcessHandle.current().pid()),
 				p.pending().getPath(), p.installDir().getPath()));
 			cmd.addAll(restartCommand());
 			new ProcessBuilder(cmd).directory(p.installDir()).redirectErrorStream(true).redirectOutput(new File(workDir(), "updater-output.txt")).start();
@@ -452,8 +460,11 @@ public final class EditionUpdater {
 		}
 		org.apache.commons.io.FileUtils.deleteQuietly(new File(work, "files"));
 		org.apache.commons.io.FileUtils.deleteQuietly(new File(work, "dbgl-updater.jar"));
+		org.apache.commons.io.FileUtils.deleteQuietly(new File(work, "java")); // alpha 52: the Java that came along, in place now
 		return kept;
 	}
+
+	static final String JRE_PROPERTY = "dbgl.update.jre";
 
 	/** the installer: args pid, folder with the new files, installation folder, then the command to start DBGL again */
 	public static void main(String[] args) throws Exception {
@@ -475,6 +486,14 @@ public final class EditionUpdater {
 				Path rel = pending.relativize(f);
 				copyRetrying(f, install.resolve(rel));
 				out.println("Installed " + rel);
+			}
+			String jre = System.getProperty(JRE_PROPERTY);
+			if (jre != null) {
+				try {
+					JavaRuntime.install(new File(jre), install.toFile(), out);
+				} catch (IOException | RuntimeException e) { // DBGL is updated all the same, with the Java it had
+					out.println("Java not installed: " + e);
+				}
 			}
 			out.println("Done");
 			out.flush();

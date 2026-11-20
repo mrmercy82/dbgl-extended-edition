@@ -46,6 +46,16 @@ public final class Choice {
 	 * @return the index of the button chosen, -1 if the window was closed (Esc, its close box)
 	 */
 	public static int ask(Shell shell, String title, String message, int icon, String... buttons) {
+		return ask(shell, title, message, icon, null, null, buttons);
+	}
+
+	/**
+	 * alpha 52: with a check box under the text (e.g. to download Java along with the update)
+	 *
+	 * @param check the text of the check box, null for none
+	 * @param checked its state, before and after
+	 */
+	public static int ask(Shell shell, String title, String message, int icon, String check, boolean[] checked, String... buttons) {
 		Display display = shell.getDisplay();
 		Shell dlg = new Shell(shell, SWT.DIALOG_TRIM | SWT.APPLICATION_MODAL);
 		dlg.setText(title);
@@ -60,6 +70,15 @@ public final class Choice {
 		GridData textData = new GridData(SWT.FILL, SWT.BEGINNING, true, false);
 		textData.widthHint = Math.min(640, Math.max(300, text.computeSize(SWT.DEFAULT, SWT.DEFAULT).x)); // alpha 49: 640 (520), so that the first line of the update notice fits
 		text.setLayoutData(textData);
+		if (check != null) {
+			new Label(dlg, SWT.NONE);
+			Button box = new Button(dlg, SWT.CHECK);
+			box.setText(check);
+			box.setSelection((checked != null) && checked[0]);
+			box.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+			if (checked != null)
+				box.addListener(SWT.Selection, e -> checked[0] = box.getSelection());
+		}
 
 		Composite row = new Composite(dlg, SWT.NONE);
 		row.setLayoutData(new GridData(SWT.END, SWT.CENTER, true, false, 2, 1));

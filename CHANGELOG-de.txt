@@ -59,6 +59,13 @@ Neu
   es den eigenen Import). Die Startdatei wird geraten und in der Liste
   gezeigt, ein Setup-Programm übernommen, eine dosbox.conf im Spielordner
   berücksichtigt.
+- Ein-Klick-Update (Windows, Linux): Auf Wunsch kommt ein eigenes Java 21
+  für DBGL mit (Eclipse Temurin von Adoptium, nur die Laufzeit, ca. 50 MB)
+  bzw. wird das vorhandene auf das neueste Java 21 gebracht. Es landet im
+  Ordner jre von DBGL, wo launch.exe und das Linux-Startskript zuerst
+  nachsehen; das Java des Systems bleibt unverändert. Die Datei wird an
+  ihrer SHA-256-Prüfsumme geprüft, sicher entpackt und vor dem Einsetzen
+  einmal gestartet; geht etwas schief, läuft das Update ohne Java weiter.
 
 Verbessert
 - Profil > Midi > FluidSynth: Das SoundFont-Feld bietet die gefundenen

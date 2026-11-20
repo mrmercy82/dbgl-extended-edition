@@ -2,4 +2,6 @@
 export SWT_GTK3=0
 symlink=`find "$0" -printf "%l"`
 cd "`dirname "${symlink:-$0}"`"
-"${JAVA_HOME:-/usr}"/bin/java -Djdk.util.zip.disableZip64ExtraFieldValidation=true -Djava.library.path=lib -Ddbgl.data.userhome=true -jar dbgl.jar
+# DBGL Extended Edition: a Java of its own in the folder jre comes first (it can come along with an update)
+if [ -x ./jre/bin/java ]; then JAVA=./jre/bin/java; else JAVA="${JAVA_HOME:-/usr}"/bin/java; fi
+"$JAVA" -Djdk.util.zip.disableZip64ExtraFieldValidation=true -Djava.library.path=lib -Ddbgl.data.userhome=true -jar dbgl.jar

@@ -3199,6 +3199,54 @@ public class Dbgl0102Tests {
 				< SettingsService.availableWebSearchEngines().indexOf(org.dbgl.util.searchengine.WebSearchEngine.getBySimpleName("mobygames"))); // MobyGames stays last
 	}
 
+	/** alpha 52: Java along with the update: what Adoptium offers, the version of a Java folder, unpacking the archive for Linux safely */
+	@Test
+	public void testJavaRuntime() throws Exception {
+		String json = "[{\"binary\":{\"architecture\":\"x64\",\"image_type\":\"jre\",\"os\":\"windows\",\"package\":{\"checksum\":\"" + "ab".repeat(32)
+				+ "\",\"link\":\"https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.9%2B10/OpenJDK21U-jre_x64_windows_hotspot_21.0.9_10.zip\","
+				+ "\"name\":\"OpenJDK21U-jre_x64_windows_hotspot_21.0.9_10.zip\",\"size\":48123456}},\"release_name\":\"jdk-21.0.9+10\",\"vendor\":\"eclipse\","
+				+ "\"version\":{\"major\":21,\"openjdk_version\":\"21.0.9+10-LTS\",\"semver\":\"21.0.9+10.0.LTS\"}}]";
+		org.dbgl.util.JavaRuntime.Offer offer = org.dbgl.util.JavaRuntime.parse(json);
+		assertEquals("21.0.9+10-LTS", offer.version());
+		assertEquals("ab".repeat(32), offer.sha256());
+		assertEquals(48123456L, offer.size());
+		assertTrue(offer.name().endsWith(".zip"));
+		try {
+			org.dbgl.util.JavaRuntime.parse(json.replace("https://", "http://")); // only over https
+			fail();
+		} catch (IOException e) {
+			// fine
+		}
+		String other = "[{\"binaries\":[{\"package\":{\"checksum\":\"" + "cd".repeat(32) + "\",\"link\":\"https://example.org/OpenJDK21U-jre_x64_linux_hotspot_21.0.9_10.tar.gz\",\"name\":\"OpenJDK21U-jre_x64_linux_hotspot_21.0.9_10.tar.gz\",\"size\":1}}],\"version_data\":{\"openjdk_version\":\"21.0.9+10-LTS\"}}]";
+		assertEquals("21.0.9+10-LTS", org.dbgl.util.JavaRuntime.parse(other).version()); // the shape of the other lists of the API
+		assertTrue(org.dbgl.util.JavaRuntime.newer("21.0.9+10-LTS", "21.0.5+11-LTS"));
+		assertFalse(org.dbgl.util.JavaRuntime.newer("21.0.9+10-LTS", "21.0.9+10-LTS"));
+		assertFalse(org.dbgl.util.JavaRuntime.newer("21.0.5+11-LTS", "21.0.9+10-LTS"));
+		assertTrue(org.dbgl.util.JavaRuntime.newer("21.0.9+10-LTS", null));
+
+		File dir = Files.createTempDirectory("dbgl-jre-").toFile();
+		java.util.List<String> names = org.dbgl.util.JavaRuntime.untar(new File(DATA_DIR, "jre-test.tar.gz"), dir);
+		assertTrue(names.toString(), names.contains("jdk-21.0.9+10-jre/lib/" + "a".repeat(120) + ".txt")); // a name longer than 100 characters
+		File home = org.dbgl.util.JavaRuntime.homeIn(dir);
+		assertEquals(new File(dir, "jdk-21.0.9+10-jre").getCanonicalFile(), home.getCanonicalFile());
+		assertEquals("21.0.9+10-LTS", org.dbgl.util.JavaRuntime.versionIn(home));
+		assertNull(org.dbgl.util.JavaRuntime.versionIn(dir));
+		if (!org.dbgl.util.SystemUtils.IS_WINDOWS) {
+			assertTrue(new File(home, "bin/java").canExecute());
+			assertTrue(Files.isSymbolicLink(new File(home, "legal/release-link").toPath()));
+		}
+		assertFalse(Files.exists(new File(home, "legal/outside").toPath(), java.nio.file.LinkOption.NOFOLLOW_LINKS)); // a link out of the folder: left out
+		File evil = Files.createTempDirectory("dbgl-jre-evil-").toFile();
+		try {
+			org.dbgl.util.JavaRuntime.untar(new File(DATA_DIR, "jre-evil.tar.gz"), new File(evil, "in"));
+			fail();
+		} catch (IOException e) {
+			assertFalse(new File(evil, "evil.txt").exists());
+		}
+		org.apache.commons.io.FileUtils.deleteDirectory(dir);
+		org.apache.commons.io.FileUtils.deleteDirectory(evil);
+	}
+
 	/** a DOS program (only the MZ header) or a Windows program (its stub says so, then the PE header) for the tests */
 	private static byte[] program(boolean windows) {
 		byte[] b = new byte[2048];

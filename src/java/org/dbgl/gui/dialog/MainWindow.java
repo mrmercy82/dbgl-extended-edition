@@ -1673,15 +1673,24 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		String pre = r.prerelease() ? text_.get("dialog.main.editionupdate.prerelease"): "";
 		String title = text_.get("dialog.main.menu.editionupdate").replace("&", "").replace("...", "");
 		// buttons as wide as their texts (in a MessageBox of Windows they were cut off, alpha 48); alpha 48: also the changelog
+		boolean[] withJava = {false}, askedJava = {false};
 		while (true) {
 			// with one click: download, check, back up, install, start again (when the release has the files for it)
 			if (r.installable() && org.dbgl.util.EditionUpdater.canUpdate()) {
+				// alpha 52: on request a Java of DBGL's own comes along (Windows, Linux), or the one there is brought up to date
+				String javaHas = org.dbgl.util.JavaRuntime.versionIn(org.dbgl.util.JavaRuntime.folder());
+				String javaCheck = !org.dbgl.util.JavaRuntime.possible() ? null
+						: javaHas == null ? text_.get("dialog.main.editionupdate.javanew", new Object[] {org.dbgl.util.JavaRuntime.FEATURE})
+								: text_.get("dialog.main.editionupdate.javaupdate", new Object[] {javaHas, org.dbgl.util.JavaRuntime.FEATURE});
+				if (javaCheck != null)
+					withJava[0] = withJava[0] || ((javaHas != null) && !askedJava[0]);
+				askedJava[0] = true;
 				int answer = org.dbgl.gui.controls.Choice.ask(shell_, title,
 					text_.get("dialog.main.editionupdate.oneclick2", new Object[] {Constants.EDITION_NAME, r.version(), org.dbgl.util.EditionUpdateChecker.readable(Constants.PROGRAM_VERSION), pre}).trim(),
-					SWT.ICON_QUESTION, text_.get("dialog.main.editionupdate.install"), text_.get("dialog.main.editionupdate.manual"), text_.get("dialog.main.editionupdate.changelog"),
+					SWT.ICON_QUESTION, javaCheck, withJava, text_.get("dialog.main.editionupdate.install"), text_.get("dialog.main.editionupdate.manual"), text_.get("dialog.main.editionupdate.changelog"),
 					text_.get("button.cancel"));
 				if (answer == 0)
-					installEditionUpdate(r);
+					installEditionUpdate(r, (javaCheck != null) && withJava[0]);
 				else if (answer == 1)
 					downloadEditionUpdateManually(r);
 				else if (answer == 2) {
@@ -1724,7 +1733,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 	}
 
 	/** download and check the update, make the backups, then end DBGL: a helper copies the new files and starts DBGL again */
-	private void installEditionUpdate(org.dbgl.util.EditionUpdateChecker.Release r) {
+	private void installEditionUpdate(org.dbgl.util.EditionUpdateChecker.Release r, boolean withJava) {
 		// first, if the user wants it: everything backed up, also the DOSBox versions, the program folder and the games
 		File programDir = org.dbgl.util.EditionUpdater.runningJar() != null ? org.dbgl.util.EditionUpdater.runningJar().getParentFile(): null;
 		org.dbgl.gui.controls.UpdateBackupQuestion.Answer backup = org.dbgl.gui.controls.UpdateBackupQuestion.ask(shell_, new ArrayList<>(dbversionsList_), programDir,
@@ -1743,11 +1752,36 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			Mess_.on(shell_).key("dialog.main.editionupdate.failed", new Object[] {org.dbgl.util.EditionUpdateChecker.describe(e)}).exception(e).warning();
 			return;
 		}
+		// alpha 52: the Java of DBGL's own, if wanted and there is a newer one; without it the update goes on all the same
+		File newJre = null;
+		String javaNote = "";
+		if (withJava) {
+			try {
+				org.dbgl.util.JavaRuntime.Offer offer = org.dbgl.gui.controls.BusyTask.run(shell_, text_.get("dialog.main.editionupdate.javacheck"), org.dbgl.util.JavaRuntime::latest);
+				String has = org.dbgl.util.JavaRuntime.versionIn(org.dbgl.util.JavaRuntime.folder());
+				if (org.dbgl.util.JavaRuntime.newer(offer.version(), has)) {
+					java.util.concurrent.atomic.AtomicInteger javaProgress = new java.util.concurrent.atomic.AtomicInteger();
+					newJre = org.dbgl.gui.controls.BusyTask.run(shell_,
+						text_.get("dialog.main.editionupdate.javadownloading", new Object[] {offer.version(), Math.max(1, (offer.size() + 512 * 1024) / (1024 * 1024))}), javaProgress, 1000,
+						() -> org.dbgl.util.JavaRuntime.prepare(offer, javaProgress));
+					javaNote = "\n\n" + text_.get("dialog.main.editionupdate.javaready", new Object[] {offer.version(), org.dbgl.util.JavaRuntime.folder().getPath()});
+				} else {
+					javaNote = "\n\n" + text_.get("dialog.main.editionupdate.javacurrent", new Object[] {has});
+				}
+			} catch (org.dbgl.gui.controls.BusyTask.Cancelled e) {
+				newJre = null;
+				javaNote = "\n\n" + text_.get("dialog.main.editionupdate.javaskipped");
+			} catch (Exception e) {
+				newJre = null;
+				Mess_.on(shell_).key("dialog.main.editionupdate.javafailed", new Object[] {org.dbgl.util.EditionUpdateChecker.describe(e)}).exception(e).warning();
+				javaNote = "\n\n" + text_.get("dialog.main.editionupdate.javaskipped");
+			}
+		}
 		// one empty line between the backups (alpha 48)
 		String backups = "\n" + prepared.programBackup().getPath() + (fullBackup != null ? "\n\n" + fullBackup.getPath(): "");
-		if (!Mess_.on(shell_).key("dialog.main.editionupdate.ready", new Object[] {r.version(), prepared.dataBackup().getPath(), backups}).confirm())
+		if (!Mess_.on(shell_).txt(text_.get("dialog.main.editionupdate.ready", new Object[] {r.version(), prepared.dataBackup().getPath(), backups}) + javaNote).confirm())
 			return;
-		if (!org.dbgl.util.EditionUpdater.launchInstaller(prepared)) {
+		if (!org.dbgl.util.EditionUpdater.launchInstaller(prepared, newJre)) {
 			Mess_.on(shell_).key("dialog.main.editionupdate.failed", new Object[] {"installer"}).warning();
 			return;
 		}

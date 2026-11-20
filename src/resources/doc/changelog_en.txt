@@ -56,6 +56,13 @@ New
   DOSBox (they have an import of their own) are left out. The start file is
   guessed and shown in the list, a setup program is taken, a dosbox.conf in
   the game folder is used.
+- One-click update (Windows, Linux): on request a Java 21 of DBGL's own
+  comes along (Eclipse Temurin from Adoptium, the runtime only, about
+  50 MB), or the one there is brought up to the newest Java 21. It goes into
+  the folder jre of DBGL, where launch.exe and the Linux start script look
+  first; the Java of the system stays as it is. The file is checked by its
+  SHA-256 checksum, unpacked safely and started once before it is put in
+  place; if something goes wrong, the update goes on without Java.
 
 Improved
 - Profile > Midi > FluidSynth: the SoundFont field offers the SoundFonts
