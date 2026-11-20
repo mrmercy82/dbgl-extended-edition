@@ -2411,6 +2411,13 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				importScanFolder();
 			}
 		}).build();
+		// alpha 52: game folders no profile uses yet
+		MenuItem_.on(profilesMenu).key("dialog.main.menu.importunlinked").image(ImageService.IMG_IMPORT).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				doImportUnlinked();
+			}
+		}).build();
 		MenuItem_.on(profilesMenu).key("dialog.main.menu.importstoregames").image(ImageService.IMG_IMPORT).listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
@@ -5819,6 +5826,53 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		if ((loadedProfiles != null) && (new ImportDirDialog(shell_, new File(dir), loadedProfiles).open() != null)) {
 			updateProfilesList(getSelectedProfileIds());
 			displayProfileInformation(false);
+		}
+	}
+
+	/** alpha 52: the DOS games in a folder that no profile has yet (see UnlinkedGames), to the import window */
+	private void doImportUnlinked() {
+		DosboxVersion defaultVersion = requireDefaultDBVersion();
+		if (defaultVersion == null)
+			return;
+		DirectoryDialog dialog = new DirectoryDialog(shell_);
+		dialog.setMessage(text_.get("dialog.unlinkedgames.choose"));
+		dialog.setFilterPath(FileLocationService.getInstance().getDosroot().getPath());
+		String dir = dialog.open();
+		if (dir == null)
+			return;
+		List<Profile> loaded = new ProfileLoader(shell_, profilesList_).open();
+		if (loaded == null)
+			return;
+		org.dbgl.util.UnlinkedGames.Result found;
+		List<org.dbgl.util.StoreGameImport.Found> entries = new java.util.ArrayList<>();
+		java.util.Map<File, File> mains = new java.util.HashMap<>();
+		try {
+			found = org.dbgl.gui.controls.BusyTask.run(shell_, text_.get("dialog.unlinkedgames.searching"),
+				() -> org.dbgl.util.UnlinkedGames.find(new File(dir), org.dbgl.util.UnlinkedGames.usedBy(loaded), null, null));
+			File work = java.nio.file.Files.createTempDirectory("dbgl-folder").toFile();
+			work.deleteOnExit();
+			for (org.dbgl.util.UnlinkedGames.Game g: found.games()) {
+				mains.put(g.dir(), g.main());
+				entries.add(org.dbgl.util.UnlinkedGames.toFound(g, work, text_.get("dialog.unlinkedgames.store")));
+			}
+		} catch (org.dbgl.gui.controls.BusyTask.Cancelled e) {
+			return;
+		} catch (Exception e) {
+			Mess_.on(shell_).exception(e).warning();
+			return;
+		}
+		Object[] counts = {found.games().size(), found.linked(), found.windows(), found.store()};
+		if (entries.isEmpty()) {
+			Mess_.on(shell_).key("dialog.unlinkedgames.none", new Object[] {dir, found.linked(), found.windows(), found.store()}).display();
+			return;
+		}
+		Integer added = StoreImportDialog.titled(shell_, entries, dbversionsList_, defaultVersion, StoreImportDialog.existingKeys(loaded), "dialog.unlinkedgames.title",
+			text_.get("dialog.unlinkedgames.info", counts)).showing("dialog.importdir.column.main",
+				f -> mains.containsKey(f.gameDir()) ? f.gameDir().toPath().relativize(mains.get(f.gameDir()).toPath()).toString(): "").open();
+		if ((added != null) && (added > 0)) {
+			updateProfilesList(getSelectedProfileIds());
+			displayProfileInformation(false);
+			Mess_.on(shell_).key("dialog.storeimport.done", new Object[] {added}).display();
 		}
 	}
 

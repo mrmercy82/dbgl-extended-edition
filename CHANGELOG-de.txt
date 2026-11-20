@@ -51,6 +51,14 @@ Neu
   Staging von selbst danach sucht (nichts wird verschoben oder
   überschrieben), ein SoundFont-Ordner lässt sich als Ordner für die
   SoundFont-Auswahl übernehmen.
+- Menü Profile > „Spiele ohne Profil aus Ordner importieren...“: findet in
+  einem Ordner, in dem die Spiele je in einem eigenen Ordner liegen, die
+  DOS-Spiele, die noch kein Profil haben (ein DOS-Programm darin, kein Profil
+  startet oder bindet etwas darin ein). Ausgelassen werden Ordner nur mit
+  Windows-Programmen und GOG-/Steam-Spiele mit eigenem DOSBox (dafür gibt
+  es den eigenen Import). Die Startdatei wird geraten und in der Liste
+  gezeigt, ein Setup-Programm übernommen, eine dosbox.conf im Spielordner
+  berücksichtigt.
 
 Verbessert
 - Profil > Midi > FluidSynth: Das SoundFont-Feld bietet die gefundenen

@@ -58,14 +58,19 @@ public final class StoreGameImport {
 
 	/** what a game collection says about a game (eXoDOS via its LaunchBox data, alpha 48); the cover is looked for when needed */
 	public record Meta(String developer, String publisher, String year, String genre, String notes, java.util.function.Supplier<File> cover,
-			java.util.function.Supplier<List<File>> pictures, List<ExtrasFinder.Extra> extras, Stats stats) {
+			java.util.function.Supplier<List<File>> pictures, List<ExtrasFinder.Extra> extras, Stats stats, File setup) {
+		public Meta(String developer, String publisher, String year, String genre, String notes, java.util.function.Supplier<File> cover,
+				java.util.function.Supplier<List<File>> pictures, List<ExtrasFinder.Extra> extras, Stats stats) {
+			this(developer, publisher, year, genre, notes, cover, pictures, extras, stats, null);
+		}
+
 		public Meta(String developer, String publisher, String year, String genre, String notes, java.util.function.Supplier<File> cover) {
-			this(developer, publisher, year, genre, notes, cover, List::of, List.of(), null);
+			this(developer, publisher, year, genre, notes, cover, List::of, List.of(), null, null);
 		}
 
 		public Meta(String developer, String publisher, String year, String genre, String notes, java.util.function.Supplier<File> cover,
 				java.util.function.Supplier<List<File>> pictures, List<ExtrasFinder.Extra> extras) {
-			this(developer, publisher, year, genre, notes, cover, pictures, extras, null);
+			this(developer, publisher, year, genre, notes, cover, pictures, extras, null, null);
 		}
 	}
 
@@ -504,6 +509,8 @@ public final class StoreGameImport {
 		p.loadConfigurationData(text, prepared.conf(), f.confs().get(f.confs().size() - 1), f.workingDir());
 		if (prepared.setup() != null)
 			p.setSetupFileLocation(prepared.setup().getPath());
+		else if ((meta != null) && (meta.setup() != null)) // alpha 52: found in the folder of the game
+			p.setSetupFileLocation(meta.setup().getPath());
 		// the settings are those of the DOSBox the game came with (mostly 0.74, Steam's X-COM 0.72): converted like when
 		// switching a profile (e.g. cycles -> cpu_cycles for Staging), settings the DOSBox version does not have are left out
 		p.alterToDosboxVersionGeneration(generationOf(f), version);

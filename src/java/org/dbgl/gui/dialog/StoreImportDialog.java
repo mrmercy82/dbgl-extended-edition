@@ -84,6 +84,25 @@ public class StoreImportDialog extends SizeControlledButtonDialog<Integer> {
 		return d;
 	}
 
+	private String secondKey_;
+	private java.util.function.Function<StoreGameImport.Found, String> second_;
+
+	/** alpha 52: what the second column shows instead of the collection (the start file guessed, for the games in a folder) */
+	public StoreImportDialog showing(String headerKey, java.util.function.Function<StoreGameImport.Found, String> value) {
+		secondKey_ = headerKey;
+		second_ = value;
+		return this;
+	}
+
+	/** alpha 52: the same window under another title, with a line of its own above the list (the games in a folder) */
+	public static StoreImportDialog titled(Shell parent, List<StoreGameImport.Found> found, List<DosboxVersion> versions, DosboxVersion defaultVersion,
+			Set<String> existing, String titleKey, String info) {
+		StoreImportDialog d = new StoreImportDialog(parent, found, versions, defaultVersion, existing, 0);
+		d.titleKey_ = titleKey;
+		d.info_ = info;
+		return d;
+	}
+
 	@Override
 	protected String getDialogTitle() {
 		return text_.get(titleKey_ != null ? titleKey_: exo_ ? "dialog.exoimport.title": "dialog.storeimport.title");
@@ -125,10 +144,10 @@ public class StoreImportDialog extends SizeControlledButtonDialog<Integer> {
 		table.setHeaderVisible(true);
 		table.setLinesVisible(true);
 		String[] keys = {"dialog.storeimport.column.game", "dialog.storeimport.column.store", "dialog.storeimport.column.advice", "dialog.storeimport.column.folder"};
-		int[] widths = {240, 90, 240, 360};
+		int[] widths = {240, second_ != null ? 160: 90, 240, 360};
 		for (int i = 0; i < keys.length; i++) {
 			TableColumn col = new TableColumn(table, SWT.NONE);
-			col.setText(text_.get(exo_ && (i == 1) ? "dialog.exoimport.column.collection": keys[i]));
+			col.setText(text_.get(exo_ && (i == 1) ? "dialog.exoimport.column.collection": (i == 1) && (secondKey_ != null) ? secondKey_: keys[i]));
 			col.setWidth(widths[i]);
 		}
 		ticked_ = new boolean[found_.size()];
@@ -138,7 +157,7 @@ public class StoreImportDialog extends SizeControlledButtonDialog<Integer> {
 			boolean known = isKnown(f);
 			String a = advice.get(r) == null ? "": text_.get(x != null ? "dialog.storeimport.advice.x": "dialog.storeimport.advice.missing",
 				new Object[] {text_.get("dialog.storeimport.reason." + advice.get(r))});
-			rows[r] = new String[] {known ? text_.get("dialog.storeimport.known", new Object[] {f.title()}): f.title(), f.store(), a, f.gameDir().getPath()};
+			rows[r] = new String[] {known ? text_.get("dialog.storeimport.known", new Object[] {f.title()}): f.title(), second_ != null ? second_.apply(f): f.store(), a, f.gameDir().getPath()};
 			ticked_[r] = !known && !exo_; // from a collection the user picks the games
 		}
 		org.eclipse.swt.widgets.Text filterField = filter;

@@ -49,6 +49,13 @@ New
   can be copied to where DOSBox Staging looks for it by itself (nothing is
   moved or overwritten); a SoundFont folder can be kept as the folder of the
   SoundFont choice.
+- Menu Profiles > "Import games without a profile from folder...": finds
+  the DOS games in a folder (each game in a folder of its own) that have no
+  profile yet (a DOS program in it, no profile starts or mounts anything in
+  it). Folders with Windows programs only and GOG/Steam games with their own
+  DOSBox (they have an import of their own) are left out. The start file is
+  guessed and shown in the list, a setup program is taken, a dosbox.conf in
+  the game folder is used.
 
 Improved
 - Profile > Midi > FluidSynth: the SoundFont field offers the SoundFonts

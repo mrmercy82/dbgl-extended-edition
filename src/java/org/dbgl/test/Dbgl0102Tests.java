@@ -3199,6 +3199,77 @@ public class Dbgl0102Tests {
 				< SettingsService.availableWebSearchEngines().indexOf(org.dbgl.util.searchengine.WebSearchEngine.getBySimpleName("mobygames"))); // MobyGames stays last
 	}
 
+	/** a DOS program (only the MZ header) or a Windows program (its stub says so, then the PE header) for the tests */
+	private static byte[] program(boolean windows) {
+		byte[] b = new byte[2048];
+		b[0] = 'M';
+		b[1] = 'Z';
+		b[2] = 0; // last page full
+		b[4] = 4; // 4 pages of 512 bytes
+		b[8] = 4; // header: 4 paragraphs
+		if (windows) {
+			b[0x3C] = (byte)0x80;
+			byte[] stub = "This program cannot be run in DOS mode.".getBytes(java.nio.charset.StandardCharsets.ISO_8859_1);
+			System.arraycopy(stub, 0, b, 0x40, stub.length);
+			b[0x80] = 'P';
+			b[0x81] = 'E';
+		}
+		return b;
+	}
+
+	/** alpha 52: the game folders no profile uses: the start file guessed, the setup found, linked, Windows and GOG folders left out */
+	@Test
+	public void testUnlinkedGames() throws Exception {
+		File root = Files.createTempDirectory("dbgl-unlinked-").toFile();
+		new File(root, "Doom").mkdirs();
+		Files.write(new File(root, "Doom/SETUP.EXE").toPath(), program(false));
+		Files.write(new File(root, "Doom/DOS4GW.EXE").toPath(), program(false));
+		Files.write(new File(root, "Doom/DOOM.EXE").toPath(), program(false));
+		Files.write(new File(root, "Doom/dosbox.conf").toPath(), "[cpu]\r\ncycles=fixed 20000\r\n[autoexec]\r\nmount c .\r\nc:\r\ndoom\r\n".getBytes());
+		new File(root, "keen_4/KEEN4").mkdirs();
+		Files.write(new File(root, "keen_4/KEEN4/KEEN4E.EXE").toPath(), program(false));
+		Files.write(new File(root, "keen_4/KEEN4/UNINST.EXE").toPath(), program(false));
+		new File(root, "WinGame").mkdirs();
+		Files.write(new File(root, "WinGame/GAME.EXE").toPath(), program(true));
+		new File(root, "GogGame/DOSBOX").mkdirs();
+		Files.write(new File(root, "GogGame/goggame-1207658.info").toPath(), "{}".getBytes());
+		Files.write(new File(root, "GogGame/GAME.EXE").toPath(), program(false));
+		new File(root, "Linked").mkdirs();
+		Files.write(new File(root, "Linked/GAME.EXE").toPath(), program(false));
+		new File(root, "Docs").mkdirs();
+		Files.write(new File(root, "Docs/readme.txt").toPath(), "x".getBytes());
+		// a profile with its program in Linked, one that mounts the whole folder as C: (that does not count for the folders in it)
+		java.util.List<File> used = java.util.List.of(new File(root, "Linked"), root);
+		org.dbgl.util.UnlinkedGames.Result r = org.dbgl.util.UnlinkedGames.find(root, used, null, () -> false);
+		assertEquals(r.games().stream().map(g -> g.dir().getName()).toList().toString(), java.util.List.of("Doom", "keen_4"), r.games().stream().map(g -> g.dir().getName()).toList());
+		assertEquals(1, r.linked());
+		assertEquals(1, r.windows());
+		assertEquals(1, r.store());
+		assertEquals(1, r.empty());
+		org.dbgl.util.UnlinkedGames.Game doom = r.games().get(0), keen = r.games().get(1);
+		assertEquals("DOOM.EXE", doom.main().getName());
+		assertEquals("SETUP.EXE", doom.setup().getName());
+		assertEquals("KEEN4E.EXE", keen.main().getName());
+		assertNull(keen.setup());
+		assertEquals("Keen 4", org.dbgl.util.UnlinkedGames.titleOf(keen.dir()));
+		assertEquals("WinGame", org.dbgl.util.UnlinkedGames.titleOf(new File(root, "WinGame")));
+
+		File work = Files.createTempDirectory("dbgl-unlinkedwork-").toFile();
+		org.dbgl.util.StoreGameImport.Found f = org.dbgl.util.UnlinkedGames.toFound(doom, work, "Ordner");
+		File dosboxConfFile = new File(DATA_DIR, "dosbox-staging-0.83.0.conf");
+		org.dbgl.model.aggregate.DosboxVersion v083 = DosboxVersionFactory.create("DOSBox Staging 0.83.0", SettingsService.STAGING_DOSBOX_FAM.title_, "0.83.0", false, true, false, null,
+			"staging083", "", "", dosboxConfFile.getAbsolutePath());
+		v083.resetAndLoadConfiguration();
+		org.dbgl.model.aggregate.Profile p = org.dbgl.util.StoreGameImport.toProfile(f, v083, GenericTextService.getInstance());
+		assertEquals("Doom", p.getTitle());
+		assertEquals(new File(root, "Doom/DOOM.EXE").getCanonicalFile(), new File(p.getConfiguration().getAutoexec().getMain()).getCanonicalFile());
+		assertEquals(new File(root, "Doom/SETUP.EXE").getCanonicalFile(), new File(p.getSetupString()).getCanonicalFile());
+		assertEquals("20000", p.getConfiguration().getValue("cpu", "cpu_cycles")); // its own dosbox.conf, for Staging
+		assertTrue(p.getNotes(), p.getNotes().endsWith("Ordner: " + doom.dir().getPath()));
+		org.apache.commons.io.FileUtils.deleteDirectory(root);
+		org.apache.commons.io.FileUtils.deleteDirectory(work);
+	}
+
 	/** alpha 52: the search for music files: SoundFonts and Ultrasound patches found, a Sound Canvas folder without its ROMs not, system folders at the top left out, copies never overwrite */
 	@Test
 	public void testSoundScan() throws IOException {
