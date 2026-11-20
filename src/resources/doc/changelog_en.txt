@@ -66,7 +66,9 @@ New
 - The stand-alone package for Windows comes with Java 21 (Eclipse Temurin
   21.0.13.1, in the folder jre): Java no longer has to be installed first.
   launch.exe and dbgl.cmd take it first; the one-click update can keep it
-  up to date. On Linux and macOS Java is still installed by the user.
+  up to date. With Java 21 installed already, the second Windows package
+  without Java (...-windows-without-java.zip) does. On Linux and macOS
+  Java is still installed by the user.
 
 Improved
 - Profile > Midi > FluidSynth: the SoundFont field offers the SoundFonts
