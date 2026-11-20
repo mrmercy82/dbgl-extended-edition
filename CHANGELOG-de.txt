@@ -37,7 +37,9 @@ Neu
   mit „Abfrage bei ...“ für Spieldaten, Cover und Bildschirmfotos aus der
   gewählten Spieldatenbank; auch „Online-Infos“ öffnet ihn. Bildschirmfotos,
   die man im Spiel mit Alt+S macht, kopiert DBGL nach dem Spielen in den
-  Bilderordner des Profils (ScummVM behält seine).
+  Bilderordner des Profils (ScummVM behält seine). ScummVM kann nicht die
+  Standardversion werden und taucht beim Wechsel der DOSBox-Version nicht
+  auf.
 
 Verbessert
 - Profil > Midi > FluidSynth: Das SoundFont-Feld bietet die gefundenen

@@ -192,8 +192,11 @@ public class SwitchDosboxVersionDialog extends SizeControlledButtonDialog<Boolea
 	@Override
 	protected boolean prepare() {
 		try {
-			dbversions_ = new DosboxVersionRepository().listAll();
-			profiles_ = new ProfileRepository().list(StringUtils.EMPTY, StringUtils.EMPTY, dbversions_);
+			// alpha 52: ScummVM is no DOSBox: neither its games nor ScummVM itself to switch from or to
+			List<DosboxVersion> all = new DosboxVersionRepository().listAll();
+			dbversions_ = all.stream().filter(v -> !org.dbgl.util.Scummvm.is(v)).collect(java.util.stream.Collectors.toList());
+			profiles_ = new ProfileRepository().list(StringUtils.EMPTY, StringUtils.EMPTY, all).stream().filter(p -> !org.dbgl.util.Scummvm.is(p.getDosboxVersion()))
+					.collect(java.util.stream.Collectors.toList());
 			return true;
 		} catch (SQLException e) {
 			Mess_.on(getParent()).exception(e).warning();

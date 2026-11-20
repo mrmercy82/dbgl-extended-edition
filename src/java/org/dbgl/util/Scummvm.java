@@ -260,6 +260,9 @@ public final class Scummvm {
 	 *
 	 * @return how many were copied
 	 */
+	/** as ScummVM names them: scummvm-<target>-00000.png */
+	private static final java.util.regex.Pattern SHOT_NAME = java.util.regex.Pattern.compile("scummvm-(.+)-\\d+\\.[a-z]+");
+
 	public static int copyScreenshots(File from, String target, long sinceMillis, File to) {
 		File[] files = from == null ? null: from.listFiles();
 		if (files == null)
@@ -272,6 +275,9 @@ public final class Scummvm {
 				continue;
 			if (!n.startsWith("scummvm") && (t.isEmpty() || !n.contains(t)))
 				continue; // not of ScummVM (on the desktop of a Mac there may be anything)
+			java.util.regex.Matcher m = SHOT_NAME.matcher(n);
+			if (!t.isEmpty() && m.matches() && !m.group(1).equals(t))
+				continue; // of another game, started from the list of games of ScummVM while it ran
 			File dest = new File(to, f.getName());
 			if (dest.exists())
 				continue;

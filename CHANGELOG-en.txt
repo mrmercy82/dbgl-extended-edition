@@ -36,7 +36,8 @@ New
   ..." for game data, covers and screenshots from the game database chosen;
   "Online info" opens it too. Screenshots taken in the game with Alt+S are
   copied into the picture folder of the profile after playing (ScummVM keeps
-  its own).
+  its own). ScummVM cannot become the default version and does not appear
+  when switching the DOSBox version.
 
 Improved
 - Profile > Midi > FluidSynth: the SoundFont field offers the SoundFonts

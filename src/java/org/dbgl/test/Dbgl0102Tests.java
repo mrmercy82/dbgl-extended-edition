@@ -3131,7 +3131,8 @@ public class Dbgl0102Tests {
 		assertEquals(shots, org.dbgl.util.Scummvm.screenshotDir(portableExe));
 		long start = System.currentTimeMillis();
 		File old = new File(shots, "scummvm-lol-cd-00000.png"), fresh = new File(shots, "scummvm-lol-cd-00001.png"), other = new File(shots, "holiday.png"), text = new File(shots, "scummvm-log.txt");
-		for (File f: new File[] {old, fresh, other, text})
+		File otherGame = new File(shots, "scummvm-sky-00000.png"); // another game, started from ScummVM's list meanwhile
+		for (File f: new File[] {old, fresh, other, text, otherGame})
 			Files.write(f.toPath(), new byte[] {1});
 		old.setLastModified(start - 60_000);
 		assertEquals(1, org.dbgl.util.Scummvm.copyScreenshots(shots, "lol-cd", start, captures));

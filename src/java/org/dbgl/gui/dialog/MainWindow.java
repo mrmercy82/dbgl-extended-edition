@@ -5508,6 +5508,10 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		int index = dbversionTable_.getSelectionIndex();
 		if (index != -1) {
 			DosboxVersion dbversion = dbversionsList_.get(index);
+			if (org.dbgl.util.Scummvm.is(dbversion) && !dbversion.isDefault()) { // alpha 52: new profiles would get ScummVM instead of DOSBox
+				Mess_.on(shell_).key("dialog.scummvmversion.nodefault").warning();
+				return;
+			}
 			dbversion.setDefault(!dbversion.isDefault());
 			try {
 				new DosboxVersionRepository().update(dbversion);

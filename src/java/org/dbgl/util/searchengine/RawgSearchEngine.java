@@ -111,7 +111,7 @@ public class RawgSearchEngine extends WebSearchEngine {
 	@Override
 	public List<WebProfile> getEntries(String title, String[] platforms) throws IOException {
 		Set<Integer> ids = platformIds(platforms);
-		String query = "search=" + URLEncoder.encode(prepareSearchTerm(title), StandardCharsets.UTF_8) + "&page_size=40"
+		String query = "search=" + URLEncoder.encode(prepareSearchTerm(title), StandardCharsets.UTF_8) + "&search_precise=true&page_size=40"
 				+ (ids.isEmpty() ? "": "&platforms=" + StringUtils.join(ids, ','));
 		return parseEntries(get("games", query));
 	}

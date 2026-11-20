@@ -232,6 +232,8 @@ public final class ScummvmEditDialogs {
 		consult.setImage(org.dbgl.service.ImageService.getResourceImage(dlg.getDisplay(), org.dbgl.service.ImageService.IMG_GLOBE));
 		consult.setLayoutData(new GridData(SWT.BEGINNING, SWT.CENTER, false, false, 3, 1));
 		List<org.dbgl.model.SearchEngineImageInformation> chosenImages = new ArrayList<>();
+		int[] rank = {-1};
+		String[] link = new String[2]; // Link 1 to the page of the game, as the setting "set_link" wants (RAWG asks for it)
 		Runnable doSearch = () -> {
 			String currTitle = title.getText().trim();
 			if (currTitle.isEmpty())
@@ -260,6 +262,13 @@ public final class ScummvmEditDialogs {
 					year.setText(ext.getYear());
 				if (settings.getBooleanValue(s, "set_genre"))
 					genre.setText(ext.getGenre());
+				if (settings.getBooleanValue(s, "set_link") && StringUtils.isNotBlank(ext.getUrl())) {
+					link[0] = ext.getUrl();
+					link[1] = text.get("dialog.profile.searchengine.link.maininfo", new String[] {engine instanceof org.dbgl.util.searchengine.MetropolisSearchEngine
+							? org.dbgl.util.searchengine.MobyGamesSearchEngine.getInstance().getName(): engine.getName()});
+				}
+				if (settings.getBooleanValue(s, "set_rank") && (ext.getRank() > 0))
+					rank[0] = ext.getRank();
 				if (settings.getBooleanValue(s, "set_description") && StringUtils.isNotBlank(ext.getNotes())) {
 					String p = ext.getNotes().replace("\n", notes.getLineDelimiter());
 					if (!notes.getText().endsWith(p))
@@ -304,6 +313,12 @@ public final class ScummvmEditDialogs {
 				profile.setStatus(status.getText().trim());
 				profile.setFavorite(favorite.getSelection());
 				profile.setNotes(notes.getText());
+				if (link[0] != null) {
+					profile.setLinkDestination(0, link[0]);
+					profile.setLinkTitle(0, link[1]);
+				}
+				if (rank[0] >= 0)
+					profile.setCustomInt(0, String.valueOf(rank[0])); // into "Custom 9", as the profile window puts the rank
 				profile.getConfiguration().setValue(Scummvm.SECTION, "target", chosen);
 				profile.getConfiguration().setValue(Scummvm.SECTION, "config", ini.getText().trim());
 				new ProfileRepository().update(profile);
