@@ -75,7 +75,7 @@ public class EditMultiProfileDialog extends EditProfileDialog<List<Profile>> {
 
 			profile_ = ProfileFactory.combine(dbversionsList_, profiles_, warningsLog);
 			extras_.setConflictingValues(this::hasDifferingValues);
-			dbversionIndex_ = BaseRepository.indexOf(dbversionsList_, profile_.getDosboxVersion());
+			dbversionIndex_ = indexKeeping(profile_.getDosboxVersion());
 			templateIndex_ = -1;
 
 			if (StringUtils.isNotEmpty(warningsLog)) {

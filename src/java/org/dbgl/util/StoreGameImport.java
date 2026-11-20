@@ -58,9 +58,34 @@ public final class StoreGameImport {
 
 	/** what a game collection says about a game (eXoDOS via its LaunchBox data, alpha 48); the cover is looked for when needed */
 	public record Meta(String developer, String publisher, String year, String genre, String notes, java.util.function.Supplier<File> cover,
-			java.util.function.Supplier<List<File>> pictures, List<ExtrasFinder.Extra> extras) {
+			java.util.function.Supplier<List<File>> pictures, List<ExtrasFinder.Extra> extras, Stats stats) {
 		public Meta(String developer, String publisher, String year, String genre, String notes, java.util.function.Supplier<File> cover) {
-			this(developer, publisher, year, genre, notes, cover, List::of, List.of());
+			this(developer, publisher, year, genre, notes, cover, List::of, List.of(), null);
+		}
+
+		public Meta(String developer, String publisher, String year, String genre, String notes, java.util.function.Supplier<File> cover,
+				java.util.function.Supplier<List<File>> pictures, List<ExtrasFinder.Extra> extras) {
+			this(developer, publisher, year, genre, notes, cover, pictures, extras, null);
+		}
+	}
+
+	/**
+	 * alpha 52: what the other launcher knew of the game being played (LaunchBox): favourite, starts, play time in seconds, the
+	 * last start (0: unknown), played to the end, rating 0 to 100 (-1: none)
+	 */
+	public record Stats(boolean favorite, int runs, long playSeconds, long lastPlayedMillis, boolean completed, int rating) {
+	}
+
+	/** alpha 52: the starts and play time of the other launcher, to the profile once it is saved (it needs its id) */
+	public static void addStats(Found f, Profile saved) throws java.sql.SQLException {
+		Stats s = f.meta() == null ? null: f.meta().stats();
+		if (s == null)
+			return;
+		org.dbgl.model.repository.ProfileRepository repo = new org.dbgl.model.repository.ProfileRepository();
+		repo.addRuns(saved.getId(), s.runs(), s.lastPlayedMillis());
+		if (s.playSeconds() > 0) {
+			long end = s.lastPlayedMillis() > 0 ? s.lastPlayedMillis(): System.currentTimeMillis();
+			repo.addPlayTime(saved.getId(), end - (s.playSeconds() * 1000L), s.playSeconds()); // one session for all the time there
 		}
 	}
 
@@ -460,7 +485,12 @@ public final class StoreGameImport {
 		p.setPublisher(meta == null ? "": StringUtils.defaultString(meta.publisher()));
 		p.setGenre(meta == null ? "": StringUtils.defaultString(meta.genre()));
 		p.setYear(meta == null ? "": StringUtils.defaultString(meta.year()));
-		p.setStatus("");
+		Stats stats = meta == null ? null: meta.stats(); // alpha 52: from the other launcher
+		p.setStatus((stats != null) && stats.completed() ? text.get("dialog.launchboximport.completed"): "");
+		if ((stats != null) && stats.favorite())
+			p.setFavorite(true);
+		if ((stats != null) && (stats.rating() >= 0))
+			p.setCustomInt(0, String.valueOf(stats.rating()));
 		// the folder last: by it a game imported before is known again
 		p.setNotes((meta != null) && StringUtils.isNotBlank(meta.notes()) ? meta.notes().trim() + "\n\n" + f.store() + ": " + f.gameDir().getPath(): f.store() + ": " + f.gameDir().getPath());
 		// alpha 48: the manual and the soundtrack of the collection as links

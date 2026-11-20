@@ -69,7 +69,7 @@ public class EditTemplateDialog extends EditConfigurableDialog<Template> {
 
 		try {
 			if (editing_) {
-				dbversionIndex_ = BaseRepository.indexOf(dbversionsList_, template_.getDosboxVersion());
+				dbversionIndex_ = indexKeeping(template_.getDosboxVersion());
 			} else {
 				template_ = TemplateFactory.create(BaseRepository.findDefault(dbversionsList_));
 			}

@@ -47,6 +47,8 @@ public final class Scummvm {
 	public static final String SECTION = "scummvm";
 	/** the configuration of the ScummVM version, in the data folder of DBGL: no settings, only a comment */
 	public static final String VERSION_CONF = "scummvm-dbgl.conf";
+	/** [gui] scummvm: the import of ScummVM games in the menu and the search for new ScummVM versions (its games start anyway) */
+	public static final String SETTING = "scummvm";
 
 	/** a game in scummvm.ini: its target (the name of its section), what ScummVM shows, its folder, ... */
 	public record Game(String target, String title, String description, String gameId, File path, String platform, String language) {

@@ -158,6 +158,8 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 		Button showPlayTime = Chain.on(editorGroup).lbl(l -> l.key("dialog.settings.showplaytimeininfo")).but(b -> b.horSpan(2).select(settings_.getBooleanValue("gui", "showplaytimeininfo"))).button();
 		Button findExtras = Chain.on(editorGroup).lbl(l -> l.key("dialog.settings.findextras")).but(b -> b.horSpan(2).tooltip("dialog.settings.findextras.tooltip")
 				.select(settings_.getBooleanValue(org.dbgl.util.ExtrasFinder.SECTION, org.dbgl.util.ExtrasFinder.ON_ADD))).button();
+		Button scummvmWanted = Chain.on(editorGroup).lbl(l -> l.key("dialog.settings.scummvm")).but(b -> b.horSpan(2).tooltip("dialog.settings.scummvm.tooltip")
+				.select(settings_.getBooleanValue("gui", org.dbgl.util.Scummvm.SETTING))).button();
 		Button hideUnsupported = Chain.on(editorGroup).lbl(l -> l.key("dialog.settings.hideunsupportedsettings")).but(b -> b.horSpan(2).select(settings_.getBooleanValue("gui", "hideunsupportedsettings"))).button();
 		String[] expandModes = {"collapsed", "always", "changed"};
 		Combo extrasExpand = Chain.on(editorGroup).lbl(l -> l.key("dialog.settings.extrasexpand")).cmb(c -> c.horSpan(2).items(new String[] {text_.get("dialog.settings.extrasexpand.collapsed"),
@@ -730,6 +732,7 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 				settings_.setBooleanValue("gui", "extrasexpandonextraspages", extrasOnExtrasPages.getSelection());
 				settings_.setBooleanValue("gui", "extrascountchanges", extrasCount.getSelection());
 				settings_.setBooleanValue("gui", "showplaytimeininfo", showPlayTime.getSelection());
+				settings_.setBooleanValue("gui", org.dbgl.util.Scummvm.SETTING, scummvmWanted.getSelection());
 				settings_.setBooleanValue("gui", "showdiskspaceininfo", showDiskSpace.getSelection());
 				settings_.setBooleanValue("gui", "showdiskspaceinnotes", showDiskSpaceInNotes.getSelection());
 				settings_.setBooleanValue("gui", "showdiskspaceintv", tvDiskSpace.getSelection());

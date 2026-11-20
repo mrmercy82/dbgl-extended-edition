@@ -15,7 +15,8 @@ New
   games of an own LaunchBox collection that LaunchBox starts with DOSBox as
   profiles, with their DOSBox configuration, the data from LaunchBox, the
   cover and the manual. eXoDOS games stay with the eXoDOS import of their
-  own; nothing in LaunchBox is changed.
+  own; nothing in LaunchBox is changed. Favourite, rating, "completed",
+  number of starts and play time come along.
 - Profile context menu > "Add to LaunchBox" (Windows): enters the chosen
   profiles as games of the platform MS-DOS in LaunchBox, with the data of
   the profile, the manual, the cover and the screenshots. They start
@@ -37,7 +38,10 @@ New
   "Online info" opens it too. Screenshots taken in the game with Alt+S are
   copied into the picture folder of the profile after playing (ScummVM keeps
   its own). ScummVM cannot become the default version and does not appear
-  when switching the DOSBox version.
+  when switching the DOSBox version or in the choice of versions of the
+  profiles; the search for duplicates knows ScummVM games by their ID.
+  Settings > General > "Show the functions for ScummVM" hides the import
+  and the update search.
 
 Improved
 - Profile > Midi > FluidSynth: the SoundFont field offers the SoundFonts

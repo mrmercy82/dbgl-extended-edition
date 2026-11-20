@@ -2952,7 +2952,9 @@ public class Dbgl0102Tests {
 				+ "  <Game>\r\n    <ApplicationPath>Games\\MS-DOS\\Doom\\BIN\\DOOM.EXE</ApplicationPath>\r\n    <CommandLine>-warp 1 1</CommandLine>\r\n"
 				+ "    <RootFolder>Games\\MS-DOS\\Doom</RootFolder>\r\n    <DosBoxConfigurationPath>Games\\MS-DOS\\Doom\\doom.conf</DosBoxConfigurationPath>\r\n"
 				+ "    <UseDosBox>true</UseDosBox>\r\n    <Title>Doom</Title>\r\n    <Developer>id Software</Developer>\r\n    <ReleaseDate>1993-12-10T00:00:00+01:00</ReleaseDate>\r\n"
-				+ "    <ManualPath>Manuals\\MS-DOS\\Doom.pdf</ManualPath>\r\n    <Platform>MS-DOS</Platform>\r\n  </Game>\r\n"
+				+ "    <ManualPath>Manuals\\MS-DOS\\Doom.pdf</ManualPath>\r\n    <Platform>MS-DOS</Platform>\r\n"
+				+ "    <Favorite>true</Favorite>\r\n    <PlayCount>12</PlayCount>\r\n    <PlayTime>7200</PlayTime>\r\n    <Completed>true</Completed>\r\n"
+				+ "    <StarRating>4</StarRating>\r\n    <LastPlayedDate>2025-03-01T20:00:00.0000000+01:00</LastPlayedDate>\r\n  </Game>\r\n"
 				+ "  <Game>\r\n    <ApplicationPath>" + keenConf.getPath() + "</ApplicationPath>\r\n    <Emulator>11111111-2222-3333-4444-555555555555</Emulator>\r\n"
 				+ "    <UseDosBox>false</UseDosBox>\r\n    <Title>Commander Keen</Title>\r\n    <Platform>MS-DOS</Platform>\r\n  </Game>\r\n"
 				+ "  <Game>\r\n    <ApplicationPath>eXo\\eXoDOS\\!dos\\1942\\1942.bat</ApplicationPath>\r\n    <Title>1942</Title>\r\n    <Platform>MS-DOS</Platform>\r\n  </Game>\r\n"
@@ -2993,6 +2995,19 @@ public class Dbgl0102Tests {
 		assertEquals("DOOM.EXE", new File(p.getConfiguration().getAutoexec().getMain()).getName());
 		assertEquals("-warp 1 1", p.getConfiguration().getAutoexec().getParameters());
 		assertTrue(p.getNotes(), p.getNotes().endsWith("LaunchBox: " + d.gameDir().getPath()));
+		// what LaunchBox knew of playing it
+		org.dbgl.util.StoreGameImport.Stats s = d.meta().stats();
+		assertTrue(s.favorite());
+		assertEquals(12, s.runs());
+		assertEquals(7200, s.playSeconds());
+		assertTrue(s.completed());
+		assertEquals(80, s.rating());
+		assertEquals(java.time.OffsetDateTime.parse("2025-03-01T20:00:00+01:00").toInstant().toEpochMilli(), s.lastPlayedMillis());
+		assertTrue(p.isFavorite());
+		assertEquals("80", p.getCustomInt(0));
+		assertFalse(p.getStatus().isEmpty());
+		assertFalse(k.meta().stats().favorite()); // none in LaunchBox
+		assertEquals(-1, k.meta().stats().rating());
 
 		assertNull(org.dbgl.util.LaunchBoxImport.find(game, work)); // no collection: nothing
 	}
@@ -3112,6 +3127,12 @@ public class Dbgl0102Tests {
 		assertEquals("monkey2", org.dbgl.util.Scummvm.targetOf(p));
 		assertEquals(java.util.List.of("--config=" + ini.getAbsolutePath(), "-f", "monkey2"), org.dbgl.util.Scummvm.arguments(p, v));
 		assertNull(org.dbgl.util.DosboxVersionDetector.detect(exe, dir)); // not started to ask it
+		// two profiles of the same game of ScummVM are duplicates, of another game not
+		org.dbgl.model.aggregate.Profile p2 = org.dbgl.model.factory.ProfileFactory.create(v, null);
+		p2.loadConfigurationData(GenericTextService.getInstance(), conf, ini, dir);
+		org.dbgl.model.aggregate.Profile p3 = org.dbgl.model.factory.ProfileFactory.create(v, null);
+		p3.loadConfigurationData(GenericTextService.getInstance(), org.dbgl.util.Scummvm.confOf(games.get(1), ini), ini, dir);
+		assertEquals(1, org.dbgl.util.DuplicateProfiles.findLoaded(java.util.List.of(p, p2, p3)).size());
 
 		// the update check: the version installed from scummvm.ini next to the program, the newest from the tags
 		assertEquals("2.9.1", org.dbgl.util.Scummvm.installedVersion(v));

@@ -191,6 +191,7 @@ public class StoreImportDialog extends SizeControlledButtonDialog<Integer> {
 						DosboxVersion use = (useAdvice.getSelection() && (advice.get(i) != null) && (x != null)) ? x: v;
 						Profile p = StoreGameImport.toProfile(found_.get(i), use, TextService.getInstance());
 						p = new ProfileRepository().add(p);
+						StoreGameImport.addStats(found_.get(i), p); // alpha 52: starts and play time of LaunchBox
 						copyCover(found_.get(i), p);
 						added++;
 					} catch (Exception e) {

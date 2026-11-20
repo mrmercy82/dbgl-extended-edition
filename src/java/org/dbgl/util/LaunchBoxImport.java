@@ -265,6 +265,43 @@ public final class LaunchBoxImport {
 		return b.toString();
 	}
 
+	/** alpha 52: favourite, starts, play time (seconds), last start, completed, star rating (0 to 5) of LaunchBox */
+	static StoreGameImport.Stats statsOf(Map<String, String> fields) {
+		long last = 0;
+		try {
+			String d = StringUtils.trimToEmpty(fields.get("LastPlayedDate"));
+			if (!d.isEmpty())
+				last = java.time.OffsetDateTime.parse(d).toInstant().toEpochMilli();
+		} catch (RuntimeException e) {
+			try {
+				last = java.time.LocalDateTime.parse(StringUtils.trimToEmpty(fields.get("LastPlayedDate")).replaceFirst("\\.\\d+$", "")).atZone(java.time.ZoneId.systemDefault())
+						.toInstant().toEpochMilli();
+			} catch (RuntimeException e2) {
+				last = 0;
+			}
+		}
+		if (last < 0)
+			last = 0;
+		int rating = -1;
+		try {
+			double stars = Double.parseDouble(StringUtils.defaultIfBlank(fields.get("StarRatingFloat"), StringUtils.defaultIfBlank(fields.get("StarRating"), "-1")).trim());
+			if (stars > 0)
+				rating = (int)Math.round(Math.min(stars, 5) * 20);
+		} catch (NumberFormatException e) {
+			// none
+		}
+		return new StoreGameImport.Stats("true".equalsIgnoreCase(StringUtils.trim(fields.get("Favorite"))), Math.max(0, number(fields.get("PlayCount"))),
+				Math.max(0, number(fields.get("PlayTime"))), last, "true".equalsIgnoreCase(StringUtils.trim(fields.get("Completed"))), rating);
+	}
+
+	private static int number(String s) {
+		try {
+			return (int)Math.min(Integer.MAX_VALUE, Long.parseLong(StringUtils.trimToEmpty(s)));
+		} catch (NumberFormatException e) {
+			return 0;
+		}
+	}
+
 	static StoreGameImport.Meta metaOf(File root, Map<String, String> fields, String title, ExoImport.CoverIndex covers, List<ExoImport.CoverIndex> more) {
 		String date = StringUtils.defaultString(fields.get("ReleaseDate"));
 		List<ExtrasFinder.Extra> extras = new ArrayList<>();
@@ -283,6 +320,6 @@ public final class LaunchBoxImport {
 							pictures.add(f);
 					}
 					return pictures;
-				}, extras);
+				}, extras, statsOf(fields));
 	}
 }

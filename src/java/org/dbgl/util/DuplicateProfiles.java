@@ -78,6 +78,10 @@ public final class DuplicateProfiles {
 	}
 
 	static String keyOfLoaded(Profile p) {
+		if (Scummvm.is(p.getDosboxVersion())) { // alpha 52: a game of ScummVM by its ID there
+			String target = Scummvm.targetOf(p);
+			return target == null ? null: Scummvm.FAMILY + ": " + target + "|"; // shown is what stands before the "|"
+		}
 		String main = p.getConfiguration().getAutoexec().getMain();
 		if (StringUtils.isBlank(main))
 			return null;

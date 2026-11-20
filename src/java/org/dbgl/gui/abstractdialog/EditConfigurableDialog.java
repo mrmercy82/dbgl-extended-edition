@@ -182,7 +182,8 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 	@Override
 	protected boolean prepare() {
 		try {
-			dbversionsList_ = new DosboxVersionRepository().listAll();
+			// alpha 52: ScummVM is no DOSBox to switch a profile or template to (its own games keep it, see indexKeeping)
+			dbversionsList_ = new DosboxVersionRepository().listAll().stream().filter(v -> !org.dbgl.util.Scummvm.is(v)).collect(java.util.stream.Collectors.toList());
 			dbversionIndex_ = BaseRepository.indexOfDefault(dbversionsList_);
 			return true;
 		} catch (SQLException e) {
@@ -191,6 +192,16 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		}
 	}
 	
+	/** alpha 52: the index of the version of what is edited; ScummVM is added back for a game of ScummVM opened here */
+	protected int indexKeeping(DosboxVersion v) {
+		int i = BaseRepository.indexOf(dbversionsList_, v);
+		if ((i < 0) && org.dbgl.util.Scummvm.is(v)) {
+			dbversionsList_.add(v);
+			i = dbversionsList_.size() - 1;
+		}
+		return i;
+	}
+
 	/**
 	 * alpha 48: main pages below "Drives": the backups of saved games (only for one profile: they belong to its game) and the saved
 	 * states of DOSBox-X

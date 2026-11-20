@@ -516,6 +516,7 @@ public class SettingsService {
 		settings_.setValue("gui", "extrasexpandonextraspages", false);
 		settings_.setValue("gui", "extrascountchanges", true);
 		settings_.setValue("gui", "extrasexpandmax", 0); // alpha 48: groups with at most this many settings start open (0: off)
+		settings_.setValue("gui", "scummvm", true); // alpha 52: ScummVM in the menu and in the update search
 		settings_.setValue("gui", "showplaytimeininfo", true); // alpha 48: play time below the notes on the Info page
 		settings_.setValue("gui", "showplaytimeinnotes", true); // alpha 48: play time below the notes of the main window
 		settings_.setValue("gui", "tvsort", "0"); // alpha 49: the order of the games in the TV mode (0: as in the list)

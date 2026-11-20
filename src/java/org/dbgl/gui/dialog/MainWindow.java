@@ -1910,7 +1910,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				installed.merge(family, version, (a, b) -> DosboxUpdateChecker.compareVersions(a, b) >= 0 ? a: b);
 			}
 			// alpha 52: ScummVM too, when it is entered: its version from its scummvm.ini (it is not started for it)
-			String scummvm = versions.stream().filter(org.dbgl.util.Scummvm::is).map(org.dbgl.util.Scummvm::installedVersion).filter(java.util.Objects::nonNull).findFirst().orElse(null);
+			String scummvm = !settings_.getBooleanValue("gui", org.dbgl.util.Scummvm.SETTING) ? null: versions.stream().filter(org.dbgl.util.Scummvm::is).map(org.dbgl.util.Scummvm::installedVersion).filter(java.util.Objects::nonNull).findFirst().orElse(null);
 			boolean dosbox = installed.containsKey(SettingsService.STAGING_DOSBOX_FAM.title_) || installed.containsKey(SettingsService.DOSBOX_X_DOSBOX_FAM.title_);
 			if (!dosbox && (scummvm == null))
 				return; // only for the DOSBox families in use
@@ -2429,12 +2429,23 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				doImportLaunchBox();
 			}
 		}).build();
-		MenuItem_.on(profilesMenu).key("dialog.main.menu.importscummvm").image(ImageService.IMG_ADVENTURE).listen(new SelectionAdapter() {
-			@Override
-			public void widgetSelected(SelectionEvent event) {
-				doImportScummvm();
-			}
-		}).build();
+		// alpha 52: only while ScummVM is wanted in the settings ([gui] scummvm); its games start anyway
+		MenuItem launchBoxItem = profilesMenu.getItem(profilesMenu.getItemCount() - 1);
+		MenuItem[] scummvmItem = new MenuItem[1];
+		profilesMenu.addListener(SWT.Show, e -> {
+			boolean wanted = settings_.getBooleanValue("gui", org.dbgl.util.Scummvm.SETTING);
+			boolean shown = (scummvmItem[0] != null) && !scummvmItem[0].isDisposed();
+			if (shown && !wanted)
+				scummvmItem[0].dispose();
+			else if (!shown && wanted)
+				scummvmItem[0] = MenuItem_.on(profilesMenu).pos(profilesMenu.indexOf(launchBoxItem) + 1).key("dialog.main.menu.importscummvm").image(ImageService.IMG_ADVENTURE)
+						.listen(new SelectionAdapter() {
+							@Override
+							public void widgetSelected(SelectionEvent event) {
+								doImportScummvm();
+							}
+						}).build();
+		});
 		MenuItem_.on(profilesMenu).key("dialog.main.menu.importdfendprofiles").image(ImageService.IMG_DFEND).listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {

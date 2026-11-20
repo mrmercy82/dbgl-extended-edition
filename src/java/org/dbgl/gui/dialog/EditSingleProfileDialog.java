@@ -170,7 +170,7 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 			StringBuilder warningsLog = new StringBuilder();
 
 			if (editing_) {
-				dbversionIndex_ = BaseRepository.indexOf(dbversionsList_, profile_.getDosboxVersion());
+				dbversionIndex_ = indexKeeping(profile_.getDosboxVersion());
 			} else {
 				Template template = BaseRepository.findDefault(templatesList_);
 
