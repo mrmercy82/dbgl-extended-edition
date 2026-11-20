@@ -151,32 +151,36 @@ public final class ScummvmEditDialogs {
 			Mess_.on(parent).exception(e).warning();
 			return null;
 		}
-		Shell dlg = shell(parent, text.get("dialog.profile.title.edit", new Object[] {profile.getTitle(), profile.getId()}), 4);
-		Text title = field(dlg, text.get("dialog.profile.title"), 3);
+		Shell dlg = shell(parent, text.get("dialog.profile.title.edit", new Object[] {profile.getTitle(), profile.getId()}), 1);
+		// alpha 52: in tabs as in the profile window of DOSBox games: the information, the links 1 to 8, the custom fields 1 to 14
+		org.eclipse.swt.widgets.TabFolder tabs = new org.eclipse.swt.widgets.TabFolder(dlg, SWT.NONE);
+		tabs.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
+		Composite main = page(tabs, text.get("dialog.profile.tab.info"), 4);
+		Text title = field(main, text.get("dialog.profile.title"), 3);
 		title.setText(StringUtils.defaultString(profile.getTitle()));
-		Text developer = field(dlg, text.get("dialog.profile.developer"), 1);
+		Text developer = field(main, text.get("dialog.profile.developer"), 1);
 		developer.setText(StringUtils.defaultString(profile.getDeveloper()));
-		Text publisher = field(dlg, text.get("dialog.profile.publisher"), 1);
+		Text publisher = field(main, text.get("dialog.profile.publisher"), 1);
 		publisher.setText(StringUtils.defaultString(profile.getPublisher()));
-		Text genre = field(dlg, text.get("dialog.profile.genre"), 1);
+		Text genre = field(main, text.get("dialog.profile.genre"), 1);
 		genre.setText(StringUtils.defaultString(profile.getGenre()));
-		Text year = field(dlg, text.get("dialog.profile.year"), 1);
+		Text year = field(main, text.get("dialog.profile.year"), 1);
 		year.setText(StringUtils.defaultString(profile.getYear()));
-		Text status = field(dlg, text.get("dialog.profile.status"), 1);
+		Text status = field(main, text.get("dialog.profile.status"), 1);
 		status.setText(StringUtils.defaultString(profile.getStatus()));
-		Button favorite = new Button(dlg, SWT.CHECK);
+		Button favorite = new Button(main, SWT.CHECK);
 		favorite.setText(text.get("dialog.profile.favorite.short"));
 		favorite.setLayoutData(new GridData(SWT.BEGINNING, SWT.CENTER, false, false, 2, 1));
 		favorite.setSelection(Boolean.TRUE.equals(profile.isFavorite()));
 
-		Label gameLabel = new Label(dlg, SWT.NONE);
+		Label gameLabel = new Label(main, SWT.NONE);
 		gameLabel.setText(text.get("dialog.scummvmprofile.game"));
-		Combo game = new Combo(dlg, SWT.DROP_DOWN);
+		Combo game = new Combo(main, SWT.DROP_DOWN);
 		game.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 3, 1));
 		game.setToolTipText(text.get("dialog.scummvmprofile.game.tooltip"));
-		Text ini = field(dlg, text.get("dialog.scummvmprofile.ini"), 2);
+		Text ini = field(main, text.get("dialog.scummvmprofile.ini"), 2);
 		ini.setText(StringUtils.defaultString(profile.getConfiguration().getValue(Scummvm.SECTION, "config")));
-		Button iniButton = new Button(dlg, SWT.PUSH);
+		Button iniButton = new Button(main, SWT.PUSH);
 		iniButton.setText(text.get("button.browse"));
 		List<String> targets = new ArrayList<>();
 		Runnable fillGames = () -> {
@@ -213,21 +217,79 @@ public final class ScummvmEditDialogs {
 				ini.setText(chosen);
 		});
 
-		Label notesLabel = new Label(dlg, SWT.NONE);
+		Label notesLabel = new Label(main, SWT.NONE);
 		notesLabel.setText(text.get("dialog.profile.notes"));
 		notesLabel.setLayoutData(new GridData(SWT.BEGINNING, SWT.BEGINNING, false, false));
-		Text notes = new Text(dlg, SWT.BORDER | SWT.MULTI | SWT.WRAP | SWT.V_SCROLL);
+		Text notes = new Text(main, SWT.BORDER | SWT.MULTI | SWT.WRAP | SWT.V_SCROLL);
 		GridData nd = new GridData(SWT.FILL, SWT.FILL, true, true, 3, 1);
 		nd.heightHint = 120;
 		nd.widthHint = 560;
 		notes.setLayoutData(nd);
 		notes.setText(StringUtils.defaultString(profile.getNotes()));
 
+		// the links: where (a file or a web address) and its title, as in the profile window
+		Composite linkPage = page(tabs, text.get("dialog.scummvmprofile.tab.links"), 5);
+		Text[] links = new Text[Profile.NR_OF_LINK_DESTINATIONS], linkTitles = new Text[Profile.NR_OF_LINK_TITLES];
+		for (int i = 0; i < Profile.NR_OF_LINK_TITLES; i++) {
+			new Label(linkPage, SWT.NONE).setText(text.get("dialog.profile.link", new Object[] {i + 1}));
+			links[i] = new Text(linkPage, SWT.BORDER);
+			GridData ld = new GridData(SWT.FILL, SWT.CENTER, true, false);
+			ld.widthHint = 300;
+			links[i].setLayoutData(ld);
+			links[i].setText(StringUtils.defaultString(profile.getLinkDestination(i)));
+			Button browse = new Button(linkPage, SWT.PUSH);
+			browse.setText(text.get("button.browse"));
+			Text dest = links[i];
+			browse.addListener(SWT.Selection, e -> {
+				FileDialog fd = new FileDialog(dlg, SWT.OPEN);
+				String chosen = fd.open();
+				if (chosen != null)
+					dest.setText(chosen);
+			});
+			new Label(linkPage, SWT.NONE).setText(text.get("dialog.profile.linktitle"));
+			linkTitles[i] = new Text(linkPage, SWT.BORDER);
+			GridData td = new GridData(SWT.FILL, SWT.CENTER, true, false);
+			td.widthHint = 180;
+			linkTitles[i].setLayoutData(td);
+			linkTitles[i].setText(StringUtils.defaultString(profile.getLinkTitle(i)));
+		}
+		// the custom fields, named as in the settings (Custom 1 to 4 with the values used so far to choose from)
+		Composite customPage = page(tabs, text.get("dialog.profile.tab.custominfo"), 2);
+		org.dbgl.service.SettingsService names = org.dbgl.service.SettingsService.getInstance();
+		org.eclipse.swt.widgets.Control[] customs = new org.eclipse.swt.widgets.Control[Profile.NR_OF_CUSTOM_STRINGS];
+		org.dbgl.model.repository.TitledEntityRepository titled = new org.dbgl.model.repository.TitledEntityRepository();
+		for (int i = 0; i < Profile.NR_OF_CUSTOM_STRINGS; i++) {
+			// the strings 1-8 are Custom 1 to 8, the strings 9-12 Custom 11 to 14 (9 and 10 are the two numbers)
+			int number = i < Profile.NR_OF_CUSTOM_STRING_DROPDOWNS + Profile.NR_OF_CUSTOM_STRING_FIELDS_1 ? i + 1: i + 1 + Profile.NR_OF_CUSTOM_INTS;
+			if (i == Profile.NR_OF_CUSTOM_STRING_DROPDOWNS + Profile.NR_OF_CUSTOM_STRING_FIELDS_1) // Custom 9 and 10 between 8 and 11
+				customNumbers(customPage, names, profile);
+			new Label(customPage, SWT.NONE).setText(names.getValue("gui", "custom" + number));
+			GridData cd = new GridData(SWT.BEGINNING, SWT.CENTER, false, false);
+			cd.widthHint = 360;
+			if (i < Profile.NR_OF_CUSTOM_STRING_DROPDOWNS) {
+				Combo combo = new Combo(customPage, SWT.DROP_DOWN);
+				try {
+					combo.setItems(titled.customValues(i));
+				} catch (java.sql.SQLException e) {
+					// typed in then
+				}
+				combo.setText(StringUtils.defaultString(profile.getCustomString(i)));
+				combo.setLayoutData(cd);
+				customs[i] = combo;
+			} else {
+				Text field = new Text(customPage, SWT.BORDER);
+				field.setText(StringUtils.defaultString(profile.getCustomString(i)));
+				field.setLayoutData(cd);
+				customs[i] = field;
+			}
+		}
+		org.eclipse.swt.widgets.Spinner[] numbers = numbersOf(customPage);
+
 		// alpha 52: the data and pictures from the game database chosen in the settings, as in the profile window of DOSBox games
 		org.dbgl.service.SettingsService settings = org.dbgl.service.SettingsService.getInstance();
 		org.dbgl.util.searchengine.WebSearchEngine engine = org.dbgl.util.searchengine.WebSearchEngine.getBySimpleName(settings.getValue("gui", "searchengine"));
-		new Label(dlg, SWT.NONE);
-		Button consult = new Button(dlg, SWT.PUSH);
+		new Label(main, SWT.NONE);
+		Button consult = new Button(main, SWT.PUSH);
 		consult.setText(text.get("dialog.profile.consultsearchengine", new Object[] {engine.getName()}));
 		consult.setImage(org.dbgl.service.ImageService.getResourceImage(dlg.getDisplay(), org.dbgl.service.ImageService.IMG_GLOBE));
 		consult.setLayoutData(new GridData(SWT.BEGINNING, SWT.CENTER, false, false, 3, 1));
@@ -266,9 +328,13 @@ public final class ScummvmEditDialogs {
 					link[0] = ext.getUrl();
 					link[1] = text.get("dialog.profile.searchengine.link.maininfo", new String[] {engine instanceof org.dbgl.util.searchengine.MetropolisSearchEngine
 							? org.dbgl.util.searchengine.MobyGamesSearchEngine.getInstance().getName(): engine.getName()});
+					links[0].setText(link[0]); // Link 1, shown at once on its tab
+					linkTitles[0].setText(link[1]);
 				}
-				if (settings.getBooleanValue(s, "set_rank") && (ext.getRank() > 0))
+				if (settings.getBooleanValue(s, "set_rank") && (ext.getRank() > 0)) {
 					rank[0] = ext.getRank();
+					numbers[0].setSelection(Math.min(100, ext.getRank())); // "Custom 9", as the profile window puts the rank
+				}
 				if (settings.getBooleanValue(s, "set_description") && StringUtils.isNotBlank(ext.getNotes())) {
 					String p = ext.getNotes().replace("\n", notes.getLineDelimiter());
 					if (!notes.getText().endsWith(p))
@@ -313,12 +379,14 @@ public final class ScummvmEditDialogs {
 				profile.setStatus(status.getText().trim());
 				profile.setFavorite(favorite.getSelection());
 				profile.setNotes(notes.getText());
-				if (link[0] != null) {
-					profile.setLinkDestination(0, link[0]);
-					profile.setLinkTitle(0, link[1]);
+				for (int i = 0; i < Profile.NR_OF_LINK_TITLES; i++) {
+					profile.setLinkDestination(i, links[i].getText().trim());
+					profile.setLinkTitle(i, linkTitles[i].getText().trim());
 				}
-				if (rank[0] >= 0)
-					profile.setCustomInt(0, String.valueOf(rank[0])); // into "Custom 9", as the profile window puts the rank
+				for (int i = 0; i < Profile.NR_OF_CUSTOM_STRINGS; i++)
+					profile.setCustomString(i, customs[i] instanceof Combo c ? c.getText().trim(): ((Text)customs[i]).getText().trim());
+				for (int i = 0; i < Profile.NR_OF_CUSTOM_INTS; i++)
+					profile.setCustomInt(i, String.valueOf(numbers[i].getSelection()));
 				profile.getConfiguration().setValue(Scummvm.SECTION, "target", chosen);
 				profile.getConfiguration().setValue(Scummvm.SECTION, "config", ini.getText().trim());
 				new ProfileRepository().update(profile);
@@ -441,6 +509,43 @@ public final class ScummvmEditDialogs {
 		if (DarkTheme.forced())
 			dlg.setBackground(DarkTheme.dialogBackground);
 		return dlg;
+	}
+
+	/** a tab with its page */
+	private static Composite page(org.eclipse.swt.widgets.TabFolder tabs, String title, int columns) {
+		org.eclipse.swt.widgets.TabItem item = new org.eclipse.swt.widgets.TabItem(tabs, SWT.NONE);
+		item.setText(title);
+		Composite page = new Composite(tabs, SWT.NONE);
+		page.setLayout(new GridLayout(columns, false));
+		item.setControl(page);
+		return page;
+	}
+
+	/** Custom 9 (the rating in percent, as the profile window has it) and Custom 10 (a number), as spinners */
+	private static void customNumbers(Composite page, org.dbgl.service.SettingsService names, Profile profile) {
+		for (int i = 0; i < Profile.NR_OF_CUSTOM_INTS; i++) {
+			new Label(page, SWT.NONE).setText(names.getValue("gui", "custom" + (Profile.NR_OF_CUSTOM_STRING_DROPDOWNS + Profile.NR_OF_CUSTOM_STRING_FIELDS_1 + 1 + i)));
+			org.eclipse.swt.widgets.Spinner spinner = new org.eclipse.swt.widgets.Spinner(page, SWT.BORDER);
+			spinner.setValues(0, 0, i == 0 ? 100: Integer.MAX_VALUE, 0, 1, 10);
+			String v = profile.getCustomInt(i);
+			try {
+				spinner.setSelection(v == null ? 0: Integer.parseInt(v));
+			} catch (NumberFormatException e) {
+				spinner.setSelection(0);
+			}
+			spinner.setData("dbgl.customInt", i);
+			GridData sd = new GridData(SWT.BEGINNING, SWT.CENTER, false, false);
+			sd.widthHint = 90; // both as wide
+			spinner.setLayoutData(sd);
+		}
+	}
+
+	private static org.eclipse.swt.widgets.Spinner[] numbersOf(Composite page) {
+		org.eclipse.swt.widgets.Spinner[] result = new org.eclipse.swt.widgets.Spinner[Profile.NR_OF_CUSTOM_INTS];
+		for (org.eclipse.swt.widgets.Control c: page.getChildren())
+			if ((c instanceof org.eclipse.swt.widgets.Spinner s) && (s.getData("dbgl.customInt") instanceof Integer i))
+				result[i] = s;
+		return result;
 	}
 
 	private static Text field(Composite parent, String label, int span) {

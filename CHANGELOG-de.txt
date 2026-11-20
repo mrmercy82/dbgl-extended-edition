@@ -34,7 +34,9 @@ Neu
   liest DBGL aus der scummvm.ini). Der ScummVM-Eintrag hat ein eigenes
   Fenster (Titel, Ordner, Programm, Parameter; die Versionsnummer kommt
   von selbst aus der scummvm.ini), ScummVM-Profile einen eigenen, schlanken
-  Editor (Angaben, ScummVM-Spiel aus der Liste, scummvm.ini, Informationen)
+  Editor (Angaben, ScummVM-Spiel aus der Liste, scummvm.ini, Informationen;
+  auf eigenen Reitern Link 1 bis 8 mit Titeln und die eigenen Felder 1 bis
+  14)
   mit „Abfrage bei ...“ für Spieldaten, Cover und Bildschirmfotos aus der
   gewählten Spieldatenbank; auch „Online-Infos“ öffnet ihn. Bildschirmfotos,
   die man im Spiel mit Alt+S macht, kopiert DBGL nach dem Spielen in den

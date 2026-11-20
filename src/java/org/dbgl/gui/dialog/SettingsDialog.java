@@ -431,7 +431,7 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 		// alpha 52: the background: a colour (made darker where it is light, for the writing), a picture behind if wanted
 		// in a row of its own across the group: its path field must not widen the columns of the four buttons above
 		Composite tvBackRow = new Composite(tvGroup, SWT.NONE);
-		tvBackRow.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 6, 1));
+		tvBackRow.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, false, false, 6, 1)); // not grabbing: ends with the colour buttons above
 		GridLayout backLayout = new GridLayout(5, false);
 		backLayout.marginWidth = 0;
 		backLayout.marginHeight = 0;
@@ -470,8 +470,8 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 		Text tvBackImage = new Text(tvBackRow, SWT.BORDER);
 		tvBackImage.setText(settings_.getValue("gui", "tvbackgroundimage"));
 		tvBackImage.setMessage(TextService.getInstance().get("dialog.settings.tv.background.noimage"));
-		GridData backImageData = new GridData(SWT.BEGINNING, SWT.CENTER, false, false);
-		backImageData.widthHint = 200;
+		GridData backImageData = new GridData(SWT.FILL, SWT.CENTER, true, false); // as wide as the room up to the colour buttons above
+		backImageData.widthHint = 80;
 		tvBackImage.setLayoutData(backImageData);
 		Button tvBackBrowse = new Button(tvBackRow, SWT.PUSH);
 		tvBackBrowse.setText(TextService.getInstance().get("dialog.settings.tv.background.image"));
