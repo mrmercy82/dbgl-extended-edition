@@ -225,7 +225,7 @@
 	<target name="dist" description="generate the distribution for all platforms" depends="distwindows, distlinux, distmac_x86, distmac_arm, distsrc, disti18n"/>
 
 	<target name="jersey" description="generate fat jersey jar by combining several jersey jar components">
-		<jar destfile="${srcdist}/shared/lib/jersey-2.47.jar" filesetmanifest="merge">
+		<jar destfile="${srcdist}/shared/lib/jersey-2.48.jar" filesetmanifest="merge">
 		    <zipgroupfileset dir="${libjersey.dir}" includes="*.jar"/>
 		</jar>
 	</target>

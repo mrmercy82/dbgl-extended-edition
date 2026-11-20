@@ -79,7 +79,8 @@ Verbessert
 - Anleitung der eigenständigen Pakete: was zu tun ist, wenn Windows
   (SmartScreen) die nicht signierte launch.exe oder macOS (Gatekeeper)
   die nicht signierte DBGL.app beim ersten Start blockiert.
-
+- Bibliotheken: Jersey 2.48 (bisher 2.47), für das Teilen von
+  Konfigurationen.
 
 0.101 alpha 51 (2026-11-18)
 ---------------------------

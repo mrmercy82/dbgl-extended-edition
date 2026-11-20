@@ -76,7 +76,7 @@ Improved
 - Guide of the stand-alone packages: what to do when Windows (SmartScreen)
   blocks the unsigned launch.exe or macOS (Gatekeeper) the unsigned
   DBGL.app at the first start.
-
+- Libraries: Jersey 2.48 (was 2.47), used for sharing configurations.
 
 0.101 alpha 51 (2026-11-18)
 ---------------------------
