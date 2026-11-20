@@ -2610,6 +2610,13 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				}).build();
 			}
 		});
+		// alpha 52: SoundFonts, MT-32 and Sound Canvas ROMs, Gravis Ultrasound patches on the whole computer or in a folder
+		MenuItem_.on(dbversionsMenu).key("dialog.main.menu.soundscan").image(ImageService.IMG_ZOOM).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				SoundScanDialog.open(shell_, BaseRepository.findDefault(dbversionsList_));
+			}
+		}).build();
 		// alpha 49: what DOSBox said at its last start (the status window closes when DOSBox ends without a problem)
 		MenuItem_.on(dbversionsMenu).build();
 		MenuItem_.on(dbversionsMenu).key("dialog.main.menu.lastdosboxlog").image(ImageService.IMG_LOG).listen(new SelectionAdapter() {

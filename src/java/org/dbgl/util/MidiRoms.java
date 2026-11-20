@@ -448,6 +448,51 @@ public final class MidiRoms {
 		return null;
 	}
 
+	// ------------------------------------------------------------------ alpha 52: for the search of a whole drive (SoundScan)
+
+	/** whether a file of this size may be an MT-32/CM-32L ROM (only those are checked by their sum) */
+	static boolean mt32Size(long size) {
+		return MT32_SIZES.contains(size);
+	}
+
+	/** whether this is the sum of a ROM of an MT-32/CM-32L (also a half, which makes no model alone) */
+	static boolean knownMt32Sum(String sha1) {
+		return MT32_ROMS.containsKey(sha1);
+	}
+
+	/** the SHA-1 sum of a file, as the ROMs are known by it */
+	static String sha1(File f) {
+		return checksum(f, "SHA-1");
+	}
+
+	/** whether a folder is named like a Sound Canvas model ("SC-55-v1.20"): its parent is then the folder of the ROMs */
+	static boolean soundCanvasModelName(String name) {
+		return SC_MODELS.keySet().stream().anyMatch(m -> m.equalsIgnoreCase(name));
+	}
+
+	/** the Sound Canvas models whole in a folder of the ROMs (one subfolder per model, as DOSBox Staging wants them) */
+	static List<String> soundCanvasModelsAt(File base) {
+		List<String> result = new ArrayList<>();
+		for (Map.Entry<String, String[]> m: SC_MODELS.entrySet()) {
+			File dir = child(base, m.getKey());
+			File[] all = dir == null ? null: dir.listFiles(f -> f.isFile() && (f.length() <= SC_MAX_SIZE) && !f.getName().startsWith("."));
+			if ((all == null) || (all.length == 0))
+				continue;
+			Set<String> sums = new java.util.HashSet<>();
+			for (File f: all)
+				sums.add(checksum(f, "SHA-256"));
+			if (sums.containsAll(List.of(m.getValue())))
+				result.add(m.getKey());
+		}
+		return result;
+	}
+
+	/** where DOSBox Staging looks for ROMs or SoundFonts by itself: the first of its own folders (name: "mt32-roms", ...) */
+	static File stagingTarget(DosboxVersion db, String name, String shared) {
+		List<File> dirs = stagingDirs(db, null, name, shared, null);
+		return dirs.isEmpty() ? null: dirs.get(0);
+	}
+
 	/** the subfolder of that name, whatever its case (as on Windows) */
 	private static File child(File parent, String name) {
 		File[] dirs = parent.listFiles(f -> f.isDirectory() && f.getName().equalsIgnoreCase(name));

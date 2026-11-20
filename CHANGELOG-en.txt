@@ -42,6 +42,13 @@ New
   profiles; the search for duplicates knows ScummVM games by their ID.
   Settings > General > "Show the functions for ScummVM" hides the import
   and the update search.
+- Menu DOSBox > "Look for sound files...": searches the whole computer or
+  a folder for SoundFonts (.sf2, .sf3), MT-32 and CM-32L ROMs (known by
+  their checksums), Roland Sound Canvas ROMs and Gravis Ultrasound patches
+  (ULTRASND). The search can be stopped and changes nothing. What is found
+  can be copied to where DOSBox Staging looks for it by itself (nothing is
+  moved or overwritten); a SoundFont folder can be kept as the folder of the
+  SoundFont choice.
 
 Improved
 - Profile > Midi > FluidSynth: the SoundFont field offers the SoundFonts

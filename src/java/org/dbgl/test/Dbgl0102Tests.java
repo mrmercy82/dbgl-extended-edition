@@ -3199,6 +3199,52 @@ public class Dbgl0102Tests {
 				< SettingsService.availableWebSearchEngines().indexOf(org.dbgl.util.searchengine.WebSearchEngine.getBySimpleName("mobygames"))); // MobyGames stays last
 	}
 
+	/** alpha 52: the search for music files: SoundFonts and Ultrasound patches found, a Sound Canvas folder without its ROMs not, system folders at the top left out, copies never overwrite */
+	@Test
+	public void testSoundScan() throws IOException {
+		File root = Files.createTempDirectory("dbgl-scan-").toFile();
+		new File(root, "Games/Doom/sf").mkdirs();
+		Files.write(new File(root, "Games/Doom/sf/Arachno.sf2").toPath(), new byte[] {1, 2});
+		Files.write(new File(root, "Games/Doom/sf/Other.SF3").toPath(), new byte[] {3});
+		new File(root, "ULTRASND/MIDI").mkdirs();
+		Files.write(new File(root, "ULTRASND/MIDI/acpiano.pat").toPath(), new byte[] {1});
+		Files.write(new File(root, "ULTRASND/MIDI/britepno.pat").toPath(), new byte[] {1});
+		Files.write(new File(root, "ULTRASND/ULTRASND.INI").toPath(), "# Ver:     2.1\r\n[Ultrasound]\r\n".getBytes(java.nio.charset.StandardCharsets.ISO_8859_1));
+		new File(root, "roms/SC-55-v1.00").mkdirs(); // a model folder with nothing in it: no find
+		Files.write(new File(root, "roms/SC-55-v1.00/wrong.bin").toPath(), new byte[] {1});
+		new File(root, "windows").mkdirs(); // at the top: left out
+		Files.write(new File(root, "windows/system.sf2").toPath(), new byte[] {1});
+		new File(root, "Games/Doom/windows").mkdirs(); // a game folder of that name: looked into
+		Files.write(new File(root, "Games/Doom/windows/game.sf2").toPath(), new byte[] {1});
+		new File(root, "$RECYCLE.BIN").mkdirs();
+		Files.write(new File(root, "$RECYCLE.BIN/gone.sf2").toPath(), new byte[] {1});
+		java.util.List<File> looked = new java.util.ArrayList<>();
+		java.util.List<org.dbgl.util.SoundScan.Find> found = org.dbgl.util.SoundScan.scan(java.util.List.of(root), looked::add, () -> false);
+		java.util.Map<String, org.dbgl.util.SoundScan.Find> byDir = new java.util.HashMap<>();
+		for (org.dbgl.util.SoundScan.Find f: found)
+			byDir.put(root.toPath().relativize(f.dir().toPath()).toString().replace('\\', '/'), f);
+		assertEquals(byDir.keySet().toString(), java.util.Set.of("Games/Doom/sf", "ULTRASND", "Games/Doom/windows"), byDir.keySet());
+		assertEquals(org.dbgl.util.SoundScan.Kind.SOUNDFONT, byDir.get("Games/Doom/sf").kind());
+		assertEquals(2, byDir.get("Games/Doom/sf").files());
+		assertEquals(org.dbgl.util.SoundScan.Kind.ULTRASND, byDir.get("ULTRASND").kind());
+		assertEquals(2, byDir.get("ULTRASND").files());
+		assertEquals(java.util.List.of("2.1"), byDir.get("ULTRASND").details());
+		assertFalse(looked.contains(new File(root, "windows")));
+		assertTrue(org.dbgl.util.SoundScan.scan(java.util.List.of(root), null, () -> true).isEmpty()); // stopped at once
+
+		File to = Files.createTempDirectory("dbgl-scanto-").toFile();
+		Files.write(new File(to, "Arachno.sf2").toPath(), new byte[] {9}); // there already: kept
+		assertEquals(1, org.dbgl.util.SoundScan.copy(byDir.get("Games/Doom/sf"), to));
+		org.junit.Assert.assertArrayEquals(new byte[] {9}, Files.readAllBytes(new File(to, "Arachno.sf2").toPath()));
+		assertTrue(new File(to, "Other.SF3").isFile());
+		assertTrue(new File(root, "Games/Doom/sf/Arachno.sf2").isFile()); // copied, not moved
+		File gus = new File(to, "ULTRASND");
+		assertEquals(3, org.dbgl.util.SoundScan.copy(byDir.get("ULTRASND"), gus));
+		assertTrue(new File(gus, "MIDI/acpiano.pat").isFile());
+		org.apache.commons.io.FileUtils.deleteDirectory(root);
+		org.apache.commons.io.FileUtils.deleteDirectory(to);
+	}
+
 	/** alpha 52: the SoundFonts to choose from: in the folder chosen in DBGL (and one level below), in soundfont_dir, beside DOSBox */
 	@Test
 	public void testSoundFonts() throws IOException {
