@@ -39,6 +39,9 @@ DOSBox-0.74-3 - DOSBox 0.74-3 by the DOSBox Team, with SDL and SDL_net
   DOSBox-0.74-3/Documentation/COPYING.txt. https://www.dosbox.com/
   SDL and SDL_net: GNU Lesser General Public License, https://www.libsdl.org/
 launch.exe - made with Launch4j, https://launch4j.sourceforge.net/
+jre - Eclipse Temurin 21 (Java runtime) by the Eclipse Adoptium project
+  GNU General Public License version 2 with the Classpath Exception, see
+  jre/NOTICE and the folder jre/legal. https://adoptium.net/
 
 macOS packages only:
 DBGL.app/Contents/Resources/DOSBox.app - DOSBox 0.74-3 by the DOSBox Team

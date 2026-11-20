@@ -66,6 +66,11 @@ Neu
   nachsehen; das Java des Systems bleibt unverändert. Die Datei wird an
   ihrer SHA-256-Prüfsumme geprüft, sicher entpackt und vor dem Einsetzen
   einmal gestartet; geht etwas schief, läuft das Update ohne Java weiter.
+- Das eigenständige Paket für Windows bringt Java 21 mit (Eclipse Temurin
+  21.0.13.1, im Ordner jre): Java muss vorher nicht installiert werden.
+  launch.exe und dbgl.cmd nehmen es zuerst; das Ein-Klick-Update kann es
+  aktuell halten. Unter Linux und macOS bleibt es beim selbst
+  installierten Java.
 
 Verbessert
 - Profil > Midi > FluidSynth: Das SoundFont-Feld bietet die gefundenen

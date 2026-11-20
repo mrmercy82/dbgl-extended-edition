@@ -14,7 +14,9 @@ the original author:
 
 What you need
 -------------
-Java 21 or newer (64 bit), for example Eclipse Temurin:
+Windows: nothing; the package comes with Java 21 (Eclipse Temurin, in the
+folder "jre"). The one-click update can bring it up to date.
+Linux and macOS: Java 21 or newer (64 bit), for example Eclipse Temurin:
   https://adoptium.net/temurin/releases/?version=21
 With an older Java, DBGL says so at the start instead of opening.
 
@@ -25,9 +27,10 @@ Windows:  unpack the archive into a folder of your own (not into "Program
           Files"), then start launch.exe (or dbgl.cmd). DOSBox 0.74-3 is
           included; other versions (DOSBox Staging, DOSBox-X) can be added
           in DBGL on the tab "DOSBox versions".
-          launch.exe looks for Java 21 or newer in a folder "jre" in the
-          DBGL folder, then in JAVA_HOME and in the PATH, then in the
-          registry. dbgl.cmd uses the Java in "jre" or the one in the PATH.
+          launch.exe takes the Java in the folder "jre" that comes with
+          the package; without it, it looks in JAVA_HOME, in the PATH,
+          then in the registry. dbgl.cmd uses the Java in "jre" or the
+          one in the PATH.
           launch.exe is not signed: if SmartScreen says "Windows protected
           your PC", click "More info", then "Run anyway".
 Linux:    unpack the archive, then start ./dbgl. DOSBox is not included:
@@ -76,7 +79,9 @@ Dies ist NICHT das offizielle DBGL. Probleme bitte hier melden, nicht beim
 urspruenglichen Autor:
   https://github.com/mrmercy82/dbgl-extended-edition/issues
 
-Voraussetzung: Java 21 oder neuer (64 Bit), z. B. Eclipse Temurin:
+Voraussetzung: unter Windows nichts, das Paket bringt Java 21 mit (Eclipse
+Temurin, im Ordner "jre"); das Ein-Klick-Update kann es aktuell halten.
+Unter Linux und macOS: Java 21 oder neuer (64 Bit), z. B. Eclipse Temurin:
   https://adoptium.net/temurin/releases/?version=21
 Mit einem aelteren Java meldet DBGL das beim Start, statt sich zu oeffnen.
 
@@ -85,9 +90,9 @@ Windows:  Archiv in einen eigenen Ordner entpacken (nicht unter
           "Programme"), dann launch.exe (oder dbgl.cmd) starten. DOSBox
           0.74-3 liegt bei; weitere Versionen (DOSBox Staging, DOSBox-X)
           lassen sich in DBGL auf dem Reiter "DOSBox-Versionen" hinzufuegen.
-          launch.exe sucht Java 21 oder neuer zuerst in einem Ordner "jre"
-          im DBGL-Ordner, dann ueber JAVA_HOME und den PATH, zuletzt in der
-          Registry. dbgl.cmd nimmt das Java aus "jre" oder aus dem PATH.
+          launch.exe nimmt das mitgelieferte Java im Ordner "jre"; fehlt es,
+          sucht sie ueber JAVA_HOME und den PATH, zuletzt in der Registry.
+          dbgl.cmd nimmt das Java aus "jre" oder aus dem PATH.
           launch.exe ist nicht signiert: Meldet SmartScreen "Der Computer
           wurde durch Windows geschuetzt", auf "Weitere Informationen" und
           dann "Trotzdem ausfuehren" klicken.
