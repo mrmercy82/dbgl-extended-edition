@@ -372,12 +372,14 @@ public final class Scummvm {
 		return args;
 	}
 
-	/** the folder the test versions of alpha 52 put it in for a while; it is beside settings.conf again */
-	public static final String CONF_DIR = "scummvm";
+	/** alpha 52: the folder of it in the data of DBGL (settings.conf stays at the top: the official DBGL looks for it there) */
+	public static final String CONF_DIR = "config";
 
-	/** the configuration file of the ScummVM version: written once, with a comment only, at the top of the data beside settings.conf */
+	/** the configuration file of the ScummVM version: written once, with a comment only, in the folder "config" of the data */
 	public static File versionConf(File dataDir) throws IOException {
-		File f = new File(dataDir, VERSION_CONF);
+		File dir = new File(dataDir, CONF_DIR);
+		Files.createDirectories(dir.toPath());
+		File f = new File(dir, VERSION_CONF);
 		if (!f.isFile())
 			Files.writeString(f.toPath(), "# ScummVM: DBGL keeps no settings for it here. ScummVM keeps its own in scummvm.ini.\r\n");
 		return f;
@@ -392,8 +394,8 @@ public final class Scummvm {
 		}
 	}
 
-	/** alpha 52: where the test versions put it for a while (the folder "scummvm"), to move back */
-	public static File oldVersionConf(File dataDir) {
-		return new File(new File(dataDir, CONF_DIR), VERSION_CONF);
+	/** alpha 52: where the test versions put it before (at the top, or in the folder "scummvm"), to move into "config" */
+	public static List<File> oldVersionConfs(File dataDir) {
+		return List.of(new File(dataDir, VERSION_CONF), new File(new File(dataDir, "scummvm"), VERSION_CONF));
 	}
 }

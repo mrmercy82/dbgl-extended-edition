@@ -5415,14 +5415,15 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 	/** alpha 52: the version number of ScummVM as its scummvm.ini says it (it writes it there at every start) */
 	private void syncScummvmVersions() {
 		DosboxVersion changed = null;
-		File dataDir = FileLocationService.getInstance().getDataDir(), old = org.dbgl.util.Scummvm.oldVersionConf(dataDir);
+		File dataDir = FileLocationService.getInstance().getDataDir();
+		List<File> olds = org.dbgl.util.Scummvm.oldVersionConfs(dataDir);
 		for (DosboxVersion v: dbversionsList_) {
 			if (!org.dbgl.util.Scummvm.is(v))
 				continue;
-			// alpha 52: its configuration file back from the folder "scummvm" (test versions) to the top, beside settings.conf
+			// alpha 52: its configuration file from where the test versions put it (the top, the folder "scummvm") into "config"
 			try {
 				File conf = v.getConfigurationCanonicalFile();
-				if ((conf != null) && conf.getCanonicalFile().equals(old.getCanonicalFile())) {
+				if ((conf != null) && olds.stream().anyMatch(old -> sameFile(conf, old))) {
 					v.setConfigurationFileLocation(org.dbgl.util.Scummvm.versionConf(dataDir).getPath());
 					new DosboxVersionRepository().update(v);
 					changed = v;
@@ -5441,21 +5442,27 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				}
 			}
 		}
-		if (old.isFile() && (old.length() < 1000) && org.dbgl.util.Scummvm.writtenByDbgl(old) && dbversionsList_.stream().noneMatch(v -> {
-			try {
+		for (File old: olds) {
+			if (old.isFile() && (old.length() < 1000) && org.dbgl.util.Scummvm.writtenByDbgl(old) && dbversionsList_.stream().noneMatch(v -> {
 				File c = v.getConfigurationCanonicalFile();
-				return (c != null) && c.getCanonicalFile().equals(old.getCanonicalFile());
-			} catch (IOException | RuntimeException e) {
-				return true;
+				return (c != null) && sameFile(c, old);
+			})) {
+				org.apache.commons.io.FileUtils.deleteQuietly(old); // no version uses it any more (DBGL wrote it, a comment only)
+				String[] left = old.getParentFile().list();
+				if (!old.getParentFile().equals(dataDir) && (left != null) && (left.length == 0))
+					old.getParentFile().delete(); // the folder "scummvm" only if nothing else is in it
 			}
-		})) {
-			org.apache.commons.io.FileUtils.deleteQuietly(old); // no version uses it any more (DBGL wrote it, a comment only)
-			String[] left = old.getParentFile().list();
-			if ((left != null) && (left.length == 0))
-				old.getParentFile().delete(); // the folder only if nothing else is in it
 		}
 		if ((changed != null) && !shell_.isDisposed())
 			updateDosboxVersionList(changed);
+	}
+
+	private static boolean sameFile(File a, File b) {
+		try {
+			return a.getCanonicalFile().equals(b.getCanonicalFile());
+		} catch (IOException | RuntimeException e) {
+			return a.getAbsoluteFile().equals(b.getAbsoluteFile());
+		}
 	}
 
 	/** alpha 52: the games of ScummVM as profiles; ScummVM is entered on the tab "DOSBox versions" if it is not there */

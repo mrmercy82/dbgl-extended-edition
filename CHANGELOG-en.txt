@@ -46,7 +46,8 @@ New
   the list of DOSBox versions (button and menu greyed out; the Delete key
   tells where to hide it). Settings > General > "Show the functions for
   ScummVM" hides the import, the update search and its entry in the list of
-  DOSBox versions.
+  DOSBox versions. Its small configuration file is in the folder config, not
+  in the main folder.
 - Menu DOSBox > "Look for sound files...": searches the whole computer or
   a folder for SoundFonts (.sf2, .sf3), MT-32 and CM-32L ROMs (known by
   their checksums), Roland Sound Canvas ROMs and Gravis Ultrasound patches
