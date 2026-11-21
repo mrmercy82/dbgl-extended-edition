@@ -107,9 +107,16 @@ public final class SavegamesPanel {
 		Label folder = new Label(group, SWT.WRAP);
 		folder.setToolTipText(text.get("dialog.savegames.folder.tooltip"));
 		folder.setText(gameDir == null ? text.get("dialog.savegames.nogamedir"): gameDir.getPath());
-		GridData folderData = new GridData(SWT.FILL, SWT.CENTER, true, false, 2, 1);
+		GridData folderData = new GridData(SWT.FILL, SWT.CENTER, true, false);
 		folderData.widthHint = 420;
 		folder.setLayoutData(folderData);
+		// alpha 52: the folder of the game opened in the file manager, e.g. to look which files are the saved games
+		Button openGame = new Button(group, SWT.PUSH);
+		openGame.setText(text.get("dialog.savegames.opengame"));
+		openGame.setToolTipText(text.get("dialog.savegames.opengame.tooltip"));
+		openGame.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, false, false));
+		openGame.setEnabled(gameDir != null);
+		openGame.addListener(SWT.Selection, e -> SystemUtils.openDirForViewing(gameDir, group.getShell()));
 
 		Label patternsLabel = new Label(group, SWT.NONE);
 		patternsLabel.setText(text.get("dialog.savegames.patterns"));
@@ -189,7 +196,7 @@ public final class SavegamesPanel {
 		Button keepThis = button(buttons, text.get("dialog.savegames.keepthis"));
 		keepThis.setToolTipText(text.get("dialog.savegames.keepthis.tooltip"));
 		Button delete = button(buttons, text.get("dialog.savegames.delete"));
-		Button open = button(buttons, text.get("dialog.template.savestates.open"));
+		Button open = button(buttons, text.get("dialog.savegames.openbackups")); // alpha 52: not just "Open folder", next to the game folder
 		now.setToolTipText(text.get("dialog.savegames.now.tooltip"));
 		restore.setToolTipText(text.get("dialog.savegames.restore.tooltip"));
 		delete.setToolTipText(text.get("dialog.savegames.delete.tooltip"));
@@ -198,7 +205,7 @@ public final class SavegamesPanel {
 		listLabel.setToolTipText(text.get("dialog.savegames.list.tooltip"));
 		// alpha 52: all as wide as the widest text any of them can have ("Nicht mehr behalten" was cut off), and higher; the two
 		// at the files the same
-		roomy(new Button[] {now, restore, rename, keepThis, delete, open, suggest, refresh}, text.get("dialog.savegames.unkeep"));
+		roomy(new Button[] {now, restore, rename, keepThis, delete, open, suggest, refresh, openGame}, text.get("dialog.savegames.unkeep"));
 
 		new Label(group, SWT.NONE);
 		Label legend = new Label(group, SWT.WRAP); // alpha 52: what the mark and the kept ones mean

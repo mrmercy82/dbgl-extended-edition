@@ -179,6 +179,8 @@ New
   - Tooltips for everything on the page of the saved games, in the view at the
     start, for the new check box when deleting and for "Saved games..." in the
     menu.
+  - "Open game folder" next to the folder of the game on the page of the
+    saved games; the button below the table is "Open backup folder" now.
   - "Delete backup" (instead of "Delete" asking about "saved state(s)")
     deletes it everywhere, also in the second backup place; before, it stayed
     in the list from there. The question names its date.

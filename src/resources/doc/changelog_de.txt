@@ -188,6 +188,8 @@ Neu
     nach dem Löschen blieben Reste in der Tabelle stehen.
   - Tooltips für alles auf der Savegames-Seite, in der Start-Einblendung, für
     das neue Häkchen beim Löschen und für den Menüpunkt „Savegames...“.
+  - „Spielordner...“ neben dem Ordner des Spiels auf der Savegames-Seite öffnet
+    ihn; der Knopf unter der Tabelle heißt dafür „Sicherungsordner...“.
   - „Sicherung löschen“ (statt „Löschen“ mit der Frage nach „Savestate(s)“)
     löscht sie überall, auch am zweiten Sicherungsort; vorher blieb sie von
     dort aus in der Liste stehen. Die Rückfrage nennt ihr Datum.
