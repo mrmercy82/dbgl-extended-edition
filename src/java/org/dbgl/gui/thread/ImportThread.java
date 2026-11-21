@@ -149,6 +149,7 @@ public class ImportThread extends UIThread<GamePackEntry> {
 			try {
 				ZipUtils.extractDirInZip(entry.getCaptureArchiveEntries(), entry.getGamePack().getArchive(), entry.getArchiveCapturesDir(), prof.getCanonicalCaptures(), true, this);
 				messageLog_.append(PREFIX_OK).append(text_.get("dialog.import.notice.extractedcaptures", new Object[] {prof.getCanonicalCaptures()})).append(StringUtils.LF);
+				org.dbgl.util.SavegameBackup.moveToNewPlace(prof); // alpha 52: backups of saved games in the package (captures/savegames) to their place
 			} catch (IOException e) {
 				messageLog_.append(PREFIX_ERR).append(text_.get("dialog.import.error.capturesextraction", new Object[] {StringRelatedUtils.toString(e)})).append(StringUtils.LF);
 			}

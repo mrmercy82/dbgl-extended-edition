@@ -183,6 +183,7 @@ public class RenumberDatabase {
 				} else {
 					System.err.print("rename " + caps + "=>" + prof.getCapturesFile() + " failed");
 				}
+				renameSavegames(oldId, prof.getId() + TMP_FILE_POSTFIX); // alpha 52: their own folder by the number too
 				
 				if (SettingsService.getInstance().getIntValue("profiledefaults", "conffile") == 0) {
 					File conf = prof.getConfigurationFile();
@@ -206,6 +207,9 @@ public class RenumberDatabase {
 			int oldId = Integer.parseInt(Strings.CS.removeEnd(caps.getName(), TMP_FILE_POSTFIX));
 			
 			if (oldId != prof.getId()) {
+				// alpha 52: from the name of the first round, else (no clash there) still from the old number
+				File sgRoot = new File(org.dbgl.service.FileLocationService.getInstance().getDataDir(), org.dbgl.util.SavegameBackup.DIR);
+				renameSavegames(new File(sgRoot, prof.getId() + TMP_FILE_POSTFIX).isDirectory() ? prof.getId() + TMP_FILE_POSTFIX: String.valueOf(oldId), String.valueOf(prof.getId()));
 				File canCaps = prof.getCanonicalCaptures();
 				prof.setCapturesById();
 				prof.setCapturesInConfig();
@@ -231,5 +235,12 @@ public class RenumberDatabase {
 			
 			System.out.println();
 		}
+	}
+	/** alpha 52: the folder of the backups of saved games of a profile follows its new number (nothing happens without one) */
+	private static void renameSavegames(Object from, Object to) {
+		File root = new File(org.dbgl.service.FileLocationService.getInstance().getDataDir(), org.dbgl.util.SavegameBackup.DIR);
+		File src = new File(root, String.valueOf(from)), dst = new File(root, String.valueOf(to));
+		if (src.isDirectory() && !dst.exists() && !src.renameTo(dst))
+			System.err.print("rename " + src + "=>" + dst + " failed");
 	}
 }

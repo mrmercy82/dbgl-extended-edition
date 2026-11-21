@@ -126,6 +126,14 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 		return this;
 	}
 
+	private String initialPage_;
+
+	/** alpha 52: open the dialog at a page, e.g. "Savegames" from the menu of the profile */
+	public EditSingleProfileDialog atPage(String key) {
+		initialPage_ = key;
+		return this;
+	}
+
 	private boolean consultSearchEngine_;
 
 	/** open the dialog and ask the game database (as with its button) right away */
@@ -139,6 +147,17 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 		super.onShellOpened();
 		if (initialSearch_ != null)
 			display_.asyncExec(() -> searchAndJump(initialSearch_));
+		if (initialPage_ != null)
+			display_.asyncExec(() -> {
+				showPage(initialPage_);
+				// the tree is made anew once all pages are built: then again, unless another page was chosen meanwhile
+				String first = (tree_.getItemCount() > 0) ? (String)tree_.getItem(0).getData(): null;
+				whenPagesBuilt(() -> {
+					org.eclipse.swt.widgets.TreeItem[] sel = tree_.isDisposed() ? null: tree_.getSelection();
+					if ((sel != null) && ((sel.length == 0) || java.util.Objects.equals(sel[0].getData(), first)))
+						showPage(initialPage_);
+				});
+			});
 		if (consultSearchEngine_)
 			display_.asyncExec(() -> {
 				ToolItem item = engineSelector_ == null ? null: engineSelector_.getToolItem();

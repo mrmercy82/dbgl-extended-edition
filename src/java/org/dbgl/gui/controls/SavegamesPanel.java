@@ -67,6 +67,7 @@ public final class SavegamesPanel {
 			none.setLayoutData(d);
 			return;
 		}
+		SavegameBackup.moveToNewPlace(profile); // alpha 52: those of the earlier place (next to the screenshots) copied first
 		SavegameBackup.Config config = SavegameBackup.load(profile);
 		File gameDir = SavegameBackup.gameDir(profile);
 
@@ -113,6 +114,7 @@ public final class SavegamesPanel {
 		GridData patternsData = new GridData(SWT.FILL, SWT.CENTER, true, false); // alpha 48: as long as the table below
 		patternsData.widthHint = 360;
 		patterns.setLayoutData(patternsData);
+		patterns.setData(GridCompactor.KEEP_WIDTH, Boolean.TRUE); // alpha 52: not shortened to the width of the other fields of the page
 		Button suggest = new Button(group, SWT.PUSH);
 		suggest.setText(text.get("dialog.savegames.suggest"));
 		suggest.setToolTipText(text.get("dialog.savegames.suggest.tooltip"));
@@ -355,7 +357,7 @@ public final class SavegamesPanel {
 			File f = (File)table.getSelection()[0].getData();
 			if (!Mess_.on(group.getShell()).key("dialog.template.savestates.confirmdelete", new Object[] {1}).confirm())
 				return;
-			FileUtils.deleteQuietly(f);
+			SavegameBackup.delete(profile, f); // alpha 52: at both places, the earlier one too
 			fill.run();
 		});
 		open.addListener(SWT.Selection, e -> {

@@ -108,7 +108,7 @@ public final class PortableExport {
 	}
 
 	static final String ROOT = "DBGL/";
-	static final Set<String> DATA_DIRS_CHOSEN = Set.of("db", "profiles", "captures", "dosroot", "export");
+	static final Set<String> DATA_DIRS_CHOSEN = Set.of("db", "profiles", "captures", "dosroot", "export", "savegames");
 
 	private final Options options_;
 	private final Progress progress_;
@@ -194,13 +194,18 @@ public final class PortableExport {
 				for (String spelling: spellings(p, moved.getKey()))
 					p.migrate(new FileLocation(spelling, FileLocationService.standard()), new FileLocation(moved.getValue(), FileLocationService.getInstance().dosrootRelative()));
 			relativeMounts(p);
-			transferred.add(new Transferred(p.getTitle(), p.getId(), sizeOf(needs.get(p.getId())) + sizeOfQuietly(p.getCanonicalCaptures())));
+			transferred.add(new Transferred(p.getTitle(), p.getId(), sizeOf(needs.get(p.getId())) + sizeOfQuietly(p.getCanonicalCaptures()) + sizeOfQuietly(SavegameBackup.dir(p))));
 			File conf = p.getConfigurationCanonicalFile();
 			generated_.put(ROOT + zipPathInData(conf, "profiles"), p.configurationBytesToSave());
 			File captures = p.getCanonicalCaptures();
 			if (captures.isDirectory())
 				addPath(captures, ROOT + zipPathInData(captures, "captures"));
 			returnPaths_.put(zipPathInData(captures, "captures"), captures); // also when there is none yet: screenshots made on the stick
+			// alpha 52: the backups of the saved games in their own folder; back from the stick also when there are none yet
+			File savegames = SavegameBackup.dir(p);
+			if (savegames.isDirectory())
+				addPath(savegames, ROOT + zipPathInData(savegames, SavegameBackup.DIR));
+			returnPaths_.put(zipPathInData(savegames, SavegameBackup.DIR), savegames);
 			File mapper = p.getCustomMapperFile();
 			if (mapper != null && mapper.isFile())
 				addPath(mapper, ROOT + zipPathInData(mapper, "profiles"));
@@ -471,7 +476,7 @@ public final class PortableExport {
 	/** how much a profile takes on the stick: its games and screenshots (for the assistant, before the ZIP file is made) */
 	public long profileSize(Profile p) {
 		try {
-			return sizeOf(needs(p)) + sizeOfQuietly(p.getCanonicalCaptures());
+			return sizeOf(needs(p)) + sizeOfQuietly(p.getCanonicalCaptures()) + sizeOfQuietly(SavegameBackup.dir(p));
 		} catch (IOException | RuntimeException e) {
 			return 0;
 		}
@@ -484,7 +489,7 @@ public final class PortableExport {
 		for (Profile p: profiles) {
 			try {
 				all.addAll(needs(p));
-				captures += sizeOfQuietly(p.getCanonicalCaptures());
+				captures += sizeOfQuietly(p.getCanonicalCaptures()) + sizeOfQuietly(SavegameBackup.dir(p));
 			} catch (IOException | RuntimeException e) {
 				// without it
 			}

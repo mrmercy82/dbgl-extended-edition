@@ -154,11 +154,34 @@ Neu
     Abschaltbar im Fenster selbst oder auf der Seite Savegames (Standard: an;
     Ausschalten ist riskant). Im TV-Modus als eigene Anzeige, mit Controller
     bedienbar.
+  - Die Sicherungen liegen jetzt in einem eigenen Ordner savegames\<Nummer
+    des Profils> im DBGL-Datenordner statt bei den Bildschirmfotos. Beim
+    ersten Start werden die vorhandenen dorthin kopiert und jede Kopie geprüft
+    (SHA-256); die bisherigen bleiben unverändert liegen, und vorher kommen sie
+    alle einmal in eine gesperrte ZIP-Datei im Ordner backups. Was (noch) nicht
+    kopiert ist, zeigt DBGL vom alten Ort und kopiert es beim nächsten Mal,
+    auch Sicherungen einer älteren Alpha, zu der man zurückgegangen ist.
+    Gelöscht wird am alten Ort nur, was man selbst löscht. USB-Stick,
+    Spielpakete (weiter unter captures/savegames, auch für ältere Versionen),
+    Doppelte zusammenführen, automatische und volle Sicherung nehmen den neuen
+    Ordner mit.
   - Sicherungen früherer Alpha-Versionen gelten weiter: Namen und „Behalten“
     sind leer, ● und Zurückholen funktionieren; war das Sichern vor dem Start
     schon an, gilt es ohne Nachfrage auch für große Dateien weiter.
+  - Im Kontextmenü eines Profils führt „Savegames...“ (zwischen „Problem
+    beheben...“ und „Controller als Tastatur...“) direkt zu dieser Seite.
+  - Profile löschen: Die Savegame-Sicherungen haben ein eigenes Häkchen
+    (Standard: aus). Ohne Haken bleiben sie im Ordner savegames\deleted
+    erhalten (kopiert und geprüft; klappt das nicht, wird das Profil nicht
+    gelöscht), so übernimmt sie kein Profil, das später dieselbe Nummer
+    bekommt. Mit Haken warnt DBGL eigens und bietet an, sie vorher in eine
+    gesperrte ZIP-Datei im Ordner backups zu packen. Bisher gingen sie mit den
+    Bildschirmfotos. Die Spielstände in den Spielordnern werden nie angerührt.
 
 Fehler behoben
+- Profile löschen: Das Fenster war für die deutschen Texte zu schmal, die
+  Häkchen rechts (auch das für die Bildschirmfotos) waren abgeschnitten; es
+  wird jetzt so breit wie nötig. Dazu „Screenshot-Ordner“ statt „-Order“.
 - USB-Stick-Assistent: DOSBox-Versionen (z. B. DOSBox-X) waren als nötig
   gesperrt, sobald irgendein Profil sie nutzte, auch wenn keines der
   gewählten Spiele es tat. Jetzt sind nur die Versionen der gewählten

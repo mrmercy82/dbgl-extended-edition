@@ -46,6 +46,12 @@ public final class BackupService {
 	/** alpha 52: on request the screenshots (captures/ without the savegames folders) and the backups of the saved games */
 	private static final String CAPTURES_DIR = "captures/";
 	private static final String SAVEGAMES_PART = "/" + org.dbgl.util.SavegameBackup.DIR + "/";
+	private static final String SAVEGAMES_DIR = org.dbgl.util.SavegameBackup.DIR + "/";
+
+	/** alpha 52: the folder of the backups of saved games (savegames, in the data folder) */
+	static File savegamesDir() {
+		return new File(FileLocationService.getInstance().getDataDir(), org.dbgl.util.SavegameBackup.DIR);
+	}
 	/** alpha 49: how the comment of the zip file begins; the version of DBGL that made the backup follows */
 	public static final String COMMENT = "DBGL Extended Edition ";
 
@@ -80,6 +86,8 @@ public final class BackupService {
 				}
 				if (captures || savegames)
 					count += addDir(zip, FileLocationService.getInstance().getCapturesDir(), CAPTURES_DIR, rel -> isSavegamePart(rel) ? savegames: captures);
+				if (savegames) // alpha 52: their own folder now
+					count += addDir(zip, savegamesDir(), SAVEGAMES_DIR);
 			}
 			return count;
 		} finally {
@@ -156,6 +164,20 @@ public final class BackupService {
 			});
 		} catch (IOException | RuntimeException e) {
 			// as far as counted
+		}
+		Path own = savegamesDir().toPath(); // alpha 52: their own folder
+		if (Files.isDirectory(own)) {
+			try (Stream<Path> files = Files.walk(own)) {
+				files.filter(Files::isRegularFile).forEach(p -> {
+					try {
+						result[1] += Files.size(p);
+					} catch (IOException e) {
+						// not counted
+					}
+				});
+			} catch (IOException | RuntimeException e) {
+				// as far as counted
+			}
 		}
 		return result;
 	}
@@ -245,6 +267,9 @@ public final class BackupService {
 			File capturesBackup = new File(tmp, "captures");
 			if (capturesBackup.isDirectory())
 				FileUtils.copyDirectory(capturesBackup, FileLocationService.getInstance().getCapturesDir());
+			File savegamesBackup = new File(tmp, org.dbgl.util.SavegameBackup.DIR);
+			if (savegamesBackup.isDirectory())
+				FileUtils.copyDirectory(savegamesBackup, savegamesDir());
 			File settingsBackup = new File(tmp, SETTINGS);
 			if (settingsBackup.isFile() && (settings != null)) {
 				if (settings.isFile())

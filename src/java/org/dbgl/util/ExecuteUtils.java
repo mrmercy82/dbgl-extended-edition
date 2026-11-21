@@ -392,7 +392,9 @@ public class ExecuteUtils {
 		}
 		// alpha 52: which state of the saved games is there now, and the chance to start with another backup (restored first)
 		if (mode == ProfileRunMode.NORMAL && !prepareOnly) {
-			org.dbgl.gui.controls.SavegameStart.Choice choice = org.dbgl.gui.controls.SavegameStart.ask(display.getActiveShell(), prof);
+			// only from the thread of the windows (the one that can show it); started from elsewhere: as always, without it
+			org.dbgl.gui.controls.SavegameStart.Choice choice = (display != null) && (org.eclipse.swt.widgets.Display.getCurrent() == display)
+					? org.dbgl.gui.controls.SavegameStart.ask(display.getActiveShell(), prof): null;
 			if ((choice != null) && !choice.start())
 				return;
 			if ((choice != null) && (choice.restore() != null))

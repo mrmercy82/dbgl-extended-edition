@@ -435,6 +435,20 @@ public abstract class SizeControlledPagedDialog<T> extends SizeControlledButtonD
 		return getreeItemByComposite(parent);
 	}
 
+	/** alpha 52: show a page by its key, as if chosen in the tree (e.g. "Savegames" from the menu of a profile) */
+	public void showPage(String key) {
+		if (tree_.isDisposed())
+			return;
+		for (TreeItem item: allTreeItems(tree_.getItems()))
+			if (key.equals(item.getData())) {
+				tree_.setSelection(item);
+				org.eclipse.swt.widgets.Event ev = new org.eclipse.swt.widgets.Event();
+				ev.item = item;
+				tree_.notifyListeners(SWT.Selection, ev);
+				return;
+			}
+	}
+
 	private static final String SEARCH_HIT = "dbgl.searchhit";
 
 	private TemplateProfileBase searchBase_;

@@ -146,6 +146,7 @@ public class DuplicatesDialog extends SizeControlledButtonDialog<Integer> {
 						new ProfileRepository().update(keep);
 						for (Profile o: others) {
 							new ProfileRepository().movePlayTime(o, keep); // the play time is not lost
+							org.dbgl.util.SavegameBackup.adopt(keep, o); // alpha 52: nor the backups of its saved games
 							new ProfileRepository().remove(o, true, true, false); // screenshots are kept
 							removed++;
 						}

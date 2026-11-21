@@ -470,6 +470,21 @@ public class ProfileRepository extends LoggingRepository<Profile> {
 	}
 
 	public void remove(Profile profile, boolean removeConfig, boolean removeCustomMapper, boolean removeCaptures) throws SQLException {
+		remove(profile, removeConfig, removeCustomMapper, removeCaptures, false);
+	}
+
+	/**
+	 * alpha 52: with the choice for the backups of its saved games: deleted (at both places), or else kept in savegames\deleted
+	 * (copied and checked first; if that fails, nothing of the profile is removed)
+	 */
+	public void remove(Profile profile, boolean removeConfig, boolean removeCustomMapper, boolean removeCaptures, boolean removeSavegames) throws SQLException {
+		if (!removeSavegames) {
+			try {
+				org.dbgl.util.SavegameBackup.keepOfDeleted(profile);
+			} catch (IOException | RuntimeException e) {
+				throw new SQLException("The backups of saved games of " + profile.getTitle() + " could not be kept, the profile was not removed: " + e.getMessage(), e);
+			}
+		}
 		try (Transaction transaction = dbService_.startTransaction()) {
 			actionOnEntity(transaction, DEL_NTVCMD_QRY, "remove profile native commands", profile);
 			actionOnEntity(transaction, DEL_SESSIONS_QRY, "remove profile play sessions", profile);
@@ -488,6 +503,14 @@ public class ProfileRepository extends LoggingRepository<Profile> {
 			}
 			if (removeCaptures && !FileLocationService.getInstance().isCapturesDir(profile.getCanonicalCaptures())) {
 				FilesUtils.removeFilesInDirAndDir(profile.getCanonicalCaptures());
+			}
+			if (removeSavegames) { // alpha 52: a choice of its own (before, they went with the screenshots, in whose folder they were)
+				File savegames = org.dbgl.util.SavegameBackup.dir(profile);
+				if (savegames.isDirectory())
+					FilesUtils.removeFilesInDirAndDir(savegames);
+				File earlier = org.dbgl.util.SavegameBackup.oldDir(profile);
+				if (earlier.isDirectory())
+					FilesUtils.removeFilesInDirAndDir(earlier);
 			}
 			transaction.commit();
 		} catch (SQLException e) {

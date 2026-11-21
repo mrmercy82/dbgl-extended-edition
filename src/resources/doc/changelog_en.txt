@@ -146,11 +146,33 @@ New
     restored first, the state before is backed up. Can be switched off in that
     window or on the page Savegames (on by default; switching it off is
     risky). In the TV mode as a view of its own, for the controller.
+  - The backups are in a folder of their own now, savegames\<number of the
+    profile> in the data folder of DBGL, instead of next to the screenshots.
+    On the first start the existing ones are copied there and each copy is
+    checked (SHA-256); the earlier ones stay as they are, and before that they
+    all go once into a locked ZIP file in the folder backups. What is not
+    copied (yet) is shown from the earlier place and copied the next time, also
+    backups of an earlier alpha one went back to. At the earlier place only
+    what you delete yourself is deleted. USB stick, game packages (still under
+    captures/savegames, for earlier versions too), merging duplicates, the
+    automatic and the full backup take the new folder along.
   - Backups of earlier alpha versions stay valid: names and Keep are empty,
     ● and restoring work; where the backup before a start was on already, it
     stays on without asking, also for large files.
+  - In the context menu of a profile "Saved games..." (between "Fix
+    problems..." and "Controller as keyboard...") goes straight to that page.
+  - Deleting profiles: the backups of saved games have a check box of their
+    own (off by default). Not ticked, they stay in the folder
+    savegames\deleted (copied and checked; if that fails, the profile is not
+    deleted), so no profile that gets the same number later takes them over.
+    Ticked, a warning of its own offers to pack them into a locked ZIP file in
+    the folder backups first. Before, they went with the screenshots. The
+    saved games in the game folders are never touched.
 
 Fixed
+- Deleting profiles: the window was too narrow for longer texts (German),
+  the check boxes at the right (also the one for the screenshots) were cut
+  off; it is as wide as needed now.
 - USB stick assistant: DOSBox versions (e.g. DOSBox-X) were locked as
   needed as soon as any profile used them, even when none of the chosen
   games did. Now only the versions of the chosen games are locked, and that

@@ -3199,6 +3199,148 @@ public class Dbgl0102Tests {
 				< SettingsService.availableWebSearchEngines().indexOf(org.dbgl.util.searchengine.WebSearchEngine.getBySimpleName("mobygames"))); // MobyGames stays last
 	}
 
+	/** alpha 52: the backups of saved games move from next to the screenshots to savegames\<number>: nothing may get lost */
+	@Test
+	public void testSavegamesMove() throws Exception {
+		File dir = Files.createTempDirectory("dbgl-sgmove").toFile();
+		org.dbgl.model.aggregate.Profile p = null;
+		File kept = null;
+		try {
+			File game = new File(dir, "game");
+			game.mkdirs();
+			File conf = new File(DATA_DIR, "dosbox-staging-0.83.0.conf");
+			org.dbgl.model.aggregate.DosboxVersion dbv = DosboxVersionFactory.create(9400, "Staging", SettingsService.STAGING_DOSBOX_FAM.title_, "0.83.0", false, true, false, null, dir.getPath(), "", "",
+				conf.getPath(), null, null, null, 0);
+			p = org.dbgl.model.factory.ProfileFactory.create(dbv, null);
+			p.setId(9400);
+			p.setConfigurationFileLocation(new File(dir, "9400.conf").getPath());
+			p.getConfiguration().getAutoexec().addMount("mount C \"" + game.getPath() + "\"");
+			p.setCapturesById();
+			org.apache.commons.io.FileUtils.deleteQuietly(p.getCanonicalCaptures());
+			org.apache.commons.io.FileUtils.deleteQuietly(org.dbgl.util.SavegameBackup.dir(p));
+			// as an earlier alpha left them: two backups and the settings next to the screenshots
+			File old = org.dbgl.util.SavegameBackup.oldDir(p);
+			old.mkdirs();
+			Files.writeString(new File(old, "savegames.properties").toPath(), "enabled=true\npatterns=*.SAV\nkeep=1\n");
+			for (String n: new String[] {"20261101-100000.zip", "20261102-100000.zip"})
+				try (java.util.zip.ZipOutputStream z = new java.util.zip.ZipOutputStream(Files.newOutputStream(new File(old, n).toPath()))) {
+					z.putNextEntry(new java.util.zip.ZipEntry("SAVE1.SAV"));
+					z.write(n.getBytes());
+					z.closeEntry();
+				}
+			assertTrue(org.dbgl.util.SavegameBackup.needsMove(p));
+			assertEquals(2, org.dbgl.util.SavegameBackup.backups(p).size()); // shown from the earlier place before the move
+			assertTrue(org.dbgl.util.SavegameBackup.load(p).enabled()); // and its settings count
+			// packed once before the first move, locked
+			File root = org.dbgl.util.SavegameBackup.dir(p).getParentFile();
+			new File(root, "before-move.txt").delete();
+			File packs = new File(dir, "backups");
+			File pack = org.dbgl.util.SavegameBackup.packEarlierPlaces(java.util.List.of(p), packs);
+			assertNotNull(pack);
+			assertEquals(3, org.dbgl.util.archive.ZipUtils.readEntriesInZip(pack).size());
+			assertTrue(org.dbgl.util.BackupCatalog.isLocked(pack));
+			assertNull(org.dbgl.util.SavegameBackup.packEarlierPlaces(java.util.List.of(p), packs)); // only once
+			new File(root, "before-move.txt").delete();
+			// copied and checked, the earlier ones untouched
+			org.dbgl.util.SavegameBackup.Moved moved = org.dbgl.util.SavegameBackup.moveToNewPlace(p);
+			assertEquals(3, moved.copied());
+			assertEquals(0, moved.failed());
+			assertFalse(org.dbgl.util.SavegameBackup.needsMove(p));
+			assertEquals(3, old.list().length);
+			assertEquals(2, org.dbgl.util.SavegameBackup.backups(p).size()); // each once
+			File newPlace = org.dbgl.util.SavegameBackup.dir(p);
+			assertTrue(org.dbgl.util.SavegameBackup.backups(p).stream().allMatch(f -> f.getParentFile().equals(newPlace)));
+			assertEquals(0, org.dbgl.util.SavegameBackup.moveToNewPlace(p).copied()); // again: nothing to do
+			// a new backup with keep 1 removes only at the new place; what was moved does not come back from the earlier place
+			Files.writeString(new File(game, "SAVE1.SAV").toPath(), "now");
+			assertNotNull(org.dbgl.util.SavegameBackup.backup(p, null));
+			assertEquals(3, old.list().length);
+			assertEquals(1, org.dbgl.util.SavegameBackup.backups(p).size());
+			// back on an earlier alpha: it makes one at the earlier place; shown, and moved the next time
+			try (java.util.zip.ZipOutputStream z = new java.util.zip.ZipOutputStream(Files.newOutputStream(new File(old, "20261120-100000.zip").toPath()))) {
+				z.putNextEntry(new java.util.zip.ZipEntry("SAVE1.SAV"));
+				z.write("old alpha".getBytes());
+				z.closeEntry();
+			}
+			assertTrue(org.dbgl.util.SavegameBackup.needsMove(p));
+			assertEquals(2, org.dbgl.util.SavegameBackup.backups(p).size());
+			assertEquals(1, org.dbgl.util.SavegameBackup.moveToNewPlace(p).copied());
+			// deleted by hand: at both places
+			File oldOne = new File(org.dbgl.util.SavegameBackup.dir(p), "20261120-100000.zip");
+			org.dbgl.util.SavegameBackup.delete(p, oldOne);
+			assertFalse(oldOne.exists());
+			assertFalse(new File(old, "20261120-100000.zip").exists());
+			// before deleting the profile (with its screenshots): its backups counted, and packed at both places in a locked ZIP file
+			org.dbgl.util.SavegameBackup.WithBackups with = org.dbgl.util.SavegameBackup.withBackups(java.util.List.of(p));
+			assertEquals(1, with.profiles().size());
+			assertEquals(org.dbgl.util.SavegameBackup.backups(p).size(), with.count());
+			assertTrue(with.size() > 0);
+			File deleted = org.dbgl.util.SavegameBackup.packBeforeDelete(with.profiles(), packs);
+			assertNotNull(deleted);
+			assertTrue(deleted.getName().startsWith("dbgl-savegames-deleted-profiles-"));
+			assertTrue(org.dbgl.util.BackupCatalog.isLocked(deleted));
+			java.util.List<String> names = org.dbgl.util.archive.ZipUtils.readEntriesInZip(deleted).stream().map(Object::toString).toList();
+			assertTrue(names.toString(), names.stream().allMatch(n -> n.startsWith("9400 ")));
+			assertTrue(names.toString(), names.stream().anyMatch(n -> n.contains("/earlier/")));
+			assertEquals(newPlace.list().length + old.list().length, names.size());
+			assertNull(org.dbgl.util.SavegameBackup.packBeforeDelete(java.util.List.of(), packs)); // none: no file
+			// the profile deleted, its backups kept: copied into savegames\deleted (not a number), its own folder gone
+			java.util.Set<String> expected = new java.util.TreeSet<>(java.util.Arrays.asList(newPlace.list()));
+			expected.addAll(java.util.Arrays.asList(old.list()));
+			int oldCount = old.list().length;
+			kept = org.dbgl.util.SavegameBackup.keepOfDeleted(p);
+			assertNotNull(kept);
+			assertEquals(org.dbgl.util.SavegameBackup.DELETED, kept.getParentFile().getName());
+			assertTrue(kept.getName().startsWith("9400 "));
+			assertEquals(expected, new java.util.TreeSet<>(java.util.Arrays.asList(kept.list())));
+			assertFalse(newPlace.exists());
+			assertEquals(oldCount, old.list().length); // the earlier place only goes with the screenshots
+		} finally {
+			if (p != null) {
+				org.apache.commons.io.FileUtils.deleteQuietly(p.getCanonicalCaptures());
+				org.apache.commons.io.FileUtils.deleteQuietly(org.dbgl.util.SavegameBackup.dir(p));
+			}
+			if (kept != null)
+				org.apache.commons.io.FileUtils.deleteQuietly(kept);
+			org.apache.commons.io.FileUtils.deleteQuietly(dir);
+		}
+	}
+
+	/** alpha 52: back from a USB stick: backups of saved games at the earlier place (a stick of an earlier version) and at the new one */
+	@Test
+	public void testStickReturnSavegames() throws Exception {
+		File base = Files.createTempDirectory("dbgl-sticksg").toFile();
+		try {
+			File data = new File(base, "main"), stick = new File(base, "stick/DBGL");
+			File captures = new File(data, "captures/7"), savegames = new File(data, "savegames/7");
+			captures.mkdirs();
+			savegames.mkdirs();
+			Files.writeString(new File(savegames, "20261101-100000.zip").toPath(), "here");
+			long created = System.currentTimeMillis() - 100000;
+			java.util.Map<Integer, java.util.Map.Entry<org.dbgl.util.StickReturn.Stats, String>> profiles = new java.util.LinkedHashMap<>();
+			profiles.put(7, java.util.Map.entry(new org.dbgl.util.StickReturn.Stats(0, 0, 0), "Doom"));
+			java.util.Map<String, File> paths = new java.util.LinkedHashMap<>();
+			paths.put("captures/7", captures);
+			paths.put("savegames/7", savegames);
+			new File(stick, "captures/7/savegames").mkdirs();
+			new File(stick, "savegames/7").mkdirs();
+			Files.write(new File(stick, org.dbgl.util.StickReturn.MANIFEST).toPath(), org.dbgl.util.StickReturn.manifest("stick-sg", created, profiles, paths, data, new File(data, "dosroot")));
+			Files.writeString(new File(stick, "savegames/7/20261101-100000.zip").toPath(), "here"); // the same: nothing to do
+			Files.writeString(new File(stick, "savegames/7/20261121-100000.zip").toPath(), "made on the stick");
+			Files.writeString(new File(stick, "captures/7/savegames/20261120-100000.zip").toPath(), "an earlier version on the stick");
+			org.dbgl.util.StickReturn.Plan plan = org.dbgl.util.StickReturn.plan(stick, java.util.Map.of(7, "Doom"), data, new File(data, "dosroot"));
+			java.util.Set<String> to = new java.util.TreeSet<>();
+			plan.files().forEach(f -> {
+				assertFalse(f.replaces()); // nothing is replaced, nothing deleted
+				to.add(data.toPath().relativize(f.to().toPath()).toString().replace(File.separatorChar, '/'));
+			});
+			assertEquals(java.util.Set.of("captures/7/savegames/20261120-100000.zip", "savegames/7/20261121-100000.zip"), to);
+			assertTrue(plan.conflicts().isEmpty());
+		} finally {
+			org.apache.commons.io.FileUtils.deleteQuietly(base);
+		}
+	}
+
 	/** alpha 52: backups of saved games: no big data file suggested, names, kept ones stay, the current state, large ones before a start */
 	@Test
 	public void testSavegameNamesKeptLarge() throws Exception {
@@ -3218,6 +3360,7 @@ public class Dbgl0102Tests {
 			p.getConfiguration().getAutoexec().addMount("mount C \"" + game.getPath() + "\"");
 			p.setCapturesById();
 			org.apache.commons.io.FileUtils.deleteQuietly(p.getCanonicalCaptures()); // left by an earlier run (the captures are in the data folder)
+			org.apache.commons.io.FileUtils.deleteQuietly(org.dbgl.util.SavegameBackup.dir(p));
 			org.dbgl.util.SavegameBackup.save(p, new org.dbgl.util.SavegameBackup.Config(true, "*.SAV", 2));
 			java.util.List<File> made = new java.util.ArrayList<>();
 			for (int i = 0; i < 4; i++) {
@@ -3255,6 +3398,7 @@ public class Dbgl0102Tests {
 			Files.writeString(props.toPath(), "enabled=false\npatterns=*.SAV\nkeep=3\n");
 			assertFalse(org.dbgl.util.SavegameBackup.largeAllowed(p)); // was off: asked when switched on
 			org.apache.commons.io.FileUtils.deleteQuietly(p.getCanonicalCaptures());
+			org.apache.commons.io.FileUtils.deleteQuietly(org.dbgl.util.SavegameBackup.dir(p));
 		} finally {
 			org.apache.commons.io.FileUtils.deleteQuietly(dir);
 		}

@@ -345,6 +345,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		display_.asyncExec(this::syncScummvmVersions);
 		checkAllProfilesInBackground();
 
+		display_.asyncExec(this::moveSavegames); // alpha 52: before the automatic backup, so that it has them at their new place
 		display_.asyncExec(this::autoBackupIfDue);
 		display_.asyncExec(this::cleanUpAfterEditionUpdate);
 		applyScreenshotRule(); // alpha 49: shown or hidden as the settings say for this view
@@ -408,6 +409,31 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			doRunProfile(ProfileRunMode.NORMAL, false);
 	}
 
+	/**
+	 * alpha 52: the backups of saved games from next to the screenshots into their own folder (savegames): copied and checked,
+	 * the earlier ones stay; before the first time all of them in a locked ZIP file in the folder of the backups
+	 */
+	private void moveSavegames() {
+		if (shell_.isDisposed() || (profilesList_ == null))
+			return;
+		List<Profile> todo = profilesList_.stream().filter(org.dbgl.util.SavegameBackup::needsMove).toList();
+		if (todo.isEmpty())
+			return;
+		try {
+			org.dbgl.gui.controls.BusyTask.runToEnd(shell_, text_.get("dialog.savegames.moving"), () -> {
+				org.dbgl.util.SavegameBackup.packEarlierPlaces(profilesList_, BackupService.defaultAutoBackupDir());
+				int failed = 0;
+				for (Profile p: todo)
+					failed += org.dbgl.util.SavegameBackup.moveToNewPlace(p).failed();
+				if (failed > 0)
+					System.err.println("Backups of saved games not moved: " + failed + " (they stay at the earlier place and are shown from there)");
+				return null;
+			});
+		} catch (Exception e) {
+			Mess_.on(shell_).exception(e).warning(); // nothing is lost: the earlier place is not touched
+		}
+	}
+
 	/** the automatic backup, if one is due (see the settings) */
 	private void autoBackupIfDue() {
 		String today = java.time.LocalDate.now().toString();
@@ -437,6 +463,18 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		shell_.forceActive();
 		profileTable_.setSelection(index);
 		Profile profile = new EditSingleProfileDialog(shell_, profilesList_.get(index), null, false).showSetting(setting).open();
+		if (profile != null) {
+			updateProfileListAfterEdit(index, profile);
+			displayProfileInformation(false);
+		}
+	}
+
+	/** alpha 52: the profile editor opened at its page of the saved games */
+	private void doEditProfileSavegames() {
+		int index = profileTable_.getSelectionIndex();
+		if ((index == -1) || (profileTable_.getSelectionCount() != 1) || org.dbgl.util.Scummvm.is(profilesList_.get(index).getDosboxVersion()))
+			return;
+		Profile profile = new EditSingleProfileDialog(shell_, profilesList_.get(index), null, false).atPage("dialog.template.tab.savegames").open();
 		if (profile != null) {
 			updateProfileListAfterEdit(index, profile);
 			displayProfileInformation(false);
@@ -3207,6 +3245,23 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			public void menuShown(MenuEvent event) {
 				// only for profiles with a warning sign
 				fixProblemsItem.setEnabled(getSelectedProfiles().stream().map(org.dbgl.util.ProfileWarnings::known).anyMatch(p -> (p != null) && !p.isEmpty()));
+			}
+		});
+		MenuItem_.on(menu).build();
+		// alpha 52: straight to the backups of the saved games (the page "Savegames" of the profile)
+		MenuItem savegamesItem = MenuItem_.on(menu).key("dialog.main.profile.savegames").image(ImageService.IMG_BACKUPS).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				doEditProfileSavegames();
+			}
+		}).build();
+		menu.addMenuListener(new MenuAdapter() {
+			@Override
+			public void menuShown(MenuEvent event) {
+				// one profile of DOSBox (ScummVM keeps its saved games itself, its window has no such page)
+				int index = profileTable_.getSelectionIndex();
+				savegamesItem.setEnabled((index != -1) && (profileTable_.getSelectionCount() == 1)
+						&& !org.dbgl.util.Scummvm.is(profilesList_.get(index).getDosboxVersion()));
 			}
 		});
 		MenuItem_.on(menu).build();

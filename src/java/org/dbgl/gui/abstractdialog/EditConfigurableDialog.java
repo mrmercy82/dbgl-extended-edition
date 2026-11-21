@@ -439,6 +439,14 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 	 * the pages one by one, DBGL answering in between (alpha 48: all at once froze it for about two seconds the first time a
 	 * DOSBox version was shown); then the empty ones are left out
 	 */
+	/** alpha 52: done once all pages are built (at once if they are), e.g. showing a page the dialog was opened at */
+	protected void whenPagesBuilt(Runnable r) {
+		if (stepwise_)
+			afterPages_.add(r);
+		else
+			r.run();
+	}
+
 	private void buildPagesStepwise() {
 		stepwise_ = true;
 		display_.timerExec(20, () -> { // a pause in between: what the user does, and painting, come first

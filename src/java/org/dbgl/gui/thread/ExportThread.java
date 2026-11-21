@@ -73,6 +73,18 @@ public class ExportThread extends UIThread<GamePackEntry> {
 		if (gamePack_.isCapturesAvailable()) {
 			try {
 				ZipUtils.zipDir(zipOutputStream_, prof.getCanonicalCaptures(), entry.getArchiveCapturesDir(), prof.getCanonicalCaptures(), this);
+				// alpha 52: the backups of the saved games are in a folder of their own now; in the package where they were
+				// before (captures/savegames), so that earlier versions import them as well; none that is there already
+				File savegames = org.dbgl.util.SavegameBackup.dir(prof), old = org.dbgl.util.SavegameBackup.oldDir(prof);
+				File[] own = savegames.listFiles(File::isFile);
+				if ((own != null) && (own.length > 0)) {
+					File inZip = new File(entry.getArchiveCapturesDir(), org.dbgl.util.SavegameBackup.DIR);
+					if (!old.isDirectory())
+						ZipUtils.zipEntry(zipOutputStream_, savegames, inZip, this);
+					for (File f: own)
+						if (!new File(old, f.getName()).exists())
+							ZipUtils.zipEntry(zipOutputStream_, f, new File(inZip, f.getName()), this);
+				}
 			} catch (IOException e) {
 				throw new IOException(text_.get("dialog.export.error.exportcaptures", new Object[] {prof.getTitle(), StringRelatedUtils.toString(e)}), e);
 			}

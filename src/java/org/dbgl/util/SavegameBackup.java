@@ -65,20 +65,18 @@ public final class SavegameBackup {
 	private SavegameBackup() {
 	}
 
+	/** alpha 52: the backups of a profile are in a folder of their own: savegames\<number of the profile> in the data folder */
 	public static File dir(Profile p) {
+		return new File(new File(org.dbgl.service.FileLocationService.getInstance().getDataDir(), DIR), String.valueOf(p.getId()));
+	}
+
+	/** where alpha 48 to 51 kept them (next to the screenshots); still read, never deleted except by hand (see {@link #delete}) */
+	public static File oldDir(Profile p) {
 		return new File(p.getCanonicalCaptures(), DIR);
 	}
 
 	public static Config load(Profile p) {
-		Properties props = new Properties();
-		File f = new File(dir(p), SETTINGS);
-		if (f.isFile()) {
-			try (InputStream in = Files.newInputStream(f.toPath())) {
-				props.load(in);
-			} catch (IOException | RuntimeException e) {
-				// the defaults then
-			}
-		}
+		Properties props = properties(p);
 		int keep = 10;
 		try {
 			keep = Math.max(1, Integer.parseInt(props.getProperty("keep", "10").trim()));
@@ -104,6 +102,8 @@ public final class SavegameBackup {
 	private static Properties properties(Profile p) {
 		Properties props = new Properties();
 		File f = new File(dir(p), SETTINGS);
+		if (!f.isFile())
+			f = new File(oldDir(p), SETTINGS); // not moved yet: the settings of the earlier place
 		if (f.isFile()) {
 			try (InputStream in = Files.newInputStream(f.toPath())) {
 				props.load(in);
@@ -278,12 +278,285 @@ public final class SavegameBackup {
 
 	/** the backups, newest first */
 	public static List<File> backups(Profile p) {
-		File[] files = dir(p).listFiles(f -> f.isFile() && f.getName().toLowerCase(Locale.ROOT).endsWith(".zip"));
-		if (files == null)
-			return List.of();
-		List<File> list = new ArrayList<>(Arrays.asList(files));
+		List<File> list = new ArrayList<>(zips(dir(p)));
+		// alpha 52: those at the earlier place that were not moved (yet): a copy failed, or an earlier alpha made them later
+		java.util.Set<String> here = new java.util.HashSet<>();
+		list.forEach(f -> here.add(f.getName()));
+		Properties props = properties(p);
+		for (File old: zips(oldDir(p)))
+			if (!here.contains(old.getName()) && !Boolean.parseBoolean(props.getProperty(MOVED + old.getName(), "false")))
+				list.add(old);
 		list.sort(Comparator.comparing(File::getName).reversed());
 		return list;
+	}
+
+	private static List<File> zips(File dir) {
+		File[] files = dir.listFiles(f -> f.isFile() && f.getName().toLowerCase(Locale.ROOT).endsWith(".zip"));
+		return files == null ? List.of(): Arrays.asList(files);
+	}
+
+	/** alpha 52: a backup copied to the new place and checked there (its name), so that the one at the earlier place is not shown again */
+	private static final String MOVED = "moved.";
+
+	/** the result of a move: how many were copied and checked, how many failed (they stay where they are and are shown from there) */
+	public record Moved(int copied, int failed) {
+	}
+
+	/**
+	 * alpha 52: the backups of the earlier place (next to the screenshots) copied to the new one, each checked (SHA-256 the same
+	 * as the original) before it counts; the earlier ones stay as they are. Done again where something is missing (e.g. a
+	 * backup an earlier alpha made after going back to it, or one from a USB stick of an earlier version).
+	 */
+	public static Moved moveToNewPlace(Profile p) {
+		File old = oldDir(p), now = dir(p);
+		File[] files = old.listFiles(File::isFile);
+		if ((files == null) || (files.length == 0) || old.getAbsoluteFile().equals(now.getAbsoluteFile()))
+			return new Moved(0, 0);
+		int copied = 0, failed = 0;
+		java.util.List<String> moved = new ArrayList<>();
+		Properties before = properties(p);
+		for (File f: files) {
+			boolean zip = f.getName().toLowerCase(Locale.ROOT).endsWith(".zip");
+			if (!zip && !f.getName().equals(SETTINGS))
+				continue; // only what DBGL put there
+			if (zip && Boolean.parseBoolean(before.getProperty(MOVED + f.getName(), "false")))
+				continue; // moved before (and maybe removed at the new place since, for the number to keep): not again
+			File target = new File(now, f.getName());
+			if (target.isFile() && (zip ? sameContent(f, target): true)) {
+				if (zip)
+					moved.add(f.getName());
+				continue; // there already (settings: those of the new place count)
+			}
+			try {
+				Files.createDirectories(now.toPath());
+				File part = new File(now, f.getName() + ".part");
+				Files.copy(f.toPath(), part.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.COPY_ATTRIBUTES);
+				if (!sameContent(f, part)) {
+					Files.deleteIfExists(part.toPath());
+					failed++;
+					continue;
+				}
+				Files.move(part.toPath(), target.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+				target.setLastModified(f.lastModified());
+				if (zip)
+					moved.add(f.getName());
+				copied++;
+			} catch (IOException | RuntimeException e) {
+				failed++;
+			}
+		}
+		if (!moved.isEmpty()) {
+			try {
+				Properties props = properties(p);
+				for (String name: moved)
+					props.setProperty(MOVED + name, "true");
+				store(p, props);
+			} catch (IOException e) {
+				// shown twice then (from both places), nothing is lost
+			}
+		}
+		return new Moved(copied, failed);
+	}
+
+	/** the same bytes: the same length and the same SHA-256 */
+	static boolean sameContent(File a, File b) {
+		if (!a.isFile() || !b.isFile() || (a.length() != b.length()))
+			return false;
+		return sha256(a).equals(sha256(b));
+	}
+
+	private static String sha256(File f) {
+		try (InputStream in = Files.newInputStream(f.toPath())) {
+			java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-256");
+			byte[] buf = new byte[64 * 1024];
+			for (int n = in.read(buf); n > 0; n = in.read(buf))
+				md.update(buf, 0, n);
+			return java.util.HexFormat.of().formatHex(md.digest());
+		} catch (IOException | java.security.NoSuchAlgorithmException e) {
+			return "?" + f.getPath(); // never the same as another file
+		}
+	}
+
+	/** alpha 52: whether there is something at the earlier place that is not at the new one yet */
+	public static boolean needsMove(Profile p) {
+		File[] old = oldDir(p).listFiles(f -> f.isFile() && (f.getName().toLowerCase(Locale.ROOT).endsWith(".zip") || f.getName().equals(SETTINGS)));
+		if (old == null)
+			return false;
+		Properties props = properties(p);
+		for (File f: old)
+			if (!new File(dir(p), f.getName()).isFile() && !Boolean.parseBoolean(props.getProperty(MOVED + f.getName(), "false")))
+				return true;
+		return false;
+	}
+
+	/** the file that says the earlier places were packed once before the first move (its content: the name of that ZIP file) */
+	static final String BEFORE_MOVE = "before-move.txt";
+
+	/**
+	 * alpha 52: once, before the first move: all backups of the earlier places in one ZIP file in the folder of the automatic
+	 * backups, locked (never removed by itself), the folders by the number of the profile
+	 *
+	 * @return the ZIP file, or null if it was made before or there was nothing to pack
+	 */
+	public static File packEarlierPlaces(List<Profile> profiles, File backupsDir) throws IOException {
+		File root = new File(org.dbgl.service.FileLocationService.getInstance().getDataDir(), DIR);
+		File marker = new File(root, BEFORE_MOVE);
+		if (marker.isFile())
+			return null;
+		Map<String, File> entries = new LinkedHashMap<>();
+		for (Profile p: profiles) {
+			File[] files = oldDir(p).listFiles(File::isFile);
+			if (files != null)
+				for (File f: files)
+					entries.put(p.getId() + "/" + f.getName(), f);
+		}
+		if (entries.isEmpty())
+			return null;
+		File zip = packLocked(entries, backupsDir, "dbgl-savegames-before-move-",
+				"DBGL Extended Edition: the backups of saved games before they moved to the folder savegames (alpha 52)");
+		Files.createDirectories(root.toPath());
+		Files.writeString(marker.toPath(), zip.getAbsolutePath() + System.lineSeparator());
+		return zip;
+	}
+
+	/**
+	 * alpha 52: the backups of saved games of profiles about to be deleted (with their screenshots), in a locked ZIP file in the
+	 * folder of the backups: each profile in a folder of its number and title, the earlier place in "earlier" below it
+	 *
+	 * @return the ZIP file, null if none of them has any
+	 */
+	public static File packBeforeDelete(List<Profile> profiles, File backupsDir) throws IOException {
+		Map<String, File> entries = new LinkedHashMap<>();
+		for (Profile p: profiles) {
+			String folder = p.getId() + " " + SecondBackupPlace.safe(p.getTitle()) + "/";
+			File[] now = dir(p).listFiles(File::isFile);
+			if (now != null)
+				for (File f: now)
+					entries.put(folder + f.getName(), f);
+			File[] earlier = oldDir(p).listFiles(File::isFile);
+			if (earlier != null)
+				for (File f: earlier)
+					entries.put(folder + "earlier/" + f.getName(), f);
+		}
+		if (entries.isEmpty())
+			return null;
+		return packLocked(entries, backupsDir, "dbgl-savegames-deleted-profiles-",
+				"DBGL Extended Edition: the backups of saved games of deleted profiles (alpha 52)");
+	}
+
+	/** the profiles of these that have backups of saved games, with how many and their size together */
+	public record WithBackups(List<Profile> profiles, int count, long size) {
+	}
+
+	public static WithBackups withBackups(List<Profile> profiles) {
+		List<Profile> list = new ArrayList<>();
+		int count = 0;
+		long size = 0;
+		for (Profile p: profiles) {
+			List<File> zips = backups(p);
+			if (!zips.isEmpty()) {
+				list.add(p);
+				count += zips.size();
+				size += zips.stream().mapToLong(File::length).sum();
+			}
+		}
+		return new WithBackups(list, count, size);
+	}
+
+	private static File packLocked(Map<String, File> entries, File backupsDir, String prefix, String comment) throws IOException {
+		Files.createDirectories(backupsDir.toPath());
+		File zip = new File(backupsDir, prefix + LocalDateTime.now().format(STAMP) + ".zip");
+		File part = new File(zip.getPath() + ".part");
+		try (ZipOutputStream out = new ZipOutputStream(Files.newOutputStream(part.toPath()))) {
+			out.setComment(comment);
+			for (Map.Entry<String, File> e: entries.entrySet()) {
+				ZipEntry entry = new ZipEntry(e.getKey());
+				entry.setTime(e.getValue().lastModified());
+				out.putNextEntry(entry);
+				Files.copy(e.getValue().toPath(), out);
+				out.closeEntry();
+			}
+		} catch (IOException | RuntimeException e) {
+			Files.deleteIfExists(part.toPath());
+			throw e;
+		}
+		Files.move(part.toPath(), zip.toPath());
+		try {
+			BackupCatalog.setLocked(zip, true);
+		} catch (IOException e) {
+			// not locked: still only removed by hand (it is no automatic backup)
+		}
+		return zip;
+	}
+
+	/** alpha 52: the backups of a profile that goes (e.g. merged as a duplicate) copied to the one that stays, none replaced */
+	public static int adopt(Profile keep, Profile gone) {
+		moveToNewPlace(gone);
+		int n = 0;
+		for (File f: backups(gone)) {
+			File target = new File(dir(keep), f.getName());
+			if (target.exists())
+				continue;
+			try {
+				Files.createDirectories(target.getParentFile().toPath());
+				Files.copy(f.toPath(), target.toPath(), java.nio.file.StandardCopyOption.COPY_ATTRIBUTES);
+				n++;
+			} catch (IOException e) {
+				// stays with the other one (its folder is not deleted)
+			}
+		}
+		return n;
+	}
+
+	/** alpha 52: the folder in savegames that keeps the backups of deleted profiles (not a number: no profile takes it over) */
+	public static final String DELETED = "deleted";
+
+	/**
+	 * alpha 52: a profile is deleted, its backups of saved games are not: copied from both places into savegames\deleted\<number
+	 * title>, each copy checked (SHA-256); only then is its own folder removed (the earlier place goes with the screenshots, if
+	 * those are deleted). So no profile that gets its number later (e.g. by renumbering) finds them as its own.
+	 *
+	 * @return the folder they are in now, null if there were none
+	 * @throws IOException a copy failed or differs: nothing is removed then
+	 */
+	public static File keepOfDeleted(Profile p) throws IOException {
+		Map<String, File> files = new LinkedHashMap<>();
+		File[] now = dir(p).listFiles(File::isFile);
+		if (now != null)
+			for (File f: now)
+				if (!f.getName().endsWith(".part"))
+					files.put(f.getName(), f);
+		File[] earlier = oldDir(p).listFiles(File::isFile);
+		if (earlier != null)
+			for (File f: earlier)
+				if (!f.getName().endsWith(".part"))
+					files.putIfAbsent(f.getName(), f); // the newer place first (e.g. its settings)
+		if (files.isEmpty())
+			return null;
+		File root = new File(new File(org.dbgl.service.FileLocationService.getInstance().getDataDir(), DIR), DELETED);
+		String base = p.getId() + " " + SecondBackupPlace.safe(p.getTitle());
+		File target = new File(root, base);
+		for (int i = 2; target.exists(); i++)
+			target = new File(root, base + " (" + i + ")");
+		Files.createDirectories(target.toPath());
+		for (File f: files.values()) {
+			File part = new File(target, f.getName() + ".part"), dest = new File(target, f.getName());
+			Files.copy(f.toPath(), part.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.COPY_ATTRIBUTES);
+			if (!sameContent(f, part)) {
+				Files.deleteIfExists(part.toPath());
+				throw new IOException("copy differs: " + dest);
+			}
+			Files.move(part.toPath(), dest.toPath());
+			dest.setLastModified(f.lastModified());
+		}
+		org.apache.commons.io.FileUtils.deleteQuietly(dir(p));
+		return target;
+	}
+
+	/** alpha 52: deleted by hand: at both places (the earlier one too, as the user asked for it) */
+	public static void delete(Profile p, File zip) {
+		org.apache.commons.io.FileUtils.deleteQuietly(new File(dir(p), zip.getName()));
+		org.apache.commons.io.FileUtils.deleteQuietly(new File(oldDir(p), zip.getName()));
 	}
 
 	/** the files and their state, as written into the comment of a backup: an unchanged state needs no new backup */
@@ -355,7 +628,8 @@ public final class SavegameBackup {
 	/** only the newest ones stay; alpha 52: kept ones always stay and are not counted */
 	static void prune(Profile p, int keep) {
 		Properties props = properties(p);
-		List<File> list = new ArrayList<>(backups(p));
+		List<File> list = new ArrayList<>(zips(dir(p))); // alpha 52: only at the new place; the earlier one is never touched here
+		list.sort(Comparator.comparing(File::getName).reversed());
 		list.removeIf(f -> Boolean.parseBoolean(props.getProperty("kept." + f.getName(), "false")));
 		for (int i = keep; i < list.size(); i++)
 			list.get(i).delete();
