@@ -48,8 +48,7 @@ Neu
   entfernen (Knopf und Menü ausgegraut; die Entf-Taste sagt, wo es sich
   ausblenden lässt). Einstellungen > Allgemein > „Funktionen für ScummVM
   anzeigen“ blendet Import, Update-Suche und den Eintrag in der Liste der
-  DOSBox-Versionen aus. Seine kleine Konfigurationsdatei liegt im Ordner
-  scummvm der Daten, nicht im Hauptordner.
+  DOSBox-Versionen aus.
 - Menü DOSBox > „Sound-Dateien suchen...“: sucht auf dem ganzen Computer
   oder in einem Ordner nach SoundFonts (.sf2, .sf3), MT-32- und CM-32L-ROMs
   (an ihren Prüfsummen erkannt), Roland-Sound-Canvas-ROMs und

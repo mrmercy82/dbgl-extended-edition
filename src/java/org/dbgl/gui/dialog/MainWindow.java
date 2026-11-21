@@ -5419,7 +5419,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		for (DosboxVersion v: dbversionsList_) {
 			if (!org.dbgl.util.Scummvm.is(v))
 				continue;
-			// alpha 52: its configuration file from the top of the data (beside dbgl.jar) into the folder "scummvm"
+			// alpha 52: its configuration file back from the folder "scummvm" (test versions) to the top, beside settings.conf
 			try {
 				File conf = v.getConfigurationCanonicalFile();
 				if ((conf != null) && conf.getCanonicalFile().equals(old.getCanonicalFile())) {
@@ -5448,8 +5448,12 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			} catch (IOException | RuntimeException e) {
 				return true;
 			}
-		}))
+		})) {
 			org.apache.commons.io.FileUtils.deleteQuietly(old); // no version uses it any more (DBGL wrote it, a comment only)
+			String[] left = old.getParentFile().list();
+			if ((left != null) && (left.length == 0))
+				old.getParentFile().delete(); // the folder only if nothing else is in it
+		}
 		if ((changed != null) && !shell_.isDisposed())
 			updateDosboxVersionList(changed);
 	}
