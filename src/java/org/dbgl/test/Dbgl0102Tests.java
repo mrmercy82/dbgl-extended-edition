@@ -3562,7 +3562,8 @@ public class Dbgl0102Tests {
 		assertEquals(256, org.dbgl.model.repository.TitledEntityRepository.fit("x".repeat(300)).length());
 		// a network share whose computer has "_" in its name: commons-io gave null, DBGL showed "null" (reported on Vogons)
 		assertEquals("\\\\nas_box\\games\\x.iso", org.dbgl.util.FilesUtils.concat("C:\\dosroot", "\\\\nas_box\\games\\x.iso"));
-		assertEquals("//nas/games/x.iso", org.dbgl.util.FilesUtils.concat("C:\\dosroot", "\\\\nas\\games\\x.iso")); // as before
+		// as before (commons-io writes it with the separator of the system: \\nas\games on Windows, //nas/games elsewhere)
+		assertEquals("//nas/games/x.iso", org.dbgl.util.FilesUtils.concat("C:\\dosroot", "\\\\nas\\games\\x.iso").replace('\\', '/'));
 	}
 
 	/** alpha 52: the changelog in the update window from the version running on; the exported table; the TV background readable */
@@ -3628,6 +3629,8 @@ public class Dbgl0102Tests {
 
 		File dir = Files.createTempDirectory("dbgl-jre-").toFile();
 		java.util.List<String> names = org.dbgl.util.JavaRuntime.untar(new File(DATA_DIR, "jre-test.tar.gz"), dir);
+		if (org.dbgl.util.SystemUtils.IS_WINDOWS) // the test archive is the Java for Linux (bin/java); on Windows DBGL looks for bin\java.exe
+			Files.write(new File(dir, "jdk-21.0.9+10-jre/bin/java.exe").toPath(), new byte[] {0});
 		assertTrue(names.toString(), names.contains("jdk-21.0.9+10-jre/lib/" + "a".repeat(120) + ".txt")); // a name longer than 100 characters
 		File home = org.dbgl.util.JavaRuntime.homeIn(dir);
 		assertEquals(new File(dir, "jdk-21.0.9+10-jre").getCanonicalFile(), home.getCanonicalFile());
@@ -3720,6 +3723,14 @@ public class Dbgl0102Tests {
 		org.apache.commons.io.FileUtils.deleteDirectory(work);
 	}
 
+	private static File canonical(File f) {
+		try {
+			return f.getCanonicalFile();
+		} catch (IOException e) {
+			return f.getAbsoluteFile();
+		}
+	}
+
 	/** alpha 52: the search for music files: SoundFonts and Ultrasound patches found, a Sound Canvas folder without its ROMs not, system folders at the top left out, copies never overwrite */
 	@Test
 	public void testSoundScan() throws IOException {
@@ -3742,15 +3753,17 @@ public class Dbgl0102Tests {
 		java.util.List<File> looked = new java.util.ArrayList<>();
 		java.util.List<org.dbgl.util.SoundScan.Find> found = org.dbgl.util.SoundScan.scan(java.util.List.of(root), looked::add, () -> false);
 		java.util.Map<String, org.dbgl.util.SoundScan.Find> byDir = new java.util.HashMap<>();
+		// the folders found are canonical: on Windows the temp folder can come as a short name (RUNNER~1), compared canonically
+		java.nio.file.Path rootPath = root.getCanonicalFile().toPath();
 		for (org.dbgl.util.SoundScan.Find f: found)
-			byDir.put(root.toPath().relativize(f.dir().toPath()).toString().replace('\\', '/'), f);
+			byDir.put(rootPath.relativize(f.dir().getCanonicalFile().toPath()).toString().replace('\\', '/'), f);
 		assertEquals(byDir.keySet().toString(), java.util.Set.of("Games/Doom/sf", "ULTRASND", "Games/Doom/windows"), byDir.keySet());
 		assertEquals(org.dbgl.util.SoundScan.Kind.SOUNDFONT, byDir.get("Games/Doom/sf").kind());
 		assertEquals(2, byDir.get("Games/Doom/sf").files());
 		assertEquals(org.dbgl.util.SoundScan.Kind.ULTRASND, byDir.get("ULTRASND").kind());
 		assertEquals(2, byDir.get("ULTRASND").files());
 		assertEquals(java.util.List.of("2.1"), byDir.get("ULTRASND").details());
-		assertFalse(looked.contains(new File(root, "windows")));
+		assertFalse(looked.stream().anyMatch(l -> rootPath.resolve("windows").toFile().equals(canonical(l)))); // canonical, as above
 		assertTrue(org.dbgl.util.SoundScan.scan(java.util.List.of(root), null, () -> true).isEmpty()); // stopped at once
 
 		File to = Files.createTempDirectory("dbgl-scanto-").toFile();
