@@ -529,6 +529,10 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 		});
 		Button displayFilename = Chain.on(screenshots).lbl(l -> l.key("dialog.settings.screenshotsfilename")).but(
 			b -> b.horSpan(2).select(settings_.getBooleanValue("gui", "screenshotsfilename"))).button();
+		// alpha 52: the screenshots below the list (as before) or at the right, above the description
+		Combo screenshotsPosition = Chain.on(screenshots).lbl(l -> l.key("dialog.settings.screenshotsposition")).cmb(
+			c -> c.horSpan(2).items(new String[] {text_.get("dialog.settings.screenshotsposition.below"), text_.get("dialog.settings.screenshotsposition.right")})).combo();
+		screenshotsPosition.select("right".equals(settings_.getValue("gui", "screenshotsposition")) ? 1: 0);
 
 		Group screenshotsColumn = Group_.on(guiComposite).layout(new GridLayout(3, false)).layoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 4, 1)).key(
 			"dialog.settings.screenshotscolumn").build();
@@ -831,6 +835,7 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 				}
 				settings_.setIntValue("gui", "screenshotsheight", screenshotsHeight.getSelection());
 				settings_.setBooleanValue("gui", "screenshotsfilename", displayFilename.getSelection());
+				settings_.setValue("gui", "screenshotsposition", screenshotsPosition.getSelectionIndex() == 1 ? "right": "below");
 				settings_.setIntValue("gui", "noimagestab", noImagesTab.getSelectionIndex());
 				settings_.setIntValue("gui", "screenshotscolumnheight", screenshotsColumnHeight.getSelection());
 				settings_.setBooleanValue("gui", "screenshotscolumnstretch", stretch.getSelection());
@@ -1041,7 +1046,7 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 			{"showplaytimeininfo", "playtimeininfo"}, {"hideunsupportedsettings", "hideunsupported"}, {"extrasexpand", "extrasexpand"}, {"extrascountchanges", "extrascount"},
 			{"autobackup.when", "autobackupwhen"}, {"autobackup.keep", "autobackupkeep"}, {"enableport", "enableport"}, {"port", "port"}, {"configfile", "configfile"},
 			{"captures", "captures"}, {"allsettings.new", "allsettings"}, {"autosort", "autosort"}, {"showplaytimeinnotes", "playtimeinnotes"}, {"height", "height"},
-			{"screenshotsfilename", "screenshotsfilename"}, {"screenshotscolumnstretch", "columnstretch"}, {"screenshotscolumnkeepaspectratio", "columnkeepaspect"},
+			{"screenshotsfilename", "screenshotsfilename"}, {"screenshotsposition", "screenshotsposition"}, {"screenshotscolumnstretch", "columnstretch"}, {"screenshotscolumnkeepaspectratio", "columnkeepaspect"},
 			{"display", "display"}, {"linking.tofile", "linking"}, {"font", "font"}, {"theme", "theme"}, {"apikey", "apikey"}, {"screenscraper.user", "screenscraper"},
 			{"screenscraper.password", "screenscraper"}, {"igdb.clientid", "igdb"}, {"igdb.clientsecret", "igdb"}, {"settitle", "setfield"}, {"setdeveloper", "setfield"},
 			{"setpublisher", "setfield"}, {"setyear", "setfield"}, {"setgenre", "setfield"}, {"setlink", "setlink"}, {"setrank", "setrank"}, {"setdescription", "setdescription"},

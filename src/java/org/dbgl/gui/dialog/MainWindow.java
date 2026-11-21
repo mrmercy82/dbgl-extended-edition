@@ -169,6 +169,9 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 	private int thumbHeight_;
 	private File currentThumbFile_ = null;
 	private Menu thumbMenu_;
+	private Composite rightThumbs_; // alpha 52: the screenshots at the right, above the description (setting)
+	private File[] shownThumbs_ = new File[0];
+	private int rightThumbsWidth_ = -1;
 	private Table dbversionTable_, templateTable_;
 	private org.eclipse.swt.widgets.ToolItem dbRemoveTool_; // alpha 52: not for ScummVM
 	private MenuItem dbRemoveMenu_, dbRemoveFolderMenu_;
@@ -796,6 +799,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 					sashInfoForm_.setMaximizedControl(item.getSelection() ? null: filterFolder_);
 					settings_.setBooleanValue("gui", "notesvisible", item.getSelection());
 					setToolItemLabel(item, text_.get(item.getSelection() ? "dialog.main.tb.notes.on": "dialog.main.tb.notes.off"));
+					placeScreenshots(); // alpha 52: without the description, screenshots set to be at the right are below the list
 					displayProfileInformation(false);
 				}
 			});
@@ -2926,8 +2930,15 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			@Override
 			public void controlResized(ControlEvent event) {
 				settings_.setIntValues("gui", "sashweights", sashInfoForm_.getWeights());
+				// alpha 52: the screenshots at the right fit the new width
+				if ((rightThumbs_ != null) && screenshotsRight() && (Math.abs(informationGroup.getClientArea().width - rightThumbsWidth_) > 8))
+					displayScreenshots(shownThumbs_);
 			}
 		});
+		GridLayout rightThumbsLayout = new GridLayout(2, true);
+		rightThumbsLayout.marginWidth = rightThumbsLayout.marginHeight = 0;
+		rightThumbsLayout.horizontalSpacing = rightThumbsLayout.verticalSpacing = 4;
+		rightThumbs_ = Composite_.on(informationGroup).layoutData(new GridData(SWT.FILL, SWT.TOP, true, false)).layout(rightThumbsLayout).build();
 		notesField_ = Text_.on(informationGroup).multi().readOnly().wrap().build();
 		notesField_.setFont(stringToFont(display_, settings_.getValues("gui", "notesfont"), notesField_.getFont()));
 		notesField_.addDisposeListener(e -> notesField_.getFont().dispose());
@@ -2956,6 +2967,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		scrolledCompositeForThumbs_.setContent(thumbsComposite_);
 		scrolledCompositeForThumbs_.getHorizontalBar().setPageIncrement(300);
 		scrolledCompositeForThumbs_.getHorizontalBar().setIncrement(50);
+		placeScreenshots();
 
 		sashInfoForm_.setWeights(settings_.getIntValues("gui", "sashweights"));
 		sashInfoForm_.setMaximizedControl(settings_.getBooleanValue("gui", "notesvisible") ? null: filterFolder_);
@@ -3648,14 +3660,32 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			setScreenshotsVisible(want);
 	}
 
+	/** alpha 52: the screenshots at the right above the description (as set), if the description is shown; else below the list */
+	private boolean screenshotsRight() {
+		return "right".equals(settings_.getValue("gui", "screenshotsposition")) && settings_.getBooleanValue("gui", "notesvisible");
+	}
+
+	/** alpha 52: the screenshots in their place, the other place hidden */
+	private void placeScreenshots() {
+		if ((scrolledCompositeForThumbs_ == null) || scrolledCompositeForThumbs_.isDisposed() || (rightThumbs_ == null) || rightThumbs_.isDisposed())
+			return;
+		boolean visible = settings_.getBooleanValue("gui", "screenshotsvisible");
+		boolean right = screenshotsRight();
+		((GridData)scrolledCompositeForThumbs_.getLayoutData()).exclude = !visible || right;
+		scrolledCompositeForThumbs_.setVisible(visible && !right);
+		boolean rightShown = visible && right && (rightThumbs_.getChildren().length > 0);
+		((GridData)rightThumbs_.getLayoutData()).exclude = !rightShown;
+		rightThumbs_.setVisible(rightShown);
+		scrolledCompositeForThumbs_.getParent().layout();
+		rightThumbs_.getParent().layout();
+	}
+
 	/** the screenshots below the profiles shown or hidden, the button in the toolbar (if it is there) with it */
 	private void setScreenshotsVisible(boolean visible) {
 		if ((scrolledCompositeForThumbs_ == null) || scrolledCompositeForThumbs_.isDisposed())
 			return;
-		((GridData)scrolledCompositeForThumbs_.getLayoutData()).exclude = !visible;
-		scrolledCompositeForThumbs_.setVisible(visible);
-		scrolledCompositeForThumbs_.getParent().layout();
 		settings_.setBooleanValue("gui", "screenshotsvisible", visible);
+		placeScreenshots();
 		if ((screenshotsItem_ != null) && !screenshotsItem_.isDisposed()) {
 			screenshotsItem_.setSelection(visible);
 			setToolItemLabel(screenshotsItem_, text_.get(visible ? "dialog.main.tb.screenshots.on": "dialog.main.tb.screenshots.off"));
@@ -4135,9 +4165,16 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 	}
 
 	private void displayScreenshots(File[] files) {
-		for (Control c: thumbsComposite_.getChildren()) {
-			c.setMenu(null);
-			c.dispose();
+		shownThumbs_ = files;
+		for (Composite holder: new Composite[] {thumbsComposite_, rightThumbs_}) {
+			for (Control c: holder.getChildren()) {
+				c.setMenu(null);
+				c.dispose();
+			}
+		}
+		if (screenshotsRight()) {
+			displayScreenshotsRight(files);
+			return;
 		}
 		for (int i = 0; i < files.length; i++) {
 			File file = files[i];
@@ -4161,6 +4198,49 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		thumbsComposite_.setVisible(thumbsComposite_.getChildren().length != 0);
 		thumbsComposite_.layout();
 		thumbsComposite_.pack();
+	}
+
+	/** alpha 52: at most this many screenshots at the right, two in a row */
+	private static final int RIGHT_THUMBS = 4;
+
+	/**
+	 * alpha 52: the first screenshots in two columns at the right, above the description, as wide as that column allows; the last
+	 * one shows "+n" when there are more, a click on any of them shows them all enlarged (from that one on)
+	 */
+	private void displayScreenshotsRight(File[] files) {
+		int width = rightThumbs_.getParent().getClientArea().width;
+		rightThumbsWidth_ = width;
+		int cell = Math.max(60, ((width > 0 ? width: 300) - 4) / 2 - 10);
+		int n = Math.min(RIGHT_THUMBS, files.length);
+		for (int i = 0; i < n; i++) {
+			File file = files[i];
+			String label = null;
+			if ((i == n - 1) && (files.length > n))
+				label = " +" + (files.length - n) + ' ';
+			else if (settings_.getBooleanValue("gui", "screenshotsfilename")) {
+				label = file.getName().toLowerCase();
+				label = ' ' + label.substring(0, Math.max(0, label.lastIndexOf('.'))) + ' ';
+			}
+			int height = cell * 3 / 4;
+			Image img = ImageService.getCachedHeightLimitedImage(display_, height, file.getPath(), label);
+			if (img.getBounds().width > cell) { // wider than 4:3: as wide as the column
+				height = Math.max(16, height * cell / img.getBounds().width);
+				img = ImageService.getCachedHeightLimitedImage(display_, height, file.getPath(), label);
+			}
+			GridData cellData = new GridData(SWT.FILL, SWT.TOP, true, false);
+			cellData.heightHint = cell * 3 / 4 + 10;
+			int j = i;
+			Button buttonItem = Button_.on(rightThumbs_).layoutData(cellData).image(img, false).tooltipTxt(file.getPath()).listen(new SelectionAdapter() {
+				@Override
+				public void widgetSelected(SelectionEvent event) {
+					new Thumb(shell_, files, j).open();
+				}
+			}).ctrl();
+			buttonItem.addMenuDetectListener(e -> currentThumbFile_ = new File(file.getPath()));
+			buttonItem.setMenu(thumbMenu_);
+		}
+		placeScreenshots();
+		rightThumbs_.layout(true);
 	}
 
 	private void createDosboxVersionsTab(CTabFolder tabFolder) {
@@ -5930,6 +6010,8 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			updateDosboxVersionList((dbIndex >= 0) && (dbIndex < dbversionsList_.size()) ? dbversionsList_.get(dbIndex): null);
 		}
 		applyScreenshotRule(); // alpha 49
+		placeScreenshots(); // alpha 52: below the list or at the right, as set now
+		displayProfileInformation(false);
 		lookForNoImages(true); // alpha 50: the tab of the profiles without pictures as set now
 	}
 

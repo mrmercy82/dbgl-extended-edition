@@ -90,6 +90,12 @@ Neu
   GUI-Einstellungen > TV-Modus. Eine helle Farbe wird abgedunkelt und das Bild
   abgeschattet, damit die Schrift gut lesbar bleibt; das Bild füllt den
   Schirm, ohne verzerrt zu werden.
+- Bildschirmfotos rechts über der Beschreibung (auf Vogons gewünscht):
+  GUI-Einstellungen > Bildschirmfotos > Position „Rechts über der
+  Beschreibung“.
+  Bis zu vier Bilder stehen je zwei nebeneinander, so breit wie die Spalte;
+  das letzte zeigt „+n“, wenn es mehr gibt, ein Klick vergrößert sie wie
+  bisher. Ist die Beschreibung ausgeblendet, stehen sie unter der Liste.
 
 Fehler behoben
 - USB-Stick-Assistent: DOSBox-Versionen (z. B. DOSBox-X) waren als nötig
@@ -108,6 +114,9 @@ Fehler behoben
 - TV-Modus: In einem schmaleren Fenster lief die Versionsnummer in die
   Anzeige der Spiele oben rechts. Der Name wird jetzt kürzer („DBGL -
   Extended Edition“), wo der Platz nicht reicht.
+- Ein Link auf eine Datei, die es nicht mehr gibt (z. B. ein Handbuch nach
+  dem Verschieben), tat beim Klick nichts, unter Linux ohne jede Meldung
+  (auf Vogons gemeldet). Jetzt kommt „Die Datei ... wurde nicht gefunden.“
 
 Verbessert
 - update-readme.txt im Update-Paket: viel kürzer, erst die Neuinstallation

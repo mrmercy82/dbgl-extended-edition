@@ -67,6 +67,11 @@ public class SystemUtils {
 	}
 
 	public static void openForBrowsing(String target, Shell shell) {
+		// alpha 52: a file that is not there (e.g. a manual moved after an import) says so, instead of nothing happening
+		if (missingFile(target)) {
+			Mess_.on(shell).key("general.error.filenotfound", target).warning();
+			return;
+		}
 		try {
 			if (target.contains("://"))
 				Desktop.getDesktop().browse(URI.create(target));
@@ -75,6 +80,28 @@ public class SystemUtils {
 		} catch (Exception e) {
 			if (!IS_LINUX || !tryToRun(new String[] {"xdg-open", "gnome-open"}, target))
 				Mess_.on(shell).key("general.error.openurl", target).warning();
+		}
+	}
+
+	/**
+	 * alpha 52: true for a file or folder that does not exist: a path (as it is, or relative to the data folder of DBGL) or a
+	 * "file:" address; web addresses and anything that cannot be read as a file count as there
+	 */
+	public static boolean missingFile(String target) {
+		if (org.apache.commons.lang3.StringUtils.isBlank(target) || target.regionMatches(true, 0, "mailto:", 0, 7))
+			return false;
+		try {
+			if (target.regionMatches(true, 0, "file:", 0, 5))
+				return !new File(URI.create(target)).exists();
+			if (target.contains("://"))
+				return false;
+			File file = new File(target);
+			if (file.exists())
+				return false;
+			return file.isAbsolute()
+					|| !new org.dbgl.model.FileLocation(target, org.dbgl.service.FileLocationService.getInstance().dataRelative()).getCanonicalFile().exists();
+		} catch (RuntimeException e) {
+			return false;
 		}
 	}
 

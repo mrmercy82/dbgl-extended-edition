@@ -86,6 +86,11 @@ New
   GUI options > TV mode. A light colour is made darker and the picture is
   shaded, so that the writing stays easy to read; the picture fills the
   screen without being stretched.
+- Screenshots at the right, above the description (asked for on Vogons):
+  Preferences > GUI options > Screenshots > Position "At the right, above
+  the description". Up to four pictures stand two in a row, as wide as the
+  column; the last one shows "+n" when there are more, a click enlarges
+  them as before. While the description is hidden, they are below the list.
 
 Fixed
 - USB stick assistant: DOSBox versions (e.g. DOSBox-X) were locked as
@@ -103,6 +108,9 @@ Fixed
 - TV mode: in a narrower window the version number ran into the games
   shown at the top right. The name is now shorter ("DBGL - Extended
   Edition") where there is not enough room.
+- A link to a file that is no longer there (e.g. a manual after moving it)
+  did nothing when clicked, on Linux without any message (reported on
+  Vogons). Now it says "The file ... was not found."
 
 Improved
 - update-readme.txt in the update package: much shorter, first the new

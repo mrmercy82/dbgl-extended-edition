@@ -3199,6 +3199,25 @@ public class Dbgl0102Tests {
 				< SettingsService.availableWebSearchEngines().indexOf(org.dbgl.util.searchengine.WebSearchEngine.getBySimpleName("mobygames"))); // MobyGames stays last
 	}
 
+	/** alpha 52: a link to a file that is not there (moved manual, Vogons) says so; web addresses and files that are there do not */
+	@Test
+	public void testMissingFile() throws java.io.IOException {
+		java.io.File there = java.io.File.createTempFile("dbgl-link", ".txt");
+		try {
+			assertFalse(org.dbgl.util.SystemUtils.missingFile(there.getPath()));
+			assertFalse(org.dbgl.util.SystemUtils.missingFile(there.toURI().toString()));
+			java.io.File gone = new java.io.File(there.getParentFile(), "dbgl-not-there-" + System.nanoTime() + ".pdf");
+			assertTrue(org.dbgl.util.SystemUtils.missingFile(gone.getPath()));
+			assertTrue(org.dbgl.util.SystemUtils.missingFile(gone.toURI().toString()));
+			assertTrue(org.dbgl.util.SystemUtils.missingFile("docs-not-there-" + System.nanoTime() + "/manual.pdf"));
+			assertFalse(org.dbgl.util.SystemUtils.missingFile("https://www.mobygames.com/game/190/alley-cat/"));
+			assertFalse(org.dbgl.util.SystemUtils.missingFile("mailto:someone@example.org"));
+			assertFalse(org.dbgl.util.SystemUtils.missingFile(""));
+		} finally {
+			there.delete();
+		}
+	}
+
 	/** alpha 52: a too long publisher (Doom from MobyGames, reported on Vogons) made saving fail: now cut after a whole name, marked */
 	@Test
 	public void testFitIntoColumn() {
