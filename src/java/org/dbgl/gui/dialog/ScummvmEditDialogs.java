@@ -266,6 +266,25 @@ public final class ScummvmEditDialogs {
 		nd.widthHint = 640;
 		notes.setLayoutData(nd);
 		notes.setText(StringUtils.defaultString(profile.getNotes()));
+		// alpha 52: below the notes, as for DOSBox games: disk space, play time, sessions, the last one, when it was made
+		org.dbgl.service.SettingsService infoSettings = org.dbgl.service.SettingsService.getInstance();
+		String infoLines = "";
+		if (profile.getId() >= 0) {
+			if (infoSettings.getBooleanValue("gui", "showdiskspaceininfo"))
+				infoLines = org.dbgl.util.DiskUsage.line(profile, text);
+			if ((profile.getProfileStats() != null) && infoSettings.getBooleanValue("gui", "showplaytimeininfo")) {
+				String play = org.dbgl.util.ProfileReports.playInfo(profile, text);
+				infoLines = infoLines.isEmpty() || play.isBlank() ? infoLines + play: infoLines + "\n" + play;
+			}
+		}
+		if (!infoLines.isBlank()) {
+			new Label(main, SWT.NONE);
+			Label playInfo = new Label(main, SWT.WRAP);
+			GridData pd = new GridData(SWT.FILL, SWT.CENTER, true, false, 3, 1);
+			pd.widthHint = 200; // wraps if needed, does not make the page wider
+			playInfo.setLayoutData(pd);
+			playInfo.setText(infoLines);
+		}
 
 		// the custom fields, named as in the settings (Custom 1 to 4 with the values used so far to choose from)
 		Composite customPage = page(tabs, text.get("dialog.profile.tab.custominfo"), 2);

@@ -263,6 +263,10 @@ public final class DiskUsage {
 				copy.resetAndLoadConfiguration();
 				File dir = SavegameBackup.gameDir(copy);
 				File exeDir = copy.getConfiguration().getAutoexec().getCanonicalGameDir();
+				if (Scummvm.is(copy.getDosboxVersion())) { // alpha 52: a game of ScummVM: its folder from scummvm.ini
+					dir = Scummvm.gameDirOf(copy);
+					exeDir = null;
+				}
 				if (dir != null) {
 					where[0] = dir.getCanonicalPath();
 					if ((exeDir != null) && exeDir.isDirectory())

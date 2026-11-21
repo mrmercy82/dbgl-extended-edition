@@ -121,6 +121,9 @@ New
   small starters and batch files do not count).
 - Mixer for DOSBox Staging: sliders for MT-32, FluidSynth and (from 0.83 on)
   Sound Canvas too, depending on the MIDI device chosen.
+- ScummVM profile: below the notes, as for DOS games, the disk space (the
+  game folder from scummvm.ini), play time, sessions, the last one and when
+  the profile was made; the disk space in the list too.
 
 Fixed
 - USB stick assistant: DOSBox versions (e.g. DOSBox-X) were locked as

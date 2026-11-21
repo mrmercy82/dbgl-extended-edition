@@ -319,6 +319,21 @@ public final class Scummvm {
 		return "[" + SECTION + "]\ntarget=" + game.target() + "\nconfig=" + ini.getAbsolutePath() + "\n";
 	}
 
+	/** alpha 52: the folder of the game of a profile of ScummVM (its path in scummvm.ini), or null if it is not known or not there */
+	public static File gameDirOf(Profile p) {
+		String target = targetOf(p), config = valueOf(p, "config");
+		if ((target == null) || StringUtils.isBlank(config))
+			return null;
+		try {
+			for (Game g: readIni(new File(config.trim())))
+				if (target.equals(g.target()))
+					return (g.path() != null) && g.path().isDirectory() ? g.path(): null;
+		} catch (IOException | RuntimeException e) {
+			// not known then
+		}
+		return null;
+	}
+
 	/** the target of a profile of ScummVM, or null */
 	public static String targetOf(Profile p) {
 		String t = valueOf(p, "target");

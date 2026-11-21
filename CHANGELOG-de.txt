@@ -128,6 +128,9 @@ Neu
   Startprogramme und Batch-Dateien zählen nicht).
 - Mixer für DOSBox Staging: Regler auch für MT-32, FluidSynth und (ab 0.83)
   Sound Canvas, je nach gewähltem MIDI-Gerät.
+- ScummVM-Profil: unter den Notizen wie bei DOS-Spielen Speicherplatz (der
+  Spielordner aus scummvm.ini), Spielzeit, Sitzungen, die letzte davon und
+  wann das Profil angelegt wurde; der Speicherplatz auch in der Liste.
 
 Fehler behoben
 - USB-Stick-Assistent: DOSBox-Versionen (z. B. DOSBox-X) waren als nötig
