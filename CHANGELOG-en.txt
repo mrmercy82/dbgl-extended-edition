@@ -33,10 +33,10 @@ New
   installed version from scummvm.ini). The ScummVM entry has a window of its
   own (title, folder, program, parameters; the version number comes from
   scummvm.ini by itself), ScummVM profiles a lean editor of their own (data,
-  the ScummVM game from the list, scummvm.ini, information; on tabs of their
-  own links 1 to 8 with their titles and the custom fields 1 to 14) with
-  "Consult
-  ..." for game data, covers and screenshots from the game database chosen;
+  the ScummVM game from the list, scummvm.ini, links 1 to 8 with their titles
+  and "Remove" as in the profile window, information; on a tab of its own the
+  custom fields 1 to 14) with "Consult ..." for game data, covers and
+  screenshots from a game database to choose;
   "Online info" opens it too. Screenshots taken in the game with Alt+S are
   copied into the picture folder of the profile after playing (ScummVM keeps
   its own). ScummVM cannot become the default version and does not appear
@@ -97,6 +97,8 @@ Fixed
   Edition") where there is not enough room.
 
 Improved
+- update-readme.txt in the update package: much shorter, first the new
+  installation (stand-alone package), then the update in three steps.
 - Update window > "Changelog": the changelog of the release as in the menu
   Help (laid out, in German or English), from the installed version on;
   for older releases its text on GitHub as before.

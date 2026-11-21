@@ -152,9 +152,9 @@ public final class ScummvmEditDialogs {
 			return null;
 		}
 		Shell dlg = shell(parent, text.get("dialog.profile.title.edit", new Object[] {profile.getTitle(), profile.getId()}), 1);
-		// alpha 52: in tabs as in the profile window of DOSBox games: the information, the links 1 to 8, the custom fields 1 to 14
-		org.eclipse.swt.widgets.TabFolder tabs = new org.eclipse.swt.widgets.TabFolder(dlg, SWT.NONE);
-		tabs.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
+		// alpha 52: in tabs as in the profile window of DOSBox games (the same tabs, dark in the dark mode): the information with
+		// the links 1 to 8, the custom fields 1 to 14
+		org.eclipse.swt.custom.CTabFolder tabs = org.dbgl.gui.controls.CTabFolder_.on(dlg).layoutData(new GridData(SWT.FILL, SWT.FILL, true, true)).ctrl();
 		Composite main = page(tabs, text.get("dialog.profile.tab.info"), 4);
 		Text title = field(main, text.get("dialog.profile.title"), 3);
 		title.setText(StringUtils.defaultString(profile.getTitle()));
@@ -217,27 +217,22 @@ public final class ScummvmEditDialogs {
 				ini.setText(chosen);
 		});
 
-		Label notesLabel = new Label(main, SWT.NONE);
-		notesLabel.setText(text.get("dialog.profile.notes"));
-		notesLabel.setLayoutData(new GridData(SWT.BEGINNING, SWT.BEGINNING, false, false));
-		Text notes = new Text(main, SWT.BORDER | SWT.MULTI | SWT.WRAP | SWT.V_SCROLL);
-		GridData nd = new GridData(SWT.FILL, SWT.FILL, true, true, 3, 1);
-		nd.heightHint = 120;
-		nd.widthHint = 560;
-		notes.setLayoutData(nd);
-		notes.setText(StringUtils.defaultString(profile.getNotes()));
-
-		// the links: where (a file or a web address) and its title, as in the profile window
-		Composite linkPage = page(tabs, text.get("dialog.scummvmprofile.tab.links"), 5);
+		// the links on this page as in the profile window: where (a file or a web address), its title, and Remove for both
+		Composite linkRows = new Composite(main, SWT.NONE);
+		linkRows.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 4, 1));
+		GridLayout lrl = new GridLayout(6, false);
+		lrl.marginWidth = 0;
+		lrl.marginHeight = 0;
+		linkRows.setLayout(lrl);
 		Text[] links = new Text[Profile.NR_OF_LINK_DESTINATIONS], linkTitles = new Text[Profile.NR_OF_LINK_TITLES];
 		for (int i = 0; i < Profile.NR_OF_LINK_TITLES; i++) {
-			new Label(linkPage, SWT.NONE).setText(text.get("dialog.profile.link", new Object[] {i + 1}));
-			links[i] = new Text(linkPage, SWT.BORDER);
+			new Label(linkRows, SWT.NONE).setText(text.get("dialog.profile.link", new Object[] {i + 1}));
+			links[i] = new Text(linkRows, SWT.BORDER);
 			GridData ld = new GridData(SWT.FILL, SWT.CENTER, true, false);
-			ld.widthHint = 300;
+			ld.widthHint = 260;
 			links[i].setLayoutData(ld);
 			links[i].setText(StringUtils.defaultString(profile.getLinkDestination(i)));
-			Button browse = new Button(linkPage, SWT.PUSH);
+			Button browse = new Button(linkRows, SWT.PUSH);
 			browse.setText(text.get("button.browse"));
 			Text dest = links[i];
 			browse.addListener(SWT.Selection, e -> {
@@ -246,13 +241,32 @@ public final class ScummvmEditDialogs {
 				if (chosen != null)
 					dest.setText(chosen);
 			});
-			new Label(linkPage, SWT.NONE).setText(text.get("dialog.profile.linktitle"));
-			linkTitles[i] = new Text(linkPage, SWT.BORDER);
+			new Label(linkRows, SWT.NONE).setText(text.get("dialog.profile.linktitle"));
+			linkTitles[i] = new Text(linkRows, SWT.BORDER);
 			GridData td = new GridData(SWT.FILL, SWT.CENTER, true, false);
-			td.widthHint = 180;
+			td.widthHint = 150;
 			linkTitles[i].setLayoutData(td);
 			linkTitles[i].setText(StringUtils.defaultString(profile.getLinkTitle(i)));
+			Button remove = new Button(linkRows, SWT.PUSH);
+			remove.setText(text.get("dialog.profile.link.remove"));
+			remove.setToolTipText(text.get("dialog.profile.link.remove.tooltip"));
+			Text title_ = linkTitles[i];
+			remove.addListener(SWT.Selection, e -> {
+				dest.setText("");
+				title_.setText("");
+			});
 		}
+
+		Label notesLabel = new Label(main, SWT.NONE);
+		notesLabel.setText(text.get("dialog.profile.notes"));
+		notesLabel.setLayoutData(new GridData(SWT.BEGINNING, SWT.BEGINNING, false, false));
+		Text notes = new Text(main, SWT.BORDER | SWT.MULTI | SWT.WRAP | SWT.V_SCROLL);
+		GridData nd = new GridData(SWT.FILL, SWT.FILL, true, true, 3, 1);
+		nd.heightHint = 110;
+		nd.widthHint = 640;
+		notes.setLayoutData(nd);
+		notes.setText(StringUtils.defaultString(profile.getNotes()));
+
 		// the custom fields, named as in the settings (Custom 1 to 4 with the values used so far to choose from)
 		Composite customPage = page(tabs, text.get("dialog.profile.tab.custominfo"), 2);
 		org.dbgl.service.SettingsService names = org.dbgl.service.SettingsService.getInstance();
@@ -264,7 +278,7 @@ public final class ScummvmEditDialogs {
 			if (i == Profile.NR_OF_CUSTOM_STRING_DROPDOWNS + Profile.NR_OF_CUSTOM_STRING_FIELDS_1) // Custom 9 and 10 between 8 and 11
 				customNumbers(customPage, names, profile);
 			new Label(customPage, SWT.NONE).setText(names.getValue("gui", "custom" + number));
-			GridData cd = new GridData(SWT.BEGINNING, SWT.CENTER, false, false);
+			GridData cd = new GridData(SWT.FILL, SWT.CENTER, true, false); // the lists as long as the fields
 			cd.widthHint = 360;
 			if (i < Profile.NR_OF_CUSTOM_STRING_DROPDOWNS) {
 				Combo combo = new Combo(customPage, SWT.DROP_DOWN);
@@ -284,36 +298,60 @@ public final class ScummvmEditDialogs {
 			}
 		}
 		org.eclipse.swt.widgets.Spinner[] numbers = numbersOf(customPage);
+		tabs.setSelection(0);
 
 		// alpha 52: the data and pictures from the game database chosen in the settings, as in the profile window of DOSBox games
 		org.dbgl.service.SettingsService settings = org.dbgl.service.SettingsService.getInstance();
-		org.dbgl.util.searchengine.WebSearchEngine engine = org.dbgl.util.searchengine.WebSearchEngine.getBySimpleName(settings.getValue("gui", "searchengine"));
+		// every game database there is to choose from (as the arrow beside the button in the profile window); kept for next time
+		List<org.dbgl.util.searchengine.WebSearchEngine> engines = org.dbgl.service.SettingsService.availableWebSearchEngines();
+		org.dbgl.util.searchengine.WebSearchEngine[] engineNow = {org.dbgl.util.searchengine.WebSearchEngine.getBySimpleName(settings.getValue("gui", "searchengine"))};
+		if ((engineNow[0] == null) || !engines.contains(engineNow[0]))
+			engineNow[0] = engines.get(0);
 		new Label(main, SWT.NONE);
-		Button consult = new Button(main, SWT.PUSH);
-		consult.setText(text.get("dialog.profile.consultsearchengine", new Object[] {engine.getName()}));
-		consult.setImage(org.dbgl.service.ImageService.getResourceImage(dlg.getDisplay(), org.dbgl.service.ImageService.IMG_GLOBE));
-		consult.setLayoutData(new GridData(SWT.BEGINNING, SWT.CENTER, false, false, 3, 1));
+		Composite consultRow = new Composite(main, SWT.NONE);
+		consultRow.setLayoutData(new GridData(SWT.BEGINNING, SWT.CENTER, false, false, 3, 1));
+		GridLayout crl = new GridLayout(2, false);
+		crl.marginWidth = 0;
+		crl.marginHeight = 0;
+		consultRow.setLayout(crl);
+		Button consult = new Button(consultRow, SWT.PUSH);
+		Combo engineChoice = new Combo(consultRow, SWT.READ_ONLY);
+		for (org.dbgl.util.searchengine.WebSearchEngine en: engines)
+			engineChoice.add(en.getName());
+		engineChoice.select(engines.indexOf(engineNow[0]));
+		Runnable consultLabel = () -> {
+			consult.setText(text.get("dialog.profile.consultsearchengine", new Object[] {engineNow[0].getName()}));
+			consult.setImage(org.dbgl.service.ImageService.getResourceImage(dlg.getDisplay(), engineNow[0].getIcon()));
+			consultRow.layout(true);
+		};
+		consultLabel.run();
+		engineChoice.addListener(SWT.Selection, e -> {
+			engineNow[0] = engines.get(engineChoice.getSelectionIndex());
+			settings.setValue("gui", "searchengine", engineNow[0].getSimpleName());
+			consultLabel.run();
+		});
 		List<org.dbgl.model.SearchEngineImageInformation> chosenImages = new ArrayList<>();
 		int[] rank = {-1};
 		String[] link = new String[2]; // Link 1 to the page of the game, as the setting "set_link" wants (RAWG asks for it)
 		Runnable doSearch = () -> {
+			org.dbgl.util.searchengine.WebSearchEngine en = engineNow[0];
 			String currTitle = title.getText().trim();
 			if (currTitle.isEmpty())
 				return;
-			String searching = text.get("searchengine.searching", new Object[] {engine.getName()});
+			String searching = text.get("searchengine.searching", new Object[] {engineNow[0].getName()});
 			try {
-				String[] platformFilter = settings.getValues(engine.getSimpleName(), "platform_filter");
-				List<org.dbgl.model.WebProfile> found = org.dbgl.gui.controls.BusyTask.run(dlg, searching, () -> engine.getEntries(currTitle, platformFilter));
+				String[] platformFilter = settings.getValues(engineNow[0].getSimpleName(), "platform_filter");
+				List<org.dbgl.model.WebProfile> found = org.dbgl.gui.controls.BusyTask.run(dlg, searching, () -> en.getEntries(currTitle, platformFilter));
 				org.dbgl.model.WebProfile webGame = null;
 				if (found.isEmpty())
-					Mess_.on(dlg).key("general.notice.searchenginenoresults", new String[] {engine.getName(), currTitle}).display();
+					Mess_.on(dlg).key("general.notice.searchenginenoresults", new String[] {engineNow[0].getName(), currTitle}).display();
 				else
-					webGame = found.size() == 1 ? found.get(0): new BrowseSearchEngineDialog(dlg, currTitle, found, engine).open();
+					webGame = found.size() == 1 ? found.get(0): new BrowseSearchEngineDialog(dlg, currTitle, found, en).open();
 				if (webGame == null)
 					return;
 				org.dbgl.model.WebProfile chosen = webGame;
-				org.dbgl.model.WebProfile ext = org.dbgl.gui.controls.BusyTask.run(dlg, searching, () -> engine.getEntryDetailedInformation(chosen));
-				String s = engine.getSimpleName();
+				org.dbgl.model.WebProfile ext = org.dbgl.gui.controls.BusyTask.run(dlg, searching, () -> en.getEntryDetailedInformation(chosen));
+				String s = engineNow[0].getSimpleName();
 				if (settings.getBooleanValue(s, "set_title"))
 					title.setText(ext.getTitle());
 				if (settings.getBooleanValue(s, "set_developer"))
@@ -326,8 +364,8 @@ public final class ScummvmEditDialogs {
 					genre.setText(ext.getGenre());
 				if (settings.getBooleanValue(s, "set_link") && StringUtils.isNotBlank(ext.getUrl())) {
 					link[0] = ext.getUrl();
-					link[1] = text.get("dialog.profile.searchengine.link.maininfo", new String[] {engine instanceof org.dbgl.util.searchengine.MetropolisSearchEngine
-							? org.dbgl.util.searchengine.MobyGamesSearchEngine.getInstance().getName(): engine.getName()});
+					link[1] = text.get("dialog.profile.searchengine.link.maininfo", new String[] {engineNow[0] instanceof org.dbgl.util.searchengine.MetropolisSearchEngine
+							? org.dbgl.util.searchengine.MobyGamesSearchEngine.getInstance().getName(): engineNow[0].getName()});
 					links[0].setText(link[0]); // Link 1, shown at once on its tab
 					linkTitles[0].setText(link[1]);
 				}
@@ -344,17 +382,17 @@ public final class ScummvmEditDialogs {
 				int ss = settings.getBooleanValue(s, "choose_screenshot") ? Integer.MAX_VALUE: 0;
 				if ((ca > 0) || (ss > 0)) {
 					boolean allRegions = settings.getBooleanValue(s, "force_all_regions_coverart");
-					org.dbgl.model.SearchEngineImageInformation[] images = org.dbgl.gui.controls.BusyTask.run(dlg, searching, () -> engine.getEntryImages(ext, ca, ss, allRegions));
+					org.dbgl.model.SearchEngineImageInformation[] images = org.dbgl.gui.controls.BusyTask.run(dlg, searching, () -> en.getEntryImages(ext, ca, ss, allRegions));
 					if (images.length == 0)
-						Mess_.on(dlg).key("dialog.profile.notice.noimagesfound", new Object[] {engine.getName()}).display();
+						Mess_.on(dlg).key("dialog.profile.notice.noimagesfound", new Object[] {engineNow[0].getName()}).display();
 					else
 						chosenImages.addAll(pickImages(dlg, text, ext, images));
 				}
 			} catch (org.dbgl.gui.controls.BusyTask.Cancelled e) {
 				// nothing changed
 			} catch (Exception e) {
-				org.dbgl.util.searchengine.SearchEngineException explained = org.dbgl.util.searchengine.SearchEngineException.explain(engine.getName(), e);
-				Mess_.on(dlg).key("searchengine.error.retrieve", new Object[] {engine.getName(), currTitle, explained.getMessage()}).warning();
+				org.dbgl.util.searchengine.SearchEngineException explained = org.dbgl.util.searchengine.SearchEngineException.explain(engineNow[0].getName(), e);
+				Mess_.on(dlg).key("searchengine.error.retrieve", new Object[] {engineNow[0].getName(), currTitle, explained.getMessage()}).warning();
 			}
 		};
 		consult.addListener(SWT.Selection, e -> doSearch.run());
@@ -512,8 +550,8 @@ public final class ScummvmEditDialogs {
 	}
 
 	/** a tab with its page */
-	private static Composite page(org.eclipse.swt.widgets.TabFolder tabs, String title, int columns) {
-		org.eclipse.swt.widgets.TabItem item = new org.eclipse.swt.widgets.TabItem(tabs, SWT.NONE);
+	private static Composite page(org.eclipse.swt.custom.CTabFolder tabs, String title, int columns) {
+		org.eclipse.swt.custom.CTabItem item = new org.eclipse.swt.custom.CTabItem(tabs, SWT.NONE);
 		item.setText(title);
 		Composite page = new Composite(tabs, SWT.NONE);
 		page.setLayout(new GridLayout(columns, false));

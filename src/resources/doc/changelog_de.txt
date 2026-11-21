@@ -34,11 +34,11 @@ Neu
   liest DBGL aus der scummvm.ini). Der ScummVM-Eintrag hat ein eigenes
   Fenster (Titel, Ordner, Programm, Parameter; die Versionsnummer kommt
   von selbst aus der scummvm.ini), ScummVM-Profile einen eigenen, schlanken
-  Editor (Angaben, ScummVM-Spiel aus der Liste, scummvm.ini, Informationen;
-  auf eigenen Reitern Link 1 bis 8 mit Titeln und die eigenen Felder 1 bis
-  14)
-  mit „Abfrage bei ...“ für Spieldaten, Cover und Bildschirmfotos aus der
-  gewählten Spieldatenbank; auch „Online-Infos“ öffnet ihn. Bildschirmfotos,
+  Editor (Angaben, ScummVM-Spiel aus der Liste, scummvm.ini, Link 1 bis 8
+  mit Titeln und „Entfernen“ wie im Profilfenster, Informationen; auf einem
+  eigenen Reiter die eigenen Felder 1 bis 14) mit „Abfrage bei ...“ für
+  Spieldaten, Cover und Bildschirmfotos aus einer wählbaren Spieldatenbank;
+  auch „Online-Infos“ öffnet ihn. Bildschirmfotos,
   die man im Spiel mit Alt+S macht, kopiert DBGL nach dem Spielen in den
   Bilderordner des Profils (ScummVM behält seine). ScummVM kann nicht die
   Standardversion werden und taucht beim Wechsel der DOSBox-Version und in
@@ -101,6 +101,8 @@ Fehler behoben
   Extended Edition“), wo der Platz nicht reicht.
 
 Verbessert
+- update-readme.txt im Update-Paket: viel kürzer, erst die Neuinstallation
+  (eigenständiges Paket), dann das Update in drei Schritten.
 - Update-Fenster > „Changelog“: der Changelog des Releases wie im Menü
   Hilfe (gegliedert, auf Deutsch oder Englisch), von der installierten
   Version an; bei älteren Releases wie bisher dessen Text auf GitHub.
