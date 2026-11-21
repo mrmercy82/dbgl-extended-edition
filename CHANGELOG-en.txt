@@ -69,6 +69,9 @@ New
   first; the Java of the system stays as it is. The file is checked by its
   SHA-256 checksum, unpacked safely and started once before it is put in
   place; if something goes wrong, the update goes on without Java.
+  The update window of this version on has the option, so it first shows
+  when updating to the next one; updating from alpha 51 to this one does not
+  show it yet (to have Java right away: the stand-alone package).
 - The stand-alone package for Windows comes with Java 21 (Eclipse Temurin
   21.0.13.1, in the folder jre): Java no longer has to be installed first.
   launch.exe and dbgl.cmd take it first; the one-click update can keep it

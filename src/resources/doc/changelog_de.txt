@@ -73,6 +73,9 @@ Neu
   nachsehen; das Java des Systems bleibt unverändert. Die Datei wird an
   ihrer SHA-256-Prüfsumme geprüft, sicher entpackt und vor dem Einsetzen
   einmal gestartet; geht etwas schief, läuft das Update ohne Java weiter.
+  Die Option zeigt das Update-Fenster ab dieser Version, also erstmals beim
+  Update auf die nächste; beim Update von alpha 51 auf diese erscheint sie
+  noch nicht (wer Java gleich mit haben will: eigenständiges Paket).
 - Das eigenständige Paket für Windows bringt Java 21 mit (Eclipse Temurin
   21.0.13.1, im Ordner jre): Java muss vorher nicht installiert werden.
   launch.exe und dbgl.cmd nehmen es zuerst; das Ein-Klick-Update kann es
