@@ -128,6 +128,23 @@ New
 - ScummVM profile: below the notes, as for DOS games, the disk space (the
   game folder from scummvm.ini), play time, sessions, the last one and when
   the profile was made; the disk space in the list too.
+- Profile > Savegames:
+  - Below the patterns, the total size is shown too; counted in the
+    background and by itself after each change, "Refresh" looks at the game
+    folder again (e.g. after playing).
+  - From 50 MB on DBGL asks before the backup; once confirmed this holds for
+    the profile before each start as well, else no backup that large is made
+    before a start.
+  - Backing up and restoring with a progress bar.
+  - Backups can be named ("Name..." or a double click) and kept (then never
+    removed for the number to keep). ● marks the backup with the same state
+    as the game folder now.
+  - "Suggest" no longer suggests large files (over 4 MB; for Lost Eden it
+    was 375 MB of game data).
+  - Before a game with backups starts, DBGL briefly shows which backup the
+    game folder matches now (●) and lets you start with another one: it is
+    restored first, the state before is backed up. Can be switched off in that
+    window or on the page Savegames (on by default); not in the TV mode.
 
 Fixed
 - USB stick assistant: DOSBox versions (e.g. DOSBox-X) were locked as

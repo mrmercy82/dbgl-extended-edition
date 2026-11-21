@@ -136,6 +136,23 @@ Neu
 - ScummVM-Profil: unter den Notizen wie bei DOS-Spielen Speicherplatz (der
   Spielordner aus scummvm.ini), Spielzeit, Sitzungen, die letzte davon und
   wann das Profil angelegt wurde; der Speicherplatz auch in der Liste.
+- Profil > Savegames:
+  - Unter den Dateimustern steht jetzt auch die Gesamtgröße; gezählt wird im
+    Hintergrund und nach jeder Änderung von selbst, „Aktualisieren“ schaut
+    erneut in den Spielordner (z. B. nach dem Spielen).
+  - Ab 50 MB fragt DBGL vor dem Sichern; bestätigt gilt das für das Profil auch
+    vor jedem Start, sonst wird vor dem Start nicht so groß gesichert.
+  - Sichern und Zurückholen mit Fortschrittsbalken.
+  - Sicherungen lassen sich benennen („Benennen...“ oder Doppelklick) und
+    behalten (werden dann nie wegen der Anzahl gelöscht). ● markiert die
+    Sicherung mit demselben Stand wie jetzt im Spielordner.
+  - „Vorschlagen“ schlägt keine großen Dateien mehr vor (über 4 MB, bei Lost
+    Eden waren es 375 MB Spieldaten).
+  - Vor dem Start eines Spiels mit Sicherungen zeigt DBGL kurz, welcher
+    Sicherung der Spielordner gerade entspricht (●), und lässt mit einer
+    anderen starten: Sie wird zuerst zurückgeholt, der Stand vorher gesichert.
+    Abschaltbar im Fenster selbst oder auf der Seite Savegames (Standard: an);
+    nicht im TV-Modus.
 
 Fehler behoben
 - USB-Stick-Assistent: DOSBox-Versionen (z. B. DOSBox-X) waren als nötig

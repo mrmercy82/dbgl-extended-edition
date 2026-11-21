@@ -3199,6 +3199,57 @@ public class Dbgl0102Tests {
 				< SettingsService.availableWebSearchEngines().indexOf(org.dbgl.util.searchengine.WebSearchEngine.getBySimpleName("mobygames"))); // MobyGames stays last
 	}
 
+	/** alpha 52: backups of saved games: no big data file suggested, names, kept ones stay, the current state, large ones before a start */
+	@Test
+	public void testSavegameNamesKeptLarge() throws Exception {
+		File dir = Files.createTempDirectory("dbgl-sav52").toFile();
+		try {
+			File game = new File(dir, "game");
+			game.mkdirs();
+			Files.write(new File(game, "EDEN.DAT").toPath(), new byte[5 * 1024 * 1024]);
+			Files.writeString(new File(game, "SAVE1.SAV").toPath(), "a");
+			assertEquals("SAVE1.SAV", org.dbgl.util.SavegameBackup.suggest(game)); // not the 5 MB of the game
+			File conf = new File(DATA_DIR, "dosbox-staging-0.83.0.conf");
+			org.dbgl.model.aggregate.DosboxVersion dbv = DosboxVersionFactory.create(9300, "Staging", SettingsService.STAGING_DOSBOX_FAM.title_, "0.83.0", false, true, false, null, dir.getPath(), "", "",
+				conf.getPath(), null, null, null, 0);
+			org.dbgl.model.aggregate.Profile p = org.dbgl.model.factory.ProfileFactory.create(dbv, null);
+			p.setId(9300);
+			p.setConfigurationFileLocation(new File(dir, "9300.conf").getPath());
+			p.getConfiguration().getAutoexec().addMount("mount C \"" + game.getPath() + "\"");
+			p.setCapturesById();
+			org.dbgl.util.SavegameBackup.save(p, new org.dbgl.util.SavegameBackup.Config(true, "*.SAV", 2));
+			java.util.List<File> made = new java.util.ArrayList<>();
+			for (int i = 0; i < 4; i++) {
+				Files.writeString(new File(game, "SAVE1.SAV").toPath(), "state " + i);
+				new File(game, "SAVE1.SAV").setLastModified(1_700_000_000_000L + i * 1000L);
+				File zip = org.dbgl.util.SavegameBackup.backup(p, null);
+				assertNotNull(zip);
+				made.add(zip);
+				if (i == 0) {
+					org.dbgl.util.SavegameBackup.setName(p, zip, "before the end");
+					org.dbgl.util.SavegameBackup.setKept(p, zip, true);
+				}
+				Thread.sleep(1100); // a new name (seconds)
+			}
+			assertTrue(made.get(0).isFile()); // kept, not counted
+			assertFalse(made.get(1).isFile()); // the oldest of the others
+			assertEquals("before the end", org.dbgl.util.SavegameBackup.nameOf(p, made.get(0)));
+			assertEquals(made.get(3), org.dbgl.util.SavegameBackup.current(p));
+			org.dbgl.util.SavegameBackup.save(p, new org.dbgl.util.SavegameBackup.Config(true, "*.SAV", 3)); // the names stay
+			assertEquals("before the end", org.dbgl.util.SavegameBackup.nameOf(p, made.get(0)));
+			// a large one is not made before a start unless allowed
+			org.dbgl.util.SavegameBackup.save(p, new org.dbgl.util.SavegameBackup.Config(true, "*.SAV; big.bin", 3));
+			try (java.io.RandomAccessFile big = new java.io.RandomAccessFile(new File(game, "big.bin"), "rw")) {
+				big.setLength(org.dbgl.util.SavegameBackup.LARGE + 1);
+			}
+			int before = org.dbgl.util.SavegameBackup.backups(p).size();
+			org.dbgl.util.SavegameBackup.beforeStart(p);
+			assertEquals(before, org.dbgl.util.SavegameBackup.backups(p).size());
+		} finally {
+			org.apache.commons.io.FileUtils.deleteQuietly(dir);
+		}
+	}
+
 	/** alpha 52: points 8 to 13 of the list: second backup place, Steam pictures, TV played last, next part, duplicates by content, mixer */
 	@Test
 	public void testListPointsAlpha52() throws Exception {

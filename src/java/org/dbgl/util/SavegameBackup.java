@@ -55,6 +55,8 @@ public final class SavegameBackup {
 	private static final String SETTINGS = "savegames.properties";
 	private static final DateTimeFormatter STAMP = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss", Locale.ROOT);
 	private static final int MAX_DEPTH = 8;
+	/** alpha 52: no file larger than this is suggested */
+	static final long MAX_SUGGESTED_SIZE = 4L * 1024 * 1024;
 
 	/** the settings of a profile: on before each start, which files (patterns separated by ;), how many backups to keep */
 	public record Config(boolean enabled, String patterns, int keep) {
@@ -87,15 +89,107 @@ public final class SavegameBackup {
 	}
 
 	public static void save(Profile p, Config c) throws IOException {
-		File d = dir(p);
-		Files.createDirectories(d.toPath());
-		Properties props = new Properties();
+		Properties props = properties(p); // alpha 52: the names and the kept ones stay
 		props.setProperty("enabled", String.valueOf(c.enabled()));
 		props.setProperty("patterns", c.patterns());
 		props.setProperty("keep", String.valueOf(c.keep()));
+		store(p, props);
+	}
+
+	/** alpha 52: all that is in savegames.properties (settings, names of backups, kept ones, large backups allowed) */
+	private static Properties properties(Profile p) {
+		Properties props = new Properties();
+		File f = new File(dir(p), SETTINGS);
+		if (f.isFile()) {
+			try (InputStream in = Files.newInputStream(f.toPath())) {
+				props.load(in);
+			} catch (IOException | RuntimeException e) {
+				// empty then
+			}
+		}
+		return props;
+	}
+
+	private static void store(Profile p, Properties props) throws IOException {
+		File d = dir(p);
+		Files.createDirectories(d.toPath());
 		try (OutputStream out = Files.newOutputStream(new File(d, SETTINGS).toPath())) {
 			props.store(out, "DBGL Extended Edition: backups of the saved games of this profile");
 		}
+	}
+
+	/** alpha 52: whether the state of the saved games is shown before a start, with the chance to start with another backup (on) */
+	public static boolean showAtStart(Profile p) {
+		return Boolean.parseBoolean(properties(p).getProperty("showatstart", "true"));
+	}
+
+	public static void setShowAtStart(Profile p, boolean show) throws IOException {
+		Properties props = properties(p);
+		props.setProperty("showatstart", String.valueOf(show));
+		store(p, props);
+	}
+
+	/** alpha 52: from this size on (all files together) a backup is asked for first, and not made before a start unless allowed */
+	public static final long LARGE = 50L * 1024 * 1024;
+
+	/** alpha 52: the name given to a backup (empty if none) */
+	public static String nameOf(Profile p, File zip) {
+		return properties(p).getProperty("name." + zip.getName(), "");
+	}
+
+	public static void setName(Profile p, File zip, String name) throws IOException {
+		Properties props = properties(p);
+		if ((name == null) || name.isBlank())
+			props.remove("name." + zip.getName());
+		else
+			props.setProperty("name." + zip.getName(), name.trim());
+		store(p, props);
+	}
+
+	/** alpha 52: a kept backup is never removed for the number to keep (only when deleted by hand) */
+	public static boolean isKept(Profile p, File zip) {
+		return Boolean.parseBoolean(properties(p).getProperty("kept." + zip.getName(), "false"));
+	}
+
+	public static void setKept(Profile p, File zip, boolean kept) throws IOException {
+		Properties props = properties(p);
+		if (kept)
+			props.setProperty("kept." + zip.getName(), "true");
+		else
+			props.remove("kept." + zip.getName());
+		store(p, props);
+	}
+
+	/** alpha 52: whether backups from LARGE on were allowed (asked once), also before each start */
+	public static boolean largeAllowed(Profile p) {
+		return Boolean.parseBoolean(properties(p).getProperty("large", "false"));
+	}
+
+	public static void setLargeAllowed(Profile p, boolean allowed) throws IOException {
+		Properties props = properties(p);
+		props.setProperty("large", String.valueOf(allowed));
+		store(p, props);
+	}
+
+	/** alpha 52: the size of the files, in bytes */
+	public static long size(Map<String, File> files) {
+		return files.values().stream().mapToLong(File::length).sum();
+	}
+
+	/** alpha 52: the backup with the same files as in the game folder now (the state the game is in), or null */
+	public static File current(Profile p) {
+		try {
+			Map<String, File> files = matching(gameDir(p), load(p).patterns());
+			if (files.isEmpty())
+				return null;
+			String now = manifest(files);
+			for (File zip: backups(p))
+				if (now.equals(commentOf(zip)))
+					return zip;
+		} catch (IOException | RuntimeException e) {
+			// none
+		}
+		return null;
 	}
 
 	/** the folder the patterns are in: that of drive C:, else the first folder mounted; null if there is none */
@@ -175,7 +269,7 @@ public final class SavegameBackup {
 	}
 
 	/** the files and their state, as written into the comment of a backup: an unchanged state needs no new backup */
-	private static String manifest(Map<String, File> files) {
+	static String manifest(Map<String, File> files) {
 		StringBuilder sb = new StringBuilder();
 		files.forEach((rel, f) -> sb.append(rel).append('|').append(f.length()).append('|').append(f.lastModified()).append('\n'));
 		return Integer.toHexString(sb.toString().hashCode()) + "-" + files.size();
@@ -188,6 +282,11 @@ public final class SavegameBackup {
 	 * @return the new ZIP file, or null when there is nothing to save or nothing changed since the last backup
 	 */
 	public static File backup(Profile p, String suffix) throws IOException {
+		return backup(p, suffix, null);
+	}
+
+	/** alpha 52: told about each file put into the backup (for a progress bar), may be null */
+	public static File backup(Profile p, String suffix, java.util.function.IntConsumer progress) throws IOException {
 		Config c = load(p);
 		File gameDir = gameDir(p);
 		Map<String, File> files = matching(gameDir, c.patterns());
@@ -212,6 +311,8 @@ public final class SavegameBackup {
 				out.putNextEntry(entry);
 				Files.copy(e.getValue().toPath(), out);
 				out.closeEntry();
+				if (progress != null)
+					progress.accept(1);
 			}
 		} catch (IOException | RuntimeException e) {
 			Files.deleteIfExists(part.toPath());
@@ -233,9 +334,11 @@ public final class SavegameBackup {
 		}
 	}
 
-	/** only the newest ones stay */
+	/** only the newest ones stay; alpha 52: kept ones always stay and are not counted */
 	static void prune(Profile p, int keep) {
-		List<File> list = backups(p);
+		Properties props = properties(p);
+		List<File> list = new ArrayList<>(backups(p));
+		list.removeIf(f -> Boolean.parseBoolean(props.getProperty("kept." + f.getName(), "false")));
 		for (int i = keep; i < list.size(); i++)
 			list.get(i).delete();
 	}
@@ -293,6 +396,8 @@ public final class SavegameBackup {
 		long[] times = files.stream().mapToLong(f -> f.toFile().lastModified()).sorted().toArray();
 		long installed = times[times.length / 4]; // most files of a game are as old as the game (saved games are few, or in one folder)
 		Pattern usual = Pattern.compile("(save.*|.*\\.(sav|sv\\d|gam|sg\\d?|svg|save|ssg|dsg|[0-9]{3}))", Pattern.CASE_INSENSITIVE);
+		// alpha 52: saved games of DOS games are small; big files are data of the game (Lost Eden: 375 MB were suggested)
+		files.removeIf(f -> f.toFile().length() > MAX_SUGGESTED_SIZE);
 		Pattern program = Pattern.compile(".*\\.(exe|com|bat|ovl|ovr|dll|drv|dig|mdi|ini|cfg|txt|doc|pdf|lnk|ico|zip)", Pattern.CASE_INSENSITIVE);
 		java.util.Set<String> found = new java.util.TreeSet<>();
 		Map<String, Integer> perFolder = new LinkedHashMap<>();
@@ -325,8 +430,14 @@ public final class SavegameBackup {
 	/** before a start: a backup if it is switched on for the profile; a problem never keeps the game from starting */
 	public static void beforeStart(Profile p) {
 		try {
-			if (load(p).enabled())
+			if (load(p).enabled()) {
+				// alpha 52: large ones only when allowed for the profile (asked in the profile editor)
+				if (!largeAllowed(p) && (size(matching(gameDir(p), load(p).patterns())) >= LARGE)) {
+					System.err.println("Savegame backup of " + p.getTitle() + ": skipped, larger than " + (LARGE >> 20) + " MB (not allowed for it)");
+					return;
+				}
 				backup(p, null);
+			}
 		} catch (IOException | RuntimeException e) {
 			System.err.println("Savegame backup of " + p.getTitle() + ": " + e);
 		}

@@ -390,6 +390,14 @@ public class ExecuteUtils {
 				}
 			}
 		}
+		// alpha 52: which state of the saved games is there now, and the chance to start with another backup (restored first)
+		if (mode == ProfileRunMode.NORMAL && !prepareOnly) {
+			org.dbgl.gui.controls.SavegameStart.Choice choice = org.dbgl.gui.controls.SavegameStart.ask(display.getActiveShell(), prof);
+			if ((choice != null) && !choice.start())
+				return;
+			if ((choice != null) && (choice.restore() != null))
+				SavegameBackup.restore(prof, choice.restore()); // the state now goes into a backup first
+		}
 		// alpha 48 (wish 11): the saved games into a backup first, if switched on for this profile (page "Savegames")
 		if (mode == ProfileRunMode.NORMAL && !prepareOnly)
 			SavegameBackup.beforeStart(prof);
