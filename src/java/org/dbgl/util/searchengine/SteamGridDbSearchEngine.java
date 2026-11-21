@@ -130,4 +130,59 @@ public class SteamGridDbSearchEngine extends WebSearchEngine {
 		entry.setWebImages(result.toArray(new SearchEngineImageInformation[0]));
 		return entry.getWebImages();
 	}
+
+	/** alpha 52: the kinds of pictures of the Steam library: wide banner, background (hero), logo, upright cover */
+	public static final String BANNER = "banner", HERO = "hero", LOGO = "logo", COVER = "cover";
+
+	/** @return true if a key for SteamGridDB is set (the pictures for Steam need one) */
+	public boolean hasKey() {
+		return StringUtils.isNotBlank(SettingsService.getInstance().getValue(getSimpleName(), "api_key"));
+	}
+
+	/**
+	 * alpha 52: the pictures of a game for the Steam library, by kind (see the constants) the address of the best rated one;
+	 * the game found by its title (the one with the same name, else the first); empty if there is none
+	 */
+	public Map<String, String> steamArt(String title) throws IOException {
+		Map<String, String> result = new java.util.LinkedHashMap<>();
+		List<WebProfile> found = getEntries(title, new String[0]);
+		if (found.isEmpty())
+			return result;
+		WebProfile game = found.stream().filter(g -> normalized(g.getTitle()).equals(normalized(title))).findFirst().orElse(found.get(0));
+		String still = "mimes=image/png,image/jpeg&types=static";
+		firstUrl(result, BANNER, "grids/game/" + game.getGameId() + "?dimensions=460x215,920x430&" + still);
+		firstUrl(result, HERO, "heroes/game/" + game.getGameId() + "?" + still);
+		firstUrl(result, LOGO, "logos/game/" + game.getGameId() + "?mimes=image/png&types=static");
+		firstUrl(result, COVER, "grids/game/" + game.getGameId() + "?dimensions=600x900&" + still);
+		return result;
+	}
+
+	private void firstUrl(Map<String, String> result, String kind, String path) throws IOException {
+		JSONArray found = get(path);
+		for (int i = 0; i < found.length(); i++) {
+			String url = found.getJSONObject(i).optString("url", "");
+			if (url.startsWith("https://")) {
+				result.put(kind, url);
+				return;
+			}
+		}
+	}
+
+	public static String normalized(String title) {
+		return title == null ? "": title.toLowerCase(java.util.Locale.ROOT).replaceAll("[^\\p{L}\\p{N}]", "");
+	}
+
+	/** alpha 52: a picture saved into a file of the folder, named by its kind with the extension of the address (png or jpg) */
+	public static java.io.File download(String url, java.io.File dir, String kind) throws IOException {
+		String ext = url.toLowerCase(java.util.Locale.ROOT).replaceAll("[?#].*$", "").endsWith(".png") ? "png": "jpg";
+		java.io.File target = new java.io.File(dir, kind + "." + ext);
+		java.net.HttpURLConnection conn = getHttpURLConnection(url);
+		try (java.io.InputStream in = conn.getInputStream()) {
+			byte[] data = in.readNBytes(15 * 1024 * 1024 + 1);
+			if (data.length > 15 * 1024 * 1024)
+				throw new IOException("picture too large: " + url);
+			java.nio.file.Files.write(target.toPath(), data);
+		}
+		return target;
+	}
 }

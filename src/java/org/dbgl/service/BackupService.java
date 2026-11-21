@@ -43,6 +43,9 @@ public final class BackupService {
 	private static final String PROFILES_DIR = "profiles/";
 	private static final String TEMPLATES_DIR = "templates/";
 	private static final String SETTINGS = "settings.conf";
+	/** alpha 52: on request the screenshots (captures/ without the savegames folders) and the backups of the saved games */
+	private static final String CAPTURES_DIR = "captures/";
+	private static final String SAVEGAMES_PART = "/" + org.dbgl.util.SavegameBackup.DIR + "/";
 	/** alpha 49: how the comment of the zip file begins; the version of DBGL that made the backup follows */
 	public static final String COMMENT = "DBGL Extended Edition ";
 
@@ -51,6 +54,15 @@ public final class BackupService {
 
 	/** @return the number of files in the backup */
 	public static int backup(File zipFile) throws IOException, SQLException {
+		return backup(zipFile, false, false);
+	}
+
+	/**
+	 * alpha 52: with the screenshots and/or the backups of the saved games (both in the folder captures)
+	 *
+	 * @return the number of files in the backup
+	 */
+	public static int backup(File zipFile, boolean captures, boolean savegames) throws IOException, SQLException {
 		File tmp = Files.createTempDirectory("dbgl-backup").toFile();
 		try {
 			DatabaseService.getInstance().backupTo(new File(tmp, "db"));
@@ -66,6 +78,8 @@ public final class BackupService {
 					addFile(zip, settings, SETTINGS);
 					count++;
 				}
+				if (captures || savegames)
+					count += addDir(zip, FileLocationService.getInstance().getCapturesDir(), CAPTURES_DIR, rel -> isSavegamePart(rel) ? savegames: captures);
 			}
 			return count;
 		} finally {
@@ -97,9 +111,14 @@ public final class BackupService {
 
 	/** make a backup in the folder and keep only the newest ones */
 	public static File autoBackup(File dir, int keep) throws IOException, SQLException {
+		return autoBackup(dir, keep, false, false);
+	}
+
+	/** alpha 52: with the screenshots and/or the backups of the saved games; copied to the second place too, if one is set */
+	public static File autoBackup(File dir, int keep, boolean captures, boolean savegames) throws IOException, SQLException {
 		dir.mkdirs();
 		File zip = new File(dir, "dbgl-backup-" + java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")) + ".zip");
-		backup(zip);
+		backup(zip, captures, savegames);
 		File[] all = dir.listFiles((d, n) -> n.startsWith("dbgl-backup-") && n.endsWith(".zip"));
 		if (all != null) {
 			java.util.Arrays.sort(all, java.util.Comparator.comparing(File::getName).reversed());
@@ -112,16 +131,48 @@ public final class BackupService {
 					Files.deleteIfExists(f.toPath());
 			}
 		}
+		org.dbgl.util.SecondBackupPlace.autoBackupMade(zip, keep);
 		return zip;
 	}
 
+	/** alpha 52: a path in captures (with / and without the leading folder) that is in the backups of the saved games */
+	public static boolean isSavegamePart(String rel) {
+		return ("/" + rel).contains(SAVEGAMES_PART);
+	}
+
+	/** alpha 52: the size of the screenshots and of the backups of the saved games, in bytes: {screenshots, saved games} */
+	public static long[] capturesSizes() {
+		long[] result = new long[2];
+		Path base = FileLocationService.getInstance().getCapturesDir().toPath();
+		if (!Files.isDirectory(base))
+			return result;
+		try (Stream<Path> files = Files.walk(base)) {
+			files.filter(Files::isRegularFile).forEach(p -> {
+				try {
+					result[isSavegamePart(base.relativize(p).toString().replace(File.separatorChar, '/')) ? 1: 0] += Files.size(p);
+				} catch (IOException e) {
+					// not counted
+				}
+			});
+		} catch (IOException | RuntimeException e) {
+			// as far as counted
+		}
+		return result;
+	}
+
 	private static int addDir(ZipOutputStream zip, File dir, String prefix) throws IOException {
+		return addDir(zip, dir, prefix, rel -> true);
+	}
+
+	private static int addDir(ZipOutputStream zip, File dir, String prefix, java.util.function.Predicate<String> wanted) throws IOException {
 		if (!dir.isDirectory())
 			return 0;
 		int count = 0;
 		Path base = dir.toPath();
 		try (Stream<Path> files = Files.walk(base)) {
 			for (Path p: (Iterable<Path>)files.filter(Files::isRegularFile)::iterator) {
+				if (!wanted.test(base.relativize(p).toString().replace(File.separatorChar, '/')))
+					continue;
 				addFile(zip, p.toFile(), prefix + base.relativize(p).toString().replace(File.separatorChar, '/'));
 				count++;
 			}
@@ -190,6 +241,10 @@ public final class BackupService {
 			}
 			restoreDir(new File(tmp, "profiles"), profilesDir);
 			restoreDir(new File(tmp, "templates"), templatesDir);
+			// alpha 52: screenshots and backups of saved games go back next to those there now; none is removed
+			File capturesBackup = new File(tmp, "captures");
+			if (capturesBackup.isDirectory())
+				FileUtils.copyDirectory(capturesBackup, FileLocationService.getInstance().getCapturesDir());
 			File settingsBackup = new File(tmp, SETTINGS);
 			if (settingsBackup.isFile() && (settings != null)) {
 				if (settings.isFile())

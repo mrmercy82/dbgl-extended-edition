@@ -154,9 +154,17 @@ public final class SavegamesPanel {
 		Runnable fill = () -> {
 			table.removeAll();
 			DateFormat format = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT);
-			for (File f: SavegameBackup.backups(profile)) {
+			// alpha 52: those only in the second place (e.g. on a new computer) as well, marked
+			java.util.List<File> local = SavegameBackup.backups(profile);
+			java.util.Set<String> localNames = new java.util.HashSet<>();
+			local.forEach(f -> localNames.add(f.getName()));
+			java.util.List<File> all = new java.util.ArrayList<>(local);
+			org.dbgl.util.SecondBackupPlace.savegameBackups(profile).stream().filter(f -> !localNames.contains(f.getName())).forEach(all::add);
+			all.sort(java.util.Comparator.comparing(File::getName).reversed());
+			for (File f: all) {
 				TableItem item = new TableItem(table, SWT.NONE);
-				String date = format.format(new Date(f.lastModified())) + (f.getName().contains("before-restore") ? " (" + text.get("dialog.savegames.beforerestore") + ")": "");
+				String date = format.format(new Date(f.lastModified())) + (f.getName().contains("before-restore") ? " (" + text.get("dialog.savegames.beforerestore") + ")": "")
+					+ (localNames.contains(f.getName()) ? "": " (" + text.get("dialog.savegames.secondplace") + ")");
 				item.setText(new String[] {date, String.valueOf(SavegameBackup.count(f)), FileUtils.byteCountToDisplaySize(f.length())});
 				item.setData(f);
 			}

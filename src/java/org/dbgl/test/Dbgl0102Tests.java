@@ -3199,6 +3199,90 @@ public class Dbgl0102Tests {
 				< SettingsService.availableWebSearchEngines().indexOf(org.dbgl.util.searchengine.WebSearchEngine.getBySimpleName("mobygames"))); // MobyGames stays last
 	}
 
+	/** alpha 52: points 8 to 13 of the list: second backup place, Steam pictures, TV played last, next part, duplicates by content, mixer */
+	@Test
+	public void testListPointsAlpha52() throws Exception {
+		File dir = Files.createTempDirectory("dbgl-list52").toFile();
+		try {
+			// 8: OneDrive by its variable, Dropbox by its info.json and in the home folder, each once
+			File one = new File(dir, "OneDrive"), box = new File(dir, "Dropbox"), home = new File(dir, "home");
+			one.mkdirs();
+			box.mkdirs();
+			new File(home, "Dropbox (Firma)").mkdirs();
+			File info = new File(new File(new File(dir, "local"), "Dropbox"), "info.json");
+			info.getParentFile().mkdirs();
+			Files.writeString(info.toPath(), new org.json.JSONObject().put("personal", new org.json.JSONObject().put("path", box.getPath())).toString());
+			java.util.Map<String, File> clouds = org.dbgl.util.SecondBackupPlace.cloudFolders(java.util.Map.of("OneDrive", one.getPath(), "LOCALAPPDATA", new File(dir, "local").getPath()), home);
+			assertEquals(java.util.List.of("OneDrive", "Dropbox", "Dropbox (Firma)"), new java.util.ArrayList<>(clouds.keySet()));
+			assertEquals("Space Quest III The Pirates", org.dbgl.util.SecondBackupPlace.safe("Space Quest III: The Pirates?"));
+			assertEquals("profile", org.dbgl.util.SecondBackupPlace.safe("***"));
+			File target = new File(dir, "target");
+			for (int i = 1; i <= 4; i++) {
+				File zip = new File(dir, "2026110" + i + "-120000.zip");
+				Files.writeString(zip.toPath(), "x" + i);
+				org.dbgl.util.SecondBackupPlace.copyAndPrune(zip, target, 2, f -> f.getName().endsWith(".zip"));
+			}
+			assertEquals(java.util.List.of("20261103-120000.zip", "20261104-120000.zip"), java.util.Arrays.stream(target.list()).sorted().toList());
+			assertTrue(org.dbgl.service.BackupService.isSavegamePart("12/savegames/20261101-120000.zip"));
+			assertFalse(org.dbgl.service.BackupService.isSavegamePart("12/shot0001.png"));
+			// 9: how Steam names the pictures of its library
+			assertEquals("", org.dbgl.util.SteamShortcuts.artSuffix("banner"));
+			assertEquals("_hero", org.dbgl.util.SteamShortcuts.artSuffix("hero"));
+			assertEquals("_logo", org.dbgl.util.SteamShortcuts.artSuffix("logo"));
+			assertEquals("p", org.dbgl.util.SteamShortcuts.artSuffix("cover"));
+			assertNull(org.dbgl.util.SteamShortcuts.artSuffix("icon"));
+			assertEquals(org.dbgl.util.searchengine.SteamGridDbSearchEngine.normalized("Commander Keen: Goodbye, Galaxy!"), org.dbgl.util.searchengine.SteamGridDbSearchEngine.normalized("commander keen goodbye galaxy"));
+			// 11: the series from the groups of MobyGames, the next part of a series
+			assertEquals("Space Quest", org.dbgl.util.searchengine.MobyGamesSearchEngine.seriesOf(java.util.List.of("Gameplay feature: Death", "Series: Space Quest")));
+			assertEquals("Commander Keen", org.dbgl.util.searchengine.MobyGamesSearchEngine.seriesOf(java.util.List.of("Commander Keen series")));
+			assertEquals("", org.dbgl.util.searchengine.MobyGamesSearchEngine.seriesOf(java.util.List.of("Protagonist: Roger Wilco")));
+			File conf = new File(DATA_DIR, "dosbox-staging-0.83.0.conf");
+			org.dbgl.model.aggregate.DosboxVersion dbv = DosboxVersionFactory.create(9100, "Staging", SettingsService.STAGING_DOSBOX_FAM.title_, "0.83.0", false, true, false, null, dir.getPath(), "", "",
+				conf.getPath(), null, null, null, 0);
+			List<org.dbgl.model.aggregate.Profile> games = new java.util.ArrayList<>();
+			String[][] keen = {{"Commander Keen 1", "1"}, {"Commander Keen 4", "4"}, {"Commander Keen 5", "5"}, {"Space Quest", "1"}};
+			for (int i = 0; i < keen.length; i++) {
+				org.dbgl.model.aggregate.Profile p = org.dbgl.model.factory.ProfileFactory.create(dbv, null);
+				p.setId(9100 + i);
+				p.setTitle(keen[i][0]);
+				p.setSeries(i == 3 ? "Space Quest": "Commander Keen", Integer.parseInt(keen[i][1]));
+				p.setStats(new org.dbgl.model.GenericStats(new java.util.Date(), new java.util.Date(), i == 0 ? new java.util.Date(1000L): i == 2 ? new java.util.Date(5000L): null, i == 0 || i == 2 ? 1: 0));
+				games.add(p);
+			}
+			assertEquals("Commander Keen 4", org.dbgl.util.SeriesSuggester.nextPart(games, games.get(0)).getTitle());
+			assertTrue(org.dbgl.util.SeriesSuggester.neverPlayed(games.get(1)));
+			assertNull(org.dbgl.util.SeriesSuggester.nextPart(games, games.get(2))); // the last part
+			assertNull(org.dbgl.util.SeriesSuggester.nextPart(games, games.get(3))); // alone in its series
+			// 10: played last: only those played, the newest first
+			assertEquals(java.util.List.of("Commander Keen 5", "Commander Keen 1"), org.dbgl.gui.tv.TvMode.recent(games).stream().map(org.dbgl.model.aggregate.Profile::getTitle).toList());
+			// 12: the same program in two folders by its content; small programs and batch files are not compared
+			File a = new File(dir, "a/KEEN4E.EXE"), c = new File(dir, "c/KEEN4E.EXE"), bat = new File(dir, "a/START.BAT"), small = new File(dir, "a/SMALL.EXE");
+			a.getParentFile().mkdirs();
+			c.getParentFile().mkdirs();
+			byte[] data = new byte[20000];
+			new java.util.Random(4).nextBytes(data);
+			Files.write(a.toPath(), data);
+			Files.write(c.toPath(), data);
+			Files.write(bat.toPath(), new byte[20000]);
+			Files.write(small.toPath(), new byte[100]);
+			assertNotNull(org.dbgl.util.DuplicateProfiles.contentSum(a));
+			assertEquals(org.dbgl.util.DuplicateProfiles.contentSum(a), org.dbgl.util.DuplicateProfiles.contentSum(c));
+			assertNull(org.dbgl.util.DuplicateProfiles.contentSum(bat));
+			assertNull(org.dbgl.util.DuplicateProfiles.contentSum(small));
+			// 13: the MIDI channels of DOSBox Staging in the mixer, and what the mixer does not show is kept
+			org.dbgl.model.MixerCommand staging = new org.dbgl.model.MixerCommand("master 70:70 mt32 150:150 innovation 50:50",
+				new String[] {"master", "pcspeaker", "sb", "gus", "opl", "disney", "cdaudio", "mt32", "fsynth", "soundcanvas"}, new boolean[10]);
+			assertEquals(10, staging.getChannelCount());
+			assertEquals("master 70:70 mt32 150:150 innovation 50:50", staging.toString());
+			org.dbgl.model.MixerCommand classic = new org.dbgl.model.MixerCommand("master 80:80 mt32 150:150", new String[] {"master", "spkr", "sb", "gus", "fm", "disney", "cdaudio"},
+				new boolean[7]);
+			assertEquals(7, classic.getChannelCount());
+			assertEquals("master 80:80 mt32 150:150", classic.toString()); // before, mt32 was lost
+		} finally {
+			org.apache.commons.io.FileUtils.deleteQuietly(dir);
+		}
+	}
+
 	/** alpha 52: the shader preview: the kinds of the shader field, the test picture and the pictures drawn from it */
 	@Test
 	public void testShaderPreview() {
@@ -5135,14 +5219,14 @@ public class Dbgl0102Tests {
 			org.apache.commons.io.FileUtils.deleteQuietly(backups);
 		}
 
-		// the newest released part of the changelog starts with the note on Java 21, in both languages (until it is taken back); a part
-		// still in progress is not looked at, so this fails at the release until that part has the note too
+		// the part of alpha 51 (where Java 21 became necessary) starts with the note on Java 21, in both languages; alpha 52 on: the
+		// newer parts do not repeat it (decided at alpha 52)
 		for (String[] doc: new String[][] {{"changelog_de.txt", "Wichtig"}, {"changelog_en.txt", "Important"}}) {
 			String text;
 			try (java.io.InputStream in = org.dbgl.gui.dialog.DocumentDialog.class.getResourceAsStream("/doc/" + doc[0])) {
 				text = new String(in.readAllBytes(), StandardCharsets.UTF_8).replace("\r\n", "\n");
 			}
-			java.util.regex.Matcher first = java.util.regex.Pattern.compile("(?m)^0\\.\\d+ (alpha|beta) \\d++(?! \\(in (Arbeit|progress)\\)).*\\n-+\\n").matcher(text);
+			java.util.regex.Matcher first = java.util.regex.Pattern.compile("(?m)^0\\.101 alpha 51 .*\\n-+\\n").matcher(text);
 			assertTrue(doc[0], first.find());
 			String part = text.substring(first.end());
 			assertTrue(doc[0], part.startsWith(doc[1] + "\n") && part.substring(0, 400).contains("Java 21") && part.substring(0, 600).contains("https://adoptium.net/temurin/releases/?version=21"));

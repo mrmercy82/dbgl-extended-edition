@@ -102,6 +102,32 @@ Neu
   alter DOS-Spiele: das ganze Bild und ein vergrößerter Ausschnitt, auf Wunsch
   zum Vergleich ohne Shader. DBGL zeichnet das selbst, das echte Bild zeigt
   der Probestart.
+- Zweiter Sicherungsort (Einstellungen > Allgemein): ein Ordner z. B. bei
+  OneDrive oder Dropbox (auf dem Computer gefunden und zur Auswahl
+  angeboten) oder auf einem anderen Laufwerk. Jede neue Savegame-Sicherung
+  und jede automatische Sicherung kommt zusätzlich als Kopie dorthin (Ordner
+  DBGL), es bleiben so viele wie in DBGL. Savegame-Sicherungen, die nur dort
+  liegen (z. B. auf einem neuen Computer), zeigt die Seite Savegames im
+  Profil mit „(zweiter Ort)“ zum Zurückholen.
+- Automatische Sicherung: auf Wunsch auch mit den Bildschirmfotos und den
+  Savegame-Sicherungen; daneben steht, wie viel Platz das braucht. Beim
+  Wiederherstellen kommen sie zu den vorhandenen dazu, nichts wird gelöscht.
+- Zu Steam hinzufügen: auf Wunsch Banner, Hintergrund und Logo für die
+  Steam-Bibliothek von SteamGridDB (mit dem eigenen Schlüssel), dazu ein
+  Cover für Profile ohne eigenes.
+- TV-Modus: „Zuletzt gespielt“ im Menü (Y/F), die zuletzt gespielten Spiele
+  zuerst. Die Info (X/I) zeigt alle Bilder des Spiels: eines groß, mit LB/RB
+  (Bild auf/ab) zum nächsten, daneben die folgenden klein. Fehlt das Cover,
+  steht unten, wo es sich holen lässt.
+- Spielereihen: Nach einem Spiel einer Reihe bietet DBGL den nächsten Teil
+  an, wenn dieser noch nie gestartet wurde (Starten, Auswählen, Nein; in der
+  Profil-Übersicht abschaltbar). Die Reihe kommt jetzt auch von MobyGames
+  (aus den Gruppen des Spiels).
+- Doppelte Profile suchen: findet auch Kopien eines Spiels in einem anderen
+  Ordner, an der Prüfsumme der Startdatei (bei gleichen Parametern; kleine
+  Startprogramme und Batch-Dateien zählen nicht).
+- Mixer für DOSBox Staging: Regler auch für MT-32, FluidSynth und (ab 0.83)
+  Sound Canvas, je nach gewähltem MIDI-Gerät.
 
 Fehler behoben
 - USB-Stick-Assistent: DOSBox-Versionen (z. B. DOSBox-X) waren als nötig
@@ -123,6 +149,9 @@ Fehler behoben
 - Ein Link auf eine Datei, die es nicht mehr gibt (z. B. ein Handbuch nach
   dem Verschieben), tat beim Klick nichts, unter Linux ohne jede Meldung
   (auf Vogons gemeldet). Jetzt kommt „Die Datei ... wurde nicht gefunden.“
+- Mixer: Kanäle im Befehl, für die das Fenster keinen Regler hat (z. B.
+  „mt32“ bei DOSBox 0.74), gingen beim Bearbeiten im Mixer verloren; sie
+  bleiben jetzt erhalten.
 
 Verbessert
 - update-readme.txt im Update-Paket: viel kürzer, erst die Neuinstallation

@@ -74,15 +74,53 @@ public final class SteamDialog {
 		SteamShortcuts.User user = (SteamShortcuts.User)choice[0];
 		boolean pictures = (Boolean)choice[1];
 		boolean viaDbgl = (Boolean)choice[2];
+		boolean gridDb = (Boolean)choice[3];
 
 		List<SteamShortcuts.Game> games = new ArrayList<>();
 		for (Profile p: profiles)
 			games.add(viaDbgl ? gameViaDbgl(p): gameOf(p));
+		java.io.File tmp = null;
 		try {
-			SteamShortcuts.Result result = SteamShortcuts.add(user, games, pictures);
-			Mess_.on(shell).key("dialog.steam.done", new Object[] {result.added(), result.updated()}).display();
-		} catch (java.io.IOException | RuntimeException e) {
+			// alpha 52: banner, background and logo (and a cover where the profile has none) from SteamGridDB, fetched first
+			java.util.Map<SteamShortcuts.Game, java.util.Map<String, java.io.File>> art = new java.util.HashMap<>();
+			int[] missing = {0};
+			if (gridDb) {
+				java.io.File dir = java.nio.file.Files.createTempDirectory("dbgl-steamart").toFile();
+				tmp = dir;
+				java.util.concurrent.atomic.AtomicInteger progress = new java.util.concurrent.atomic.AtomicInteger();
+				try {
+					org.dbgl.gui.controls.BusyTask.run(shell, text.get("dialog.steam.griddb.fetching"), progress, games.size(), () -> {
+						org.dbgl.util.searchengine.SteamGridDbSearchEngine engine = (org.dbgl.util.searchengine.SteamGridDbSearchEngine)org.dbgl.util.searchengine.SteamGridDbSearchEngine.getInstance();
+						for (int i = 0; i < games.size(); i++) {
+							SteamShortcuts.Game g = games.get(i);
+							try {
+								java.util.Map<String, String> urls = engine.steamArt(g.name());
+								java.io.File own = new java.io.File(dir, String.valueOf(i));
+								java.nio.file.Files.createDirectories(own.toPath());
+								java.util.Map<String, java.io.File> files = new java.util.LinkedHashMap<>();
+								for (java.util.Map.Entry<String, String> u: urls.entrySet())
+									files.put(u.getKey(), org.dbgl.util.searchengine.SteamGridDbSearchEngine.download(u.getValue(), own, u.getKey()));
+								if (files.isEmpty())
+									missing[0]++;
+								art.put(g, files);
+							} catch (java.io.IOException e) {
+								missing[0]++;
+							}
+							progress.incrementAndGet();
+						}
+						return null;
+					});
+				} catch (org.dbgl.gui.controls.BusyTask.Cancelled e) {
+					return;
+				}
+			}
+			SteamShortcuts.Result result = SteamShortcuts.add(user, games, pictures, art);
+			Mess_.on(shell).key(gridDb && (missing[0] > 0) ? "dialog.steam.done.griddb": "dialog.steam.done", new Object[] {result.added(), result.updated(), missing[0]}).display();
+		} catch (Exception e) {
 			Mess_.on(shell).exception(e).warning();
+		} finally {
+			if (tmp != null)
+				org.apache.commons.io.FileUtils.deleteQuietly(tmp);
 		}
 	}
 
@@ -159,6 +197,14 @@ public final class SteamDialog {
 		viaDbgl.setToolTipText(text.get("dialog.steam.viadbgl.tooltip"));
 		viaDbgl.setSelection(true);
 		viaDbgl.setLayoutData(new GridData(SWT.BEGINNING, SWT.CENTER, false, false, 2, 1));
+		// alpha 52: the pictures of the Steam library from SteamGridDB (needs its key, as for the online infos)
+		boolean hasKey = ((org.dbgl.util.searchengine.SteamGridDbSearchEngine)org.dbgl.util.searchengine.SteamGridDbSearchEngine.getInstance()).hasKey();
+		Button gridDb = new Button(dlg, SWT.CHECK);
+		gridDb.setText(text.get(hasKey ? "dialog.steam.griddb": "dialog.steam.griddb.nokey"));
+		gridDb.setToolTipText(text.get("dialog.steam.griddb.tooltip"));
+		gridDb.setEnabled(hasKey);
+		gridDb.setSelection(hasKey && org.dbgl.service.SettingsService.getInstance().getBooleanValue("steam", "griddb"));
+		gridDb.setLayoutData(new GridData(SWT.BEGINNING, SWT.CENTER, false, false, 2, 1));
 
 		Composite row = new Composite(dlg, SWT.NONE);
 		row.setLayoutData(new GridData(SWT.END, SWT.CENTER, true, false, 2, 1));
@@ -170,7 +216,9 @@ public final class SteamDialog {
 		dlg.setDefaultButton(ok);
 		Object[][] result = new Object[1][];
 		ok.addListener(SWT.Selection, e -> {
-			result[0] = new Object[] {users.get(Math.max(0, user.getSelectionIndex())), pictures.getSelection(), viaDbgl.getSelection()};
+			result[0] = new Object[] {users.get(Math.max(0, user.getSelectionIndex())), pictures.getSelection(), viaDbgl.getSelection(), gridDb.getSelection()};
+			if (hasKey)
+				org.dbgl.service.SettingsService.getInstance().setBooleanValue("steam", "griddb", gridDb.getSelection());
 			dlg.close();
 		});
 		cancel.addListener(SWT.Selection, e -> dlg.close());

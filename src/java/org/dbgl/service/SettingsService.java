@@ -538,6 +538,13 @@ public class SettingsService {
 		settings_.setValue("backup", "keep", 3);
 		settings_.setValue("backup", "last", "");
 		settings_.setValue("backup", "dir", "");
+		settings_.setValue("backup", "captures", false); // alpha 52: the automatic backup with the screenshots, with the backups of saved games
+		settings_.setValue("backup", "savegames", false);
+		settings_.setValue("gui", "offernextpart", true); // alpha 52: after a game of a series, offer its next part
+		settings_.setValue("steam", "griddb", true); // alpha 52: pictures of the Steam library from SteamGridDB (if its key is set)
+		settings_.setValue("backup", "secondplace", ""); // alpha 52: a second place for backups (e.g. OneDrive, Dropbox), and what goes there
+		settings_.setValue("backup", "secondsavegames", true);
+		settings_.setValue("backup", "secondauto", true);
 		settings_.setValue("gui", "updatenoticeshown", "");
 		settings_.setValue("gui", "updatechecked", "");
 		settings_.setValue("gui", "statuswindow_width", "800");

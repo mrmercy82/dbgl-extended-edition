@@ -54,7 +54,7 @@ public class EditMixerDialog extends SizeControlledButtonDialog<String> {
 
 	@Override
 	protected void onShellCreated() {
-		contents_.setLayout(new GridLayout(MixerCommand.CHANNELS.length, true));
+		contents_.setLayout(new GridLayout(Math.min(MixerCommand.CHANNELS.length, mixerCommand_.getChannelCount()), true)); // alpha 52: more in a second row
 
 		Iterator<Entry<ChannelType, Channel>> it = mixerCommand_.getChannelIterator();
 		while (it.hasNext()) {

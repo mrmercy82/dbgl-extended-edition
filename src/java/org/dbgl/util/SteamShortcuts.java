@@ -141,12 +141,31 @@ public final class SteamShortcuts {
 		return (crc.getValue() | 0x80000000L) & 0xFFFFFFFFL;
 	}
 
+	/** alpha 52: how Steam names the pictures of its library after the number of the game: banner none, "_hero", "_logo", cover "p" */
+	public static String artSuffix(String kind) {
+		return switch (kind) {
+			case "banner" -> "";
+			case "hero" -> "_hero";
+			case "logo" -> "_logo";
+			case "cover" -> "p";
+			default -> null;
+		};
+	}
+
 	/** what happened: how many games were added and updated */
 	public record Result(int added, int updated) {
 	}
 
 	/** adds or updates the games for the user; a copy of the old file is kept as shortcuts.vdf.dbgl-backup */
 	public static Result add(User user, List<Game> games, boolean pictures) throws IOException {
+		return add(user, games, pictures, Map.of());
+	}
+
+	/**
+	 * alpha 52: with the pictures of the Steam library from SteamGridDB, by game the files by kind (banner, hero, logo, cover;
+	 * see SteamGridDbSearchEngine); a cover of the profile is used before one from SteamGridDB
+	 */
+	public static Result add(User user, List<Game> games, boolean pictures, Map<Game, Map<String, File>> art) throws IOException {
 		File config = new File(user.dir(), "config");
 		File vdf = new File(config, "shortcuts.vdf");
 		Map<String, Object> root = vdf.isFile() ? read(Files.readAllBytes(vdf.toPath())): new LinkedHashMap<>();
@@ -196,13 +215,24 @@ public final class SteamShortcuts {
 				put(entry, "LaunchOptions", game.launchOptions());
 				updated++;
 			}
+			Object id = value(entry, "appid");
+			long gridId = (id instanceof Integer i) ? (i & 0xFFFFFFFFL): appId;
+			File grid = new File(config, "grid");
 			if (pictures && game.cover() != null && game.cover().isFile()) {
-				Object id = value(entry, "appid");
-				long gridId = (id instanceof Integer i) ? (i & 0xFFFFFFFFL): appId;
 				String ext = org.apache.commons.io.FilenameUtils.getExtension(game.cover().getName()).toLowerCase(java.util.Locale.ROOT);
-				File grid = new File(config, "grid");
 				Files.createDirectories(grid.toPath());
 				Files.copy(game.cover().toPath(), new File(grid, gridId + "p." + ext).toPath(), StandardCopyOption.REPLACE_EXISTING);
+			}
+			Map<String, File> pics = art.getOrDefault(game, Map.of());
+			for (Map.Entry<String, File> pic: pics.entrySet()) {
+				String suffix = artSuffix(pic.getKey());
+				if ((suffix == null) || !pic.getValue().isFile())
+					continue;
+				if (suffix.equals("p") && pictures && (game.cover() != null) && game.cover().isFile())
+					continue; // the cover of the profile comes first
+				Files.createDirectories(grid.toPath());
+				String ext = org.apache.commons.io.FilenameUtils.getExtension(pic.getValue().getName()).toLowerCase(java.util.Locale.ROOT);
+				Files.copy(pic.getValue().toPath(), new File(grid, gridId + suffix + "." + ext).toPath(), StandardCopyOption.REPLACE_EXISTING);
 			}
 		}
 

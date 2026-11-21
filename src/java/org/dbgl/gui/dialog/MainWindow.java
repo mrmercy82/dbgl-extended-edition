@@ -375,8 +375,37 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			if (!shell_.isDisposed() && profilesList_.stream().anyMatch(p -> p.getId() == id)) {
 				updateProfilesList(getSelectedProfileIds());
 				displayProfileInformation(false);
+				offerNextPart(id); // alpha 52
 			}
 		});
+	}
+
+	/**
+	 * alpha 52: after a game of a series, its next part if that was never started: select it, start it, or not (and on request
+	 * never again); not in the TV mode, and not when it is switched off (settings, profile overview)
+	 */
+	private void offerNextPart(int playedId) {
+		if (org.dbgl.gui.tv.TvMode.isShown() || !settings_.getBooleanValue("gui", "offernextpart"))
+			return;
+		Profile played = profilesList_.stream().filter(p -> p.getId() == playedId).findFirst().orElse(null);
+		Profile next = org.dbgl.util.SeriesSuggester.nextPart(profilesList_, played);
+		if ((next == null) || !org.dbgl.util.SeriesSuggester.neverPlayed(next))
+			return;
+		boolean[] never = {false};
+		int answer = org.dbgl.gui.controls.Choice.ask(shell_, text_.get("dialog.main.nextpart.title"),
+			text_.get("dialog.main.nextpart", new Object[] {played.getTitle(), next.getTitle(), played.getSeries().trim(), next.getSeriesPart()}), SWT.ICON_QUESTION,
+			text_.get("dialog.main.nextpart.never"), never, text_.get("dialog.main.nextpart.start"), text_.get("dialog.main.nextpart.select"), text_.get("dialog.main.nextpart.no"));
+		if (never[0])
+			settings_.setBooleanValue("gui", "offernextpart", false);
+		if ((answer != 0) && (answer != 1))
+			return;
+		int index = profilesList_.indexOf(next);
+		if (index < 0)
+			return;
+		profileTable_.setSelection(index);
+		displayProfileInformation(false);
+		if (answer == 0)
+			doRunProfile(ProfileRunMode.NORMAL, false);
 	}
 
 	/** the automatic backup, if one is due (see the settings) */
@@ -388,7 +417,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		File dir = StringUtils.isBlank(dirSetting) ? BackupService.defaultAutoBackupDir(): new File(dirSetting);
 		try {
 			settings_.setValue("backup", "last", today);
-			File zip = BackupService.autoBackup(dir, settings_.getIntValue("backup", "keep"));
+			File zip = BackupService.autoBackup(dir, settings_.getIntValue("backup", "keep"), settings_.getBooleanValue("backup", "captures"), settings_.getBooleanValue("backup", "savegames"));
 			System.out.println("Automatic backup: " + zip);
 		} catch (IOException | SQLException e) {
 			Mess_.on(shell_).exception(e).warning();

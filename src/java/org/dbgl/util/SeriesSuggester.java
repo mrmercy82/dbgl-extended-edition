@@ -344,4 +344,27 @@ public final class SeriesSuggester {
 				: String.CASE_INSENSITIVE_ORDER.compare(String.valueOf(a.profile().getTitle()), String.valueOf(b.profile().getTitle())));
 		return parts;
 	}
+
+	/**
+	 * alpha 52: the next part of the series of a game just played: the same series, the lowest part after its own; null if it
+	 * has no series or part, or no later part is there
+	 */
+	public static Profile nextPart(List<Profile> all, Profile played) {
+		if ((played == null) || org.apache.commons.lang3.StringUtils.isBlank(played.getSeries()) || (played.getSeriesPart() <= 0))
+			return null;
+		String series = played.getSeries().trim();
+		Profile best = null;
+		for (Profile p: all) {
+			if ((p.getId() == played.getId()) || org.apache.commons.lang3.StringUtils.isBlank(p.getSeries()) || !p.getSeries().trim().equalsIgnoreCase(series))
+				continue;
+			if ((p.getSeriesPart() > played.getSeriesPart()) && ((best == null) || (p.getSeriesPart() < best.getSeriesPart())))
+				best = p;
+		}
+		return best;
+	}
+
+	/** alpha 52: whether the next part is worth offering: it was never started */
+	public static boolean neverPlayed(Profile p) {
+		return (p.getStats() == null) || (p.getStats().getRuns() == 0);
+	}
 }

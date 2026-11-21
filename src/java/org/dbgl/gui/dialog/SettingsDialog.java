@@ -178,6 +178,50 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 		Combo autoBackup = Chain.on(backupGroup).lbl(l -> l.key("dialog.settings.autobackup.when")).cmb(c -> c.items(new String[] {text_.get("dialog.settings.autobackup.never"),
 			text_.get("dialog.settings.autobackup.daily"), text_.get("dialog.settings.autobackup.weekly")}).select(Math.max(0, Arrays.asList(backupModes).indexOf(settings_.getValue("backup", "auto"))))).combo();
 		Spinner backupKeep = Chain.on(backupGroup).lbl(l -> l.key("dialog.settings.autobackup.keep")).spn(s -> s.min(1).max(50).select(settings_.getIntValue("backup", "keep"))).spinner();
+		// alpha 52: on request with the screenshots and the backups of the saved games; their size is counted in the background
+		Button backupCaptures = Chain.on(backupGroup).lbl(l -> l.key("dialog.settings.autobackup.captures")).but(b -> b.select(settings_.getBooleanValue("backup", "captures"))).button();
+		Button backupSavegames = Chain.on(backupGroup).lbl(l -> l.key("dialog.settings.autobackup.savegames")).but(b -> b.select(settings_.getBooleanValue("backup", "savegames"))).button();
+		Thread sizes = new Thread(() -> {
+			long[] size = org.dbgl.service.BackupService.capturesSizes();
+			if (!shell_.isDisposed())
+				shell_.getDisplay().asyncExec(() -> {
+					if (backupCaptures.isDisposed())
+						return;
+					java.util.Locale sizeLocale = java.util.Locale.of(settings_.getValue("locale", "language"), settings_.getValue("locale", "country"));
+					backupCaptures.setText(text_.get("dialog.settings.autobackup.size", new Object[] {org.dbgl.util.DiskUsage.format(size[0], sizeLocale)}));
+					backupSavegames.setText(text_.get("dialog.settings.autobackup.size", new Object[] {org.dbgl.util.DiskUsage.format(size[1], sizeLocale)}));
+					backupCaptures.getParent().layout(true);
+				});
+		}, "backup sizes");
+		sizes.setDaemon(true);
+		sizes.start();
+
+		// alpha 52: a second place for the backups, e.g. OneDrive or Dropbox (found on this computer, offered in the list)
+		Group secondGroup = Group_.on(generalComposite).layout(new GridLayout(3, false)).key("dialog.settings.secondplace").build();
+		java.util.Map<String, java.io.File> clouds = org.dbgl.util.SecondBackupPlace.cloudFolders();
+		Combo secondPlace = Chain.on(secondGroup).lbl(l -> l.key("dialog.settings.secondplace.folder")).cmb(c -> c.editable().tooltip("dialog.settings.secondplace.folder.tooltip")
+			.items(clouds.values().stream().map(java.io.File::getPath).toArray(String[]::new))).combo();
+		secondPlace.setText(settings_.getValue(org.dbgl.util.SecondBackupPlace.SECTION, org.dbgl.util.SecondBackupPlace.PLACE));
+		GridData secondData = new GridData(SWT.FILL, SWT.CENTER, false, false);
+		secondData.widthHint = 420;
+		secondPlace.setLayoutData(secondData);
+		Button secondBrowse = new Button(secondGroup, SWT.PUSH);
+		secondBrowse.setText("...");
+		secondBrowse.addListener(SWT.Selection, e -> {
+			org.eclipse.swt.widgets.DirectoryDialog dd = new org.eclipse.swt.widgets.DirectoryDialog(shell_);
+			if (!secondPlace.getText().isBlank())
+				dd.setFilterPath(secondPlace.getText());
+			String chosen = dd.open();
+			if (chosen != null)
+				secondPlace.setText(chosen);
+		});
+		Button secondSavegames = Chain.on(secondGroup).lbl(l -> l.key("dialog.settings.secondplace.savegames")).but(b -> b.horSpan(2).select(settings_.getBooleanValue(org.dbgl.util.SecondBackupPlace.SECTION, org.dbgl.util.SecondBackupPlace.SAVEGAMES))).button();
+		Button secondAuto = Chain.on(secondGroup).lbl(l -> l.key("dialog.settings.secondplace.auto")).but(b -> b.horSpan(2).select(settings_.getBooleanValue(org.dbgl.util.SecondBackupPlace.SECTION, org.dbgl.util.SecondBackupPlace.AUTO))).button();
+		Label secondHint = new Label(secondGroup, SWT.WRAP);
+		GridData hintData = new GridData(SWT.BEGINNING, SWT.BEGINNING, false, false, 3, 1);
+		hintData.widthHint = 700;
+		secondHint.setLayoutData(hintData);
+		secondHint.setText(text_.get(clouds.isEmpty() ? "dialog.settings.secondplace.hint.none": "dialog.settings.secondplace.hint", new Object[] {String.join(", ", clouds.keySet())}));
 
 		Group sendToGroup = Group_.on(generalComposite).layout(new GridLayout(2, false)).key("dialog.settings.sendto").build();
 		Button portEnabled = Chain.on(sendToGroup).lbl(l -> l.key("dialog.settings.enableport")).but(b -> b.select(settings_.getBooleanValue("communication", "port_enabled"))).button();
@@ -220,6 +264,7 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 
 		// alpha 49: the automatic backup right below the automatic updates, "Send to" at the very bottom
 		backupGroup.moveBelow(updatesGroup);
+		secondGroup.moveBelow(backupGroup); // alpha 52: right below the automatic backup
 		sendToGroup.moveBelow(profileDefGroup);
 
 		// alpha 48: all groups of this tab as wide as the widest
@@ -341,6 +386,7 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 		Button showDiskSpaceInNotes = Chain.on(overviewGroup).lbl(l -> l.key("dialog.settings.showdiskspaceinnotes")).but(b -> b.select(settings_.getBooleanValue("gui", "showdiskspaceinnotes"))).button();
 		Button showPlayTimeInNotes = Chain.on(overviewGroup).lbl(l -> l.key("dialog.settings.showplaytimeinnotes")).but(b -> b.select(settings_.getBooleanValue("gui", "showplaytimeinnotes"))).button();
 		Button profileHints = Chain.on(overviewGroup).lbl(l -> l.key("dialog.settings.profilehints")).but(b -> b.tooltip("dialog.settings.profilehints.tooltip").select(settings_.getBooleanValue("gui", "profilehints"))).button();
+		Button offerNextPart = Chain.on(overviewGroup).lbl(l -> l.key("dialog.settings.offernextpart")).but(b -> b.select(settings_.getBooleanValue("gui", "offernextpart"))).button(); // alpha 52
 		Button profileWarnings = Chain.on(overviewGroup).lbl(l -> l.key("dialog.settings.profilewarnings")).but(b -> b.tooltip("dialog.settings.profilewarnings.tooltip").select(settings_.getBooleanValue("gui", "profilewarnings"))).button();
 		// alpha 49: the screenshots below the profiles, per view: as chosen with the button in the toolbar, always shown, always hidden
 		// alpha 50: the tab with the profiles that have no pictures: never, always, or only while there are such profiles
@@ -813,6 +859,11 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 					settings_.setValue("gui", "searchengine", engines.get(defaultEngine.getSelectionIndex()).getSimpleName());
 				settings_.setValue("backup", "auto", backupModes[Math.max(0, autoBackup.getSelectionIndex())]);
 				settings_.setIntValue("backup", "keep", backupKeep.getSelection());
+				settings_.setBooleanValue("backup", "captures", backupCaptures.getSelection());
+				settings_.setBooleanValue("backup", "savegames", backupSavegames.getSelection());
+				settings_.setValue(org.dbgl.util.SecondBackupPlace.SECTION, org.dbgl.util.SecondBackupPlace.PLACE, secondPlace.getText().trim());
+				settings_.setBooleanValue(org.dbgl.util.SecondBackupPlace.SECTION, org.dbgl.util.SecondBackupPlace.SAVEGAMES, secondSavegames.getSelection());
+				settings_.setBooleanValue(org.dbgl.util.SecondBackupPlace.SECTION, org.dbgl.util.SecondBackupPlace.AUTO, secondAuto.getSelection());
 				settings_.setBooleanValue("communication", "port_enabled", portEnabled.getSelection());
 				settings_.setValue("communication", "port", port.getText());
 				settings_.setIntValue("profiledefaults", "confpath", confLocation.getSelectionIndex());
@@ -835,6 +886,7 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 				}
 				settings_.setIntValue("gui", "screenshotsheight", screenshotsHeight.getSelection());
 				settings_.setBooleanValue("gui", "screenshotsfilename", displayFilename.getSelection());
+				settings_.setBooleanValue("gui", "offernextpart", offerNextPart.getSelection());
 				settings_.setValue("gui", "screenshotsposition", screenshotsPosition.getSelectionIndex() == 1 ? "right": "below");
 				settings_.setIntValue("gui", "noimagestab", noImagesTab.getSelectionIndex());
 				settings_.setIntValue("gui", "screenshotscolumnheight", screenshotsColumnHeight.getSelection());
@@ -1044,9 +1096,9 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 	private static final String[][] TIPS = {{"languagecountry", "language"}, {"edition.prereleases2", "prereleases"}, {"hidestatuswindow", "hidestatuswindow"},
 			{"detectfailedstart", "detectfailedstart"}, {"checkversionsatstartup", "checkversions"}, {"checkbeforestart", "checkbeforestart"}, {"unknownlines.mode", "unknownlines"},
 			{"showplaytimeininfo", "playtimeininfo"}, {"hideunsupportedsettings", "hideunsupported"}, {"extrasexpand", "extrasexpand"}, {"extrascountchanges", "extrascount"},
-			{"autobackup.when", "autobackupwhen"}, {"autobackup.keep", "autobackupkeep"}, {"enableport", "enableport"}, {"port", "port"}, {"configfile", "configfile"},
+			{"autobackup.when", "autobackupwhen"}, {"autobackup.keep", "autobackupkeep"}, {"autobackup.captures", "autobackupcaptures"}, {"autobackup.savegames", "autobackupsavegames"}, {"secondplace.savegames", "secondplacesavegames"}, {"secondplace.auto", "secondplaceauto"}, {"enableport", "enableport"}, {"port", "port"}, {"configfile", "configfile"},
 			{"captures", "captures"}, {"allsettings.new", "allsettings"}, {"autosort", "autosort"}, {"showplaytimeinnotes", "playtimeinnotes"}, {"height", "height"},
-			{"screenshotsfilename", "screenshotsfilename"}, {"screenshotsposition", "screenshotsposition"}, {"screenshotscolumnstretch", "columnstretch"}, {"screenshotscolumnkeepaspectratio", "columnkeepaspect"},
+			{"screenshotsfilename", "screenshotsfilename"}, {"screenshotsposition", "screenshotsposition"}, {"offernextpart", "offernextpart"}, {"screenshotscolumnstretch", "columnstretch"}, {"screenshotscolumnkeepaspectratio", "columnkeepaspect"},
 			{"display", "display"}, {"linking.tofile", "linking"}, {"font", "font"}, {"theme", "theme"}, {"apikey", "apikey"}, {"screenscraper.user", "screenscraper"},
 			{"screenscraper.password", "screenscraper"}, {"igdb.clientid", "igdb"}, {"igdb.clientsecret", "igdb"}, {"settitle", "setfield"}, {"setdeveloper", "setfield"},
 			{"setpublisher", "setfield"}, {"setyear", "setfield"}, {"setgenre", "setfield"}, {"setlink", "setlink"}, {"setrank", "setrank"}, {"setdescription", "setdescription"},

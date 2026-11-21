@@ -87,8 +87,10 @@ public final class TvMode {
 	private final List<Filter> filters_ = new ArrayList<>();
 	private int filter_;
 	private boolean info_;
-	/** alpha 49: the pictures below the notes of the info: two or three, chosen by chance when it opens, never box front or back */
+	/** alpha 49: the pictures of the info (alpha 52: all of them but the cover, one large, the next ones small) */
 	private List<File> infoShots_ = List.of();
+	/** alpha 52: the picture of the info shown large (index in infoShots_): all pictures of the game, LB/RB go through them */
+	private int infoShot_;
 	/** alpha 49: the menu at the left (Y/F): which games and in which order */
 	private boolean menu_;
 	private int menuIndex_, menuFirst_;
@@ -111,6 +113,7 @@ public final class TvMode {
 		shown_ = all_;
 		filters_.add(new Filter("dialog.tv.all", null));
 		filters_.add(new Filter("dialog.tv.favorites", null));
+		filters_.add(new Filter(RECENT, null)); // alpha 52: the games played last, the newest first
 		all_.stream().map(p -> StringUtils.trimToEmpty(p.getGenre())).filter(StringUtils::isNotEmpty).distinct().sorted(String.CASE_INSENSITIVE_ORDER)
 				.forEach(g -> filters_.add(new Filter("dialog.tv.genre", g)));
 		// the filter and the game of the last time, else the game chosen in the list
@@ -179,8 +182,17 @@ public final class TvMode {
 	}
 
 	/** shows the TV mode until it is left; the runner starts a profile (as the main window does) */
+	/** alpha 52: while the TV mode is shown, the main window offers nothing after a game (the next part of a series) */
+	private static volatile boolean open_ = false;
+
+	public static boolean isShown() {
+		return open_;
+	}
+
 	public static void open(Shell parent, List<Profile> profiles, Profile current, Consumer<Profile> runner) {
 		TvMode tv = new TvMode(parent, profiles, current, runner);
+		open_ = true;
+		tv.shell_.addListener(SWT.Dispose, e -> open_ = false);
 		tv.shell_.setBounds(parent.getMonitor().getBounds());
 		tv.shell_.open();
 		tv.shell_.setFullScreen(true);
@@ -210,7 +222,9 @@ public final class TvMode {
 		}
 		if (info_ && b != Gamepad.Button.A && b != Gamepad.Button.START) {
 			// alpha 49: up/down (left/right) show the info of the game before or after; any other button closes the info
-			if ((b == Gamepad.Button.UP) || (b == Gamepad.Button.LEFT)) {
+			if ((b == Gamepad.Button.LB) || (b == Gamepad.Button.RB)) { // alpha 52: the pictures of the game
+				shotStep(b == Gamepad.Button.LB ? -1: 1);
+			} else if ((b == Gamepad.Button.UP) || (b == Gamepad.Button.LEFT)) {
 				infoStep(b == Gamepad.Button.UP ? -columns(): -1);
 			} else if ((b == Gamepad.Button.DOWN) || (b == Gamepad.Button.RIGHT)) {
 				infoStep(b == Gamepad.Button.DOWN ? columns(): 1);
@@ -262,7 +276,9 @@ public final class TvMode {
 			return;
 		}
 		if (info_ && e.keyCode != SWT.CR && e.keyCode != SWT.KEYPAD_CR && e.keyCode != ' ') {
-			if ((e.keyCode == SWT.ARROW_UP) || (e.keyCode == SWT.ARROW_LEFT)) {
+			if ((e.keyCode == SWT.PAGE_UP) || (e.keyCode == SWT.PAGE_DOWN)) { // alpha 52: the pictures of the game
+				shotStep(e.keyCode == SWT.PAGE_UP ? -1: 1);
+			} else if ((e.keyCode == SWT.ARROW_UP) || (e.keyCode == SWT.ARROW_LEFT)) {
 				infoStep(e.keyCode == SWT.ARROW_UP ? -columns(): -1);
 			} else if ((e.keyCode == SWT.ARROW_DOWN) || (e.keyCode == SWT.ARROW_RIGHT)) {
 				infoStep(e.keyCode == SWT.ARROW_DOWN ? columns(): 1);
@@ -316,7 +332,20 @@ public final class TvMode {
 		return (f.genre() == null) ? f.key(): "genre:" + f.genre();
 	}
 
+	/** alpha 52: the filter of the games played last, at most this many of them, newest first (whatever the order chosen) */
+	static final String RECENT = "dialog.tv.recent";
+	static final int RECENT_MAX = 30;
+	/** the filters at the top of the menu (all, favourites, played last); the genres come after them */
+	private static final int TOP_FILTERS = 3;
+
+	/** alpha 52: the games played at all, the one played last first, at most RECENT_MAX */
+	public static List<Profile> recent(List<Profile> all) {
+		return all.stream().filter(p -> lastRunOf(p) > 0).sorted(java.util.Comparator.<Profile>comparingLong(p -> -lastRunOf(p))).limit(RECENT_MAX).toList();
+	}
+
 	private List<Profile> matching(Filter f) {
+		if (f.key().equals(RECENT))
+			return recent(all_);
 		if (f.genre() != null)
 			return all_.stream().filter(p -> f.genre().equalsIgnoreCase(StringUtils.trimToEmpty(p.getGenre()))).toList();
 		if (f.key().equals("dialog.tv.favorites"))
@@ -325,7 +354,8 @@ public final class TvMode {
 	}
 
 	private void applyFilter() {
-		filtered_ = sorted(matching(filters_.get(filter_)), sort_);
+		Filter f = filters_.get(filter_);
+		filtered_ = f.key().equals(RECENT) ? matching(f): sorted(matching(f), sort_); // alpha 52: played last stays in its order
 		openSeries_ = null;
 		arrange();
 	}
@@ -377,14 +407,14 @@ public final class TvMode {
 		info_ = false;
 		List<MenuEntry> items = new ArrayList<>();
 		items.add(new MenuEntry(0, 0, text_.get("dialog.tv.menu.show")));
-		for (int i = 0; i < Math.min(2, filters_.size()); i++)
+		for (int i = 0; i < Math.min(TOP_FILTERS, filters_.size()); i++)
 			items.add(new MenuEntry(1, i, filterLabel(i)));
 		items.add(new MenuEntry(0, 0, text_.get("dialog.tv.menu.sort")));
 		for (int i = 0; i < SORTS.length; i++)
 			items.add(new MenuEntry(2, i, text_.get("dialog.tv.sort." + SORTS[i])));
-		if (filters_.size() > 2) {
+		if (filters_.size() > TOP_FILTERS) {
 			items.add(new MenuEntry(0, 0, text_.get("dialog.tv.menu.genres")));
-			for (int i = 2; i < filters_.size(); i++)
+			for (int i = TOP_FILTERS; i < filters_.size(); i++)
 				items.add(new MenuEntry(1, i, filterLabel(i)));
 		}
 		menuItems_ = items;
@@ -692,13 +722,23 @@ public final class TvMode {
 			firstRow_ = 0;
 			i = step > 0 ? 0: shown_.size() - 1;
 		}
-		infoShots_ = randomShots(shown_.get(i), new java.util.Random());
+		infoShots_ = allShots(shown_.get(i));
+		infoShot_ = 0;
 		select(i);
+	}
+
+	/** alpha 52: the next or previous picture of the game large, round and round */
+	private void shotStep(int step) {
+		if (infoShots_.size() < 2)
+			return;
+		infoShot_ = (infoShot_ + step + infoShots_.size()) % infoShots_.size();
+		canvas_.redraw();
 	}
 
 	private void toggleInfo() {
 		info_ = !info_ && !shown_.isEmpty() && !isStack(shown_.get(index_)); // a stack has no notes of its own
-		infoShots_ = info_ ? randomShots(shown_.get(index_), new java.util.Random()): List.of();
+		infoShots_ = info_ ? allShots(shown_.get(index_)): List.of();
+		infoShot_ = 0;
 		canvas_.redraw();
 	}
 
@@ -854,13 +894,23 @@ public final class TvMode {
 		gc.setLineWidth(3);
 		gc.drawRoundRectangle(x, y, w, h, 24, 24);
 		int pad = 36, textX = x + pad, textW = w - 2 * pad;
-		File shot = screenshotOf(p);
+		// alpha 52: the picture chosen with LB/RB large (all pictures of the game but the cover), below it which one of how many
+		File shot = infoShots_.isEmpty() ? screenshotOf(p): infoShots_.get(Math.min(infoShot_, infoShots_.size() - 1));
 		if (shot != null) {
 			try {
-				int iw = w * 2 / 5, ih = h - 2 * pad;
+				gc.setFont(small_);
+				int counterH = infoShots_.size() > 1 ? gc.textExtent("Ag").y + 12: 0;
+				int iw = w * 2 / 5, ih = h - 2 * pad - counterH;
 				Image img = fitted(shot, iw, ih); // alpha 48: whole (a back of a box was cut before), centred in its room
 				Rectangle ib = img.getBounds();
-				gc.drawImage(img, x + w - pad - iw + (iw - ib.width) / 2, y + pad + (ih - ib.height) / 2);
+				int ix = x + w - pad - iw;
+				gc.drawImage(img, ix + (iw - ib.width) / 2, y + pad + (ih - ib.height) / 2);
+				if (counterH > 0) {
+					String counter = text_.get("dialog.tv.info.picture", new Object[] {infoShot_ + 1, infoShots_.size()});
+					Point cs = gc.textExtent(counter);
+					gc.setForeground(dim_);
+					gc.drawText(counter, ix + (iw - cs.x) / 2, y + h - pad - cs.y, true);
+				}
 				textW = w - 3 * pad - iw;
 			} catch (RuntimeException ex) {
 				// text only
@@ -885,8 +935,11 @@ public final class TvMode {
 			ty += lineH + 4;
 		}
 		if (shotsH > 0) {
+			// alpha 52: the next pictures after the large one, small; the large one is framed when it is among them
 			int gap = 16, slotW = (textW - 2 * gap) / 3, sx = textX, sy = y + h - pad - shotsH;
-			for (File f: infoShots_) {
+			int n = infoShots_.size();
+			for (int k = 1; (k <= 3) && (k < n); k++) {
+				File f = infoShots_.get((infoShot_ + k) % n);
 				try {
 					Image img = fitted(f, slotW, shotsH);
 					Rectangle ib = img.getBounds();
@@ -899,15 +952,17 @@ public final class TvMode {
 		}
 	}
 
-	/** alpha 49: up to three pictures of the game by chance, never the first two (the front and the back of the box) */
-	private static List<File> randomShots(Profile p, java.util.Random random) {
+	/** alpha 52: all pictures of the game but its cover, in their order: the detail page goes through them with LB/RB (before: three by chance) */
+	public static List<File> allShots(Profile p) {
 		File[] images = p.getCanonicalCaptures().listFiles(f -> f.isFile() && f.getName().toLowerCase(java.util.Locale.ROOT).matches(".*\\.(png|jpe?g)"));
-		if ((images == null) || (images.length <= 2))
+		if (images == null)
 			return List.of();
 		java.util.Arrays.sort(images);
-		List<File> rest = new ArrayList<>(java.util.Arrays.asList(images).subList(2, images.length));
-		java.util.Collections.shuffle(rest, random);
-		return new ArrayList<>(rest.subList(0, Math.min(3, rest.size())));
+		List<File> result = new ArrayList<>(java.util.Arrays.asList(images));
+		File cover = org.dbgl.gui.dialog.SteamDialog.coverOf(p); // as for the tiles
+		if ((cover != null) && (result.size() > 1))
+			result.remove(cover);
+		return result;
 	}
 
 	private static List<String> wrap(GC gc, String text, int width) {
@@ -1002,6 +1057,8 @@ public final class TvMode {
 			for (String f: new String[] {p.getYear(), p.getGenre(), p.getDeveloper()})
 				if (StringUtils.isNotBlank(f))
 					facts.add(f.trim());
+			if (coverOf(p) == null) // alpha 52: where to get one
+				facts.add(text_.get("dialog.tv.nocover"));
 		}
 		String line = String.join("  ·  ", facts);
 		// alpha 48: can be turned off (settings, GUI, TV mode)

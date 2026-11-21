@@ -183,6 +183,7 @@ public class MobyGamesSearchEngine extends WebSearchEngine {
 		entry.setNotes(descrElmt == null ? "": unescapeHtml(removeAllTags(descrElmt.html())));
 		entry.setRank(extractRank(infoBlock));
 		entry.setCoreGameCoverUrl(StringUtils.stripToNull(doc.select("meta[property=og:image]").attr("content")));
+		entry.setSeries(seriesOf(doc.select("a[href*=/group/]").eachText())); // alpha 52: the series from the groups of the game
 		if (StringUtils.isEmpty(entry.getDeveloperName()))
 			entry.setDeveloperName(StringUtils.join(doc.select("section#gameCredits table.table-credits tr > td:last-child").eachText(), ", "));
 		return entry;
@@ -208,6 +209,21 @@ public class MobyGamesSearchEngine extends WebSearchEngine {
 		}
 		entry.setWebImages(result.toArray(new SearchEngineImageInformation[0]));
 		return entry.getWebImages();
+	}
+
+	/**
+	 * alpha 52: the series among the groups MobyGames puts a game in ("Series: Space Quest" or "Space Quest series"; other groups
+	 * such as "Gameplay feature: ..." are not); "" if there is none
+	 */
+	public static String seriesOf(List<String> groups) {
+		for (String g: groups) {
+			String t = StringUtils.trimToEmpty(g);
+			if (t.regionMatches(true, 0, "Series:", 0, 7) && (t.length() > 7))
+				return t.substring(7).trim();
+			if ((t.length() > 7) && t.toLowerCase(java.util.Locale.ROOT).endsWith(" series") && !t.contains(":"))
+				return t.substring(0, t.length() - 7).trim();
+		}
+		return "";
 	}
 
 	private static Integer extractRank(Element infoBlock) throws IOException {

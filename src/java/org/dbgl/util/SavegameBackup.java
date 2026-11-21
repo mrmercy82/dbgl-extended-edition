@@ -218,8 +218,10 @@ public final class SavegameBackup {
 			throw e;
 		}
 		Files.move(part.toPath(), zip.toPath());
-		if (suffix == null)
+		if (suffix == null) {
 			prune(p, c.keep()); // not before a restore: the backup to restore could be the oldest one
+			SecondBackupPlace.savegameBackupMade(p, zip, c.keep()); // alpha 52
+		}
 		return zip;
 	}
 

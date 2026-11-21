@@ -96,6 +96,31 @@ New
   smoothed edges) on a built-in test picture in the style of old DOS games:
   the whole picture and an enlarged part, on request without shader for
   comparison. DBGL draws this itself; the try run shows the real picture.
+- Second place for backups (Settings > General): a folder e.g. of OneDrive
+  or Dropbox (found on the computer and offered in the list) or on another
+  drive. Each new backup of saved games and each automatic backup is also
+  copied there (folder DBGL), as many are kept as in DBGL. Backups of saved
+  games that are only there (e.g. on a new computer) are shown on the page
+  Savegames of a profile with "(second place)", to be restored.
+- Automatic backup: on request with the screenshots and the backups of saved
+  games too; next to it is how much room that takes. When it is restored,
+  they come next to those there, nothing is removed.
+- Add to Steam: on request banner, background and logo for the Steam
+  library from SteamGridDB (with your own key), and a cover for profiles
+  without one.
+- TV mode: "Played last" in the menu (Y/F), the games played last first.
+  The info (X/I) shows all pictures of the game: one large, LB/RB (Page
+  up/down) to the next, the following ones small beside it. Without a cover,
+  the bottom line says where to get one.
+- Game series: after a game of a series DBGL offers its next part, if that
+  was never started (Start, Select, No; can be switched off under Profile
+  overview). The series now also comes from MobyGames (from the groups of
+  the game).
+- Find duplicate profiles: also finds copies of a game in another folder, by
+  the checksum of the program that starts it (with the same parameters;
+  small starters and batch files do not count).
+- Mixer for DOSBox Staging: sliders for MT-32, FluidSynth and (from 0.83 on)
+  Sound Canvas too, depending on the MIDI device chosen.
 
 Fixed
 - USB stick assistant: DOSBox versions (e.g. DOSBox-X) were locked as
@@ -116,6 +141,8 @@ Fixed
 - A link to a file that is no longer there (e.g. a manual after moving it)
   did nothing when clicked, on Linux without any message (reported on
   Vogons). Now it says "The file ... was not found."
+- Mixer: channels in the command the window has no slider for (e.g. "mt32"
+  with DOSBox 0.74) were lost when the mixer was edited; they are kept now.
 
 Improved
 - update-readme.txt in the update package: much shorter, first the new

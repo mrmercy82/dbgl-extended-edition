@@ -594,7 +594,9 @@ public class GenerationAwareConfigurable extends Configurable {
 	
 	public String[] mixerDeviceNames() {
 		return switch (gen_) {
-			case staging_0810, staging_0820, staging_0830 -> new String[] {"master", "pcspeaker", "sb", "gus", "opl", "disney", "cdaudio"};
+			// alpha 52: and the MIDI channels (Sound Canvas from 0.83 on)
+			case staging_0810, staging_0820 -> new String[] {"master", "pcspeaker", "sb", "gus", "opl", "disney", "cdaudio", "mt32", "fsynth"};
+			case staging_0830 -> new String[] {"master", "pcspeaker", "sb", "gus", "opl", "disney", "cdaudio", "mt32", "fsynth", "soundcanvas"};
 			default -> new String[] {"master", "spkr", "sb", "gus", "fm", "disney", "cdaudio"};
 		};
 	}
@@ -608,7 +610,10 @@ public class GenerationAwareConfigurable extends Configurable {
 					configuration_.getBooleanValue("gus", "gus"),
 					!Strings.CI.equalsAny(configuration_.getValue("sblaster", "oplmode"), "none", "off"),
 					Strings.CI.equalsAny(configuration_.getValue("speaker", "lpt_dac"), "disney"),
-					configuration_.getAutoexec().hasCdAudio()
+					configuration_.getAutoexec().hasCdAudio(),
+					Strings.CI.equalsAny(configuration_.getValue("midi", "mididevice"), "mt32"), // alpha 52: the MIDI device chosen
+					Strings.CI.equalsAny(configuration_.getValue("midi", "mididevice"), "fluidsynth"),
+					Strings.CI.equalsAny(configuration_.getValue("midi", "mididevice"), "soundcanvas")
 			};
 			default -> new boolean[] {true, true, true, true, true, true, true};
 		};

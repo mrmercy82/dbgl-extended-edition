@@ -37,6 +37,7 @@ import org.dbgl.service.TextService;
 /**
  * Profiles that start the same game: the same main program with the same parameters (e.g. a game added twice, once by hand
  * and once by an import). Two profiles for one folder with different programs (game and setup, two parts) are no duplicates.
+ * Alpha 52: also a program with the same content (checksum) in another folder, e.g. a copy of the game.
  */
 public final class DuplicateProfiles {
 
@@ -119,7 +120,50 @@ public final class DuplicateProfiles {
 			if (list.size() > 1)
 				result.add(new Group(shown.get(k), keepFirst(list)));
 		});
+		// alpha 52: the same program in another folder (a copy of the game): the same content and the same parameters
+		Map<String, List<Profile>> byContent = new LinkedHashMap<>();
+		Map<String, List<String>> paths = new LinkedHashMap<>();
+		byKey.forEach((k, list) -> {
+			if (list.size() != 1)
+				return;
+			String program = shown.get(k);
+			String sum = contentSum(new File(program));
+			if (sum == null)
+				return;
+			String ck = sum + "|" + k.substring(k.indexOf('|') + 1);
+			byContent.computeIfAbsent(ck, x -> new ArrayList<>()).add(list.get(0));
+			paths.computeIfAbsent(ck, x -> new ArrayList<>()).add(program);
+		});
+		byContent.forEach((k, list) -> {
+			if (list.size() > 1)
+				result.add(new Group(String.join("  =  ", paths.get(k)), keepFirst(list)));
+		});
 		return result;
+	}
+
+	/** alpha 52: programs smaller than this, and batch files, are often the same for different games (a starter): not compared */
+	static final long MIN_CONTENT_SIZE = 8 * 1024;
+	/** the checksums by path, length and time of change, so that each program is read only once */
+	private static final Map<String, String> SUMS = new ConcurrentHashMap<>();
+
+	/** alpha 52: the SHA-256 of a program, or null if it is not there, too small or a batch file */
+	public static String contentSum(File f) {
+		String name = f.getName().toLowerCase(Locale.ROOT);
+		if (!f.isFile() || (f.length() < MIN_CONTENT_SIZE) || name.endsWith(".bat") || name.endsWith(".cmd") || name.endsWith(".btm"))
+			return null;
+		String cacheKey = f.getAbsolutePath() + '|' + f.length() + '|' + f.lastModified();
+		String sum = SUMS.computeIfAbsent(cacheKey, k -> {
+			try (java.io.InputStream in = java.nio.file.Files.newInputStream(f.toPath())) {
+				java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-256");
+				byte[] buf = new byte[64 * 1024];
+				for (int n = in.read(buf); n > 0; n = in.read(buf))
+					md.update(buf, 0, n);
+				return java.util.HexFormat.of().formatHex(md.digest());
+			} catch (java.io.IOException | java.security.NoSuchAlgorithmException | RuntimeException e) {
+				return "";
+			}
+		});
+		return sum.isEmpty() ? null: sum;
 	}
 
 	/** the profile with the most information first (filled fields, links, how often played), then the oldest */
