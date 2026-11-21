@@ -96,6 +96,15 @@ Fehler behoben
   gesperrt, sobald irgendein Profil sie nutzte, auch wenn keines der
   gewählten Spiele es tat. Jetzt sind nur die Versionen der gewählten
   Spiele gesperrt, und das ändert sich mit der Auswahl.
+- Ein zu langer Text (z. B. die Liste der Herausgeber von Doom aus
+  MobyGames, auf Vogons gemeldet) ließ das Speichern des ganzen Profils
+  scheitern („Datenbankabfrage ... fehlgeschlagen“). Titel, Entwickler,
+  Herausgeber, Genre, Jahr, Status, eigene Felder und Link-Titel werden
+  jetzt bei 256 Zeichen nach dem letzten ganzen Namen gekürzt und enden mit
+  „...“.
+- Ein ISO- oder CUE-Abbild auf einer Netzwerkfreigabe eines Rechners mit
+  „_“ im Namen (\\nas_box\spiele\...) wurde als „null“ angezeigt (auf
+  Vogons gemeldet); der Pfad bleibt jetzt, wie er ist.
 - TV-Modus: In einem schmaleren Fenster lief die Versionsnummer in die
   Anzeige der Spiele oben rechts. Der Name wird jetzt kürzer („DBGL -
   Extended Edition“), wo der Platz nicht reicht.

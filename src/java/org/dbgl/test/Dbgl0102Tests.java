@@ -3199,6 +3199,23 @@ public class Dbgl0102Tests {
 				< SettingsService.availableWebSearchEngines().indexOf(org.dbgl.util.searchengine.WebSearchEngine.getBySimpleName("mobygames"))); // MobyGames stays last
 	}
 
+	/** alpha 52: a too long publisher (Doom from MobyGames, reported on Vogons) made saving fail: now cut after a whole name, marked */
+	@Test
+	public void testFitIntoColumn() {
+		StringBuilder pubs = new StringBuilder();
+		for (int i = 1; pubs.length() < 400; i++)
+			pubs.append(i > 1 ? ", " : "").append("Publisher Number ").append(i).append(" Inc.");
+		String fit = org.dbgl.model.repository.TitledEntityRepository.fit(pubs.toString());
+		assertTrue(fit.length() <= 256);
+		assertTrue(fit, fit.endsWith(" Inc....") && pubs.toString().startsWith(fit.substring(0, fit.length() - 3)));
+		assertEquals("id Software", org.dbgl.model.repository.TitledEntityRepository.fit("id Software"));
+		assertNull(org.dbgl.model.repository.TitledEntityRepository.fit(null));
+		assertEquals(256, org.dbgl.model.repository.TitledEntityRepository.fit("x".repeat(300)).length());
+		// a network share whose computer has "_" in its name: commons-io gave null, DBGL showed "null" (reported on Vogons)
+		assertEquals("\\\\nas_box\\games\\x.iso", org.dbgl.util.FilesUtils.concat("C:\\dosroot", "\\\\nas_box\\games\\x.iso"));
+		assertEquals("//nas/games/x.iso", org.dbgl.util.FilesUtils.concat("C:\\dosroot", "\\\\nas\\games\\x.iso")); // as before
+	}
+
 	/** alpha 52: the changelog in the update window from the version running on; the exported table; the TV background readable */
 	@Test
 	public void testChangelogSinceAndListTable() {

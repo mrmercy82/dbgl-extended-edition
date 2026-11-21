@@ -136,7 +136,7 @@ public class ProfileRepository extends LoggingRepository<Profile> {
 			int genId = valRepo.findGenre(profile.getGenre(), transaction);
 			int yrId = valRepo.findYear(profile.getYear(), transaction);
 			int statId = valRepo.findStatus(profile.getStatus(), transaction);
-			pstmt.setString(1, profile.getTitle());
+			pstmt.setString(1, TitledEntityRepository.fit(profile.getTitle())); // alpha 52: a too long text made saving fail
 			pstmt.setBoolean(2, profile.isFavorite());
 			pstmt.setInt(3, devId == -1 ? TitledEntityRepository.addDeveloper(transaction, profile.getDeveloper()): devId);
 			pstmt.setInt(4, publId == -1 ? TitledEntityRepository.addPublisher(transaction, profile.getPublisher()): publId);
@@ -150,11 +150,11 @@ public class ProfileRepository extends LoggingRepository<Profile> {
 				pstmt.setInt(i + 9, custId == -1 ? TitledEntityRepository.addCustomValue(transaction, i, value): custId);
 			}
 			for (int i = 0; i < Profile.NR_OF_CUSTOM_STRING_FIELDS; i++)
-				pstmt.setString(i + 13, profile.getCustomStrings()[Profile.NR_OF_CUSTOM_STRING_DROPDOWNS + i]);
+				pstmt.setString(i + 13, TitledEntityRepository.fit(profile.getCustomStrings()[Profile.NR_OF_CUSTOM_STRING_DROPDOWNS + i]));
 			for (int i = 0; i < Profile.NR_OF_CUSTOM_INTS; i++)
 				pstmt.setInt(i + 21, profile.getCustomInts()[i]);
 			for (int i = 0; i < Profile.NR_OF_LINK_TITLES; i++) {
-				pstmt.setString(i * 2 + 23, profile.getLinks()[i].getTitle());
+				pstmt.setString(i * 2 + 23, TitledEntityRepository.fit(profile.getLinks()[i].getTitle()));
 				pstmt.setString(i * 2 + 24, profile.getLinks()[i].getDestination());
 			}
 			pstmt.setString(39, null);
@@ -358,7 +358,7 @@ public class ProfileRepository extends LoggingRepository<Profile> {
 			int genId = valRepo.findGenre(profile.getGenre(), transaction);
 			int yrId = valRepo.findYear(profile.getYear(), transaction);
 			int statId = valRepo.findStatus(profile.getStatus(), transaction);
-			pstmt.setString(1, profile.getTitle());
+			pstmt.setString(1, TitledEntityRepository.fit(profile.getTitle())); // alpha 52: a too long text made saving fail
 			pstmt.setBoolean(2, profile.isFavorite());
 			pstmt.setInt(3, devId == -1 ? TitledEntityRepository.addDeveloper(transaction, profile.getDeveloper()): devId);
 			pstmt.setInt(4, publId == -1 ? TitledEntityRepository.addPublisher(transaction, profile.getPublisher()): publId);
@@ -372,11 +372,11 @@ public class ProfileRepository extends LoggingRepository<Profile> {
 				pstmt.setInt(i + 9, custId == -1 ? TitledEntityRepository.addCustomValue(transaction, i, value): custId);
 			}
 			for (int i = 0; i < Profile.NR_OF_CUSTOM_STRING_FIELDS; i++)
-				pstmt.setString(i + 13, profile.getCustomStrings()[Profile.NR_OF_CUSTOM_STRING_DROPDOWNS + i]);
+				pstmt.setString(i + 13, TitledEntityRepository.fit(profile.getCustomStrings()[Profile.NR_OF_CUSTOM_STRING_DROPDOWNS + i]));
 			for (int i = 0; i < Profile.NR_OF_CUSTOM_INTS; i++)
 				pstmt.setInt(i + 21, profile.getCustomInts()[i]);
 			for (int i = 0; i < Profile.NR_OF_LINK_TITLES; i++) {
-				pstmt.setString(i * 2 + 23, profile.getLinks()[i].getTitle());
+				pstmt.setString(i * 2 + 23, TitledEntityRepository.fit(profile.getLinks()[i].getTitle()));
 				pstmt.setString(i * 2 + 24, profile.getLinks()[i].getDestination());
 			}
 			pstmt.setString(39, profile.getCapturesString());

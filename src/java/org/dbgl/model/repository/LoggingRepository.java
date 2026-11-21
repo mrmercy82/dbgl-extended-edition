@@ -44,7 +44,7 @@ public class LoggingRepository<T extends IEntity> extends BaseRepository<T> {
 				pstmt.setByte(1, (byte)event.ordinal());
 				pstmt.setByte(2, (byte)entityType.ordinal());
 				pstmt.setInt(3, titledEntity.getId());
-				pstmt.setString(4, titledEntity.getTitle());
+				pstmt.setString(4, TitledEntityRepository.fit(titledEntity.getTitle())); // alpha 52: a long title made saving fail
 				pstmt.executeUpdate();
 			} catch (SQLException e) {
 				e.printStackTrace();

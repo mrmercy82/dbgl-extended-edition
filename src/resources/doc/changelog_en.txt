@@ -92,6 +92,14 @@ Fixed
   needed as soon as any profile used them, even when none of the chosen
   games did. Now only the versions of the chosen games are locked, and that
   follows the choice.
+- A too long text (e.g. the list of publishers of Doom from MobyGames,
+  reported on Vogons) made saving the whole profile fail ("Database query
+  ... failed"). Title, developer, publisher, genre, year, status, custom
+  fields and link titles are now cut at 256 characters after the last whole
+  name and end with "...".
+- An ISO or CUE image on a network share of a computer with "_" in its name
+  (\\nas_box\games\...) was shown as "null" (reported on Vogons); the path
+  now stays as it is.
 - TV mode: in a narrower window the version number ran into the games
   shown at the top right. The name is now shorter ("DBGL - Extended
   Edition") where there is not enough room.

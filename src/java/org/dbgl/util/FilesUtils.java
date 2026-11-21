@@ -547,7 +547,16 @@ public class FilesUtils {
 	public static String concat(String basePath, String fullFilenameToAdd) {
 		if (basePath.equals("."))
 			return fullFilenameToAdd;
-		return FilenameUtils.concat(basePath, fullFilenameToAdd);
+		String result = FilenameUtils.concat(basePath, fullFilenameToAdd);
+		if ((result == null) && (fullFilenameToAdd != null)) {
+			// alpha 52: commons-io gives null for names it does not take, e.g. a network share on a computer with "_" in its
+			// name (\\nas_box\games\game.iso): DBGL showed "null" for an ISO or CUE on it (reported on Vogons). Such a path as
+			// it is (a full one), or joined to the base
+			String s = fullFilenameToAdd;
+			boolean full = s.startsWith("\\\\") || s.startsWith("//") || new File(s).isAbsolute();
+			result = full ? s: new File(basePath, s).getPath();
+		}
+		return result;
 	}
 
 	public static String relativize(File base, File target) {

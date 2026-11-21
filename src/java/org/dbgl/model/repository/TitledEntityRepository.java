@@ -198,7 +198,7 @@ public class TitledEntityRepository extends BaseRepository<ITitledEntity> {
 
 	private static int addValue(Transaction transaction, String query, String value) throws SQLException {
 		try (PreparedStatement stmt = transaction.prepareStatement(query)) {
-			stmt.setString(1, value);
+			stmt.setString(1, fit(value));
 			stmt.executeUpdate();
 			return identity(transaction);
 		} catch (SQLException e) {
@@ -221,6 +221,25 @@ public class TitledEntityRepository extends BaseRepository<ITitledEntity> {
 	}
 
 	private static int findIdByValue(List<ITitledEntity> list, String value) {
-		return list.stream().filter(x -> x.getTitle().equals(value)).findFirst().map(ITitledEntity::getId).orElse(-1);
+		String fitting = fit(value); // alpha 52: as it was stored
+		return list.stream().filter(x -> x.getTitle().equals(fitting)).findFirst().map(ITitledEntity::getId).orElse(-1);
+	}
+
+	/** the most a text column holds (VARCHAR(256)) */
+	public static final int MAX_LENGTH = 256;
+
+	/**
+	 * alpha 52: a text that fits into its column: a longer one (e.g. the list of publishers of Doom from MobyGames) made saving the
+	 * whole profile fail ("Database query 'update profile' failed!", reported on Vogons). It is cut after the last whole name
+	 * that fits and ends with "...", so that it can be seen that something is missing.
+	 */
+	public static String fit(String value) {
+		if ((value == null) || (value.length() <= MAX_LENGTH))
+			return value;
+		String cut = value.substring(0, MAX_LENGTH - 3);
+		int at = Math.max(cut.lastIndexOf(", "), cut.lastIndexOf(" / "));
+		if (at > MAX_LENGTH / 2)
+			cut = cut.substring(0, at);
+		return cut.stripTrailing() + "...";
 	}
 }
