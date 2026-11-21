@@ -91,6 +91,11 @@ New
   the description". Up to four pictures stand two in a row, as wide as the
   column; the last one shows "+n" when there are more, a click enlarges
   them as before. While the description is hidden, they are below the list.
+- Profile > Rendering > Shader > "Preview...": shows roughly what the chosen
+  shader does to the picture (sharp, soft, scanlines, picture tube, curved,
+  smoothed edges) on a built-in test picture in the style of old DOS games:
+  the whole picture and an enlarged part, on request without shader for
+  comparison. DBGL draws this itself; the try run shows the real picture.
 
 Fixed
 - USB stick assistant: DOSBox versions (e.g. DOSBox-X) were locked as

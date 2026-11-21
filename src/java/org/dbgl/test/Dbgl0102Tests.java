@@ -3199,6 +3199,31 @@ public class Dbgl0102Tests {
 				< SettingsService.availableWebSearchEngines().indexOf(org.dbgl.util.searchengine.WebSearchEngine.getBySimpleName("mobygames"))); // MobyGames stays last
 	}
 
+	/** alpha 52: the shader preview: the kinds of the shader field, the test picture and the pictures drawn from it */
+	@Test
+	public void testShaderPreview() {
+		assertEquals("crtauto", org.dbgl.util.ShaderPreview.kindOf("crt-auto"));
+		assertEquals("crt", org.dbgl.util.ShaderPreview.kindOf("crt/crt-hyllian:monochrome-hires"));
+		assertEquals("sharp", org.dbgl.util.ShaderPreview.kindOf("sharp"));
+		assertEquals("nearest", org.dbgl.util.ShaderPreview.kindOf("none"));
+		assertNull(org.dbgl.util.ShaderPreview.kindOf("my-own-shader.glsl"));
+		assertNull(org.dbgl.util.ShaderPreview.kindOf(""));
+		java.awt.image.BufferedImage test = org.dbgl.util.ShaderPreview.testImage();
+		assertEquals(320, test.getWidth());
+		assertEquals(200, test.getHeight());
+		for (String kind: new String[] {"nearest", "bilinear", "interpolation", "sharp", "scanlines", "rgb", "crt", "crtauto", "crtautoarcade", "crtautoarcadesharp", "crtcurved", "advmame",
+				"xbr"}) {
+			assertTrue(kind, org.dbgl.util.ShaderPreview.supports(kind));
+			java.awt.image.BufferedImage img = org.dbgl.util.ShaderPreview.render(kind, 160, 120);
+			assertEquals(kind, 160, img.getWidth());
+			assertEquals(kind, 120, img.getHeight());
+		}
+		// without shader the picture stays in its 16 colours; the curved screen has black corners
+		java.awt.image.BufferedImage hard = org.dbgl.util.ShaderPreview.render("nearest", 640, 400);
+		assertEquals(test.getRGB(10, 10) & 0xFFFFFF, hard.getRGB(20, 20) & 0xFFFFFF);
+		assertEquals(0, org.dbgl.util.ShaderPreview.render("crtcurved", 160, 120).getRGB(0, 0) & 0xFFFFFF);
+	}
+
 	/** alpha 52: a link to a file that is not there (moved manual, Vogons) says so; web addresses and files that are there do not */
 	@Test
 	public void testMissingFile() throws java.io.IOException {

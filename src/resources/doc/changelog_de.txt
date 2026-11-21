@@ -96,6 +96,12 @@ Neu
   Bis zu vier Bilder stehen je zwei nebeneinander, so breit wie die Spalte;
   das letzte zeigt „+n“, wenn es mehr gibt, ein Klick vergrößert sie wie
   bisher. Ist die Beschreibung ausgeblendet, stehen sie unter der Liste.
+- Profil > Darstellung > Shader > „Vorschau...“: zeigt ungefähr, was der
+  gewählte Shader aus dem Bild macht (scharf, weich, Rasterzeilen, Röhren-
+  monitor, gewölbt, geglättete Kanten), an einem eingebauten Testbild im Stil
+  alter DOS-Spiele: das ganze Bild und ein vergrößerter Ausschnitt, auf Wunsch
+  zum Vergleich ohne Shader. DBGL zeichnet das selbst, das echte Bild zeigt
+  der Probestart.
 
 Fehler behoben
 - USB-Stick-Assistent: DOSBox-Versionen (z. B. DOSBox-X) waren als nötig

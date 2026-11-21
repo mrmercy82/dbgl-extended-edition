@@ -638,7 +638,7 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		new org.eclipse.swt.widgets.Label(grid, SWT.NONE);
 		Composite parent = new Composite(grid, SWT.NONE);
 		parent.setLayoutData(new GridData(SWT.BEGINNING, SWT.CENTER, false, false, 5, 1));
-		GridLayout row = new GridLayout(2, false);
+		GridLayout row = new GridLayout(3, false);
 		row.marginWidth = row.marginHeight = 0;
 		parent.setLayout(row);
 		Button_.on(parent).imageText(org.dbgl.service.ImageService.IMG_REFRESH, "dialog.template.glshader.refresh").tooltip("dialog.template.glshader.refresh.tooltip").listen(new SelectionAdapter() {
@@ -672,6 +672,14 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 			}
 		}).ctrl();
 		tryRun.setEnabled(canTryRun());
+		// alpha 52: roughly what the shader does, on a built-in test picture (DBGL draws it, so only an approximation)
+		Button preview = Button_.on(parent).imageText(org.dbgl.service.ImageService.IMG_ZOOM, "dialog.template.glshader.preview").tooltip("dialog.template.glshader.preview.tooltip").listen(
+			new SelectionAdapter() {
+				@Override
+				public void widgetSelected(SelectionEvent event) {
+					org.dbgl.gui.dialog.ShaderPreviewDialog.open(shell_, shaderCombo.getText());
+				}
+			}).ctrl();
 
 		// alpha 52: below, what the chosen shader does to the picture (own shader files have no description)
 		new org.eclipse.swt.widgets.Label(grid, SWT.NONE);
@@ -682,6 +690,9 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		Runnable describe = () -> {
 			String key = org.dbgl.util.ShaderInfo.keyOf(shaderCombo.getText());
 			String text = key == null ? "": text_.get(key);
+			boolean previewable = org.dbgl.util.ShaderPreview.kindOf(shaderCombo.getText()) != null;
+			if (preview.getEnabled() != previewable)
+				preview.setEnabled(previewable);
 			if (!text.equals(info.getText())) {
 				info.setText(text);
 				grid.layout(new org.eclipse.swt.widgets.Control[] {info});
