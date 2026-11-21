@@ -131,11 +131,22 @@ public final class SavegamesPanel {
 		refresh.setEnabled(gameDir != null);
 
 		new Label(group, SWT.NONE).setText(text.get("dialog.savegames.keep"));
-		Spinner keep = new Spinner(group, SWT.BORDER);
+		// alpha 52: the number and its unit side by side (the field of the files above is as wide as the table now)
+		Composite keepRow = new Composite(group, SWT.NONE);
+		GridLayout keepLayout = new GridLayout(2, false);
+		keepLayout.marginWidth = keepLayout.marginHeight = 0;
+		keepRow.setLayout(keepLayout);
+		keepRow.setLayoutData(new GridData(SWT.BEGINNING, SWT.CENTER, false, false));
+		keepRow.setData(GridCompactor.KEEP_WIDTH, Boolean.TRUE);
+		Spinner keep = new Spinner(keepRow, SWT.BORDER);
 		keep.setMinimum(1);
 		keep.setMaximum(100);
 		keep.setSelection(config.keep());
-		new Label(group, SWT.NONE).setText(text.get("dialog.savegames.keep.unit"));
+		keep.setLayoutData(new GridData(SWT.BEGINNING, SWT.CENTER, false, false)); // with layout data: else the page hides the row as empty
+		Label keepUnit = new Label(keepRow, SWT.NONE);
+		keepUnit.setText(text.get("dialog.savegames.keep.unit"));
+		keepUnit.setLayoutData(new GridData(SWT.BEGINNING, SWT.CENTER, false, false));
+		new Label(group, SWT.NONE); // the third column of the row
 
 		Label listLabel = new Label(group, SWT.NONE);
 		listLabel.setText(text.get("dialog.savegames.backups"));
@@ -147,10 +158,15 @@ public final class SavegamesPanel {
 		tableData.widthHint = 360;
 		table.setLayoutData(tableData);
 		// alpha 52: a mark for the backup with the state of the game folder now, a name, whether it is kept
-		for (String key: new String[] {null, "dialog.template.savestates.date", "dialog.savegames.name", "dialog.savegames.files", "dialog.template.savestates.size", "dialog.savegames.kept"}) {
-			TableColumn column = new TableColumn(table, SWT.NONE);
-			column.setText(key == null ? "": text.get(key));
+		// alpha 52: the mark and "kept" centred, the numbers to the right; an empty first column of no width, as Windows always puts
+		// the first one to the left
+		String[] keys = {"", null, "dialog.template.savestates.date", "dialog.savegames.name", "dialog.savegames.files", "dialog.template.savestates.size", "dialog.savegames.kept"};
+		int[] align = {SWT.LEFT, SWT.CENTER, SWT.LEFT, SWT.LEFT, SWT.RIGHT, SWT.RIGHT, SWT.CENTER};
+		for (int i = 0; i < keys.length; i++) {
+			TableColumn column = new TableColumn(table, align[i]);
+			column.setText((keys[i] == null) || keys[i].isEmpty() ? "": text.get(keys[i]));
 		}
+		table.getColumn(0).setResizable(false);
 		tableData.widthHint = 460;
 		Composite buttons = new Composite(group, SWT.NONE);
 		buttons.setLayoutData(new GridData(SWT.FILL, SWT.BEGINNING, false, false));
@@ -163,7 +179,7 @@ public final class SavegamesPanel {
 		rename.setToolTipText(text.get("dialog.savegames.rename.tooltip"));
 		Button keepThis = button(buttons, text.get("dialog.savegames.keepthis"));
 		keepThis.setToolTipText(text.get("dialog.savegames.keepthis.tooltip"));
-		Button delete = button(buttons, text.get("dialog.template.savestates.delete"));
+		Button delete = button(buttons, text.get("dialog.savegames.delete"));
 		Button open = button(buttons, text.get("dialog.template.savestates.open"));
 
 		new Label(group, SWT.NONE);
@@ -236,34 +252,50 @@ public final class SavegamesPanel {
 			}
 			return true;
 		};
+		int[] fillGeneration = {0};
 		Runnable fill = () -> {
+			// alpha 52: read away from the windows (the game folder is compared, every ZIP file opened): "loading ..." meanwhile
+			int mine = ++fillGeneration[0];
 			table.removeAll();
-			File current = SavegameBackup.current(profile);
-			DateFormat format = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT, locale()); // alpha 52: in the language of DBGL
-			// alpha 52: those only in the second place (e.g. on a new computer) as well, marked
-			java.util.List<File> local = SavegameBackup.backups(profile);
-			java.util.Set<String> localNames = new java.util.HashSet<>();
-			local.forEach(f -> localNames.add(f.getName()));
-			java.util.List<File> all = new java.util.ArrayList<>(local);
-			org.dbgl.util.SecondBackupPlace.savegameBackups(profile).stream().filter(f -> !localNames.contains(f.getName())).forEach(all::add);
-			all.sort(java.util.Comparator.comparing(File::getName).reversed());
-			for (File f: all) {
-				TableItem item = new TableItem(table, SWT.NONE);
-				String date = format.format(new Date(f.lastModified())) + (f.getName().contains("before-restore") ? " (" + text.get("dialog.savegames.beforerestore") + ")": "")
-					+ (localNames.contains(f.getName()) ? "": " (" + text.get("dialog.savegames.secondplace") + ")");
-				item.setText(new String[] {f.equals(current) ? "\u25CF": "", date, SavegameBackup.nameOf(profile, f), String.valueOf(SavegameBackup.count(f)),
-						org.dbgl.util.DiskUsage.format(f.length(), locale()), SavegameBackup.isKept(profile, f) ? "\u2713": ""});
-				item.setData(f);
-			}
-			if (table.getItemCount() == 0)
-				new TableItem(table, SWT.NONE).setText(1, text.get("dialog.savegames.none"));
-			for (TableColumn c: table.getColumns())
-				c.pack();
+			new TableItem(table, SWT.NONE).setText(2, text.get("dialog.savegames.loading"));
+			packColumns(table);
 			restore.setEnabled(false);
 			delete.setEnabled(false);
 			rename.setEnabled(false);
 			keepThis.setEnabled(false);
-			table.setToolTipText(current == null ? null: text.get("dialog.savegames.current"));
+			Thread t = new Thread(() -> {
+				java.util.List<SavegameBackup.Listed> rows;
+				try {
+					rows = SavegameBackup.list(profile);
+				} catch (RuntimeException ex) {
+					rows = java.util.List.of();
+				}
+				java.util.List<SavegameBackup.Listed> done = rows;
+				if (!table.isDisposed())
+					table.getDisplay().asyncExec(() -> {
+						if (table.isDisposed() || (mine != fillGeneration[0]))
+							return; // a newer one is on its way
+						table.removeAll();
+						DateFormat format = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT, locale()); // in the language of DBGL
+						boolean anyCurrent = false;
+						for (SavegameBackup.Listed r: done) {
+							File f = r.zip();
+							TableItem item = new TableItem(table, SWT.NONE);
+							String date = format.format(new Date(f.lastModified())) + (f.getName().contains("before-restore") ? " (" + text.get("dialog.savegames.beforerestore") + ")": "")
+								+ (r.secondPlaceOnly() ? " (" + text.get("dialog.savegames.secondplace") + ")": "");
+							item.setText(new String[] {"", r.current() ? "\u25CF": "", date, r.name(), String.valueOf(r.files()), org.dbgl.util.DiskUsage.format(f.length(), locale()),
+									r.kept() ? "\u2713": ""});
+							item.setData(f);
+							anyCurrent |= r.current();
+						}
+						if (table.getItemCount() == 0)
+							new TableItem(table, SWT.NONE).setText(2, text.get("dialog.savegames.none"));
+						packColumns(table);
+						table.setToolTipText(anyCurrent ? text.get("dialog.savegames.current"): null);
+					});
+			}, "savegame-list");
+			t.setDaemon(true);
+			t.start();
 		};
 		enabled.addListener(SWT.Selection, e -> {
 			if (enabled.getSelection() && !largeOk.getAsBoolean()) // alpha 52: before each start, so asked here already
@@ -293,13 +325,15 @@ public final class SavegamesPanel {
 			boolean one = table.getSelectionCount() == 1 && table.getSelection()[0].getData() != null;
 			restore.setEnabled(one);
 			delete.setEnabled(one);
-			rename.setEnabled(one && !((File)table.getSelection()[0].getData()).getParentFile().equals(org.dbgl.util.SecondBackupPlace.root()));
+			// a name only for those of DBGL (one only in the second place has none here)
+			File parentOfChosen = one ? ((File)table.getSelection()[0].getData()).getParentFile(): null;
+			rename.setEnabled(one && (parentOfChosen.equals(SavegameBackup.dir(profile)) || parentOfChosen.equals(SavegameBackup.oldDir(profile))));
 			keepThis.setEnabled(one);
 			if (one)
 				keepThis.setText(text.get(SavegameBackup.isKept(profile, (File)table.getSelection()[0].getData()) ? "dialog.savegames.unkeep": "dialog.savegames.keepthis"));
 		});
 		Runnable doRename = () -> {
-			if ((table.getSelectionCount() != 1) || (table.getSelection()[0].getData() == null))
+			if ((table.getSelectionCount() != 1) || (table.getSelection()[0].getData() == null) || !rename.isEnabled())
 				return;
 			File f = (File)table.getSelection()[0].getData();
 			String name = new org.dbgl.gui.dialog.TextInputDialog(group.getShell(), text.get("dialog.savegames.renametitle"), text.get("dialog.savegames.name"), SavegameBackup.nameOf(profile, f)).open();
@@ -343,7 +377,7 @@ public final class SavegamesPanel {
 		});
 		restore.addListener(SWT.Selection, e -> {
 			File f = (File)table.getSelection()[0].getData();
-			if (!Mess_.on(group.getShell()).key("dialog.savegames.confirmrestore", new Object[] {table.getSelection()[0].getText(0)}).confirm())
+			if (!Mess_.on(group.getShell()).key("dialog.savegames.confirmrestore", new Object[] {table.getSelection()[0].getText(2)}).confirm())
 				return;
 			try {
 				int n = BusyTask.runToEnd(group.getShell(), text.get("dialog.savegames.restoring"), () -> SavegameBackup.restore(profile, f)); // alpha 52
@@ -355,9 +389,10 @@ public final class SavegamesPanel {
 		});
 		delete.addListener(SWT.Selection, e -> {
 			File f = (File)table.getSelection()[0].getData();
-			if (!Mess_.on(group.getShell()).key("dialog.template.savestates.confirmdelete", new Object[] {1}).confirm())
+			if (!Mess_.on(group.getShell()).key(org.dbgl.util.SecondBackupPlace.root() != null ? "dialog.savegames.confirmdelete.second": "dialog.savegames.confirmdelete",
+				new Object[] {table.getSelection()[0].getText(2)}).confirm())
 				return;
-			SavegameBackup.delete(profile, f); // alpha 52: at both places, the earlier one too
+			SavegameBackup.delete(profile, f); // alpha 52: everywhere (both places of DBGL, the second place)
 			fill.run();
 		});
 		open.addListener(SWT.Selection, e -> {
@@ -372,6 +407,13 @@ public final class SavegamesPanel {
 	private static java.util.Locale locale() {
 		org.dbgl.service.SettingsService s = org.dbgl.service.SettingsService.getInstance();
 		return java.util.Locale.of(s.getValue("locale", "language"), s.getValue("locale", "country"));
+	}
+
+	/** the columns as wide as their content, the empty first one of no width */
+	private static void packColumns(Table table) {
+		for (TableColumn c: table.getColumns())
+			c.pack();
+		table.getColumn(0).setWidth(0);
 	}
 
 	private static Button button(Composite parent, String label) {

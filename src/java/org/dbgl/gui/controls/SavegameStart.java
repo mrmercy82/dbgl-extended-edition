@@ -84,18 +84,22 @@ public final class SavegameStart {
 		GridData tableData = new GridData(SWT.FILL, SWT.FILL, true, true);
 		tableData.heightHint = table.getHeaderHeight() + table.getItemHeight() * Math.min(10, backups.size() + 1);
 		table.setLayoutData(tableData);
-		for (String key: new String[] {null, "dialog.template.savestates.date", "dialog.savegames.name"})
-			new TableColumn(table, SWT.NONE).setText(key == null ? "": text.get(key));
+		// alpha 52: the mark centred, as on the page of the profile (an empty first column of no width: Windows puts the first to the left)
+		new TableColumn(table, SWT.LEFT).setResizable(false);
+		new TableColumn(table, SWT.CENTER);
+		for (String key: new String[] {"dialog.template.savestates.date", "dialog.savegames.name"})
+			new TableColumn(table, SWT.LEFT).setText(text.get(key));
 		DateFormat format = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT, locale());
 		for (File f: backups) {
 			TableItem item = new TableItem(table, SWT.NONE);
-			item.setText(new String[] {f.equals(current) ? "●": "", format.format(new Date(f.lastModified())), SavegameBackup.nameOf(p, f)});
+			item.setText(new String[] {"", f.equals(current) ? "●": "", format.format(new Date(f.lastModified())), SavegameBackup.nameOf(p, f)});
 			item.setData(f);
 			if (f.equals(current))
 				table.setSelection(item);
 		}
 		for (TableColumn c: table.getColumns())
 			c.pack();
+		table.getColumn(0).setWidth(0);
 		Button showAgain = new Button(dlg, SWT.CHECK);
 		showAgain.setText(text.get("dialog.savegamestart.show"));
 		showAgain.setSelection(true);

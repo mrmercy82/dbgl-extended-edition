@@ -3270,6 +3270,8 @@ public class Dbgl0102Tests {
 			org.dbgl.util.SavegameBackup.delete(p, oldOne);
 			assertFalse(oldOne.exists());
 			assertFalse(new File(old, "20261120-100000.zip").exists());
+			// the list of the page: everything read at once, the same backups
+			assertEquals(org.dbgl.util.SavegameBackup.backups(p).size(), org.dbgl.util.SavegameBackup.list(p).size());
 			// before deleting the profile (with its screenshots): its backups counted, and packed at both places in a locked ZIP file
 			org.dbgl.util.SavegameBackup.WithBackups with = org.dbgl.util.SavegameBackup.withBackups(java.util.List.of(p));
 			assertEquals(1, with.profiles().size());
@@ -3295,6 +3297,17 @@ public class Dbgl0102Tests {
 			assertEquals(expected, new java.util.TreeSet<>(java.util.Arrays.asList(kept.list())));
 			assertFalse(newPlace.exists());
 			assertEquals(oldCount, old.list().length); // the earlier place only goes with the screenshots
+			// in the window of the backups: the ZIP file of the deleted profiles and the kept folder, which can be deleted there
+			assertEquals(org.dbgl.util.BackupCatalog.Kind.SAVEGAMES, org.dbgl.util.BackupCatalog.kindOf(deleted.getName()));
+			File keptNow = kept;
+			java.util.List<org.dbgl.util.BackupCatalog.Backup> listed = org.dbgl.util.BackupCatalog.list(java.util.List.of(kept.getParentFile()));
+			assertTrue(listed.toString(), listed.stream().anyMatch(b -> b.file().equals(keptNow) && (b.kind() == org.dbgl.util.BackupCatalog.Kind.DELETED_SAVEGAMES)));
+			File other = new File(kept.getParentFile(), "not one");
+			other.mkdirs();
+			assertFalse(org.dbgl.util.BackupCatalog.delete(other)); // a folder of another name stays
+			org.apache.commons.io.FileUtils.deleteQuietly(other);
+			assertTrue(org.dbgl.util.BackupCatalog.delete(keptNow));
+			assertFalse(keptNow.exists());
 		} finally {
 			if (p != null) {
 				org.apache.commons.io.FileUtils.deleteQuietly(p.getCanonicalCaptures());

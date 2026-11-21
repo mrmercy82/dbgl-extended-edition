@@ -60,7 +60,11 @@ public final class BackupCatalog {
 		/** the update itself, kept to install it again */
 		INSTALLER(false),
 		/** alpha 50: a folder with the files of this installation that were replaced when a USB stick was brought back */
-		STICK_RETURN(false);
+		STICK_RETURN(false),
+		/** alpha 52: backups of saved games DBGL packed into a ZIP file: before they moved, of deleted profiles */
+		SAVEGAMES(false),
+		/** alpha 52: a folder in savegames\deleted: the backups of saved games of a deleted profile, kept */
+		DELETED_SAVEGAMES(false);
 
 		private final boolean restorable_;
 
@@ -85,6 +89,31 @@ public final class BackupCatalog {
 	/** the folder "Profiles > Bring back from the USB stick" keeps the replaced files in: only a folder of exactly this name is one */
 	public static final Pattern STICK_RETURN_NAME = Pattern.compile("stick-return-\\d{8}-\\d{6}");
 
+	/** alpha 52: a folder of the backups of a deleted profile in savegames\deleted: its number, a space, its title */
+	public static final Pattern DELETED_SAVEGAMES_NAME = Pattern.compile("\\d+ .+");
+
+	/** alpha 52: savegames\deleted, listed in the window of the backups too */
+	public static File deletedSavegamesDir() {
+		File d = new File(new File(FileLocationService.getInstance().getDataDir(), SavegameBackup.DIR), SavegameBackup.DELETED);
+		try {
+			return d.getCanonicalFile();
+		} catch (IOException e) {
+			return d.getAbsoluteFile();
+		}
+	}
+
+	private static boolean isDeletedSavegames(File f) {
+		return f.isDirectory() && DELETED_SAVEGAMES_NAME.matcher(f.getName()).matches() && deletedSavegamesDir().equals(canonical(f.getParentFile()));
+	}
+
+	private static File canonical(File f) {
+		try {
+			return f.getCanonicalFile();
+		} catch (IOException e) {
+			return f.getAbsoluteFile();
+		}
+	}
+
 	private BackupCatalog() {
 	}
 
@@ -106,6 +135,8 @@ public final class BackupCatalog {
 			return null;
 		if (name.startsWith(FullBackup.PREFIX))
 			return Kind.FULL;
+		if (name.startsWith("dbgl-savegames-")) // alpha 52: before the move, of deleted profiles
+			return Kind.SAVEGAMES;
 		if (name.startsWith("dbgl-backup-before-update-"))
 			return Kind.UPDATE_DATA;
 		if (name.startsWith("dbgl-program-"))
@@ -167,6 +198,8 @@ public final class BackupCatalog {
 		List<File> candidates = new ArrayList<>();
 		candidates.add(BackupService.defaultAutoBackupDir());
 		candidates.add(new File(FileLocationService.getInstance().getDataDir(), VersionBackup.DIR));
+		if (deletedSavegamesDir().isDirectory()) // alpha 52: the kept backups of saved games of deleted profiles
+			candidates.add(deletedSavegamesDir());
 		String full = SettingsService.getInstance().getValue(FullBackup.SECTION, "backupdir");
 		if ((full != null) && !full.isBlank())
 			candidates.add(new File(full));
@@ -190,6 +223,10 @@ public final class BackupCatalog {
 			Set<String> locked = locked(dir);
 			Set<Kind> always = autoLocked();
 			for (File f: files) {
+				if (isDeletedSavegames(f)) { // alpha 52
+					result.add(new Backup(f, Kind.DELETED_SAVEGAMES, "", f.lastModified(), sizeOf(f), locked.contains(f.getName()) || always.contains(Kind.DELETED_SAVEGAMES)));
+					continue;
+				}
 				Kind kind = kindOf(f.getName());
 				if ((kind == null) || ((kind == Kind.STICK_RETURN) != f.isDirectory()))
 					continue;
@@ -232,7 +269,7 @@ public final class BackupCatalog {
 
 	public static boolean isLocked(File backup) {
 		File dir = backup.getParentFile();
-		Kind kind = kindOf(backup.getName());
+		Kind kind = isDeletedSavegames(backup) ? Kind.DELETED_SAVEGAMES: kindOf(backup.getName());
 		return ((kind != null) && autoLocked().contains(kind)) || ((dir != null) && locked(dir).contains(backup.getName()));
 	}
 
@@ -286,8 +323,9 @@ public final class BackupCatalog {
 		if (isLocked(backup))
 			return false;
 		if (backup.isDirectory()) {
-			// a folder only if it is one of the stick: by its exact name, nothing else a user may have put there
-			if (!STICK_RETURN_NAME.matcher(backup.getName()).matches())
+			// a folder only if it is one of the stick, or of a deleted profile in savegames\deleted (alpha 52): by its exact name and
+			// place, nothing else a user may have put there
+			if (!STICK_RETURN_NAME.matcher(backup.getName()).matches() && !isDeletedSavegames(backup))
 				return false;
 			org.apache.commons.io.FileUtils.deleteDirectory(backup);
 			return true;

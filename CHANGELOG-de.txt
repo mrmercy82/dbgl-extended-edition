@@ -177,8 +177,22 @@ Neu
     bekommt. Mit Haken warnt DBGL eigens und bietet an, sie vorher in eine
     gesperrte ZIP-Datei im Ordner backups zu packen. Bisher gingen sie mit den
     Bildschirmfotos. Die Spielstände in den Spielordnern werden nie angerührt.
+  - Die Liste der Sicherungen wird im Hintergrund gelesen („Wird geladen...“),
+    die Seite hängt dabei nicht mehr. Markierung und „Behalten“ stehen mittig,
+    Dateien und Größe rechtsbündig, die Anzahl zum Aufbewahren steht direkt
+    vor „Sicherungen“.
+  - „Sicherung löschen“ (statt „Löschen“ mit der Frage nach „Savestate(s)“)
+    löscht sie überall, auch am zweiten Sicherungsort; vorher blieb sie von
+    dort aus in der Liste stehen. Die Rückfrage nennt ihr Datum.
+  - „Savegames...“ im Kontextmenü: Der Profileditor baut seine Seiten hinter
+    einem Ladebalken auf und öffnet gleich fertig auf der Savegames-Seite.
+  - „Sicherungen verwalten“ zeigt jetzt auch die ZIP-Dateien vom Umzug und vom
+    Löschen von Profilen und die Ordner in savegames\deleted (löschen, sperren,
+    im Ordner zeigen); vor dem Löschen kommt eine eigene Rückfrage.
 
 Fehler behoben
+- Die Rückfrage vor dem Wiederherstellen einer Savegame-Sicherung nannte kein
+  Datum („Die Spielstände vom  wiederherstellen?“).
 - Profile löschen: Das Fenster war für die deutschen Texte zu schmal, die
   Häkchen rechts (auch das für die Bildschirmfotos) waren abgeschnitten; es
   wird jetzt so breit wie nötig. Dazu „Screenshot-Ordner“ statt „-Order“.

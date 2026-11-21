@@ -147,17 +147,6 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 		super.onShellOpened();
 		if (initialSearch_ != null)
 			display_.asyncExec(() -> searchAndJump(initialSearch_));
-		if (initialPage_ != null)
-			display_.asyncExec(() -> {
-				showPage(initialPage_);
-				// the tree is made anew once all pages are built: then again, unless another page was chosen meanwhile
-				String first = (tree_.getItemCount() > 0) ? (String)tree_.getItem(0).getData(): null;
-				whenPagesBuilt(() -> {
-					org.eclipse.swt.widgets.TreeItem[] sel = tree_.isDisposed() ? null: tree_.getSelection();
-					if ((sel != null) && ((sel.length == 0) || java.util.Objects.equals(sel[0].getData(), first)))
-						showPage(initialPage_);
-				});
-			});
 		if (consultSearchEngine_)
 			display_.asyncExec(() -> {
 				ToolItem item = engineSelector_ == null ? null: engineSelector_.getToolItem();
@@ -461,7 +450,17 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 
 		addSearchListener(profile_);
 		Stream.of(tree_.getItems()).forEach(x -> x.setExpanded(true));
-		updatePageTree(profile_);
+		if (initialPage_ != null) {
+			// alpha 52: opened at a page (e.g. "Savegames" from the menu of the profile): all pages first, behind a progress bar,
+			// so the window shows up complete and at that page, instead of building itself up in front of the user
+			try (org.dbgl.gui.controls.UiProgress progress = new org.dbgl.gui.controls.UiProgress(getParent(), text_.get("dialog.profile.working"), pagesToCompute() + 1)) {
+				computeAllPages(profile_, progress);
+				updatePageTree(profile_, true);
+				progress.step();
+			}
+		} else {
+			updatePageTree(profile_);
+		}
 		tree_.addListener(SWT.Selection, event -> renderPage(profile_, event.item));
 		
 		// MacOS does not automatically select the first entry in the tree, so do that now, manually 
@@ -469,6 +468,8 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 			tree_.setSelection(infoItem);
 			renderPage(profile_, infoItem);
 		}
+		if (initialPage_ != null)
+			showPage(initialPage_);
 		
 		createOkCancelButtons();
 	}

@@ -553,10 +553,38 @@ public final class SavegameBackup {
 		return target;
 	}
 
-	/** alpha 52: deleted by hand: at both places (the earlier one too, as the user asked for it) */
+	/**
+	 * alpha 52: deleted by hand: everywhere, as the user asked for it: both places of DBGL and the second place (else it would
+	 * still be listed, from there), and the file itself (e.g. one only in the second place)
+	 */
 	public static void delete(Profile p, File zip) {
 		org.apache.commons.io.FileUtils.deleteQuietly(new File(dir(p), zip.getName()));
 		org.apache.commons.io.FileUtils.deleteQuietly(new File(oldDir(p), zip.getName()));
+		File second = SecondBackupPlace.root();
+		if (second != null)
+			org.apache.commons.io.FileUtils.deleteQuietly(new File(SecondBackupPlace.savegamesDir(second, p), zip.getName()));
+		org.apache.commons.io.FileUtils.deleteQuietly(zip);
+	}
+
+	/** alpha 52: a row of the list of backups: everything read at once, away from the windows (it can take a moment) */
+	public record Listed(File zip, boolean current, String name, int files, boolean kept, boolean secondPlaceOnly) {
+	}
+
+	/** alpha 52: the backups of a profile for the list: those of DBGL and those only in the second place, newest first */
+	public static List<Listed> list(Profile p) {
+		Properties props = properties(p);
+		File current = current(p);
+		List<File> local = backups(p);
+		java.util.Set<String> localNames = new java.util.HashSet<>();
+		local.forEach(f -> localNames.add(f.getName()));
+		List<File> all = new ArrayList<>(local);
+		SecondBackupPlace.savegameBackups(p).stream().filter(f -> !localNames.contains(f.getName())).forEach(all::add);
+		all.sort(java.util.Comparator.comparing(File::getName).reversed());
+		List<Listed> result = new ArrayList<>();
+		for (File f: all)
+			result.add(new Listed(f, f.equals(current), props.getProperty("name." + f.getName(), ""), count(f),
+					Boolean.parseBoolean(props.getProperty("kept." + f.getName(), "false")), !localNames.contains(f.getName())));
+		return result;
 	}
 
 	/** the files and their state, as written into the comment of a backup: an unchanged state needs no new backup */

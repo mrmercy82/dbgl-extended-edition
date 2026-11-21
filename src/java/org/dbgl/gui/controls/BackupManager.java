@@ -62,14 +62,15 @@ public final class BackupManager {
 	}
 
 	public static String contentText(ITextService text, Kind kind) {
-		String what = kind.restorable() ? "data": kind == Kind.UPDATE_PROGRAM ? "program": kind == Kind.FULL ? "full": kind == Kind.STICK_RETURN ? "stick": "installer";
+		String what = kind.restorable() ? "data": kind == Kind.UPDATE_PROGRAM ? "program": kind == Kind.FULL ? "full": kind == Kind.STICK_RETURN ? "stick"
+				: (kind == Kind.SAVEGAMES) || (kind == Kind.DELETED_SAVEGAMES) ? "savegames": "installer";
 		return text.get("dialog.backups.content." + what);
 	}
 
 	/** the cells of the row of a backup: lock, kind, content, version, date, size, file */
 	public static String[] row(ITextService text, Backup b, Locale locale) {
 		return new String[] {"", kindText(text, b.kind()), contentText(text, b.kind()),
-				b.kind() == Kind.STICK_RETURN ? "": b.version().isEmpty() ? text.get("dialog.backups.unknownversion"): BackupCatalog.pretty(b.version()),
+				(b.kind() == Kind.STICK_RETURN) || (b.kind() == Kind.SAVEGAMES) || (b.kind() == Kind.DELETED_SAVEGAMES) ? "": b.version().isEmpty() ? text.get("dialog.backups.unknownversion"): BackupCatalog.pretty(b.version()),
 				DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT, locale).format(new Date(b.when())), DiskUsage.format(b.size(), locale), b.file().getName()};
 	}
 
@@ -280,6 +281,12 @@ public final class BackupManager {
 			// alpha 50: the files replaced when a USB stick was brought back are the only copy of what was here before
 			long sticks = java.util.Arrays.stream(sel).filter(i -> shown.get(i).kind() == Kind.STICK_RETURN).count();
 			if ((sticks > 0) && !Mess_.on(dlg).key("dialog.backups.confirm.deletestick", new Object[] {sticks}).confirm()) {
+				dlg.forceActive();
+				return;
+			}
+			// alpha 52: backups of saved games (e.g. of deleted profiles) may be the only ones left
+			long savegames = java.util.Arrays.stream(sel).filter(i -> (shown.get(i).kind() == Kind.SAVEGAMES) || (shown.get(i).kind() == Kind.DELETED_SAVEGAMES)).count();
+			if ((savegames > 0) && !Mess_.on(dlg).key("dialog.backups.confirm.deletesavegames", new Object[] {savegames}).confirm()) {
 				dlg.forceActive();
 				return;
 			}

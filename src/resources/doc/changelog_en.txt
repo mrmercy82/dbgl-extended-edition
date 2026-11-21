@@ -168,8 +168,20 @@ New
     Ticked, a warning of its own offers to pack them into a locked ZIP file in
     the folder backups first. Before, they went with the screenshots. The
     saved games in the game folders are never touched.
+  - The list of backups is read in the background ("Loading..."), the page
+    no longer hangs meanwhile. The mark and "Kept" are centred, files and size
+    right-aligned, the number to keep stands right before "backups".
+  - "Delete backup" (instead of "Delete" asking about "saved state(s)")
+    deletes it everywhere, also in the second backup place; before, it stayed
+    in the list from there. The question names its date.
+  - "Saved games..." in the context menu: the profile editor builds its pages
+    behind a progress bar and opens ready at the page of the saved games.
+  - "Manage backups" also lists the ZIP files of the move and of deleting
+    profiles, and the folders in savegames\deleted (delete, lock, show in the
+    folder); deleting them asks once more.
 
 Fixed
+- The question before restoring a backup of saved games named no date.
 - Deleting profiles: the window was too narrow for longer texts (German),
   the check boxes at the right (also the one for the screenshots) were cut
   off; it is as wide as needed now.
