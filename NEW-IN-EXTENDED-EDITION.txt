@@ -14,13 +14,37 @@ Extended Edition (source code, downloads, reporting problems):
 https://github.com/mrmercy82/dbgl-extended-edition
 
 
-IMPORTANT: JAVA 21 IS NEEDED NOW
---------------------------------
+IMPORTANT: JAVA 21 IS NEEDED
+----------------------------
   From 0.101 alpha 51 on, DBGL Extended Edition needs Java 21 or newer and
   does not open with an older Java any more; it then shows a window that
   says which Java was found. Java 21 is available e.g. as Eclipse Temurin:
   https://adoptium.net/temurin/releases/?version=21
-  Please update Java before the update.
+  Please update Java before the update. The stand-alone package for Windows
+  brings Java 21 along (from 0.101 alpha 52 on).
+
+
+NEWEST IN 0.101 ALPHA 52
+------------------------
+  - Saved games: the backups are in a folder of their own
+    (savegames\<number>); existing ones are copied and checked at the first
+    start, the old ones stay. Backups can be named and kept, and before the
+    start DBGL shows which state is in the game folder and lets you start
+    with another backup (also in TV mode). "Saved games..." in the context
+    menu of a profile; deleting a profile keeps its backups by default.
+  - Second backup place, e.g. OneDrive or Dropbox; the automatic backup can
+    include screenshots and backups of saved games.
+  - ScummVM games as profiles (import from scummvm.ini, start with play
+    time, screenshots, online lookup, a lean profile editor of their own).
+  - LaunchBox: import your own MS-DOS collection; add profiles to LaunchBox.
+  - RAWG as another source of online info; Steam pictures from SteamGridDB.
+  - TV mode: "Recently played", info with all pictures of a game.
+  - Screenshots on the right above the description; shader preview; the
+    next part of a game series offered after playing.
+  - Find sound files (SoundFonts, MT-32 and Sound Canvas ROMs, Ultrasound
+    patches); import games that have no profile yet from a folder.
+  - The stand-alone package for Windows comes with Java 21 (and once
+    without Java).
 
 
 NEWEST IN 0.101 ALPHA 51
