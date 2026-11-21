@@ -128,10 +128,58 @@ public final class SteamShortcuts {
 
 	/** @return whether Steam runs now (it would overwrite the file when it exits) */
 	public static boolean steamRunning() {
-		return ProcessHandle.allProcesses().anyMatch(p -> p.info().command().map(c -> {
+		if (ProcessHandle.allProcesses().anyMatch(p -> p.info().command().map(c -> {
 			String name = new File(c).getName().toLowerCase(java.util.Locale.ROOT);
 			return name.equals("steam.exe") || name.equals("steam") || name.equals("steamwebhelper.exe") || name.equals("steam_osx");
-		}).orElse(false));
+		}).orElse(false)))
+			return true;
+		// alpha 52: Windows does not always tell Java the program of a process (e.g. one started with other rights): ask tasklist
+		if (SystemUtils.IS_WINDOWS) {
+			try {
+				Process p = new ProcessBuilder("tasklist", "/FI", "IMAGENAME eq steam.exe", "/NH").redirectErrorStream(true).start();
+				String out = new String(p.getInputStream().readAllBytes(), java.nio.charset.Charset.defaultCharset());
+				p.waitFor(10, java.util.concurrent.TimeUnit.SECONDS);
+				return out.toLowerCase(java.util.Locale.ROOT).contains("steam.exe");
+			} catch (IOException | RuntimeException e) {
+				return false;
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+				return false;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * alpha 52: asks Steam to end itself ("steam -shutdown", as Steam offers it), and waits until it has ended, at most about
+	 * half a minute
+	 *
+	 * @return true if Steam does not run any more
+	 */
+	public static boolean shutDownSteam(File steamDir) {
+		List<String> cmd = new ArrayList<>();
+		File exe = steamDir == null ? null: new File(steamDir, SystemUtils.IS_WINDOWS ? "steam.exe": "steam.sh");
+		if ((exe != null) && exe.isFile())
+			cmd.add(exe.getPath());
+		else
+			cmd.add(SystemUtils.IS_OSX ? "/Applications/Steam.app/Contents/MacOS/steam_osx": "steam");
+		cmd.add("-shutdown");
+		try {
+			new ProcessBuilder(cmd).redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.DISCARD).start();
+		} catch (IOException e) {
+			return !steamRunning();
+		}
+		for (int i = 0; i < 60; i++) {
+			if (!steamRunning())
+				return true;
+			try {
+				Thread.sleep(500);
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+				break;
+			}
+		}
+		return !steamRunning();
 	}
 
 	/** the number Steam knows a non-Steam game by (as Steam ROM Manager and others compute it), unsigned */

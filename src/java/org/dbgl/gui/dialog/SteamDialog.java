@@ -64,9 +64,21 @@ public final class SteamDialog {
 			Mess_.on(shell).key("dialog.steam.nousers", new Object[] {steam.getPath()}).warning();
 			return;
 		}
+		// alpha 52: Steam must not run (it would write its old list back when it ends): offered to end it, or to check again
 		while (SteamShortcuts.steamRunning()) {
-			if (!Mess_.on(shell).key("dialog.steam.running").okCancel())
+			int answer = org.dbgl.gui.controls.Choice.ask(shell, text.get("dialog.steam.title"), text.get("dialog.steam.running2"), SWT.ICON_WARNING,
+				text.get("dialog.steam.shutdown"), text.get("dialog.steam.checkagain"), text.get("button.cancel"));
+			if (answer == 0) {
+				try {
+					boolean ended = org.dbgl.gui.controls.BusyTask.run(shell, text.get("dialog.steam.shuttingdown"), () -> SteamShortcuts.shutDownSteam(steam));
+					if (!ended)
+						Mess_.on(shell).key("dialog.steam.stillrunning").warning();
+				} catch (Exception e) {
+					Mess_.on(shell).exception(e).warning();
+				}
+			} else if (answer != 1) {
 				return;
+			}
 		}
 		Object[] choice = ask(shell, text, profiles.size(), users);
 		if (choice == null)

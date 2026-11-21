@@ -114,7 +114,9 @@ Neu
   Wiederherstellen kommen sie zu den vorhandenen dazu, nichts wird gelöscht.
 - Zu Steam hinzufügen: auf Wunsch Banner, Hintergrund und Logo für die
   Steam-Bibliothek von SteamGridDB (mit dem eigenen Schlüssel), dazu ein
-  Cover für Profile ohne eigenes.
+  Cover für Profile ohne eigenes. Läuft Steam, bietet DBGL an, es zu beenden
+  (oder erneut zu prüfen); unter Windows wird ein laufendes Steam jetzt
+  sicherer erkannt.
 - TV-Modus: „Zuletzt gespielt“ im Menü (Y/F), die zuletzt gespielten Spiele
   zuerst. Die Info (X/I) zeigt alle Bilder des Spiels: eines groß, mit LB/RB
   (Bild auf/ab) zum nächsten, daneben die folgenden klein. Fehlt das Cover,
@@ -125,9 +127,12 @@ Neu
   (aus den Gruppen des Spiels).
 - Doppelte Profile suchen: findet auch Kopien eines Spiels in einem anderen
   Ordner, an der Prüfsumme der Startdatei (bei gleichen Parametern; kleine
-  Startprogramme und Batch-Dateien zählen nicht).
+  Startprogramme und Batch-Dateien zählen nicht). Profile, die Windows starten
+  (WIN, WIN.COM), gelten dabei nicht als doppelt.
 - Mixer für DOSBox Staging: Regler auch für MT-32, FluidSynth und (ab 0.83)
-  Sound Canvas, je nach gewähltem MIDI-Gerät.
+  Sound Canvas, je nach gewähltem MIDI-Gerät. Bis der Mixer aufgeht (einige
+  Sekunden, wenn noch nicht alle Seiten des Profils gezeigt wurden), läuft ein
+  Fortschrittsbalken.
 - ScummVM-Profil: unter den Notizen wie bei DOS-Spielen Speicherplatz (der
   Spielordner aus scummvm.ini), Spielzeit, Sitzungen, die letzte davon und
   wann das Profil angelegt wurde; der Speicherplatz auch in der Liste.

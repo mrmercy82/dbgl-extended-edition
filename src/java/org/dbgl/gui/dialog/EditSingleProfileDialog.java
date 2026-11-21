@@ -417,8 +417,12 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 	
 	@Override
 	protected String doOpenMixerDialog(String command) {
-		computeAllPages(profile_);
-		updateConfigurableByControls(profile_);
+		// alpha 52: the pages not built yet take a moment (a few seconds before): a progress bar then
+		try (org.dbgl.gui.controls.UiProgress progress = new org.dbgl.gui.controls.UiProgress(shell_, text_.get("dialog.profile.working"), pagesToCompute() + 1)) {
+			computeAllPages(profile_, progress);
+			updateConfigurableByControls(profile_);
+			progress.step();
+		}
 		return new EditMixerDialog(shell_, command, profile_.mixerDeviceNames(), profile_.enabledMixerDevices()).open();
 	}
 

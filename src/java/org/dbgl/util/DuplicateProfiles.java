@@ -87,10 +87,18 @@ public final class DuplicateProfiles {
 		if (StringUtils.isBlank(main))
 			return null;
 		File f = new File(main);
+		if (startsWindows(f.getName()))
+			return null; // alpha 52: many games start Windows (WIN.COM), the game itself comes later: no duplicates by that
 		if (!f.isAbsolute())
 			f = new File(org.dbgl.service.FileLocationService.getInstance().getDosroot(), main);
 		String params = StringUtils.defaultString(p.getConfiguration().getAutoexec().getParameters()).trim();
 		return f.getAbsoluteFile().toPath().normalize() + "|" + params; // compared in lower case (DOS names), shown as written
+	}
+
+	/** alpha 52: Windows 3.x started (WIN, WIN.COM, WIN.EXE, WIN.BAT): the game is not known from the program then */
+	public static boolean startsWindows(String fileName) {
+		String n = StringUtils.defaultString(fileName).trim().toUpperCase(Locale.ROOT);
+		return n.equals("WIN") || n.equals("WIN.COM") || n.equals("WIN.EXE") || n.equals("WIN.BAT");
 	}
 
 	/** @param progress told about every profile looked at (may be null) */

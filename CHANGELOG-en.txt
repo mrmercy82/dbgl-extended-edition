@@ -107,7 +107,8 @@ New
   they come next to those there, nothing is removed.
 - Add to Steam: on request banner, background and logo for the Steam
   library from SteamGridDB (with your own key), and a cover for profiles
-  without one.
+  without one. While Steam runs, DBGL offers to end it (or to check again);
+  on Windows a running Steam is now found more reliably.
 - TV mode: "Played last" in the menu (Y/F), the games played last first.
   The info (X/I) shows all pictures of the game: one large, LB/RB (Page
   up/down) to the next, the following ones small beside it. Without a cover,
@@ -118,9 +119,12 @@ New
   the game).
 - Find duplicate profiles: also finds copies of a game in another folder, by
   the checksum of the program that starts it (with the same parameters;
-  small starters and batch files do not count).
+  small starters and batch files do not count). Profiles that start Windows
+  (WIN, WIN.COM) do not count as duplicates by that.
 - Mixer for DOSBox Staging: sliders for MT-32, FluidSynth and (from 0.83 on)
-  Sound Canvas too, depending on the MIDI device chosen.
+  Sound Canvas too, depending on the MIDI device chosen. Until the mixer
+  opens (a few seconds when not all pages of the profile were shown yet), a
+  progress bar runs.
 - ScummVM profile: below the notes, as for DOS games, the disk space (the
   game folder from scummvm.ini), play time, sessions, the last one and when
   the profile was made; the disk space in the list too.

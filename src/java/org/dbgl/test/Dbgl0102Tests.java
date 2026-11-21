@@ -3269,6 +3269,9 @@ public class Dbgl0102Tests {
 			assertEquals(org.dbgl.util.DuplicateProfiles.contentSum(a), org.dbgl.util.DuplicateProfiles.contentSum(c));
 			assertNull(org.dbgl.util.DuplicateProfiles.contentSum(bat));
 			assertNull(org.dbgl.util.DuplicateProfiles.contentSum(small));
+			assertTrue(org.dbgl.util.DuplicateProfiles.startsWindows("WIN.COM")); // many games start Windows first: no duplicates by that
+			assertTrue(org.dbgl.util.DuplicateProfiles.startsWindows("win"));
+			assertFalse(org.dbgl.util.DuplicateProfiles.startsWindows("WINGS.EXE"));
 			// 13: the MIDI channels of DOSBox Staging in the mixer, and what the mixer does not show is kept
 			org.dbgl.model.MixerCommand staging = new org.dbgl.model.MixerCommand("master 70:70 mt32 150:150 innovation 50:50",
 				new String[] {"master", "pcspeaker", "sb", "gus", "opl", "disney", "cdaudio", "mt32", "fsynth", "soundcanvas"}, new boolean[10]);
