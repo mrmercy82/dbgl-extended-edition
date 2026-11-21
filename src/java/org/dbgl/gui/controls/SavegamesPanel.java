@@ -77,8 +77,11 @@ public final class SavegamesPanel {
 		introData.widthHint = 560;
 		intro.setLayoutData(introData);
 
-		new Label(group, SWT.NONE).setText(text.get("dialog.savegames.enabled"));
+		Label enabledLabel = new Label(group, SWT.NONE);
+		enabledLabel.setText(text.get("dialog.savegames.enabled"));
+		enabledLabel.setToolTipText(text.get("dialog.savegames.enabled.tooltip"));
 		Button enabled = new Button(group, SWT.CHECK);
+		enabled.setToolTipText(text.get("dialog.savegames.enabled.tooltip"));
 		enabled.setSelection(config.enabled());
 		enabled.setLayoutData(new GridData(SWT.BEGINNING, SWT.CENTER, false, false, 2, 1));
 
@@ -98,8 +101,11 @@ public final class SavegamesPanel {
 			}
 		});
 
-		new Label(group, SWT.NONE).setText(text.get("dialog.savegames.folder"));
+		Label folderLabel = new Label(group, SWT.NONE);
+		folderLabel.setText(text.get("dialog.savegames.folder"));
+		folderLabel.setToolTipText(text.get("dialog.savegames.folder.tooltip"));
 		Label folder = new Label(group, SWT.WRAP);
+		folder.setToolTipText(text.get("dialog.savegames.folder.tooltip"));
 		folder.setText(gameDir == null ? text.get("dialog.savegames.nogamedir"): gameDir.getPath());
 		GridData folderData = new GridData(SWT.FILL, SWT.CENTER, true, false, 2, 1);
 		folderData.widthHint = 420;
@@ -122,15 +128,19 @@ public final class SavegamesPanel {
 
 		new Label(group, SWT.NONE);
 		Label matches = new Label(group, SWT.NONE);
+		matches.setToolTipText(text.get("dialog.savegames.matches.tooltip"));
 		matches.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
 		// alpha 52: counted again by itself when the patterns change; this is for files changed in the folder (e.g. after playing)
 		Button refresh = new Button(group, SWT.PUSH);
 		refresh.setText(text.get("dialog.savegames.refresh"));
 		refresh.setToolTipText(text.get("dialog.savegames.refresh.tooltip"));
 		refresh.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, false, false));
+		suggest.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, false, false));
 		refresh.setEnabled(gameDir != null);
 
-		new Label(group, SWT.NONE).setText(text.get("dialog.savegames.keep"));
+		Label keepLabel = new Label(group, SWT.NONE);
+		keepLabel.setText(text.get("dialog.savegames.keep"));
+		keepLabel.setToolTipText(text.get("dialog.savegames.keep.tooltip"));
 		// alpha 52: the number and its unit side by side (the field of the files above is as wide as the table now)
 		Composite keepRow = new Composite(group, SWT.NONE);
 		GridLayout keepLayout = new GridLayout(2, false);
@@ -142,6 +152,7 @@ public final class SavegamesPanel {
 		keep.setMinimum(1);
 		keep.setMaximum(100);
 		keep.setSelection(config.keep());
+		keep.setToolTipText(text.get("dialog.savegames.keep.tooltip"));
 		keep.setLayoutData(new GridData(SWT.BEGINNING, SWT.CENTER, false, false)); // with layout data: else the page hides the row as empty
 		Label keepUnit = new Label(keepRow, SWT.NONE);
 		keepUnit.setText(text.get("dialog.savegames.keep.unit"));
@@ -158,16 +169,14 @@ public final class SavegamesPanel {
 		tableData.widthHint = 360;
 		table.setLayoutData(tableData);
 		// alpha 52: a mark for the backup with the state of the game folder now, a name, whether it is kept
-		// alpha 52: the mark and "kept" centred, the numbers to the right; an empty first column of no width, as Windows always puts
-		// the first one to the left
+		// alpha 52: the mark and "kept" centred, the numbers to the right, drawn by DBGL (Windows showed them only when the mouse came);
+		// an empty first column of no width before them
 		String[] keys = {"", null, "dialog.template.savestates.date", "dialog.savegames.name", "dialog.savegames.files", "dialog.template.savestates.size", "dialog.savegames.kept"};
-		int[] align = {SWT.LEFT, SWT.CENTER, SWT.LEFT, SWT.LEFT, SWT.RIGHT, SWT.RIGHT, SWT.CENTER};
-		for (int i = 0; i < keys.length; i++) {
-			TableColumn column = new TableColumn(table, align[i]);
-			column.setText((keys[i] == null) || keys[i].isEmpty() ? "": text.get(keys[i]));
-		}
+		for (String key: keys)
+			new TableColumn(table, SWT.LEFT).setText((key == null) || key.isEmpty() ? "": text.get(key));
 		table.getColumn(0).setResizable(false);
-		tableData.widthHint = 460;
+		AlignedColumns.install(table, ALIGNED);
+		tableData.widthHint = 400; // alpha 52: room for the wider buttons next to it
 		Composite buttons = new Composite(group, SWT.NONE);
 		buttons.setLayoutData(new GridData(SWT.FILL, SWT.BEGINNING, false, false));
 		GridLayout buttonsLayout = new GridLayout(1, true);
@@ -181,6 +190,15 @@ public final class SavegamesPanel {
 		keepThis.setToolTipText(text.get("dialog.savegames.keepthis.tooltip"));
 		Button delete = button(buttons, text.get("dialog.savegames.delete"));
 		Button open = button(buttons, text.get("dialog.template.savestates.open"));
+		now.setToolTipText(text.get("dialog.savegames.now.tooltip"));
+		restore.setToolTipText(text.get("dialog.savegames.restore.tooltip"));
+		delete.setToolTipText(text.get("dialog.savegames.delete.tooltip"));
+		open.setToolTipText(text.get("dialog.savegames.open.tooltip"));
+		table.setToolTipText(text.get("dialog.savegames.list.tooltip"));
+		listLabel.setToolTipText(text.get("dialog.savegames.list.tooltip"));
+		// alpha 52: all as wide as the widest text any of them can have ("Nicht mehr behalten" was cut off), and higher; the two
+		// at the files the same
+		roomy(new Button[] {now, restore, rename, keepThis, delete, open, suggest, refresh}, text.get("dialog.savegames.unkeep"));
 
 		new Label(group, SWT.NONE);
 		Label legend = new Label(group, SWT.WRAP); // alpha 52: what the mark and the kept ones mean
@@ -256,9 +274,11 @@ public final class SavegamesPanel {
 		Runnable fill = () -> {
 			// alpha 52: read away from the windows (the game folder is compared, every ZIP file opened): "loading ..." meanwhile
 			int mine = ++fillGeneration[0];
+			table.setRedraw(false);
 			table.removeAll();
 			new TableItem(table, SWT.NONE).setText(2, text.get("dialog.savegames.loading"));
 			packColumns(table);
+			AlignedColumns.redrawAll(table);
 			restore.setEnabled(false);
 			delete.setEnabled(false);
 			rename.setEnabled(false);
@@ -275,6 +295,7 @@ public final class SavegamesPanel {
 					table.getDisplay().asyncExec(() -> {
 						if (table.isDisposed() || (mine != fillGeneration[0]))
 							return; // a newer one is on its way
+						table.setRedraw(false);
 						table.removeAll();
 						DateFormat format = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT, locale()); // in the language of DBGL
 						boolean anyCurrent = false;
@@ -291,7 +312,8 @@ public final class SavegamesPanel {
 						if (table.getItemCount() == 0)
 							new TableItem(table, SWT.NONE).setText(2, text.get("dialog.savegames.none"));
 						packColumns(table);
-						table.setToolTipText(anyCurrent ? text.get("dialog.savegames.current"): null);
+						AlignedColumns.redrawAll(table);
+						table.setToolTipText(anyCurrent ? text.get("dialog.savegames.current") + "\n" + text.get("dialog.savegames.list.tooltip"): text.get("dialog.savegames.list.tooltip"));
 					});
 			}, "savegame-list");
 			t.setDaemon(true);
@@ -329,8 +351,11 @@ public final class SavegamesPanel {
 			File parentOfChosen = one ? ((File)table.getSelection()[0].getData()).getParentFile(): null;
 			rename.setEnabled(one && (parentOfChosen.equals(SavegameBackup.dir(profile)) || parentOfChosen.equals(SavegameBackup.oldDir(profile))));
 			keepThis.setEnabled(one);
-			if (one)
-				keepThis.setText(text.get(SavegameBackup.isKept(profile, (File)table.getSelection()[0].getData()) ? "dialog.savegames.unkeep": "dialog.savegames.keepthis"));
+			if (one) {
+				boolean isKept = SavegameBackup.isKept(profile, (File)table.getSelection()[0].getData());
+				keepThis.setText(text.get(isKept ? "dialog.savegames.unkeep": "dialog.savegames.keepthis"));
+				keepThis.setToolTipText(text.get(isKept ? "dialog.savegames.unkeep.tooltip": "dialog.savegames.keepthis.tooltip"));
+			}
 		});
 		Runnable doRename = () -> {
 			if ((table.getSelectionCount() != 1) || (table.getSelection()[0].getData() == null) || !rename.isEnabled())
@@ -410,10 +435,42 @@ public final class SavegamesPanel {
 	}
 
 	/** the columns as wide as their content, the empty first one of no width */
+	private static final java.util.Map<Integer, Integer> ALIGNED = java.util.Map.of(1, SWT.CENTER, 4, SWT.RIGHT, 5, SWT.RIGHT, 6, SWT.CENTER);
+
 	private static void packColumns(Table table) {
-		for (TableColumn c: table.getColumns())
-			c.pack();
+		AlignedColumns.pack(table, ALIGNED);
 		table.getColumn(0).setWidth(0);
+	}
+
+	/** alpha 52: room around the text of buttons: as wide as the widest text (also these others), at least 110, and higher */
+	static void roomy(Button[] buttons, String... otherTexts) {
+		int width = 110, height = 0;
+		for (Button b: buttons) {
+			org.eclipse.swt.graphics.Point size = b.computeSize(SWT.DEFAULT, SWT.DEFAULT);
+			width = Math.max(width, size.x + 12);
+			height = Math.max(height, size.y + 6);
+		}
+		if (buttons.length > 0) {
+			org.eclipse.swt.graphics.GC gc = new org.eclipse.swt.graphics.GC(buttons[0]);
+			for (String t: otherTexts)
+				width = Math.max(width, b0Padding(buttons[0]) + gc.textExtent(t).x + 12);
+			gc.dispose();
+		}
+		for (Button b: buttons) {
+			GridData data = b.getLayoutData() instanceof GridData gd ? gd: new GridData();
+			data.widthHint = width;
+			data.heightHint = height;
+			b.setLayoutData(data);
+			b.setData(GridCompactor.KEEP_WIDTH, Boolean.TRUE);
+		}
+	}
+
+	/** what a button adds to the width of its text (frame, margins) */
+	private static int b0Padding(Button b) {
+		org.eclipse.swt.graphics.GC gc = new org.eclipse.swt.graphics.GC(b);
+		int text = gc.textExtent(b.getText()).x;
+		gc.dispose();
+		return Math.max(0, b.computeSize(SWT.DEFAULT, SWT.DEFAULT).x - text);
 	}
 
 	private static Button button(Composite parent, String label) {

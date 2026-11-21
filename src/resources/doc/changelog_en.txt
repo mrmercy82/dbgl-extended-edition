@@ -171,11 +171,20 @@ New
   - The list of backups is read in the background ("Loading..."), the page
     no longer hangs meanwhile. The mark and "Kept" are centred, files and size
     right-aligned, the number to keep stands right before "backups".
+  - The buttons next to the table and in the view at the start are bigger and
+    as wide as their longest text ("Do not keep" was cut off). DBGL draws
+    the centred and right-aligned columns itself: on Windows the mark, the tick
+    and the number showed only once the mouse was over them, and parts were
+    left behind in the table after deleting.
+  - Tooltips for everything on the page of the saved games, in the view at the
+    start, for the new check box when deleting and for "Saved games..." in the
+    menu.
   - "Delete backup" (instead of "Delete" asking about "saved state(s)")
     deletes it everywhere, also in the second backup place; before, it stayed
     in the list from there. The question names its date.
   - "Saved games..." in the context menu: the profile editor builds its pages
-    behind a progress bar and opens ready at the page of the saved games.
+    behind a progress bar ("Opening the profile...") and opens ready at the
+    page of the saved games.
   - "Manage backups" also lists the ZIP files of the move and of deleting
     profiles, and the folders in savegames\deleted (delete, lock, show in the
     folder); deleting them asks once more.

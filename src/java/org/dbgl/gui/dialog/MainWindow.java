@@ -3255,6 +3255,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				doEditProfileSavegames();
 			}
 		}).build();
+		savegamesItem.setToolTipText(text_.get("dialog.main.profile.savegames.tooltip"));
 		menu.addMenuListener(new MenuAdapter() {
 			@Override
 			public void menuShown(MenuEvent event) {

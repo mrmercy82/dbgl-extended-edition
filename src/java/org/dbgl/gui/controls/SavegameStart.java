@@ -86,7 +86,9 @@ public final class SavegameStart {
 		table.setLayoutData(tableData);
 		// alpha 52: the mark centred, as on the page of the profile (an empty first column of no width: Windows puts the first to the left)
 		new TableColumn(table, SWT.LEFT).setResizable(false);
-		new TableColumn(table, SWT.CENTER);
+		new TableColumn(table, SWT.LEFT);
+		java.util.Map<Integer, Integer> aligned = java.util.Map.of(1, SWT.CENTER);
+		AlignedColumns.install(table, aligned); // drawn by DBGL, as on the page of the profile
 		for (String key: new String[] {"dialog.template.savestates.date", "dialog.savegames.name"})
 			new TableColumn(table, SWT.LEFT).setText(text.get(key));
 		DateFormat format = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT, locale());
@@ -97,8 +99,7 @@ public final class SavegameStart {
 			if (f.equals(current))
 				table.setSelection(item);
 		}
-		for (TableColumn c: table.getColumns())
-			c.pack();
+		AlignedColumns.pack(table, aligned);
 		table.getColumn(0).setWidth(0);
 		Button showAgain = new Button(dlg, SWT.CHECK);
 		showAgain.setText(text.get("dialog.savegamestart.show"));
@@ -114,6 +115,10 @@ public final class SavegameStart {
 		withChosen.setToolTipText(text.get("dialog.savegamestart.withchosen.tooltip"));
 		Button cancel = new Button(row, SWT.PUSH);
 		cancel.setText(text.get("button.cancel"));
+		start.setToolTipText(text.get("dialog.savegamestart.start.tooltip"));
+		cancel.setToolTipText(text.get("dialog.savegamestart.cancel.tooltip"));
+		for (Button b: new Button[] {start, withChosen, cancel}) // alpha 52: with room around the text ("Starten" was small)
+			SavegamesPanel.roomy(new Button[] {b});
 		Runnable enable = () -> {
 			File chosen = table.getSelectionCount() == 1 ? (File)table.getSelection()[0].getData(): null;
 			withChosen.setEnabled((chosen != null) && !chosen.equals(current));

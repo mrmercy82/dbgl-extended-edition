@@ -56,6 +56,11 @@ public class DeleteProfilesDialog extends SizeControlledTabbedDialog<List<Profil
 		Button deleteCaptures = Chain.on(composite).lbl(l -> l.key("dialog.deleteprofiles.confirm.removeprofilecaptures")).but(b -> b.select(true)).button();
 		// alpha 52: the backups of the saved games a choice of their own, not ticked: they stay (in savegames\deleted)
 		Button deleteSavegames = Chain.on(composite).lbl(l -> l.key("dialog.deleteprofiles.confirm.removesavegames")).but(b -> b.select(false)).button();
+		deleteSavegames.setToolTipText(text_.get("dialog.deleteprofiles.confirm.removesavegames.tooltip"));
+		org.eclipse.swt.widgets.Control[] siblings = composite.getChildren(); // its label: the one before it
+		int at = java.util.Arrays.asList(siblings).indexOf(deleteSavegames);
+		if (at > 0)
+			siblings[at - 1].setToolTipText(deleteSavegames.getToolTipText());
 		org.eclipse.swt.widgets.Label keptHint = new org.eclipse.swt.widgets.Label(composite, org.eclipse.swt.SWT.WRAP);
 		keptHint.setText(text_.get("dialog.deleteprofiles.savegames.kept"));
 		org.eclipse.swt.layout.GridData hintData = new org.eclipse.swt.layout.GridData(org.eclipse.swt.SWT.FILL, org.eclipse.swt.SWT.BEGINNING, true, false, 2, 1);

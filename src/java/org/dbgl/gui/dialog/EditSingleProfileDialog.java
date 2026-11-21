@@ -453,7 +453,7 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 		if (initialPage_ != null) {
 			// alpha 52: opened at a page (e.g. "Savegames" from the menu of the profile): all pages first, behind a progress bar,
 			// so the window shows up complete and at that page, instead of building itself up in front of the user
-			try (org.dbgl.gui.controls.UiProgress progress = new org.dbgl.gui.controls.UiProgress(getParent(), text_.get("dialog.profile.working"), pagesToCompute() + 1)) {
+			try (org.dbgl.gui.controls.UiProgress progress = new org.dbgl.gui.controls.UiProgress(getParent(), text_.get("dialog.profile.opening"), pagesToCompute() + 1)) {
 				computeAllPages(profile_, progress);
 				updatePageTree(profile_, true);
 				progress.step();

@@ -181,11 +181,19 @@ Neu
     die Seite hängt dabei nicht mehr. Markierung und „Behalten“ stehen mittig,
     Dateien und Größe rechtsbündig, die Anzahl zum Aufbewahren steht direkt
     vor „Sicherungen“.
+  - Die Knöpfe neben der Tabelle und in der Start-Einblendung sind größer und
+    so breit wie ihr längster Text („Nicht mehr behalten“ wurde abgeschnitten).
+    Die mittigen und rechtsbündigen Spalten zeichnet DBGL selbst: Unter Windows
+    erschienen Punkt, Haken und Anzahl erst, wenn die Maus darüber war, und
+    nach dem Löschen blieben Reste in der Tabelle stehen.
+  - Tooltips für alles auf der Savegames-Seite, in der Start-Einblendung, für
+    das neue Häkchen beim Löschen und für den Menüpunkt „Savegames...“.
   - „Sicherung löschen“ (statt „Löschen“ mit der Frage nach „Savestate(s)“)
     löscht sie überall, auch am zweiten Sicherungsort; vorher blieb sie von
     dort aus in der Liste stehen. Die Rückfrage nennt ihr Datum.
   - „Savegames...“ im Kontextmenü: Der Profileditor baut seine Seiten hinter
-    einem Ladebalken auf und öffnet gleich fertig auf der Savegames-Seite.
+    einem Ladebalken („Profil wird geöffnet...“) auf und öffnet gleich fertig
+    auf der Savegames-Seite.
   - „Sicherungen verwalten“ zeigt jetzt auch die ZIP-Dateien vom Umzug und vom
     Löschen von Profilen und die Ordner in savegames\deleted (löschen, sperren,
     im Ordner zeigen); vor dem Löschen kommt eine eigene Rückfrage.
