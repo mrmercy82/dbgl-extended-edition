@@ -90,6 +90,10 @@ public final class SavegameBackup {
 
 	public static void save(Profile p, Config c) throws IOException {
 		Properties props = properties(p); // alpha 52: the names and the kept ones stay
+		if (!props.containsKey(V52)) { // a file of an earlier alpha (or none): large ones stay allowed where backups were on already
+			props.setProperty("large", String.valueOf(largeAllowed(props)));
+			props.setProperty(V52, "true");
+		}
 		props.setProperty("enabled", String.valueOf(c.enabled()));
 		props.setProperty("patterns", c.patterns());
 		props.setProperty("keep", String.valueOf(c.keep()));
@@ -162,12 +166,26 @@ public final class SavegameBackup {
 
 	/** alpha 52: whether backups from LARGE on were allowed (asked once), also before each start */
 	public static boolean largeAllowed(Profile p) {
-		return Boolean.parseBoolean(properties(p).getProperty("large", "false"));
+		return largeAllowed(properties(p));
+	}
+
+	/** written by alpha 52 on; a file without it is of an earlier alpha (0.101 alpha 48 to 51) */
+	private static final String V52 = "v52";
+
+	/**
+	 * a file of an earlier alpha knew no limit: where backups were on there, they stay as they were (also large ones), so that
+	 * none stops without notice; asked from alpha 52 on only when they are switched on again or made by hand
+	 */
+	private static boolean largeAllowed(Properties props) {
+		if (!props.containsKey(V52))
+			return Boolean.parseBoolean(props.getProperty("enabled", "false"));
+		return Boolean.parseBoolean(props.getProperty("large", "false"));
 	}
 
 	public static void setLargeAllowed(Profile p, boolean allowed) throws IOException {
 		Properties props = properties(p);
 		props.setProperty("large", String.valueOf(allowed));
+		props.setProperty(V52, "true");
 		store(p, props);
 	}
 

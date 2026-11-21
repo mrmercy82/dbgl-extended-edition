@@ -144,7 +144,11 @@ New
   - Before a game with backups starts, DBGL briefly shows which backup the
     game folder matches now (●) and lets you start with another one: it is
     restored first, the state before is backed up. Can be switched off in that
-    window or on the page Savegames (on by default); not in the TV mode.
+    window or on the page Savegames (on by default; switching it off is
+    risky). In the TV mode as a view of its own, for the controller.
+  - Backups of earlier alpha versions stay valid: names and Keep are empty,
+    ● and restoring work; where the backup before a start was on already, it
+    stays on without asking, also for large files.
 
 Fixed
 - USB stick assistant: DOSBox versions (e.g. DOSBox-X) were locked as

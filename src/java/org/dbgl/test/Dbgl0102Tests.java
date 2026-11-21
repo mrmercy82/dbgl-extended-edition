@@ -3217,6 +3217,7 @@ public class Dbgl0102Tests {
 			p.setConfigurationFileLocation(new File(dir, "9300.conf").getPath());
 			p.getConfiguration().getAutoexec().addMount("mount C \"" + game.getPath() + "\"");
 			p.setCapturesById();
+			org.apache.commons.io.FileUtils.deleteQuietly(p.getCanonicalCaptures()); // left by an earlier run (the captures are in the data folder)
 			org.dbgl.util.SavegameBackup.save(p, new org.dbgl.util.SavegameBackup.Config(true, "*.SAV", 2));
 			java.util.List<File> made = new java.util.ArrayList<>();
 			for (int i = 0; i < 4; i++) {
@@ -3245,6 +3246,15 @@ public class Dbgl0102Tests {
 			int before = org.dbgl.util.SavegameBackup.backups(p).size();
 			org.dbgl.util.SavegameBackup.beforeStart(p);
 			assertEquals(before, org.dbgl.util.SavegameBackup.backups(p).size());
+			// a file of an earlier alpha (enabled, no limit then): large ones stay allowed, nothing stops without notice
+			File props = new File(org.dbgl.util.SavegameBackup.dir(p), "savegames.properties");
+			Files.writeString(props.toPath(), "enabled=true\npatterns=*.SAV; big.bin\nkeep=3\n");
+			assertTrue(org.dbgl.util.SavegameBackup.largeAllowed(p));
+			org.dbgl.util.SavegameBackup.save(p, new org.dbgl.util.SavegameBackup.Config(true, "*.SAV; big.bin", 3));
+			assertTrue(org.dbgl.util.SavegameBackup.largeAllowed(p)); // kept when written by alpha 52
+			Files.writeString(props.toPath(), "enabled=false\npatterns=*.SAV\nkeep=3\n");
+			assertFalse(org.dbgl.util.SavegameBackup.largeAllowed(p)); // was off: asked when switched on
+			org.apache.commons.io.FileUtils.deleteQuietly(p.getCanonicalCaptures());
 		} finally {
 			org.apache.commons.io.FileUtils.deleteQuietly(dir);
 		}

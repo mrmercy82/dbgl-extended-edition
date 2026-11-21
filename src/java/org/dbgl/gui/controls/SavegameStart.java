@@ -45,7 +45,7 @@ import org.eclipse.swt.widgets.TableItem;
 /**
  * alpha 52: before a game with backups of its saved games, which state is in the game folder now (● the backup with the same
  * files) and the chance to start with another one: it is restored first (the state now goes into a backup before). Can be
- * switched off for the profile (page Savegames, or here); not in the TV mode.
+ * switched off for the profile (page Savegames, or here); the TV mode shows it in its own way (alpha 52).
  */
 public final class SavegameStart {
 

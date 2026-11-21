@@ -151,8 +151,12 @@ Neu
   - Vor dem Start eines Spiels mit Sicherungen zeigt DBGL kurz, welcher
     Sicherung der Spielordner gerade entspricht (●), und lässt mit einer
     anderen starten: Sie wird zuerst zurückgeholt, der Stand vorher gesichert.
-    Abschaltbar im Fenster selbst oder auf der Seite Savegames (Standard: an);
-    nicht im TV-Modus.
+    Abschaltbar im Fenster selbst oder auf der Seite Savegames (Standard: an;
+    Ausschalten ist riskant). Im TV-Modus als eigene Anzeige, mit Controller
+    bedienbar.
+  - Sicherungen früherer Alpha-Versionen gelten weiter: Namen und „Behalten“
+    sind leer, ● und Zurückholen funktionieren; war das Sichern vor dem Start
+    schon an, gilt es ohne Nachfrage auch für große Dateien weiter.
 
 Fehler behoben
 - USB-Stick-Assistent: DOSBox-Versionen (z. B. DOSBox-X) waren als nötig

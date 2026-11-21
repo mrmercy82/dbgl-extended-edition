@@ -104,6 +104,12 @@ public final class TvMode {
 	}
 
 	private int index_, firstRow_;
+	/** alpha 52: before a game with backups of its saved games: which state is there (●), and the chance to start with another */
+	private boolean saves_;
+	private Profile saveProfile_;
+	private List<File> saveList_ = List.of();
+	private File saveCurrent_;
+	private int saveIndex_;
 	private Gamepad pad_;
 
 	private TvMode(Shell parent, List<Profile> profiles, Profile current, Consumer<Profile> runner) {
@@ -208,6 +214,15 @@ public final class TvMode {
 	}
 
 	private void press(Gamepad.Button b) {
+		if (saves_) { // alpha 52
+			switch (b) {
+				case UP -> saveMove(-1);
+				case DOWN -> saveMove(1);
+				case A, START -> saveChoose();
+				default -> closeSaves();
+			}
+			return;
+		}
 		if (menu_) {
 			switch (b) {
 				case UP -> menuMove(-1);
@@ -253,6 +268,17 @@ public final class TvMode {
 	}
 
 	private void key(Event e) {
+		if (saves_) { // alpha 52
+			switch (e.keyCode) {
+				case SWT.ARROW_UP -> saveMove(-1);
+				case SWT.ARROW_DOWN -> saveMove(1);
+				case SWT.CR, SWT.KEYPAD_CR, ' ' -> saveChoose();
+				case SWT.F11 -> shell_.close();
+				default -> closeSaves();
+			}
+			e.doit = false;
+			return;
+		}
 		if (menu_) {
 			switch (e.keyCode) {
 				case SWT.ARROW_UP -> menuMove(-1);
@@ -312,6 +338,10 @@ public final class TvMode {
 	}
 
 	private void click(Event e) {
+		if (saves_) { // alpha 52: a click closes it, as B does
+			closeSaves();
+			return;
+		}
 		if (menu_) { // a line of the menu is chosen, a click next to it closes the menu
 			Rectangle panel = menuBounds(canvas_.getClientArea());
 			int row = panel.contains(e.x, e.y) ? menuFirst_ + (e.y - panel.y - MENU_PAD) / menuRowHeight(): -1;
@@ -754,7 +784,106 @@ public final class TvMode {
 			select(0);
 			return;
 		}
+		if (offerSaves(p)) // alpha 52: first which state of the saved games
+			return;
 		runner_.accept(p);
+	}
+
+	/** alpha 52: the backups of the saved games of the game before it starts, if it has some and this is wanted for it */
+	private boolean offerSaves(Profile p) {
+		if (!org.dbgl.util.SavegameBackup.showAtStart(p))
+			return false;
+		List<File> backups = org.dbgl.util.SavegameBackup.backups(p);
+		if (backups.isEmpty())
+			return false;
+		saveProfile_ = p;
+		saveCurrent_ = org.dbgl.util.SavegameBackup.current(p);
+		// the state there now first when it is in no backup (null): A then starts with it as it is, nothing is put back
+		saveList_ = new ArrayList<>();
+		if (saveCurrent_ == null)
+			saveList_.add(null);
+		saveList_.addAll(backups);
+		saveIndex_ = Math.max(0, saveList_.indexOf(saveCurrent_));
+		info_ = false;
+		saves_ = true;
+		canvas_.redraw();
+		return true;
+	}
+
+	private void saveMove(int step) {
+		saveIndex_ = Math.max(0, Math.min(saveList_.size() - 1, saveIndex_ + step));
+		canvas_.redraw();
+	}
+
+	private void closeSaves() {
+		saves_ = false;
+		canvas_.redraw();
+	}
+
+	/** start with the backup chosen: put back first if it is not the state there now (that goes into a backup before) */
+	private void saveChoose() {
+		saves_ = false;
+		canvas_.redraw();
+		File chosen = saveList_.get(saveIndex_);
+		if ((chosen != null) && !chosen.equals(saveCurrent_)) {
+			try {
+				org.dbgl.util.SavegameBackup.restore(saveProfile_, chosen);
+			} catch (java.io.IOException e) {
+				org.dbgl.gui.controls.Mess_.on(shell_).exception(e).warning();
+				return;
+			}
+		}
+		runner_.accept(saveProfile_);
+	}
+
+	private void paintSaves(GC gc, Rectangle area) {
+		gc.setFont(small_);
+		int rowH = gc.textExtent("Ag").y + 14;
+		int shown = Math.min(10, saveList_.size());
+		int w = Math.min(area.width - 2 * MARGIN, 900), h = MENU_PAD * 2 + rowH * (shown + 3);
+		int x = (area.width - w) / 2, y = Math.max(80, (area.height - h) / 2);
+		gc.setBackground(tile_);
+		gc.fillRoundRectangle(x, y, w, h, 24, 24);
+		gc.setForeground(selected_);
+		gc.setLineWidth(3);
+		gc.drawRoundRectangle(x, y, w, h, 24, 24);
+		int tx = x + MENU_PAD, tw = w - 2 * MENU_PAD, ty = y + MENU_PAD;
+		gc.setForeground(fg_);
+		gc.setFont(medium_);
+		gc.drawText(shorten(gc, text_.get("dialog.savegamestart.title", new Object[] {saveProfile_.getTitle()}), tw), tx, ty, true);
+		gc.setFont(small_);
+		ty += rowH + 6;
+		int first = Math.max(0, Math.min(saveIndex_ - shown + 1, saveList_.size() - shown));
+		java.text.DateFormat format = java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT,
+			java.util.Locale.of(org.dbgl.service.SettingsService.getInstance().getValue("locale", "language"), org.dbgl.service.SettingsService.getInstance().getValue("locale", "country")));
+		for (int i = first; i < first + shown; i++) {
+			File f = saveList_.get(i);
+			if (f == null) { // the state there now, in no backup
+				if (i == saveIndex_) {
+					gc.setBackground(selected_);
+					gc.fillRoundRectangle(tx - 10, ty, tw + 20, rowH - 2, 12, 12);
+				}
+				gc.setForeground(fg_);
+				gc.drawText(shorten(gc, text_.get("dialog.tv.saves.now"), tw - 28), tx + 28, ty + 7, true);
+				ty += rowH;
+				continue;
+			}
+			if (i == saveIndex_) {
+				gc.setBackground(selected_);
+				gc.fillRoundRectangle(tx - 10, ty, tw + 20, rowH - 2, 12, 12);
+			}
+			gc.setForeground(fg_);
+			if (f.equals(saveCurrent_)) {
+				gc.setBackground(fg_);
+				gc.fillOval(tx + 4, ty + rowH / 2 - 5, 9, 9);
+			}
+			String name = org.dbgl.util.SavegameBackup.nameOf(saveProfile_, f);
+			String line = format.format(new java.util.Date(f.lastModified())) + (name.isBlank() ? "": "   " + name);
+			gc.drawText(shorten(gc, line, tw - 28), tx + 28, ty + 7, true);
+			ty += rowH;
+		}
+		gc.setForeground(dim_);
+		gc.drawText(shorten(gc, text_.get("dialog.tv.saves.hint"), tw), tx, y + h - MENU_PAD - rowH + 10, true);
 	}
 
 	private int columns() {
@@ -866,6 +995,8 @@ public final class TvMode {
 		}
 		if (menu_)
 			paintMenu(gc, area);
+		if (saves_)
+			paintSaves(gc, area); // alpha 52
 	}
 
 	/** alpha 49: a thin bar at the right that shows where one is in the list, when not all rows fit on the screen */
