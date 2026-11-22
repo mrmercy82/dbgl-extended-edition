@@ -54,7 +54,9 @@ public class Messaging extends Thread {
 	@Override
 	public void run() {
 		try {
-			server_ = new ServerSocket(port_);
+			// alpha 53: only for this computer (DBGL itself, "Send to", Steam: all on localhost). Before, the port was open to the
+			// network (Windows asked whether to let Java through the firewall), and others in it could add profiles or start games
+			server_ = new ServerSocket(port_, 50, java.net.InetAddress.getLoopbackAddress());
 			System.out.println(text_.get("communication.notice.listening", new Object[] {port_}));
 
 			while (true) {

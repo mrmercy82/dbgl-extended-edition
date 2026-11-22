@@ -3548,6 +3548,34 @@ public class Dbgl0102Tests {
 		}
 	}
 
+	/** alpha 53: the port for "Send to" and Steam only on this computer (it was open to the network; Windows asked about the firewall) */
+	@Test
+	public void testMessagingOnlyLocal() throws Exception {
+		int port;
+		try (java.net.ServerSocket probe = new java.net.ServerSocket(0, 1, java.net.InetAddress.getLoopbackAddress())) {
+			port = probe.getLocalPort();
+		}
+		org.dbgl.connect.Messaging m = new org.dbgl.connect.Messaging(port, null, GenericTextService.getInstance());
+		m.setDaemon(true);
+		m.start();
+		try {
+			java.lang.reflect.Field f = org.dbgl.connect.Messaging.class.getDeclaredField("server_");
+			f.setAccessible(true);
+			java.net.ServerSocket server = null;
+			for (int i = 0; (i < 100) && (server == null || !server.isBound()); i++) {
+				Thread.sleep(20);
+				server = (java.net.ServerSocket)f.get(m);
+			}
+			assertNotNull(server);
+			assertTrue(server.getInetAddress().toString(), server.getInetAddress().isLoopbackAddress());
+			try (java.net.Socket s = new java.net.Socket(java.net.InetAddress.getLoopbackAddress(), port)) {
+				assertTrue(s.isConnected()); // as RunProfile and SendToProfile connect
+			}
+		} finally {
+			m.close();
+		}
+	}
+
 	/** alpha 52: a too long publisher (Doom from MobyGames, reported on Vogons) made saving fail: now cut after a whole name, marked */
 	@Test
 	public void testFitIntoColumn() {

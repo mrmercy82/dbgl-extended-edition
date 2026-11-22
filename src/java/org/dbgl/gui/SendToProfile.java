@@ -30,7 +30,6 @@ public class SendToProfile {
 
 	public static final String SEND_TO_PROFILE = "sendtoprofile ";
 
-	private static final String LOCALHOST = "localhost";
 
 	public static void main(String[] args) {
 		if (args.length < 1) {
@@ -38,7 +37,7 @@ public class SendToProfile {
 			System.exit(1);
 		}
 
-		try (Socket socket = new Socket(LOCALHOST, SettingsService.getInstance().getIntValue("communication", "port")); PrintWriter printWriter = new PrintWriter(socket.getOutputStream(), true)) {
+		try (Socket socket = new Socket(java.net.InetAddress.getLoopbackAddress(), SettingsService.getInstance().getIntValue("communication", "port")); PrintWriter printWriter = new PrintWriter(socket.getOutputStream(), true)) {
 			printWriter.println(SEND_TO_PROFILE + args[0]);
 		} catch (UnknownHostException e) {
 			e.printStackTrace();

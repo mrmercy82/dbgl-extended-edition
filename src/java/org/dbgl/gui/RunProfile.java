@@ -74,7 +74,7 @@ public final class RunProfile {
 
 	/** @return false if no DBGL answers on the port */
 	static boolean byRunningDbgl(int port, int id) {
-		try (Socket socket = new Socket("localhost", port);
+		try (Socket socket = new Socket(java.net.InetAddress.getLoopbackAddress(), port); // alpha 53: as DBGL listens, only on this computer
 				PrintWriter out = new PrintWriter(new java.io.OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8), true);
 				BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8))) {
 			out.println(RUN_PROFILE + id);
