@@ -10,7 +10,7 @@ Ronald Blankendaal developed DBGL up to version 0.100 beta 17 and is **not invol
 
 - **This edition:** https://github.com/mrmercy82/dbgl-extended-edition – source code, [downloads (releases)](https://github.com/mrmercy82/dbgl-extended-edition/releases), [reporting problems (issues)](https://github.com/mrmercy82/dbgl-extended-edition/issues)
 - **The original DBGL by Ronald Blankendaal:** https://dbgl.org – official website; [announcement of 0.100 beta 17 on Vogons](https://www.vogons.org/viewtopic.php?p=1380082#p1380082)
-- **[Code signing policy](CODE_SIGNING_POLICY.md):** how launch.exe is signed through SignPath Foundation (free code signing for open source), who approves it, and what DBGL sends over the internet
+- **[Code signing policy and privacy](CODE_SIGNING_POLICY.md):** launch.exe is not code signed at present (Windows SmartScreen may warn); what would be signed, and what DBGL Extended Edition sends over the internet
 
 ## What's new
 

@@ -1,25 +1,25 @@
 # Code signing policy
 
-Free code signing provided by [SignPath.io](https://about.signpath.io), certificate by [SignPath Foundation](https://signpath.org).
+> **Status:** DBGL Extended Edition is not code signed at present. An application for free code signing with SignPath Foundation was declined for now, as the project is still young; it may be made again later. Until then Windows SmartScreen may warn when `launch.exe` is started for the first time: click "More info", then "Run anyway".
 
-> **Status:** applied for with SignPath Foundation, not approved yet. So far no file of DBGL Extended Edition is signed; this page describes how signing will work once it is approved.
+This page says what would be signed and how, and what DBGL Extended Edition sends over the internet (privacy policy below), which applies already now.
 
-## What is signed
+## What would be signed
 
-`launch.exe`, the Windows starter of DBGL Extended Edition, in the stand-alone packages for Windows and in the update package. It is built from [`src/launcher/launch4j.xml`](src/launcher/launch4j.xml) with [Launch4j](https://launch4j.sourceforge.net) on a GitHub-hosted runner by the workflow [`sign-launcher.yml`](.github/workflows/sign-launcher.yml), and signed only from there.
+`launch.exe`, the Windows starter of DBGL Extended Edition, in the stand-alone packages for Windows and in the update package. It can be built from [`src/launcher/launch4j.xml`](src/launcher/launch4j.xml) with [Launch4j](https://launch4j.sourceforge.net) on a GitHub-hosted runner by the workflow [`sign-launcher.yml`](.github/workflows/sign-launcher.yml); once signing is set up, it would be signed only from there.
 
-Releases up to 0.101 alpha 52 contain an unsigned launch.exe, built from the same configuration on the maintainer's computer. From the first signed release on, the packages contain the launch.exe built and signed by that workflow.
+The releases so far contain an unsigned launch.exe, built from the same configuration on the maintainer's computer.
 
-Not signed by this project, because they are not built by it: DOSBox 0.74-3 (bundled in the Windows and macOS packages, GPL 2, from [dosbox.com](https://www.dosbox.com)), the Eclipse Temurin Java runtime in the Windows package (from [Adoptium](https://adoptium.net), signed by its makers) and the Java libraries in `lib` (each under its own open source license, see `licenses`).
+Not to be signed by this project, because they are not built by it: DOSBox 0.74-3 (bundled in the Windows and macOS packages, GPL 2, from [dosbox.com](https://www.dosbox.com)), the Eclipse Temurin Java runtime in the Windows package (from [Adoptium](https://adoptium.net), signed by its makers) and the Java libraries in `lib` (each under its own open source license, see `licenses`).
 
 ## Team and roles
 
 DBGL Extended Edition is maintained by one person, who holds all roles:
 
 - Committer and reviewer: [mrmercy82](https://github.com/mrmercy82)
-- Approver (approves every signing request by hand): [mrmercy82](https://github.com/mrmercy82)
+- Approver (would approve every signing request by hand): [mrmercy82](https://github.com/mrmercy82)
 
-Contributions from others are reviewed by the committer before they are merged. All accounts used for the source repository and for signing use multi-factor authentication.
+Contributions from others are reviewed by the committer before they are merged. The account of the source repository uses multi-factor authentication.
 
 ## Privacy policy
 
