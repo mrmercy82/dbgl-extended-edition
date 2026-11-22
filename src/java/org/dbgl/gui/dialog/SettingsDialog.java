@@ -1027,7 +1027,7 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 		settings_.setValue("gui", "columnorder", StringUtils.join(colOrder, ' '));
 	}
 
-	private static SortedMap<String, Locale> getLocales() {
+	static SortedMap<String, Locale> getLocales() { // alpha 53: also for the welcome wizard (was private)
 		List<String> supportedLanguages = new ArrayList<>(Constants.SUPPORTED_LANGUAGES);
 		File[] files = new File("./plugins/i18n").listFiles();
 		if (files != null) {

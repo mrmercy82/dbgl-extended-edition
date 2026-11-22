@@ -346,6 +346,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		checkAllProfilesInBackground();
 
 		display_.asyncExec(this::moveSavegames); // alpha 52: before the automatic backup, so that it has them at their new place
+		display_.asyncExec(this::welcomeIfDue); // alpha 53
 		display_.asyncExec(this::autoBackupIfDue);
 		display_.asyncExec(this::cleanUpAfterEditionUpdate);
 		applyScreenshotRule(); // alpha 49: shown or hidden as the settings say for this view
@@ -2618,16 +2619,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		MenuItem_.on(profilesMenu).key("dialog.main.menu.importdfendprofiles").image(ImageService.IMG_DFEND).listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
-				DosboxVersion defaultDbversion = requireDefaultDBVersion();
-				if (defaultDbversion == null)
-					return;
-
-				if (settings_.getIntValue("profiledefaults", "confpath") == 1)
-					Mess_.on(shell_).key("dialog.main.notice.dfendimportconflocation", SettingsDialog.getConfLocations().get(0)).display();
-
-				Set<Integer> before = allProfileIds();
-				if (new DFendImportDialog(shell_, defaultDbversion).open() != null)
-					showImportedProfiles(before);
+				doImportDfendProfiles(); // alpha 53: a method of its own, also for the welcome wizard
 			}
 		}).build();
 		// alpha 48: a game archive of DFendX (the same dialog, with its part open)
@@ -2873,6 +2865,13 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			@Override
 			public void widgetSelected(SelectionEvent event) {
 				new ShortcutsDialog(shell_, text_.get("dialog.shortcuts.title"), text_.get("dialog.shortcuts.text")).open();
+			}
+		}).build();
+		// alpha 53: the wizard of the first start, again
+		MenuItem_.on(helpMenu).key("dialog.main.menu.welcome").image(ImageService.IMG_WHATSNEW).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				doWelcomeWizard();
 			}
 		}).build();
 		MenuItem_.on(helpMenu).build();
@@ -3606,6 +3605,96 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 	}
 
 	/** alpha 48: the ids of all profiles (whatever the filter) */
+	private void doImportDfendProfiles() {
+		DosboxVersion defaultDbversion = requireDefaultDBVersion();
+		if (defaultDbversion == null)
+			return;
+
+		if (settings_.getIntValue("profiledefaults", "confpath") == 1)
+			Mess_.on(shell_).key("dialog.main.notice.dfendimportconflocation", SettingsDialog.getConfLocations().get(0)).display();
+
+		Set<Integer> before = allProfileIds();
+		if (new DFendImportDialog(shell_, defaultDbversion).open() != null)
+			showImportedProfiles(before);
+	}
+
+	/** alpha 53: the welcome wizard by itself at the first start (no profiles yet); who has profiles never gets it by itself */
+	private void welcomeIfDue() {
+		if (shell_.isDisposed() || (profilesList_ == null))
+			return;
+		boolean shown = settings_.getBooleanValue(WelcomeWizard.SECTION, WelcomeWizard.SHOWN);
+		if (WelcomeWizard.due(shown, profilesList_.size()))
+			doWelcomeWizard();
+		else if (!shown)
+			settings_.setBooleanValue(WelcomeWizard.SECTION, WelcomeWizard.SHOWN, true);
+	}
+
+	/** alpha 53: language and appearance, DOSBox, the first games; DBGL starts again for a new language or appearance */
+	private void doWelcomeWizard() {
+		WelcomeWizard.Result r = WelcomeWizard.open(shell_, new WelcomeWizard.Actions() {
+			@Override
+			public List<String> dosboxVersions() {
+				return dbversionsList_.stream().filter(v -> !org.dbgl.util.Scummvm.is(v)).map(v -> v.getTitle() + "  \u2013  " + v.getPath().getPath()).toList();
+			}
+
+			@Override
+			public void locateDosbox() {
+				doLocateDosbox(true);
+			}
+
+			@Override
+			public void downloadDosbox() {
+				doDownloadDosbox();
+			}
+
+			@Override
+			public int profileCount() {
+				return profilesList_.size();
+			}
+
+			@Override
+			public void importFolder() {
+				doImportUnlinked();
+			}
+
+			@Override
+			public void importStoreGames() {
+				doImportStoreGames();
+			}
+
+			@Override
+			public void importLaunchBox() {
+				doImportLaunchBox();
+			}
+
+			@Override
+			public void importExo() {
+				doImportExo();
+			}
+
+			@Override
+			public boolean scummvmWanted() {
+				return settings_.getBooleanValue("gui", org.dbgl.util.Scummvm.SETTING);
+			}
+
+			@Override
+			public void importScummvm() {
+				doImportScummvm();
+			}
+
+			@Override
+			public void importDfend() {
+				doImportDfendProfiles();
+			}
+		});
+		if (r.processRestart())
+			requestProcessRestart();
+		if (r.restart()) {
+			result_ = true;
+			shell_.close();
+		}
+	}
+
 	private Set<Integer> allProfileIds() {
 		try {
 			return new ProfileRepository().list("", "", dbversionsList_).stream().map(Profile::getId).collect(java.util.stream.Collectors.toSet());

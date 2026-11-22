@@ -3548,6 +3548,27 @@ public class Dbgl0102Tests {
 		}
 	}
 
+	/** alpha 53: the welcome wizard by itself only at the very first start: never shown and no profiles yet */
+	@Test
+	public void testWelcomeDue() {
+		assertTrue(org.dbgl.gui.dialog.WelcomeWizard.due(false, 0));
+		assertFalse(org.dbgl.gui.dialog.WelcomeWizard.due(true, 0)); // shown (or skipped) once
+		assertFalse(org.dbgl.gui.dialog.WelcomeWizard.due(false, 12)); // updated from an earlier DBGL: has profiles
+	}
+
+	/** alpha 53: the texts inside the program (Help > New features, Changelog) the same as those shipped next to it: the "new" ones missed alpha 51 and 52 */
+	@Test
+	public void testDocCopiesInSync() throws IOException {
+		File root = new File(DATA_DIR).getAbsoluteFile();
+		for (int i = 0; i < 6 && root != null; i++)
+			root = root.getParentFile();
+		org.junit.Assume.assumeTrue("not run in the repository", (root != null) && new File(root, "CHANGELOG-en.txt").isFile());
+		String[][] pairs = {{"CHANGELOG-de.txt", "changelog_de.txt"}, {"CHANGELOG-en.txt", "changelog_en.txt"}, {"NEU-IN-DER-EXTENDED-EDITION.txt", "whatsnew_de.txt"},
+				{"NEW-IN-EXTENDED-EDITION.txt", "whatsnew_en.txt"}};
+		for (String[] pair: pairs)
+			org.junit.Assert.assertArrayEquals(pair[0], Files.readAllBytes(new File(root, pair[0]).toPath()), Files.readAllBytes(new File(root, "src/resources/doc/" + pair[1]).toPath()));
+	}
+
 	/** alpha 53: the port for "Send to" and Steam only on this computer (it was open to the network; Windows asked about the firewall) */
 	@Test
 	public void testMessagingOnlyLocal() throws Exception {

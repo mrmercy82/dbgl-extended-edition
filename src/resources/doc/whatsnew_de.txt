@@ -15,14 +15,55 @@ Extended Edition (Quellcode, Downloads, Fehler melden):
 https://github.com/mrmercy82/dbgl-extended-edition
 
 
-WICHTIG: JAVA 21 IST JETZT NÖTIG
---------------------------------
+WICHTIG: JAVA 21 IST NÖTIG
+--------------------------
   DBGL Extended Edition benötigt ab 0.101 alpha 51 Java 21 oder neuer und
   öffnet sich mit einem älteren Java nicht mehr; es zeigt dann ein Fenster,
   das sagt, welches Java gefunden wurde. Java 21 gibt es z. B. als Eclipse
   Temurin:
   https://adoptium.net/temurin/releases/?version=21
-  Bitte Java vor dem Update aktualisieren.
+  Bitte Java vor dem Update aktualisieren. Das eigenständige Paket für
+  Windows bringt Java 21 mit (ab 0.101 alpha 52).
+
+
+DAS NEUESTE IN 0.101 ALPHA 52
+-----------------------------
+  - Savegames: Die Sicherungen liegen in einem eigenen Ordner
+    (savegames\<Nummer>); vorhandene werden beim ersten Start kopiert und
+    geprüft, die alten bleiben. Sicherungen lassen sich benennen und
+    behalten, und vor dem Start zeigt DBGL, welcher Stand im Spielordner
+    ist, und lässt mit einer anderen Sicherung starten (auch im TV-Modus).
+    "Savegames..." im Kontextmenü eines Profils; beim Löschen eines Profils
+    bleiben die Sicherungen standardmäßig erhalten.
+  - Zweiter Sicherungsort, z. B. OneDrive oder Dropbox; die automatische
+    Sicherung kann Bildschirmfotos und Savegame-Sicherungen mitnehmen.
+  - ScummVM-Spiele als Profile (Import aus scummvm.ini, Start mit Spielzeit,
+    Bildschirmfotos, Online-Abfrage, eigener schlanker Profil-Editor).
+  - LaunchBox: eigene MS-DOS-Sammlung importieren; Profile zu LaunchBox
+    hinzufügen.
+  - RAWG als weitere Quelle für Online-Infos; Steam-Bilder von SteamGridDB.
+  - TV-Modus: "Zuletzt gespielt", Info mit allen Bildern eines Spiels.
+  - Bildschirmfotos rechts über der Beschreibung; Shader-Vorschau; nach dem
+    Spielen wird der nächste Teil einer Reihe angeboten.
+  - Sound-Dateien suchen (SoundFonts, MT-32- und Sound-Canvas-ROMs,
+    Ultrasound-Patches); Spiele ohne Profil aus einem Ordner importieren.
+  - Das eigenständige Paket für Windows bringt Java 21 mit (und gibt es
+    auch ohne Java).
+
+
+DAS NEUESTE IN 0.101 ALPHA 51
+-----------------------------
+  - Java 21 ist jetzt nötig (siehe oben).
+  - Eigenständige Pakete für Windows, Linux und macOS: DBGL Extended
+    Edition lässt sich jetzt auch ohne DBGL 0.100 beta 17 installieren;
+    unter Windows und macOS ist DOSBox 0.74-3 dabei.
+  - Neue launch.exe: findet Java 21 auch über JAVA_HOME und den PATH.
+  - "Alle Fenster abfotografieren (für Fehlerberichte)" im Fenster
+    "Logdateien verwalten" (Menü Datei).
+  - Neue Bibliotheken für die Oberfläche (SWT 4.41, Nebula Gallery 1.1.0).
+  - Behoben: Fehler "create initial tables" nach dem Neustart für einen
+    Wechsel in den Dunkelmodus; Meldungen, die hinter anderen Fenstern
+    verschwanden.
 
 
 DAS NEUESTE IN 0.101 ALPHA 50

@@ -450,7 +450,7 @@ public final class SavegamesPanel {
 	}
 
 	/** alpha 52: room around the text of buttons: as wide as the widest text (also these others), at least 110, and higher */
-	static void roomy(Button[] buttons, String... otherTexts) {
+	public static void roomy(Button[] buttons, String... otherTexts) {
 		int width = 110, height = 0;
 		for (Button b: buttons) {
 			org.eclipse.swt.graphics.Point size = b.computeSize(SWT.DEFAULT, SWT.DEFAULT);

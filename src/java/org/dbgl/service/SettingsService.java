@@ -510,6 +510,7 @@ public class SettingsService {
 		settings_.setValue("gui", "viewhintshown", false);
 		settings_.setValue("gui", "tvhintshown", false); // alpha 48: the TV mode told about once
 		settings_.setValue("gui", "updatehintshown", false); // alpha 49: the offer to turn the update check on was answered
+		settings_.setValue("gui", "welcomeshown", false); // alpha 53: the welcome wizard of the first start was shown (or not needed)
 		settings_.setValue("gui", "javahintshown", ""); // alpha 49: the version of DBGL the hint about Java 21 was closed in
 		settings_.setValue("gui", "backupscolumnwidths", ""); // alpha 49: the window of the backups: its columns as the user left them
 		settings_.setValue("gui", "backupscolumnorder", "");
