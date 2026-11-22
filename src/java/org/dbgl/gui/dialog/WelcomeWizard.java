@@ -52,8 +52,11 @@ public final class WelcomeWizard {
 
 	/** what the wizard needs from the main window */
 	public interface Actions {
-		/** the DOSBox versions entered now, as lines to show */
-		List<String> dosboxVersions();
+		/** the DOSBox versions entered now: per version its title and its folder */
+		List<String[]> dosboxVersions();
+
+		/** the DOSBox that comes with DBGL (or the one Locate DOSBox finds by itself), entered if it is not yet */
+		void enterFoundDosbox();
 
 		void locateDosbox();
 
@@ -151,7 +154,13 @@ public final class WelcomeWizard {
 		// page 2: DOSBox
 		Composite p2 = page(stack, 2);
 		wrap(p2, text.get("dialog.welcome.p2.found"), 2);
-		Label versions = new Label(p2, SWT.WRAP);
+		// one row per version: tick, title, folder, in columns (the folders one below the other)
+		Composite versions = new Composite(p2, SWT.NONE);
+		GridLayout versionsLayout = new GridLayout(3, false);
+		versionsLayout.marginWidth = versionsLayout.marginHeight = 0;
+		versionsLayout.horizontalSpacing = 10;
+		versionsLayout.verticalSpacing = 3;
+		versions.setLayout(versionsLayout);
 		GridData versionsData = new GridData(SWT.FILL, SWT.BEGINNING, true, false, 2, 1);
 		versionsData.horizontalIndent = 12;
 		versions.setLayoutData(versionsData);
@@ -183,8 +192,6 @@ public final class WelcomeWizard {
 			l.setLayoutData(d);
 		}
 		wrap(pOnline, text.get("dialog.welcome.p5.note"), 1);
-		Button covers = push(pOnline, text.get("dialog.welcome.p5.covers"), text.get("dialog.welcome.p5.covers.tooltip"));
-		covers.addListener(SWT.Selection, e -> actions.fetchCovers());
 
 		// page 5: done
 		Composite p4 = page(stack, 1);
@@ -199,8 +206,14 @@ public final class WelcomeWizard {
 		restart.setLayoutData(restartData);
 
 		Composite row = new Composite(dlg, SWT.NONE);
-		row.setLayoutData(new GridData(SWT.END, SWT.CENTER, true, false));
-		row.setLayout(new GridLayout(3, false));
+		row.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+		row.setLayout(new GridLayout(4, false));
+		// the covers at the bottom left, as large as the buttons next to it; only on the page about the internet
+		Button covers = new Button(row, SWT.PUSH);
+		covers.setText(text.get("dialog.welcome.p5.covers"));
+		covers.setToolTipText(text.get("dialog.welcome.p5.covers.tooltip"));
+		covers.setLayoutData(new GridData(SWT.BEGINNING, SWT.CENTER, true, false));
+		covers.addListener(SWT.Selection, e -> actions.fetchCovers());
 		Button back = new Button(row, SWT.PUSH);
 		back.setText(text.get("dialog.welcome.back"));
 		Button skip = new Button(row, SWT.PUSH);
@@ -208,13 +221,17 @@ public final class WelcomeWizard {
 		skip.setToolTipText(text.get("dialog.welcome.skip.tooltip"));
 		Button next = new Button(row, SWT.PUSH);
 		next.setText(text.get("dialog.welcome.next"));
-		SavegamesPanel.roomy(new Button[] {back, skip, next}, text.get("dialog.welcome.finish"));
+		SavegamesPanel.roomy(new Button[] {covers, back, skip, next}, text.get("dialog.welcome.finish"));
 
 		Composite[] all = {p1, p2, p3, pOnline, p4};
 		String[] titles = {text.get("dialog.welcome.p1.title"), text.get("dialog.welcome.p2.title"), text.get("dialog.welcome.p3.title"), text.get("dialog.welcome.p5.title"),
 				text.get("dialog.welcome.p4.title")};
 		int[] at = {0};
 		boolean[] finished = {false};
+		// the choices are read before the window is closed: its controls are gone after that
+		boolean[] restartChosen = {true};
+		Locale[] localeChosen = {now};
+		int[] themeChosen = {theme == 3 ? 1: theme};
 		// the choices of page 1 against how DBGL runs now
 		java.util.function.Supplier<Locale> chosenLocale = () -> locales.getOrDefault(language.getText(), now);
 		java.util.function.IntSupplier chosenTheme = () -> themeButtons[1].getSelection() ? 1: themeButtons[2].getSelection() ? 2: 0;
@@ -222,11 +239,26 @@ public final class WelcomeWizard {
 		Runnable refresh = () -> {
 			if (dlg.isDisposed())
 				return;
-			List<String> found = actions.dosboxVersions();
-			versions.setText(found.isEmpty() ? text.get("dialog.welcome.p2.none"): String.join("\n", found.stream().map(s -> "✓ " + s).toList()));
+			List<String[]> found = actions.dosboxVersions();
+			for (org.eclipse.swt.widgets.Control c: versions.getChildren())
+				c.dispose();
+			if (found.isEmpty()) {
+				Label none = new Label(versions, SWT.WRAP);
+				none.setText(text.get("dialog.welcome.p2.none"));
+				none.setLayoutData(new GridData(SWT.FILL, SWT.BEGINNING, true, false, 3, 1));
+			}
+			for (String[] v: found) {
+				new Label(versions, SWT.NONE).setText("\u2713");
+				new Label(versions, SWT.NONE).setText(v[0]);
+				Label folder = new Label(versions, SWT.NONE);
+				folder.setText(v[1]);
+				folder.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+			}
+			DarkTheme.apply(versions);
 			int n = actions.profileCount();
 			games.setText(text.get("dialog.welcome.p3.count", new Object[] {n}));
 			covers.setEnabled(n > 0);
+			covers.setVisible(all[at[0]] == pOnline);
 			summary.setText(text.get("dialog.welcome.p4.dosbox", new Object[] {found.size()}) + "\n" + text.get("dialog.welcome.p4.games", new Object[] {n}));
 			restart.setVisible(pageOneChanged.getAsBoolean());
 			((GridData)restart.getLayoutData()).exclude = !pageOneChanged.getAsBoolean();
@@ -266,14 +298,24 @@ public final class WelcomeWizard {
 		next.addListener(SWT.Selection, e -> {
 			if (at[0] == all.length - 1) {
 				finished[0] = true;
+				restartChosen[0] = restart.getSelection();
+				localeChosen[0] = chosenLocale.get();
+				themeChosen[0] = chosenTheme.getAsInt();
 				dlg.close();
 				return;
 			}
 			at[0]++;
 			show.run();
 		});
-		skip.addListener(SWT.Selection, e -> dlg.close());
+		// skipping keeps what was chosen on page 1 (language, appearance) and starts again for it, as the box on the last page would
+		skip.addListener(SWT.Selection, e -> {
+			finished[0] = true;
+			localeChosen[0] = chosenLocale.get();
+			themeChosen[0] = chosenTheme.getAsInt();
+			dlg.close();
+		});
 
+		actions.enterFoundDosbox();
 		DarkTheme.apply(dlg);
 		refresh.run();
 		dlg.pack();
@@ -293,18 +335,18 @@ public final class WelcomeWizard {
 		if (!finished[0])
 			return new Result(false, false);
 		// page 1 is applied at the end only (the choices of the other pages took effect at once)
-		Locale l = chosenLocale.get();
+		Locale l = localeChosen[0];
 		boolean languageChanged = !l.equals(now);
 		if (languageChanged) {
 			settings.setValue("locale", "language", l.getLanguage());
 			settings.setValue("locale", "country", l.getCountry());
 			settings.setValue("locale", "variant", l.getVariant());
 		}
-		int newTheme = chosenTheme.getAsInt();
+		int newTheme = themeChosen[0];
 		boolean themeChanged = newTheme != (theme == 3 ? 1: theme);
 		if (themeChanged)
 			settings.setIntValue("gui", "theme", newTheme);
-		boolean again = (languageChanged || themeChanged) && !restart.isDisposed() && restart.getSelection();
+		boolean again = (languageChanged || themeChanged) && restartChosen[0];
 		// a different dark mode needs a new process (it is fixed for the whole run), a language only a new main window
 		boolean process = again && themeChanged && (DarkTheme.isDark(newTheme) != DarkTheme.forced());
 		return new Result(again, process);

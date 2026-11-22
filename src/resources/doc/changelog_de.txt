@@ -12,8 +12,9 @@ Neu
   ersten Spiele übernehmen (aus einem Ordner, GOG/Steam, LaunchBox, eXoDOS,
   ScummVM, D-Fend Reloaded) und Spielinformationen aus dem Internet (welche
   Datenbank wofür, wie es geht, dass die Suche nach dem Titel danebengehen
-  kann; Knopf zum Holen der Cover). Er ruft nur die vorhandenen Funktionen
-  auf, jeder Schritt lässt sich überspringen. Wer schon Profile hat (z. B.
+  kann; Knopf zum Holen der Cover). Das mitgelieferte DOSBox 0.74-3 trägt er
+  ein, wenn es noch fehlt; sonst ruft er nur die vorhandenen Funktionen auf,
+  jeder Schritt lässt sich überspringen. Wer schon Profile hat (z. B.
   nach einem Update), bekommt ihn nicht von selbst; Hilfe >
   „Einrichtungsassistent...“ öffnet ihn jederzeit.
 

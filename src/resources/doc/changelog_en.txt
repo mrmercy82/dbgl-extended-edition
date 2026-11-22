@@ -12,7 +12,8 @@ New
   over the first games (from a folder, GOG/Steam, LaunchBox, eXoDOS, ScummVM,
   D-Fend Reloaded) and game information from the internet (which database
   for what, how it is done, that the search by the title can go wrong; a
-  button to get covers). It only calls what DBGL has anyway, every step can
+  button to get covers). It enters the DOSBox 0.74-3 that comes with DBGL
+  when it is missing; else it only calls what DBGL has anyway, every step can
   be skipped. Who has profiles already (e.g. after an update) does not get it
   by itself; Help > "Welcome wizard..." opens it at any time.
 

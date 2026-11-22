@@ -3636,8 +3636,13 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 	private void doWelcomeWizard() {
 		WelcomeWizard.Result r = WelcomeWizard.open(shell_, new WelcomeWizard.Actions() {
 			@Override
-			public List<String> dosboxVersions() {
-				return dbversionsList_.stream().filter(v -> !org.dbgl.util.Scummvm.is(v)).map(v -> v.getTitle() + "  \u2013  " + v.getPath().getPath()).toList();
+			public List<String[]> dosboxVersions() {
+				return dbversionsList_.stream().filter(v -> !org.dbgl.util.Scummvm.is(v)).map(v -> new String[] {v.getTitle(), v.getPath().getPath()}).toList();
+			}
+
+			@Override
+			public void enterFoundDosbox() {
+				enterFoundDosboxQuietly();
 			}
 
 			@Override
@@ -6451,6 +6456,26 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			DosboxVersion dbversion = new EditDosboxVersionDialog(shell_, BaseRepository.findDefault(dbversionsList_) == null, result.dosbox_).open();
 			if (dbversion != null)
 				updateDosboxVersionList(dbversion);
+		}
+	}
+
+	/**
+	 * alpha 53: for the welcome wizard: the DOSBox that Locate DOSBox finds by itself (above all the DOSBox 0.74-3 that comes with
+	 * DBGL), entered without asking when it is complete and not entered yet; the default only if there is none
+	 */
+	private void enterFoundDosboxQuietly() {
+		SearchResult result = FileLocationService.getInstance().findDosbox();
+		if (result.result_ != ResultType.COMPLETE)
+			return;
+		File found = result.dosbox_.getCanonicalPath();
+		if (dbversionsList_.stream().anyMatch(v -> found.equals(v.getCanonicalPath())))
+			return;
+		if (BaseRepository.findDefault(dbversionsList_) != null)
+			result.dosbox_.setDefault(false);
+		try {
+			updateDosboxVersionList(new DosboxVersionRepository().add(result.dosbox_));
+		} catch (SQLException e) {
+			Mess_.on(shell_).exception(e).warning();
 		}
 	}
 
