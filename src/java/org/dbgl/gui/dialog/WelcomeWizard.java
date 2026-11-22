@@ -44,7 +44,7 @@ import org.eclipse.swt.widgets.Shell;
 
 
 /**
- * alpha 53: the first start: language and appearance, DOSBox, the first games, in four pages. Each page only calls what DBGL
+ * alpha 53: the first start: language and appearance, DOSBox, the first games, information from the internet, in five pages. Each page only calls what DBGL
  * has anyway (Locate and Download DOSBox, the imports); nothing is done that the user does not choose. Shown once, when there
  * are no profiles yet; again from Help > Welcome wizard.
  */
@@ -58,6 +58,9 @@ public final class WelcomeWizard {
 		void locateDosbox();
 
 		void downloadDosbox();
+
+		/** to be told when the list of DOSBox versions has changed (a download ends later, in a window of its own) */
+		void watchDosbox(Runnable changed);
 
 		int profileCount();
 
@@ -75,6 +78,9 @@ public final class WelcomeWizard {
 		void importScummvm();
 
 		void importDfend();
+
+		/** Profiles > Covers for profiles without pictures */
+		void fetchCovers();
 	}
 
 	/** what came out of it: whether DBGL is to start again now (language or appearance changed), and whether the process must */
@@ -164,7 +170,23 @@ public final class WelcomeWizard {
 		gamesData.verticalIndent = 8;
 		games.setLayoutData(gamesData);
 
-		// page 4: done
+		// page 4: information from the internet: which database for what, how, and that it can go wrong
+		Composite pOnline = page(stack, 1);
+		wrap(pOnline, text.get("dialog.welcome.p5.text"), 1);
+		wrap(pOnline, text.get("dialog.welcome.p5.howto"), 1);
+		for (String k: new String[] {"single", "multi", "coversonly"}) {
+			Label l = new Label(pOnline, SWT.WRAP);
+			l.setText("\u2022 " + text.get("dialog.welcome.p5." + k));
+			GridData d = new GridData(SWT.FILL, SWT.BEGINNING, true, false);
+			d.widthHint = 528;
+			d.horizontalIndent = 12;
+			l.setLayoutData(d);
+		}
+		wrap(pOnline, text.get("dialog.welcome.p5.note"), 1);
+		Button covers = push(pOnline, text.get("dialog.welcome.p5.covers"), text.get("dialog.welcome.p5.covers.tooltip"));
+		covers.addListener(SWT.Selection, e -> actions.fetchCovers());
+
+		// page 5: done
 		Composite p4 = page(stack, 1);
 		Label summary = new Label(p4, SWT.WRAP);
 		summary.setLayoutData(new GridData(SWT.FILL, SWT.BEGINNING, true, false));
@@ -188,8 +210,9 @@ public final class WelcomeWizard {
 		next.setText(text.get("dialog.welcome.next"));
 		SavegamesPanel.roomy(new Button[] {back, skip, next}, text.get("dialog.welcome.finish"));
 
-		Composite[] all = {p1, p2, p3, p4};
-		String[] titles = {text.get("dialog.welcome.p1.title"), text.get("dialog.welcome.p2.title"), text.get("dialog.welcome.p3.title"), text.get("dialog.welcome.p4.title")};
+		Composite[] all = {p1, p2, p3, pOnline, p4};
+		String[] titles = {text.get("dialog.welcome.p1.title"), text.get("dialog.welcome.p2.title"), text.get("dialog.welcome.p3.title"), text.get("dialog.welcome.p5.title"),
+				text.get("dialog.welcome.p4.title")};
 		int[] at = {0};
 		boolean[] finished = {false};
 		// the choices of page 1 against how DBGL runs now
@@ -203,6 +226,7 @@ public final class WelcomeWizard {
 			versions.setText(found.isEmpty() ? text.get("dialog.welcome.p2.none"): String.join("\n", found.stream().map(s -> "✓ " + s).toList()));
 			int n = actions.profileCount();
 			games.setText(text.get("dialog.welcome.p3.count", new Object[] {n}));
+			covers.setEnabled(n > 0);
 			summary.setText(text.get("dialog.welcome.p4.dosbox", new Object[] {found.size()}) + "\n" + text.get("dialog.welcome.p4.games", new Object[] {n}));
 			restart.setVisible(pageOneChanged.getAsBoolean());
 			((GridData)restart.getLayoutData()).exclude = !pageOneChanged.getAsBoolean();
@@ -226,9 +250,11 @@ public final class WelcomeWizard {
 			refresh.run();
 		});
 		download.addListener(SWT.Selection, e -> {
-			actions.downloadDosbox(); // the list comes a moment later: shown when the wizard is active again
+			actions.downloadDosbox(); // the list comes a moment later: shown when DBGL has entered the new version
 			refresh.run();
 		});
+		actions.watchDosbox(() -> display.asyncExec(refresh));
+		covers.addListener(SWT.Selection, e -> refresh.run());
 		for (Button b: imports)
 			if (b != null)
 				b.addListener(SWT.Selection, e -> refresh.run());

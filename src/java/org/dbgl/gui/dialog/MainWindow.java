@@ -288,6 +288,9 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			mess_.start();
 		}
 
+		// alpha 53: a new installation opens the main window maximized (later, as it was left)
+		if (DatabaseService.getInstance().isInitializedNewDatabase())
+			settings_.setBooleanValue("gui", "maximized", true);
 		return true;
 	}
 
@@ -3648,6 +3651,11 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			}
 
 			@Override
+			public void watchDosbox(Runnable changed) {
+				dosboxListWatcher_ = changed;
+			}
+
+			@Override
 			public int profileCount() {
 				return profilesList_.size();
 			}
@@ -3686,7 +3694,13 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			public void importDfend() {
 				doImportDfendProfiles();
 			}
+
+			@Override
+			public void fetchCovers() {
+				doCoverBatch();
+			}
 		});
+		dosboxListWatcher_ = null;
 		if (r.processRestart())
 			requestProcessRestart();
 		if (r.restart()) {
@@ -4989,7 +5003,12 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			dbversionTable_.setSelection(index);
 		dbversionTable_.setFocus();
 		updateDosboxVersionButtons();
+		if (dosboxListWatcher_ != null) // alpha 53: the welcome wizard shows the new list at once
+			dosboxListWatcher_.run();
 	}
+
+	/** alpha 53: told when the list of DOSBox versions has changed (the welcome wizard while it is open) */
+	private Runnable dosboxListWatcher_;
 
 	/**
 	 * alpha 52: ScummVM at the end of the list of versions. Hidden by the setting, it is not in the table; the rows of the table
@@ -6274,7 +6293,8 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		java.util.Map<File, File> mains = new java.util.HashMap<>();
 		try {
 			found = org.dbgl.gui.controls.BusyTask.run(shell_, text_.get("dialog.unlinkedgames.searching"),
-				() -> org.dbgl.util.UnlinkedGames.find(new File(dir), org.dbgl.util.UnlinkedGames.usedBy(loaded), null, null));
+				() -> org.dbgl.util.UnlinkedGames.find(new File(dir), org.dbgl.util.UnlinkedGames.usedBy(loaded),
+					dbversionsList_.stream().map(DosboxVersion::getCanonicalPath).toList(), null, null));
 			File work = java.nio.file.Files.createTempDirectory("dbgl-folder").toFile();
 			work.deleteOnExit();
 			for (org.dbgl.util.UnlinkedGames.Game g: found.games()) {

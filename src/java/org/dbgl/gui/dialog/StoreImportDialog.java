@@ -121,7 +121,7 @@ public class StoreImportDialog extends SizeControlledButtonDialog<Integer> {
 		Combo version = new Combo(contents_, SWT.READ_ONLY);
 		for (DosboxVersion v: versions_)
 			version.add(v.getTitle());
-		version.select(Math.max(0, versions_.indexOf(defaultVersion_)));
+		version.select(Math.max(0, versions_.indexOf(preselected(versions_, defaultVersion_))));
 		// a game that boots Windows 95 or needs its CD on the IDE bus only runs in DOSBox-X: that one is taken for it
 		DosboxVersion x = versions_.stream().filter(v -> org.dbgl.service.SettingsService.DOSBOX_X_DOSBOX_FAM.title_.equals(v.getFamily())).findFirst().orElse(null);
 		org.eclipse.swt.widgets.Button useAdvice = new org.eclipse.swt.widgets.Button(contents_, SWT.CHECK);
@@ -136,6 +136,18 @@ public class StoreImportDialog extends SizeControlledButtonDialog<Integer> {
 			new Label(contents_, SWT.NONE).setText(text_.get("dialog.exoimport.filter"));
 			filter = new org.eclipse.swt.widgets.Text(contents_, SWT.BORDER | SWT.SEARCH | SWT.ICON_CANCEL);
 			filter.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+		}
+		// all games ticked or none at once (alpha 48); with a search, those shown. Since alpha 53 above the list: below it the
+		// row could be cut off in a window that is not high enough
+		org.eclipse.swt.widgets.Composite allNone = new org.eclipse.swt.widgets.Composite(contents_, SWT.NONE);
+		org.eclipse.swt.layout.RowLayout allNoneLayout = new org.eclipse.swt.layout.RowLayout();
+		allNoneLayout.marginLeft = allNoneLayout.marginRight = 0;
+		allNone.setLayout(allNoneLayout);
+		allNone.setLayoutData(new GridData(SWT.BEGINNING, SWT.CENTER, false, false, 2, 1));
+		org.eclipse.swt.widgets.Button[] allNoneButtons = new org.eclipse.swt.widgets.Button[2];
+		for (int i = 0; i < 2; i++) {
+			allNoneButtons[i] = new org.eclipse.swt.widgets.Button(allNone, SWT.PUSH);
+			allNoneButtons[i].setText(text_.get(i == 0 ? "button.all": "button.none"));
 		}
 		Table table = new Table(contents_, SWT.CHECK | SWT.FULL_SELECTION | SWT.BORDER | SWT.V_SCROLL | SWT.H_SCROLL);
 		GridData tableData = new GridData(SWT.FILL, SWT.FILL, true, true, 2, 1);
@@ -182,14 +194,9 @@ public class StoreImportDialog extends SizeControlledButtonDialog<Integer> {
 		});
 		if (filter != null)
 			filter.addListener(SWT.Modify, e -> fill.run());
-		// all games ticked or none at once (alpha 48); with a search, those shown
-		org.eclipse.swt.widgets.Composite allNone = new org.eclipse.swt.widgets.Composite(contents_, SWT.NONE);
-		allNone.setLayout(new org.eclipse.swt.layout.RowLayout());
-		allNone.setLayoutData(new GridData(SWT.BEGINNING, SWT.CENTER, false, false, 2, 1));
-		for (boolean all: new boolean[] {true, false}) {
-			org.eclipse.swt.widgets.Button b = new org.eclipse.swt.widgets.Button(allNone, SWT.PUSH);
-			b.setText(text_.get(all ? "button.all": "button.none"));
-			b.addListener(SWT.Selection, e -> {
+		for (int i = 0; i < 2; i++) {
+			boolean all = i == 0;
+			allNoneButtons[i].addListener(SWT.Selection, e -> {
 				for (TableItem item: table.getItems()) {
 					item.setChecked(all);
 					ticked_[(Integer)item.getData()] = all;
@@ -224,6 +231,19 @@ public class StoreImportDialog extends SizeControlledButtonDialog<Integer> {
 			}
 		});
 		okButton_.setText(text_.get("dialog.storeimport.add"));
+	}
+
+	/**
+	 * alpha 53: the version chosen at first: the newest DOSBox Staging entered (most DOS games run well with it; those that need
+	 * DOSBox-X get that by the advice), else the default version.
+	 */
+	public static DosboxVersion preselected(List<DosboxVersion> versions, DosboxVersion defaultVersion) {
+		DosboxVersion best = null;
+		for (DosboxVersion v: versions)
+			if (org.dbgl.service.SettingsService.STAGING_DOSBOX_FAM.title_.equals(v.getFamily())
+					&& ((best == null) || (org.dbgl.util.DosboxUpdateChecker.compareVersions(v.getVersion(), best.getVersion()) > 0)))
+				best = v;
+		return best != null ? best: defaultVersion;
 	}
 
 	/** the cover of the collection into the captures of the profile, where DBGL shows its pictures; since alpha 48 also the back of the box and screenshots */

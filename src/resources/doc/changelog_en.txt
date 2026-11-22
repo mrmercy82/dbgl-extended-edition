@@ -10,9 +10,29 @@ New
 - Welcome wizard at the first start (when there are no profiles yet):
   language and appearance, finding or downloading DOSBox versions, taking
   over the first games (from a folder, GOG/Steam, LaunchBox, eXoDOS, ScummVM,
-  D-Fend Reloaded). It only calls what DBGL has anyway, every step can be
-  skipped. Who has profiles already (e.g. after an update) does not get it by
-  itself; Help > "Welcome wizard..." opens it at any time.
+  D-Fend Reloaded) and game information from the internet (which database
+  for what, how it is done, that the search by the title can go wrong; a
+  button to get covers). It only calls what DBGL has anyway, every step can
+  be skipped. Who has profiles already (e.g. after an update) does not get it
+  by itself; Help > "Welcome wizard..." opens it at any time.
+
+Changed
+- A new installation opens the main window maximized.
+- Importing games (folder, GOG/Steam, LaunchBox, eXoDOS, ScummVM): the
+  newest DOSBox Staging entered is chosen as DOSBox version at first (before:
+  the default version); games that need DOSBox-X still get DOSBox-X. Without
+  Staging it stays the default version.
+- Import from a folder: folders of DOSBox and ScummVM themselves (the DOSBox
+  versions entered in DBGL, and folders with dosbox.exe, dosbox-x.exe or
+  scummvm.exe right in them) are no longer offered as games.
+- The buttons "All" and "None" of the imports are now above the list (below
+  it they could be cut off in a low window); "Get covers for profiles
+  without images" has them as well.
+- Editing several profiles at once with an online lookup: a title written
+  only a little differently (punctuation, case, accents, "&"/"and", a
+  leading "The") now counts as an exact match when it is the only one. For
+  MobyGames and TheGamesDB, new settings also save one cover per profile
+  there (before: none).
 
 Fixed
 - On Windows the firewall asked after the start whether Java may use the

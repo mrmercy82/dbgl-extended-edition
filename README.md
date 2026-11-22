@@ -12,6 +12,21 @@ Ronald Blankendaal developed DBGL up to version 0.100 beta 17 and is **not invol
 - **The original DBGL by Ronald Blankendaal:** https://dbgl.org – official website; [announcement of 0.100 beta 17 on Vogons](https://www.vogons.org/viewtopic.php?p=1380082#p1380082)
 - **[Code signing policy and privacy](CODE_SIGNING_POLICY.md):** launch.exe is not code signed at present (Windows SmartScreen may warn); what would be signed, and what DBGL Extended Edition sends over the internet
 
+## Highlights
+
+- Full support for DOSBox Staging up to 0.83.1 and DOSBox-X up to 2026.10.01: every setting of every DOSBox version in the profile dialog, renamed settings converted automatically
+- DOSBox Staging and DOSBox-X downloaded directly from GitHub (checksum verified), with an optional daily check for new versions
+- Stand-alone packages for Windows (with Java), Linux and macOS, and a one-click update of the Extended Edition itself
+- A welcome wizard at the first start: language, appearance, DOSBox, the first games
+- Imports of games in folders, from GOG and Steam, LaunchBox, eXoDOS, ScummVM and D-Fend Reloaded
+- ScummVM games next to the DOSBox profiles
+- Saved games backed up before each start and restored with a click, with a manager for the backups
+- Check and repair profiles, warning signs, presets, backups, undo for bulk changes
+- Switching profiles to another DOSBox version with a preview; lines added by hand to the [autoexec] are never lost
+- Game information and covers from IGDB, TheGamesDB, MobyGames, RAWG, ScreenScraper and SteamGridDB
+- TV mode, controller as keyboard, Add to Steam, an assistant for a USB stick
+- Dark mode and 19 languages
+
 ## What's new
 
 See [`src/resources/doc/whatsnew_en.txt`](src/resources/doc/whatsnew_en.txt) (also in DBGL under Help → New features) and the full [`CHANGELOG-en.txt`](CHANGELOG-en.txt) / [`CHANGELOG-de.txt`](CHANGELOG-de.txt).

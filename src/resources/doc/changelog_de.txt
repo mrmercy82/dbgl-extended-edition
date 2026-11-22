@@ -10,10 +10,30 @@ Neu
 - Einrichtungsassistent beim ersten Start (wenn es noch keine Profile gibt):
   Sprache und Darstellung, DOSBox-Versionen suchen oder herunterladen, die
   ersten Spiele übernehmen (aus einem Ordner, GOG/Steam, LaunchBox, eXoDOS,
-  ScummVM, D-Fend Reloaded). Er ruft nur die vorhandenen Funktionen auf,
-  jeder Schritt lässt sich überspringen. Wer schon Profile hat (z. B. nach
-  einem Update), bekommt ihn nicht von selbst; Hilfe >
+  ScummVM, D-Fend Reloaded) und Spielinformationen aus dem Internet (welche
+  Datenbank wofür, wie es geht, dass die Suche nach dem Titel danebengehen
+  kann; Knopf zum Holen der Cover). Er ruft nur die vorhandenen Funktionen
+  auf, jeder Schritt lässt sich überspringen. Wer schon Profile hat (z. B.
+  nach einem Update), bekommt ihn nicht von selbst; Hilfe >
   „Einrichtungsassistent...“ öffnet ihn jederzeit.
+
+Geändert
+- Eine neue Installation öffnet das Hauptfenster maximiert.
+- Import von Spielen (Ordner, GOG/Steam, LaunchBox, eXoDOS, ScummVM): als
+  DOSBox-Version ist das neueste eingetragene DOSBox Staging vorgewählt
+  (vorher die Standardversion); Spiele, die DOSBox-X brauchen, bekommen
+  weiterhin DOSBox-X. Ohne Staging bleibt es bei der Standardversion.
+- Import aus einem Ordner: Ordner von DOSBox und ScummVM selbst (die in DBGL
+  eingetragenen DOSBox-Versionen und Ordner mit dosbox.exe, dosbox-x.exe
+  oder scummvm.exe direkt darin) werden nicht mehr als Spiele angeboten.
+- Die Knöpfe „Alle“ und „Keine“ stehen beim Import jetzt über der Liste
+  (darunter konnten sie in einem niedrigen Fenster abgeschnitten sein);
+  „Cover für Profile ohne Bilder holen“ hat sie neu.
+- Mehrere Profile auf einmal bearbeiten mit Online-Abfrage: ein Titel, der
+  nur anders geschrieben ist (Satzzeichen, Groß- und Kleinschreibung,
+  Akzente, „&“/„and“, ein „The“ am Anfang), zählt jetzt als genauer Treffer,
+  wenn er der einzige ist. Für MobyGames und TheGamesDB wird dabei in neuen
+  Einstellungen auch ein Cover je Profil gespeichert (vorher keines).
 
 Fehler behoben
 - Unter Windows fragte die Firewall nach dem Start, ob Java ins Netz darf:

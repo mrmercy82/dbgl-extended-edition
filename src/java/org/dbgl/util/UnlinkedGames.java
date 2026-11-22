@@ -1,21 +1,39 @@
-/*
- *  Copyright (C) 2026  mrmercy82 (DBGL Extended Edition, written with the help of AI)
- *  Part of a modified version of DBGL, Copyright (C) 2006-2025  Ronald Blankendaal
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
- */
+/*
+
+ *  Copyright (C) 2026  mrmercy82 (DBGL Extended Edition, written with the help of AI)
+
+ *  Part of a modified version of DBGL, Copyright (C) 2006-2025  Ronald Blankendaal
+
+ *
+
+ *  This program is free software; you can redistribute it and/or modify
+
+ *  it under the terms of the GNU General Public License as published by
+
+ *  the Free Software Foundation; either version 2 of the License, or
+
+ *  (at your option) any later version.
+
+ *
+
+ *  This program is distributed in the hope that it will be useful,
+
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+
+ *  GNU General Public License for more details.
+
+ *
+
+ *  You should have received a copy of the GNU General Public License
+
+ *  along with this program; if not, write to the Free Software
+
+ *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+
+ */
+
 package org.dbgl.util;
 
 import java.io.File;
@@ -101,6 +119,18 @@ public final class UnlinkedGames {
 	}
 
 	public static Result find(File chosen, List<File> used, Consumer<File> progress, BooleanSupplier cancelled) {
+		return find(chosen, used, List.of(), progress, cancelled);
+	}
+
+	/** DOSBox and ScummVM themselves: their programs, found anywhere in a game folder */
+	static final java.util.Set<String> EMULATORS = java.util.Set.of("dosbox.exe", "dosbox-x.exe", "dosbox_with_debugger.exe", "dosbox-staging.exe", "scummvm.exe");
+
+	/**
+	 * alpha 53: also with the folders of the DOSBox versions entered in DBGL (programs): such a folder, one in it or one with it
+	 * inside is left out without being counted, as is a folder with a DOSBox or ScummVM program at its top (a DOSBox installation,
+	 * not a game: games of GOG and Steam have their DOSBox in a folder below and are counted as such).
+	 */
+	public static Result find(File chosen, List<File> used, List<File> programs, Consumer<File> progress, BooleanSupplier cancelled) {
 		File root;
 		try {
 			root = chosen.getCanonicalFile();
@@ -114,6 +144,19 @@ public final class UnlinkedGames {
 			} catch (IOException e) {
 				canonicalUsed.add(u.getAbsoluteFile());
 			}
+		List<java.nio.file.Path> emulators = new ArrayList<>();
+		for (File p: programs) {
+			if (p == null)
+				continue;
+			java.nio.file.Path e;
+			try {
+				e = p.getCanonicalFile().toPath();
+			} catch (IOException x) {
+				e = p.getAbsoluteFile().toPath();
+			}
+			if (!root.toPath().startsWith(e)) // a DOSBox in the chosen folder or above it (e.g. DBGL's own folder): not for all
+				emulators.add(e);
+		}
 		List<Game> games = new ArrayList<>();
 		int linked = 0, windows = 0, store = 0, empty = 0;
 		File[] dirs = root.listFiles(f -> f.isDirectory() && !f.getName().startsWith(".") && !Files.isSymbolicLink(f.toPath()));
@@ -125,6 +168,9 @@ public final class UnlinkedGames {
 				break;
 			if (progress != null)
 				progress.accept(dir);
+			java.nio.file.Path d = dir.toPath();
+			if (emulators.stream().anyMatch(p -> p.startsWith(d) || d.startsWith(p)) || emulatorAtTop(dir))
+				continue;
 			if (linked(dir, root, canonicalUsed)) {
 				linked++;
 				continue;
@@ -151,6 +197,21 @@ public final class UnlinkedGames {
 		return new Result(games, linked, windows, store, empty);
 	}
 
+	/** a DOSBox or ScummVM program right in the folder, and it is no game of GOG (which has its info file there) */
+	static boolean emulatorAtTop(File dir) {
+		File[] list = dir.listFiles(File::isFile);
+		if (list == null)
+			return false;
+		boolean emulator = false;
+		for (File f: list) {
+			String n = f.getName().toLowerCase(Locale.ROOT);
+			if (n.startsWith("goggame-") && n.endsWith(".info"))
+				return false;
+			emulator |= EMULATORS.contains(n);
+		}
+		return emulator;
+	}
+
 	private static void collect(File dir, int depth, List<File> dos, int[] count, boolean[] dosbox) {
 		File[] list = dir.listFiles();
 		if ((list == null) || dosbox[0])
@@ -160,7 +221,7 @@ public final class UnlinkedGames {
 				return;
 			String n = f.getName().toLowerCase(Locale.ROOT);
 			if (f.isFile()) {
-				if (n.equals("dosbox.exe") || n.startsWith("goggame-") && n.endsWith(".info")) {
+				if (EMULATORS.contains(n) || n.startsWith("goggame-") && n.endsWith(".info")) {
 					dosbox[0] = true; // GOG, Steam: their own import knows how the game starts
 					return;
 				}

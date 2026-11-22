@@ -92,7 +92,25 @@ public abstract class WebSearchEngine {
 	public void updatePlatforms(String[] platforms) throws IOException {}
 
 	public static int getEntryFirstExactMatchIndex(String title, List<WebProfile> profs) {
-		return IntStream.range(0, profs.size()).filter(i -> title.equalsIgnoreCase(profs.get(i).getTitle())).findFirst().orElse(-1);
+		int exact = IntStream.range(0, profs.size()).filter(i -> title.equalsIgnoreCase(profs.get(i).getTitle())).findFirst().orElse(-1);
+		if (exact != -1)
+			return exact;
+		// alpha 53: the same title written a little differently ("Monkey Island 2 - LeChuck's Revenge" and "Monkey Island 2:
+		// LeChuck's Revenge"): only when exactly one entry is the same that way
+		String t = comparable(title);
+		int[] same = IntStream.range(0, profs.size()).filter(i -> !t.isEmpty() && t.equals(comparable(profs.get(i).getTitle()))).toArray();
+		return same.length == 1 ? same[0]: -1;
+	}
+
+	/** a title for comparing: small letters and digits only, accents dropped, '&' as 'and', without a leading 'the' */
+	public static String comparable(String title) {
+		if (title == null)
+			return "";
+		String s = java.text.Normalizer.normalize(title, java.text.Normalizer.Form.NFD).replaceAll("\\p{M}", "").toLowerCase(java.util.Locale.ROOT).replace("&", " and ");
+		s = s.replaceAll("[^a-z0-9]+", " ").trim();
+		if (s.startsWith("the "))
+			s = s.substring(4);
+		return s.replace(" ", "");
 	}
 
 	public static int getEntryBestMatchIndex(String search, List<WebProfile> profs) {

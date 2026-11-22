@@ -21,6 +21,7 @@ package org.dbgl.test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -3554,6 +3555,64 @@ public class Dbgl0102Tests {
 		assertTrue(org.dbgl.gui.dialog.WelcomeWizard.due(false, 0));
 		assertFalse(org.dbgl.gui.dialog.WelcomeWizard.due(true, 0)); // shown (or skipped) once
 		assertFalse(org.dbgl.gui.dialog.WelcomeWizard.due(false, 12)); // updated from an earlier DBGL: has profiles
+	}
+
+	/** alpha 53: DOSBox and ScummVM themselves are no games: their folders are left out of the import from a folder */
+	@Test
+	public void testUnlinkedLeavesOutDosbox() throws Exception {
+		File root = Files.createTempDirectory("dbgl-unlinkeddosbox-").toFile();
+		new File(root, "Doom").mkdirs();
+		Files.write(new File(root, "Doom/DOOM.EXE").toPath(), program(false));
+		new File(root, "dosbox-x/drivez").mkdirs(); // a DOSBox-X with DOS tools of its own
+		Files.write(new File(root, "dosbox-x/dosbox-x.exe").toPath(), program(true));
+		Files.write(new File(root, "dosbox-x/drivez/MOUSE.COM").toPath(), new byte[100]);
+		Files.write(new File(root, "dosbox-x/drivez/BOOTBOX.EXE").toPath(), program(false));
+		new File(root, "Staging/tools").mkdirs(); // entered in DBGL: left out whatever it holds
+		Files.write(new File(root, "Staging/tools/TOOL.EXE").toPath(), program(false));
+		new File(root, "GogGame/DOSBOX").mkdirs(); // a game of GOG with its DOSBox below: counted as before
+		Files.write(new File(root, "GogGame/goggame-1.info").toPath(), "{}".getBytes());
+		Files.write(new File(root, "GogGame/DOSBOX/dosbox.exe").toPath(), program(true));
+		Files.write(new File(root, "GogGame/GAME.EXE").toPath(), program(false));
+		org.dbgl.util.UnlinkedGames.Result r = org.dbgl.util.UnlinkedGames.find(root, java.util.List.of(), java.util.List.of(new File(root, "Staging")), null, () -> false);
+		assertEquals(java.util.List.of("Doom"), r.games().stream().map(g -> g.dir().getName()).toList());
+		assertEquals(1, r.store());
+		assertEquals(0, r.empty());
+		// a DOSBox in the chosen folder itself or above it (e.g. DBGL's own folder) does not leave everything out
+		r = org.dbgl.util.UnlinkedGames.find(root, java.util.List.of(), java.util.List.of(root, root.getParentFile()), null, () -> false);
+		assertEquals(java.util.List.of("Doom", "Staging"), r.games().stream().map(g -> g.dir().getName()).toList());
+		org.apache.commons.io.FileUtils.deleteDirectory(root);
+	}
+
+	/** alpha 53: the import has the newest DOSBox Staging chosen at first, else the default version */
+	@Test
+	public void testImportPreselectsStaging() {
+		org.dbgl.model.aggregate.DosboxVersion plain = org.dbgl.model.factory.DosboxVersionFactory.create("DOSBox 0.74-3", "DOSBox", "0.74-3", true, false, false, null, "a", "", "", "a/dosbox.conf");
+		org.dbgl.model.aggregate.DosboxVersion s82 = org.dbgl.model.factory.DosboxVersionFactory.create("DOSBox Staging 0.82.2", "DOSBox Staging", "0.82.2", false, false, false, null, "b", "", "", "b/dosbox.conf");
+		org.dbgl.model.aggregate.DosboxVersion s83 = org.dbgl.model.factory.DosboxVersionFactory.create("DOSBox Staging 0.83.1", "DOSBox Staging", "0.83.1", false, false, false, null, "c", "", "", "c/dosbox.conf");
+		org.dbgl.model.aggregate.DosboxVersion x = org.dbgl.model.factory.DosboxVersionFactory.create("DOSBox-X 2026.10.01", "DOSBox-X", "2026.10.01", false, false, false, null, "d", "", "", "d/dosbox-x.conf");
+		assertSame(s83, org.dbgl.gui.dialog.StoreImportDialog.preselected(java.util.List.of(plain, s83, s82, x), plain));
+		assertSame(plain, org.dbgl.gui.dialog.StoreImportDialog.preselected(java.util.List.of(plain, x), plain));
+	}
+
+	/** alpha 53: with several profiles at once, a title written a little differently is an exact match when it is the only one */
+	@Test
+	public void testSearchEngineTitleMatch() {
+		java.util.function.Function<String[], java.util.List<org.dbgl.model.WebProfile>> entries = titles -> java.util.Arrays.stream(titles).map(t -> {
+			org.dbgl.model.WebProfile w = new org.dbgl.model.WebProfile();
+			w.setTitle(t);
+			return w;
+		}).toList();
+		java.util.List<org.dbgl.model.WebProfile> l = entries.apply(new String[] {"Monkey Island 2: LeChuck's Revenge", "Monkey Island 2: LeChuck's Revenge - Special Edition"});
+		assertEquals(0, org.dbgl.util.searchengine.WebSearchEngine.getEntryFirstExactMatchIndex("monkey island 2 - lechuck's revenge", l));
+		assertEquals(0, org.dbgl.util.searchengine.WebSearchEngine.getEntryFirstExactMatchIndex("Monkey Island 2 LeChucks Revenge", l));
+		assertEquals(1, org.dbgl.util.searchengine.WebSearchEngine.getEntryFirstExactMatchIndex("Monkey Island 2: LeChuck's Revenge - Special Edition", l));
+		assertEquals(0, org.dbgl.util.searchengine.WebSearchEngine.getEntryFirstExactMatchIndex("Lost Vikings", entries.apply(new String[] {"The Lost Vikings"})));
+		assertEquals(0, org.dbgl.util.searchengine.WebSearchEngine.getEntryFirstExactMatchIndex("Spy vs Spy and more", entries.apply(new String[] {"Spy vs. Spy & More"})));
+		assertEquals(0, org.dbgl.util.searchengine.WebSearchEngine.getEntryFirstExactMatchIndex("Pokemon", entries.apply(new String[] {"Pokémon"})));
+		// two the same that way: none taken
+		assertEquals(-1, org.dbgl.util.searchengine.WebSearchEngine.getEntryFirstExactMatchIndex("Doom 2", entries.apply(new String[] {"DOOM II", "Doom: 2", "Doom-2"})));
+		assertEquals(-1, org.dbgl.util.searchengine.WebSearchEngine.getEntryFirstExactMatchIndex("Doom", entries.apply(new String[] {"Doom II"})));
+		assertEquals("", org.dbgl.util.searchengine.WebSearchEngine.comparable("!!"));
 	}
 
 	/** alpha 53: the texts inside the program (Help > New features, Changelog) the same as those shipped next to it: the "new" ones missed alpha 51 and 52 */

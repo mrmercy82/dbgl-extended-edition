@@ -108,6 +108,22 @@ public class CoverBatchDialog extends SizeControlledButtonDialog<Integer> {
 		search.setText(text_.get("dialog.coverbatch.search"));
 		search.addListener(SWT.Selection, e -> search());
 
+		// alpha 53: all rows with a cover ticked, or none
+		org.eclipse.swt.widgets.Composite allNone = new org.eclipse.swt.widgets.Composite(contents_, SWT.NONE);
+		org.eclipse.swt.layout.RowLayout allNoneLayout = new org.eclipse.swt.layout.RowLayout();
+		allNoneLayout.marginLeft = allNoneLayout.marginRight = 0;
+		allNone.setLayout(allNoneLayout);
+		allNone.setLayoutData(new GridData(SWT.BEGINNING, SWT.CENTER, false, false, 3, 1));
+		for (boolean all: new boolean[] {true, false}) {
+			Button b = new Button(allNone, SWT.PUSH);
+			b.setText(text_.get(all ? "button.all": "button.none"));
+			b.addListener(SWT.Selection, e -> {
+				for (int i = 0; i < table_.getItemCount(); i++)
+					table_.getItem(i).setChecked(all && (i < found_.size()) && (found_.get(i).data() != null));
+				updateSummary();
+			});
+		}
+
 		table_ = new Table(contents_, SWT.CHECK | SWT.FULL_SELECTION | SWT.BORDER | SWT.V_SCROLL | SWT.H_SCROLL);
 		GridData tableData = new GridData(SWT.FILL, SWT.FILL, true, true, 3, 1);
 		tableData.heightHint = 380;

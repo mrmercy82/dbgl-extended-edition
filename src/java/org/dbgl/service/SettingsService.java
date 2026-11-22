@@ -590,7 +590,7 @@ public class SettingsService {
 		settings_.setValue("mobygames", "choose_coverart", false);
 		settings_.setValue("mobygames", "choose_screenshot", false);
 		settings_.setValue("mobygames", "force_all_regions_coverart", false);
-		settings_.setValue("mobygames", "multi_max_coverart", 0);
+		settings_.setValue("mobygames", "multi_max_coverart", 1); // alpha 53: a cover also when several profiles are filled at once (was 0)
 		settings_.setValue("mobygames", "multi_max_screenshot", 0);
 		settings_.setValue("mobygames", "image_width", 128);
 		settings_.setValue("mobygames", "image_height", 80);
@@ -638,7 +638,7 @@ public class SettingsService {
 		settings_.setValue("thegamesdb", "set_description", true);
 		settings_.setValue("thegamesdb", "choose_coverart", false);
 		settings_.setValue("thegamesdb", "choose_screenshot", false);
-		settings_.setValue("thegamesdb", "multi_max_coverart", 0);
+		settings_.setValue("thegamesdb", "multi_max_coverart", 1); // alpha 53: as for MobyGames (was 0)
 		settings_.setValue("thegamesdb", "multi_max_screenshot", 0);
 		settings_.setValue("thegamesdb", "image_filter", "");
 		settings_.setValue("thegamesdb", "image_base", "original");
