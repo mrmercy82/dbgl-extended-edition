@@ -1,0 +1,68 @@
+# Builds launch.exe (the Windows starter, with Launch4j from src/launcher/launch4j.xml) on a GitHub-hosted runner and,
+# once the project is set up with SignPath Foundation, has it signed there (free code signing for open source; the
+# certificate is from SignPath Foundation). Started by hand (Actions > Sign launcher > Run workflow) for a release; every
+# signing request is also approved by hand on SignPath. See CODE_SIGNING_POLICY.md.
+# Without the secret SIGNPATH_API_TOKEN only the unsigned launch.exe is built and attached ("launch-exe-unsigned").
+name: Sign launcher
+
+on:
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  launcher:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    env:
+      SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Build launch.exe with Launch4j
+        run: |
+          rm -f src/dist/winshared/launch.exe
+          mvn -B -ntp -f src/launcher/pom.xml package
+          ls -l src/dist/winshared/launch.exe
+          sha256sum src/dist/winshared/launch.exe
+      - name: Attach the unsigned launch.exe
+        id: unsigned
+        uses: actions/upload-artifact@v6
+        with:
+          name: launch-exe-unsigned
+          path: src/dist/winshared/launch.exe
+          if-no-files-found: error
+      - name: Sign launch.exe with SignPath
+        if: env.SIGNPATH_API_TOKEN != ''
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: dbgl-extended-edition
+          signing-policy-slug: release-signing
+          artifact-configuration-slug: launch-exe
+          github-artifact-id: ${{ steps.unsigned.outputs.artifact-id }}
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 86400
+          output-artifact-directory: signed
+      - name: Check and attach the signed launch.exe
+        if: env.SIGNPATH_API_TOKEN != ''
+        shell: pwsh
+        run: |
+          $s = Get-AuthenticodeSignature signed/launch.exe
+          $s | Format-List Status, StatusMessage, SignerCertificate
+          if ($s.Status -ne 'Valid') { throw "launch.exe is not validly signed" }
+          (Get-FileHash signed/launch.exe -Algorithm SHA256).Hash
+      - uses: actions/upload-artifact@v6
+        if: env.SIGNPATH_API_TOKEN != ''
+        with:
+          name: launch-exe-signed
+          path: signed/launch.exe
+          if-no-files-found: error

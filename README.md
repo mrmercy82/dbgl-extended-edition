@@ -10,6 +10,7 @@ Ronald Blankendaal developed DBGL up to version 0.100 beta 17 and is **not invol
 
 - **This edition:** https://github.com/mrmercy82/dbgl-extended-edition – source code, [downloads (releases)](https://github.com/mrmercy82/dbgl-extended-edition/releases), [reporting problems (issues)](https://github.com/mrmercy82/dbgl-extended-edition/issues)
 - **The original DBGL by Ronald Blankendaal:** https://dbgl.org – official website; [announcement of 0.100 beta 17 on Vogons](https://www.vogons.org/viewtopic.php?p=1380082#p1380082)
+- **[Code signing policy](CODE_SIGNING_POLICY.md):** how launch.exe is signed through SignPath Foundation (free code signing for open source), who approves it, and what DBGL sends over the internet
 
 ## What's new
 
@@ -39,7 +40,7 @@ GNU General Public License version 2 or (at your option) any later version, like
 - Every file changed since 0.100 beta 17 says so in its header ("Modified for the DBGL Extended Edition ... since <date>"); files added by the Extended Edition carry their own copyright line. What changed and when is listed in the changelogs, with a date for every version, and in the Git history.
 - The FAT image reader in `src/java/org/dbgl/util/fat` comes from fat32-lib (JNode.org, Matthias Treydte) and is under the GNU LGPL 2.1 or later.
 
-Bundled libraries keep their own licenses (Eclipse SWT and Nebula Gallery: EPL; HSQLDB: BSD-style; Apache Commons: Apache 2.0; jsoup: MIT; JSON-java: JSON license; Jersey: EPL 2.0 / GPL 2 with Classpath Exception). DOSBox 0.74-3 in `src/dist/winshared` is GPL 2.
+Bundled libraries keep their own licenses (Eclipse SWT and Nebula Gallery: EPL; HSQLDB: BSD-style; Apache Commons: Apache 2.0; jsoup: MIT; JSON-java: public domain; Jersey: EPL 2.0 / GPL 2 with Classpath Exception). DOSBox 0.74-3 in `src/dist/winshared` is GPL 2.
 
 ## Feedback
 

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Builds launch.exe, the Windows starter of DBGL Extended Edition, from launch4j.xml in this folder with Launch4j
+  (through the launch4j-maven-plugin from Maven Central). Used by the GitHub workflow sign-launcher.yml, so that the
+  launch.exe that is signed is built from this repository. The result goes where launch4j.xml says:
+  ../dist/winshared/launch.exe
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>org.dbgl</groupId>
+  <artifactId>dbgl-launcher</artifactId>
+  <version>0.101</version>
+  <packaging>pom</packaging>
+  <name>DBGL Extended Edition launcher</name>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>com.akathist.maven.plugins.launch4j</groupId>
+        <artifactId>launch4j-maven-plugin</artifactId>
+        <version>2.7.0</version>
+        <executions>
+          <execution>
+            <id>launch-exe</id>
+            <phase>package</phase>
+            <goals>
+              <goal>launch4j</goal>
+            </goals>
+            <configuration>
+              <infile>${project.basedir}/launch4j.xml</infile>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>
