@@ -2,6 +2,8 @@
 
 Free code signing provided by [SignPath.io](https://about.signpath.io), certificate by [SignPath Foundation](https://signpath.org).
 
+> **Status:** applied for with SignPath Foundation, not approved yet. So far no file of DBGL Extended Edition is signed; this page describes how signing will work once it is approved.
+
 ## What is signed
 
 `launch.exe`, the Windows starter of DBGL Extended Edition, in the stand-alone packages for Windows and in the update package. It is built from [`src/launcher/launch4j.xml`](src/launcher/launch4j.xml) with [Launch4j](https://launch4j.sourceforge.net) on a GitHub-hosted runner by the workflow [`sign-launcher.yml`](.github/workflows/sign-launcher.yml), and signed only from there.
