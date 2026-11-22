@@ -27,6 +27,10 @@ It contacts other services on the internet only for what the user asks for, and 
 - sharing DOSBox configurations (share.dbgl.org, the service of the original DBGL),
 - downloading DOSBox versions and updates of DBGL Extended Edition from GitHub, and Java from Adoptium (api.adoptium.net), when the user starts this.
 
-One check runs by itself: once a day DBGL asks GitHub (api.github.com) for the latest releases of DOSBox Staging and DOSBox-X, and of ScummVM when it is entered. Nothing is downloaded, and nothing is sent but the request itself. It can be switched off in the settings ("Look for new DOSBox versions once a day"). The check for new versions of DBGL Extended Edition itself is off until the user switches it on.
+One check runs by itself: once a day DBGL asks GitHub (api.github.com) for the latest releases of DOSBox Staging and DOSBox-X, and of ScummVM (its repository scummvm/scummvm there) when ScummVM is entered in DBGL. Nothing is downloaded, and nothing is sent but the request itself; a newer ScummVM is only reported, with a link to its download page (scummvm.org), which opens in the browser only when the user clicks it. The check can be switched off in the settings ("Look for new DOSBox versions once a day"). The check for new versions of DBGL Extended Edition itself is off until the user switches it on.
+
+ScummVM: DBGL reads the configuration file of ScummVM (scummvm.ini) on the computer to import and start its games, and never sends it anywhere. The online information and pictures for ScummVM games come from the services listed above, on request, like those for DOS games.
+
+DOSBox, DOSBox Staging, DOSBox-X and ScummVM are separate programs that DBGL starts. DBGL passes them only what is needed to start the game. Any network features of their own are theirs, under their own privacy policies.
 
 The services named above have their own privacy policies, which apply when DBGL contacts them.
