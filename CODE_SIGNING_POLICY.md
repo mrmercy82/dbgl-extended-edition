@@ -6,6 +6,8 @@ Free code signing provided by [SignPath.io](https://about.signpath.io), certific
 
 `launch.exe`, the Windows starter of DBGL Extended Edition, in the stand-alone packages for Windows and in the update package. It is built from [`src/launcher/launch4j.xml`](src/launcher/launch4j.xml) with [Launch4j](https://launch4j.sourceforge.net) on a GitHub-hosted runner by the workflow [`sign-launcher.yml`](.github/workflows/sign-launcher.yml), and signed only from there.
 
+Releases up to 0.101 alpha 52 contain an unsigned launch.exe, built from the same configuration on the maintainer's computer. From the first signed release on, the packages contain the launch.exe built and signed by that workflow.
+
 Not signed by this project, because they are not built by it: DOSBox 0.74-3 (bundled in the Windows and macOS packages, GPL 2, from [dosbox.com](https://www.dosbox.com)), the Eclipse Temurin Java runtime in the Windows package (from [Adoptium](https://adoptium.net), signed by its makers) and the Java libraries in `lib` (each under its own open source license, see `licenses`).
 
 ## Team and roles
