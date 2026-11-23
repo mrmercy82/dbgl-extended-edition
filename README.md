@@ -39,20 +39,21 @@ Ronald Blankendaal developed DBGL up to version 0.100 beta 17 and is **not invol
 <details>
 <summary>More screenshots</summary>
 
-**Welcome wizard**
-![Welcome wizard](docs/screenshots/welcome-wizard.png)
+Click a picture to see it in full size.
 
-**Profile editor with every setting of DOSBox Staging**
-![Profile editor](docs/screenshots/profile-editor.png)
-
-**Switching profiles to another DOSBox version, with a preview**
-![Switch profiles to another DOSBox version](docs/screenshots/switch-dosbox-version.png)
-
-**Downloading DOSBox Staging and DOSBox-X from GitHub**
-![Download DOSBox](docs/screenshots/download-dosbox.png)
-
-**Checking profiles, with solutions**
-![Check profiles](docs/screenshots/check-profiles.png)
+<table>
+<tr>
+<td width="50%" valign="top"><b>Welcome wizard</b><br><a href="docs/screenshots/welcome-wizard.png"><img src="docs/screenshots/welcome-wizard.png" alt="Welcome wizard"></a></td>
+<td width="50%" valign="top"><b>Profile editor with every setting of DOSBox Staging</b><br><a href="docs/screenshots/profile-editor.png"><img src="docs/screenshots/profile-editor.png" alt="Profile editor"></a></td>
+</tr>
+<tr>
+<td width="50%" valign="top"><b>Switching profiles to another DOSBox version, with a preview</b><br><a href="docs/screenshots/switch-dosbox-version.png"><img src="docs/screenshots/switch-dosbox-version.png" alt="Switch profiles to another DOSBox version"></a></td>
+<td width="50%" valign="top"><b>Checking profiles, with solutions</b><br><a href="docs/screenshots/check-profiles.png"><img src="docs/screenshots/check-profiles.png" alt="Check profiles"></a></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><b>Downloading DOSBox Staging and DOSBox-X from GitHub</b><br><a href="docs/screenshots/download-dosbox.png"><img src="docs/screenshots/download-dosbox.png" alt="Download DOSBox"></a></td>
+</tr>
+</table>
 
 </details>
 
