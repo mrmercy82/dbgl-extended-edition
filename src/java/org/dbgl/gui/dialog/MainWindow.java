@@ -2577,13 +2577,6 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				importScanFolder();
 			}
 		}).build();
-		// alpha 53: the selected profiles learned, so that the import above recognizes these games by their files later
-		MenuItem_.on(profilesMenu).key("dialog.main.menu.learnknown").image(ImageService.IMG_IMPORT).listen(new SelectionAdapter() {
-			@Override
-			public void widgetSelected(SelectionEvent event) {
-				doLearnKnownGames();
-			}
-		}).build();
 		// alpha 52: game folders no profile uses yet
 		MenuItem_.on(profilesMenu).key("dialog.main.menu.importunlinked").image(ImageService.IMG_IMPORT).listen(new SelectionAdapter() {
 			@Override
@@ -2688,6 +2681,15 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			}
 		}).build();
 		// the tools for all profiles, the statistics at the end
+		MenuItem_.on(profilesMenu).build();
+		// alpha 53: the selected profiles learned, so that Import known games recognizes these games by their files later; between
+		// lines of its own
+		MenuItem_.on(profilesMenu).key("dialog.main.menu.learnknown").image(ImageService.IMG_IMPORT).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				doLearnKnownGames();
+			}
+		}).build();
 		MenuItem_.on(profilesMenu).build();
 		// alpha 49: game series suggested from the titles
 		MenuItem_.on(profilesMenu).key("dialog.main.menu.series").image(ImageService.IMG_DUPLICATE).listen(new SelectionAdapter() {
@@ -3147,6 +3149,14 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			@Override
 			public void widgetSelected(SelectionEvent event) {
 				doReplaceValues();
+			}
+		}).build();
+		// alpha 53: as in the menu Profiles, between lines of its own
+		MenuItem_.on(tools).build();
+		MenuItem_.on(tools).key("dialog.main.menu.learnknown").image(ImageService.IMG_IMPORT).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				doLearnKnownGames();
 			}
 		}).build();
 		MenuItem_.on(tools).build();

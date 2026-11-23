@@ -3636,6 +3636,49 @@ public class Dbgl0102Tests {
 		org.apache.commons.io.FileUtils.deleteDirectory(dir);
 	}
 
+	/**
+	 * alpha 53: the recognition of known games by the database of DBGL: a folder given up on leaves no scores behind for the next,
+	 * and one further file alone is not enough
+	 */
+	@Test
+	public void testKnownGamesScoring() throws Exception {
+		java.lang.reflect.Method construct = org.dbgl.gui.dialog.wizard.ImportDirDialog.class.getDeclaredMethod("constructGameDirEntry", File.class, List.class, java.util.Map.class);
+		construct.setAccessible(true);
+		File dir = Files.createTempDirectory("dbgl-knownscore-").toFile();
+		File data = new File(dir, "DATA"); // known files, but no program: given up on
+		data.mkdirs();
+		Files.write(new File(data, "LEVEL1.DAT").toPath(), "level".getBytes());
+		Files.write(new File(data, "LEVEL2.DAT").toPath(), "level2".getBytes());
+		File driver = new File(dir, "OTHER"); // only a further file that many games have, and a program of its own
+		driver.mkdirs();
+		Files.write(new File(driver, "SNDDRV.COM").toPath(), "driver".getBytes());
+		Files.write(new File(driver, "OTHER.EXE").toPath(), program(false));
+		java.util.function.Function<File, byte[]> md5 = f -> {
+			try {
+				return org.dbgl.util.FilesUtils.md5(f);
+			} catch (Exception e) {
+				throw new IllegalStateException(e);
+			}
+		};
+		org.dbgl.model.repository.GameFilesRepository.GameData game = new org.dbgl.model.repository.GameFilesRepository.GameData();
+		java.util.Map<String, org.dbgl.model.repository.GameFilesRepository.FileData> set = new java.util.HashMap<>();
+		set.put("LEVEL1.DAT", new org.dbgl.model.repository.GameFilesRepository.FileData(org.dbgl.model.repository.GameFilesRepository.FileType.EXTRA, md5.apply(new File(data, "LEVEL1.DAT"))));
+		set.put("LEVEL2.DAT", new org.dbgl.model.repository.GameFilesRepository.FileData(org.dbgl.model.repository.GameFilesRepository.FileType.EXTRA, md5.apply(new File(data, "LEVEL2.DAT"))));
+		set.put("SNDDRV.COM", new org.dbgl.model.repository.GameFilesRepository.FileData(org.dbgl.model.repository.GameFilesRepository.FileType.EXTRA, md5.apply(new File(driver, "SNDDRV.COM"))));
+		game.fileSets_.add(new org.dbgl.model.repository.GameFilesRepository.FileSet(set));
+		java.util.Map<Integer, org.dbgl.model.repository.GameFilesRepository.GameData> games = new java.util.HashMap<>(java.util.Map.of(1, game));
+		List<org.apache.commons.lang3.tuple.ImmutablePair<File, byte[]>> dataFiles = List.of(
+			new org.apache.commons.lang3.tuple.ImmutablePair<>(new File(data, "LEVEL1.DAT"), md5.apply(new File(data, "LEVEL1.DAT"))),
+			new org.apache.commons.lang3.tuple.ImmutablePair<>(new File(data, "LEVEL2.DAT"), md5.apply(new File(data, "LEVEL2.DAT"))));
+		assertNull(construct.invoke(null, data, dataFiles, games)); // no program in it
+		assertEquals(0, game.fileSets_.get(0).getScore()); // before: 20 left behind
+		List<org.apache.commons.lang3.tuple.ImmutablePair<File, byte[]>> driverFiles = List.of(
+			new org.apache.commons.lang3.tuple.ImmutablePair<>(new File(driver, "SNDDRV.COM"), md5.apply(new File(driver, "SNDDRV.COM"))));
+		assertNull(construct.invoke(null, driver, driverFiles, games)); // before: the game of the data files, or of the driver alone
+		assertEquals(0, game.fileSets_.get(0).getScore());
+		org.apache.commons.io.FileUtils.deleteDirectory(dir);
+	}
+
 	/** alpha 53: DOSBox and ScummVM themselves are no games: their folders are left out of the import from a folder */
 	@Test
 	public void testUnlinkedLeavesOutDosbox() throws Exception {

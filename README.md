@@ -16,15 +16,16 @@ Ronald Blankendaal developed DBGL up to version 0.100 beta 17 and is **not invol
 
 - Full support for DOSBox Staging up to 0.83.1 and DOSBox-X up to 2026.10.01: every setting of every DOSBox version in the profile dialog, renamed settings converted automatically
 - DOSBox Staging and DOSBox-X downloaded directly from GitHub (checksum verified), with an optional daily check for new versions
+- TV mode: the games full screen as large covers, chosen and started with the keyboard or an XInput controller (e.g. an Xbox controller), at any time with F11
 - Stand-alone packages for Windows (with Java), Linux and macOS, and a one-click update of the Extended Edition itself
 - A welcome wizard at the first start: language, appearance, DOSBox, the first games
-- Imports of games in folders, from GOG and Steam, LaunchBox, eXoDOS, ScummVM and D-Fend Reloaded
+- Imports of games in folders (known games recognized by their files), from GOG and Steam, LaunchBox, eXoDOS, ScummVM and D-Fend Reloaded
 - ScummVM games next to the DOSBox profiles
 - Saved games backed up before each start and restored with a click, with a manager for the backups
 - Check and repair profiles, warning signs, presets, backups, undo for bulk changes
 - Switching profiles to another DOSBox version with a preview; lines added by hand to the [autoexec] are never lost
 - Game information and covers from IGDB, TheGamesDB, MobyGames, RAWG, ScreenScraper and SteamGridDB
-- TV mode, controller as keyboard, Add to Steam, an assistant for a USB stick
+- Controller as keyboard, Add to Steam, an assistant for a USB stick
 - Dark mode and 19 languages
 
 ## What's new

@@ -331,9 +331,10 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 
 					games_ = new ArrayList<>();
 					for (Map.Entry<File, List<ImmutablePair<File, byte[]>>> dirFile: fileMd5s.stream().collect(Collectors.groupingBy(x -> x.getKey().getParentFile())).entrySet()) {
-						GameDirEntry gameDirEntry = constructGameDirEntry(dirFile.getKey(), dirFile.getValue(), games);
-						if (gameDirEntry == null) // alpha 53: not in the database of DBGL, perhaps learned from a profile
-							gameDirEntry = ownGameDirEntry(dirFile.getKey(), dirFile.getValue(), own, text_.get("dialog.importdir.ownrecognition"));
+						// alpha 53: a game learned from a profile first (its details were checked by the user), then the database of DBGL
+						GameDirEntry gameDirEntry = ownGameDirEntry(dirFile.getKey(), dirFile.getValue(), own, text_.get("dialog.importdir.ownrecognition"));
+						if (gameDirEntry == null)
+							gameDirEntry = constructGameDirEntry(dirFile.getKey(), dirFile.getValue(), games);
 						if (gameDirEntry != null)
 							games_.add(gameDirEntry);
 					}
@@ -396,6 +397,16 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 	}
 
 	private static GameDirEntry constructGameDirEntry(File dir, List<ImmutablePair<File, byte[]>> files, Map<Integer, GameData> games) throws IOException {
+		// alpha 53: the scores are reset whatever comes out: before, a folder given up on (e.g. one without programs, such as a
+		// folder of data files) left its scores behind, and the next folder could get that game
+		try {
+			return scoreGameDirEntry(dir, files, games);
+		} finally {
+			games.values().forEach(x -> x.fileSets_.forEach(y -> y.set_.values().forEach(FileData::resetScore)));
+		}
+	}
+
+	private static GameDirEntry scoreGameDirEntry(File dir, List<ImmutablePair<File, byte[]>> files, Map<Integer, GameData> games) throws IOException {
 		for (Map.Entry<Integer, GameData> gameData: games.entrySet()) {
 			for (FileSet set: gameData.getValue().fileSets_) {
 				for (ImmutablePair<File, byte[]> file: files) {
@@ -412,6 +423,11 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 		FileSet set = games.values().stream().flatMap(x -> x.fileSets_.stream()).max(Comparator.comparing(FileSet::getScore)).orElse(null);
 
 		if (set == null || set.getScore() <= 0)
+			return null;
+		// alpha 53: one further file alone (e.g. a sound driver that many games have) is not enough: the start or the setup program,
+		// or at least two further files
+		boolean program = set.set_.values().stream().anyMatch(x -> x.getScore() > 0 && x.type_ != FileType.EXTRA);
+		if (!program && set.getScore() < 20)
 			return null;
 
 		List<File> exes = FilesUtils.listExecutablesInDirRecursive(dir);
@@ -433,8 +449,6 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 				}).map(x -> x.getKey() + " (" + x.getValue().getScore() + ")").collect(Collectors.joining(", "))
 
 		);
-
-		games.values().forEach(x -> x.fileSets_.forEach(y -> y.set_.values().forEach(FileData::resetScore)));
 		return result;
 	}
 

@@ -22,13 +22,15 @@ New
   "Welcome wizard..." opens it at any time.
 - Own recognition of known games: Profiles > "Learn selected profiles for
   the recognition" keeps the start and setup program (name and checksum) of
-  the selected profiles with title, developer, publisher, year and genre. A
-  profile with a title and at least developer, publisher or year is also
-  learned when it is saved in the profile dialog. "Import known games in
-  folder" then recognizes these games in addition to the database that comes
-  with DBGL (which has checksums for only part of its games), e.g. on another
-  PC or after a new installation. Kept in config\known-games.json, without
-  paths; the database that comes with DBGL stays as it is.
+  the selected profiles with title, developer, publisher, year and genre
+  (also in the context menu under Tools). A profile with a title and at
+  least developer, publisher or year is also learned when it is saved in the
+  profile dialog. "Import known games in folder" then recognizes these games
+  before the database that comes with DBGL (which has checksums for only
+  part of its games), e.g. on another PC or after a new installation. Kept
+  in config\known-games.json, without paths; the database that comes with
+  DBGL stays as it is.
+
 Changed
 - A new installation opens the main window maximized.
 - Importing games (folder, GOG/Steam, LaunchBox, eXoDOS, ScummVM): the
@@ -55,6 +57,11 @@ Fixed
   the firewall does not ask any more.
 - Help > "New features" did not show the parts about alpha 51 and 52 since
   alpha 51 (the files whats-new-de/en.txt shipped next to it had them).
+- "Import known games in folder" gave folders wrong games: a folder with
+  known files but no program (e.g. a folder of game data) left its matches
+  behind, and the next folder then got that game. Also, one further file
+  that many games have (e.g. a sound driver) was enough. Now it takes the
+  start or setup program, or at least two further files.
 
 0.101 alpha 52 (2026-11-21)
 ---------------------------
