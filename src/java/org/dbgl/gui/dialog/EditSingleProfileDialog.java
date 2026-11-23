@@ -26,10 +26,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Stream;
 
-import javax.ws.rs.client.Client;
-import javax.ws.rs.client.ClientBuilder;
-import javax.ws.rs.core.GenericType;
-import javax.ws.rs.core.MediaType;
 
 import org.apache.commons.lang3.StringUtils;
 import org.dbgl.constants.Constants;
@@ -49,6 +45,7 @@ import org.dbgl.model.aggregate.Profile;
 import org.dbgl.model.aggregate.Template;
 import org.dbgl.model.conf.Autoexec;
 import org.dbgl.model.entity.SharedConf;
+import org.dbgl.service.DBConfDatabaseService;
 import org.dbgl.model.entity.TemplateProfileBase;
 import org.dbgl.model.factory.ProfileFactory;
 import org.dbgl.model.repository.BaseRepository;
@@ -707,6 +704,9 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 		});
 
 		ToolBar toolBar = engineToolItem.getParent();
+		// alpha 53: the configurations of DBConf from the database next to DBGL, as in DBGL 0.100 beta 18 (no longer from
+		// share.dbgl.org); without the database there is no button
+		if (DBConfDatabaseService.available())
 		createImageToolItem(toolBar, SWT.PUSH, ImageService.getResourceImage(display_, ImageService.IMG_SHARE), text_.get("button.consultconfsearchengine", new String[] {Constants.DBCONFWS}),
 			new SelectionAdapter() {
 				@Override
@@ -714,11 +714,7 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 					String currTitle = title_.getText();
 					if (currTitle.length() >= 1) {
 						try {
-							Client client = ClientBuilder.newClient();
-							List<SharedConf> confs = client.target(settings_.getValue("confsharing", "endpoint")).path("/configurations/bytitle/{i}").resolveTemplate("i", currTitle).request().accept(
-								MediaType.APPLICATION_XML).get(new GenericType<List<SharedConf>>() {
-								});
-							client.close();
+							List<SharedConf> confs = DBConfDatabaseService.search(currTitle);
 
 							if (confs.isEmpty()) {
 								Mess_.on(shell_).key("general.notice.searchenginenoresults", new String[] {Constants.DBCONFWS, currTitle}).display();
@@ -942,14 +938,7 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 			}
 		});
 
-		Button_.on(otherButtons_).imageText(ImageService.IMG_SHARE, "button.shareconf").listen(new SelectionAdapter() {
-			@Override
-			public void widgetSelected(SelectionEvent event) {
-				computeAllPages(profile_);
-				updateConfigurableByControls(profile_);
-				new ShareConfDialog(shell_, title_.getText(), year_.getText(), profile_).open();
-			}
-		}).build();
+		// alpha 53: sharing an own configuration is gone, as in DBGL 0.100 beta 18 (share.dbgl.org takes none any more)
 	}
 
 	protected boolean isValid() {

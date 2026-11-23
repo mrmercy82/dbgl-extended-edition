@@ -145,6 +145,14 @@ public final class ProfileFindings {
 		return text.get("dialog.checkprofiles." + TEXTS.getOrDefault(kind, kind), args);
 	}
 
+	/** alpha 53: a configuration of DBConf for the game (DOSBox 0.74 only) */
+	public static final String DBCONF = "dbconf";
+
+	/** alpha 53: solvable, but only chosen by hand (not at first, not by "Choose all solvable"): DBConf was sent in by users */
+	public static boolean onlyByHand(Finding f) {
+		return DBCONF.equals(f.kind());
+	}
+
 	/** what ProfileChecks finds that is only for information */
 	private static final Set<String> HINTS = Set.of("gusnopatches", "cohortoptional", "lurecm32l", "dm2sbpro", "paw1942jemmex", "sounddeviceoff", "gamewantsmt32", "cdimageunused", "gameadvice", "soundmismatch");
 
@@ -339,6 +347,18 @@ public final class ProfileFindings {
 				// whatever else keeps it from starting or working (ProfileChecks), solved where DBGL can do it
 				for (ProfileChecks.Problem pr: problems)
 					list.add(ofProblem(prof, pr, text));
+				// alpha 53: what the configuration of DBConf for exactly this game sets otherwise, only for DOSBox 0.74 (for which
+				// DBConf was made); a note, solvable, but not chosen by itself
+				if (DBConfAdvice.forVersion(prof.getDosboxVersion())) {
+					org.dbgl.model.entity.SharedConf dbconf = DBConfAdvice.configurationFor(org.dbgl.service.DBConfDatabaseService.all(), prof.getTitle());
+					List<DBConfAdvice.Difference> diffs = dbconf == null ? List.of(): DBConfAdvice.differences(dbconf, prof.getCombinedConfigurationForReading());
+					if (!diffs.isEmpty()) {
+						Object[] args = {dbconf.getGameTitle(), DBConfAdvice.shown(diffs, true), DBConfAdvice.shown(diffs, false)};
+						list.add(new Finding(prof, prof.getDosboxVersion(), DBCONF, args, text.get("dialog.checkprofiles.dbconf", args), true, "setdbconf",
+							fix((p, vs) -> diffs.forEach(d -> p.getConfiguration().setValue(d.section(), d.item(), d.value())),
+								(p, t) -> diffs.forEach(d -> t.setRaw(d.section(), d.item(), d.value()))), false));
+					}
+				}
 				// "seems incomplete" says less than what was found: left out then
 				Set<String> driveCauses = Set.of("drivenotmounted", "drivebeforemount", "driveunmounted", "driveunmountedown", "startsectiondrive");
 				boolean mountTold = problems.stream().anyMatch(pr -> pr.key().startsWith("mount") || driveCauses.contains(pr.key()));

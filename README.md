@@ -2,9 +2,9 @@
 
 An unofficial, independent continuation of **DBGL – DOSBox Game Launcher 0.100 beta 17** by **Ronald Blankendaal** ([dbgl.org](https://dbgl.org), [announcement of 0.100 beta 17 on Vogons](https://www.vogons.org/viewtopic.php?p=1380082#p1380082)).
 
-Ronald Blankendaal developed DBGL up to version 0.100 beta 17 and is **not involved** in this edition. The foundation and a large part of it are his work, the result of nearly 20 years of development. The Extended Edition mainly adds support for current DOSBox versions (DOSBox Staging up to 0.83.1, DOSBox-X up to 2026.10.01) and tools for large profile collections. It was started by mrmercy82 with the help of AI.
+Ronald Blankendaal developed DBGL up to version 0.100 beta 17 and is **not involved** in this edition. The foundation and a large part of it are his work, the result of nearly 20 years of development. The Extended Edition mainly adds support for current DOSBox versions (DOSBox Staging up to 0.83.1, DOSBox-X up to 2026.10.01) and tools for large profile collections. Parts of his DBGL 0.100 beta 18 are taken over too: the DBConf database of shared DOSBox configurations (which he allowed the Extended Edition to ship) and the limits for field lengths when saving. It was started by mrmercy82 with the help of AI.
 
-*Deutsch:* Eine inoffizielle, unabhängige Weiterführung von DBGL 0.100 beta 17 von Ronald Blankendaal, der an dieser Ausgabe nicht beteiligt ist. Das Fundament und ein Großteil daran sind sein Werk, das auf fast 20 Jahre Entwicklungszeit zurückgeht. Sie ergänzt vor allem die Unterstützung aktueller DOSBox-Versionen. Siehe `src/resources/doc/whatsnew_de.txt`.
+*Deutsch:* Eine inoffizielle, unabhängige Weiterführung von DBGL 0.100 beta 17 von Ronald Blankendaal, der an dieser Ausgabe nicht beteiligt ist. Das Fundament und ein Großteil daran sind sein Werk, das auf fast 20 Jahre Entwicklungszeit zurückgeht. Teile seines DBGL 0.100 beta 18 sind ebenfalls übernommen: die DBConf-Datenbank mit geteilten DOSBox-Konfigurationen (die er für die Extended Edition freigegeben hat) und die Grenzen für Feldlängen beim Speichern. Sie ergänzt vor allem die Unterstützung aktueller DOSBox-Versionen. Siehe `src/resources/doc/whatsnew_de.txt`.
 
 ## Links
 

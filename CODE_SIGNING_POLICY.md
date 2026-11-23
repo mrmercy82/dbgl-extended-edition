@@ -28,10 +28,11 @@ DBGL Extended Edition does not collect, store or send any personal data to the p
 It contacts other services on the internet only for what the user asks for, and only with what that needs (e.g. the title of a game to look up):
 
 - online information and pictures for profiles (MobyGames, IGDB, RAWG, ScreenScraper, TheGamesDB, Pouet, SteamGridDB), each with the user's own key where the service requires one,
-- sharing DOSBox configurations (share.dbgl.org, the service of the original DBGL by Ronald Blankendaal),
 - downloading DOSBox versions and updates of DBGL Extended Edition from GitHub, and Java from Adoptium (api.adoptium.net), when the user starts this.
 
 One check runs by itself: once a day DBGL Extended Edition asks GitHub (api.github.com) for the latest releases of DOSBox Staging and DOSBox-X, and of ScummVM (its repository scummvm/scummvm there) when ScummVM is entered in DBGL Extended Edition. Nothing is downloaded, and nothing is sent but the request itself; a newer ScummVM is only reported, with a link to its download page (scummvm.org), which opens in the browser only when the user clicks it. The check can be switched off in the settings ("Look for new DOSBox versions once a day"). The check for new versions of DBGL Extended Edition itself is off until the user switches it on.
+
+The shared DOSBox configurations of DBConf come from a database that is part of the download (made by Ronald Blankendaal for DBGL 0.100 beta 18); DBGL Extended Edition no longer contacts share.dbgl.org, and sharing an own configuration is no longer offered.
 
 ScummVM: DBGL Extended Edition reads the configuration file of ScummVM (scummvm.ini) on the computer to import and start its games, and never sends it anywhere. The online information and pictures for ScummVM games come from the services listed above, on request, like those for DOS games.
 

@@ -22,16 +22,13 @@ import java.io.IOException;
 import java.sql.SQLException;
 import java.util.List;
 
-import javax.ws.rs.client.Client;
-import javax.ws.rs.client.ClientBuilder;
-import javax.ws.rs.core.GenericType;
-import javax.ws.rs.core.MediaType;
 
 import org.apache.commons.lang3.StringUtils;
 import org.dbgl.constants.Constants;
 import org.dbgl.model.Link;
 import org.dbgl.model.aggregate.Profile;
 import org.dbgl.model.entity.SharedConf;
+import org.dbgl.service.DBConfDatabaseService;
 import org.dbgl.model.factory.ProfileFactory;
 import org.dbgl.model.repository.GameFilesRepository.GameDirEntry;
 import org.dbgl.model.repository.ProfileRepository;
@@ -98,12 +95,9 @@ public class ImportDirThread extends UIThread<GameDirEntry> {
 		prof.setAutoexecSettings(entry.getMain().getPath(), StringUtils.EMPTY);
 
 		if (consultConf_) {
-			Client client = ClientBuilder.newClient();
-			GenericType<List<SharedConf>> confType = new GenericType<List<SharedConf>>() {
-			};
-			List<SharedConf> confs = client.target(SettingsService.getInstance().getValue("confsharing", "endpoint")).path("/configurations/bytitle/{i}").resolveTemplate("i",
-				prof.getTitle()).request().accept(MediaType.APPLICATION_XML).get(confType);
-			client.close();
+			// alpha 53: from the database next to DBGL (DBGL 0.100 beta 18), and only for exactly this title: share.dbgl.org also
+			// gave "Doom II" for "Doom", so that a game with a longer namesake got no configuration
+			List<SharedConf> confs = DBConfDatabaseService.exact(prof.getTitle());
 
 			if (confs.isEmpty()) {
 				messageLog_.append(PREFIX_ERR).append(text_.get("general.notice.searchenginenoresults", new String[] {Constants.DBCONFWS, prof.getTitle()})).append(StringUtils.LF);

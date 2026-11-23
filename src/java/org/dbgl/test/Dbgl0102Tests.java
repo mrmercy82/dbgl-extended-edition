@@ -183,7 +183,13 @@ public class Dbgl0102Tests {
 		assertEquals(Generation.x_20241001, gen(x, "2026.10.01"));
 		assertEquals(Generation.x_20241001, gen(x, "2027.01.01"));
 		assertEquals(Generation.x_20240301, gen(x, "2024.05.01"));
-		assertEquals(Generation.x_08220, gen(x, "2023.09.01"));
+		// alpha 53: the releases of 2020 to 2024.02 have the settings of 2024.03.01 (compared with their reference configurations)
+		assertEquals(Generation.x_20240301, gen(x, "2023.09.01"));
+		assertEquals(Generation.x_20240301, gen(x, "2022.08.0"));
+		assertEquals(Generation.x_20240301, gen(x, "0.84.1"));
+		assertEquals(Generation.x_20240301, gen(x, "0.83.25"));
+		assertEquals(Generation.x_08220, gen(x, "0.82.26"));
+		assertEquals(Generation.x_08220, gen(x, "0.82.20"));
 		assertTrue(SettingsService.DOSBOX_X_DOSBOX_FAM.versions_.contains("2026.10.01"));
 	}
 
@@ -285,6 +291,14 @@ public class Dbgl0102Tests {
 		assertEquals(SettingsService.DOSBOX_X_DOSBOX_FAM.title_, r.family_);
 		assertEquals("2026.05.02", r.version_);
 		assertEquals(java.util.EnumSet.of(DosboxVersionDetector.XBuild.OSFREE), DosboxVersionDetector.dosboxXBuild(exe));
+
+		// alpha 53: older releases without a full date
+		Files.write(exe.toPath(), "DOSBox-X\0libFLAC 0.83.25 20190804\0/INIT\0SDL1\u00000.83.25\0COMMAND\0".getBytes(StandardCharsets.ISO_8859_1));
+		assertEquals("0.83.25", DosboxVersionDetector.scanDosboxXExecutable(exe).version_);
+		Files.write(exe.toPath(), "DOSBox-X\0SHELL_CMD_VER_VER\0SDL2\u00002022.08.0\0Aug 1, 2022".getBytes(StandardCharsets.ISO_8859_1));
+		assertEquals("2022.08.0", DosboxVersionDetector.scanDosboxXExecutable(exe).version_);
+		Files.write(exe.toPath(), "DOSBox-X\0vm86 mode\0dosbox-x 0.82.20 (C) 2002-2019".getBytes(StandardCharsets.ISO_8859_1));
+		assertEquals("0.82.20", DosboxVersionDetector.scanDosboxXExecutable(exe).version_);
 
 		Files.write(exe.toPath(), "DOSBox Staging 0.83.0".getBytes(StandardCharsets.ISO_8859_1));
 		assertNull(DosboxVersionDetector.scanDosboxXExecutable(exe));
@@ -2216,6 +2230,14 @@ public class Dbgl0102Tests {
 		List<String[]> c = org.dbgl.util.DosboxInstaller.candidates(x, true, false, false);
 		assertEquals(2, c.size());
 		assertEquals("v", c.get(0)[1]);
+		// alpha 53: the kind in front and what tells it apart (DOSBox-X: Visual Studio or MinGW)
+		org.dbgl.service.ITextService text = org.dbgl.service.TextService.getInstance();
+		assertEquals("Visual Studio – dosbox-x-vsbuild-win64-20261001.zip   (" + text.get("dialog.main.notice.recommended") + ")",
+			org.dbgl.gui.controls.DosboxDownload.buildLabel(c.get(0), true, text));
+		assertEquals("MinGW – dosbox-x-mingw-win64-20261001.zip", org.dbgl.gui.controls.DosboxDownload.buildLabel(c.get(1), false, text));
+		assertEquals(text.get("dialog.dosboxdownload.hint.mingw"), org.dbgl.gui.controls.DosboxDownload.buildHint(c.get(1), text));
+		assertEquals("", org.dbgl.gui.controls.DosboxDownload.buildHint(new String[] {"dosbox-staging-windows-x64-v0.83.1.zip"}, text));
+		assertNull(org.dbgl.util.DosboxInstaller.buildKind("dosbox-staging-linux-x86_64-v0.83.1.tar.xz"));
 
 		File dbgl = new File(dir, "dbgl"), dosbox = new File(dbgl, "dosbox"), staging = new File(dosbox, "staging-0.83"), other = new File(dosbox, "x-2026");
 		staging.mkdirs();
@@ -3847,6 +3869,71 @@ public class Dbgl0102Tests {
 	}
 
 	/** alpha 52: a too long publisher (Doom from MobyGames, reported on Vogons) made saving fail: now cut after a whole name, marked */
+	/**
+	 * Alpha 53: the configurations of DBConf from the database next to DBGL (DBGL 0.100 beta 18 by Ronald Blankendaal), read
+	 * read-only; the exact match leaves out longer namesakes.
+	 */
+	@Test
+	public void testDBConfDatabase() throws Exception {
+		File dist = new File(DATA_DIR, "../../../../../dist/shared/db");
+		File tmp = Files.createTempDirectory("dbgl-dbconf-").toFile();
+		try {
+			for (String name: new String[] {org.dbgl.service.DBConfDatabaseService.DATA, org.dbgl.service.DBConfDatabaseService.SCRIPT,
+					org.dbgl.service.DBConfDatabaseService.PROPERTIES})
+				Files.copy(new File(dist, name).toPath(), new File(tmp, name).toPath());
+			File script = new File(tmp, org.dbgl.service.DBConfDatabaseService.SCRIPT);
+			long before = script.lastModified();
+			List<org.dbgl.model.entity.SharedConf> all = org.dbgl.service.DBConfDatabaseService.load(new File(tmp, "dbconf"));
+			assertTrue(all.size() >= 270);
+			assertTrue(all.stream().allMatch(c -> (c.getGameTitle() != null) && (c.getIncrConf() != null) && (c.getDosboxVersion() != null)));
+			// read-only: nothing written, no lock or log left behind
+			assertEquals(before, script.lastModified());
+			assertEquals(3, tmp.list().length);
+
+			org.dbgl.model.entity.SharedConf doom = new org.dbgl.model.entity.SharedConf(null, "", "Doom", "", "1993", "[cpu]\ncycles=max", "", "x", "DOSBox", "0.74");
+			org.dbgl.model.entity.SharedConf doom2 = new org.dbgl.model.entity.SharedConf(null, "", "Doom II: Hell on Earth", "", "1994", "[cpu]\ncycles=max", "", "x", "DOSBox", "0.74");
+			org.dbgl.model.entity.SharedConf theDoom = new org.dbgl.model.entity.SharedConf(null, "", "The DOOM", "", "1993", "", "", "x", "DOSBox", "0.74");
+			List<org.dbgl.model.entity.SharedConf> confs = List.of(doom2, doom, theDoom);
+			assertEquals(List.of(doom, theDoom), org.dbgl.service.DBConfDatabaseService.exact(confs, "doom"));
+			assertTrue(org.dbgl.service.DBConfDatabaseService.exact(confs, "").isEmpty());
+			assertTrue(org.dbgl.service.DBConfDatabaseService.exact(confs, "Doom 3").isEmpty());
+			for (org.dbgl.model.entity.SharedConf c: all)
+				assertTrue(org.dbgl.service.DBConfDatabaseService.exact(all, c.getGameTitle()).contains(c));
+		} finally {
+			org.apache.commons.io.FileUtils.deleteQuietly(tmp);
+		}
+		assertNotNull(org.dbgl.service.DBConfDatabaseService.load(new File(System.getProperty("java.io.tmpdir"), "no-such-dbconf")));
+		assertTrue(org.dbgl.service.DBConfDatabaseService.load(new File(System.getProperty("java.io.tmpdir"), "no-such-dbconf")).isEmpty());
+	}
+
+	/** Alpha 53: the note of "Check profiles" from DBConf: DOSBox 0.74 only, exactly the title, only settings of its own */
+	@Test
+	public void testDBConfAdvice() throws Exception {
+		org.dbgl.model.entity.SharedConf demon = new org.dbgl.model.entity.SharedConf(null, "", "3-Demon", "", "1983", "[dosbox]\nmachine=cga\n\n[cpu]\ncycles=750\n[autoexec]\nmount c .", "", "x", "DOSBox", "0.74");
+		org.dbgl.model.entity.SharedConf empty = new org.dbgl.model.entity.SharedConf(null, "", "Doom", "", "1993", "", "", "N/A", "DOSBox", "0.74");
+		org.dbgl.model.entity.SharedConf other = new org.dbgl.model.entity.SharedConf(null, "", "3-Demon", "", "1983", "[cpu]\ncycles=1000", "", "x", "DOSBox", "0.74");
+		assertEquals(2, org.dbgl.util.DBConfAdvice.settings(demon.getIncrConf()).size()); // without [autoexec]
+		assertSame(demon, org.dbgl.util.DBConfAdvice.configurationFor(List.of(demon, empty), "3-demon"));
+		assertNull(org.dbgl.util.DBConfAdvice.configurationFor(List.of(demon, empty), "Doom")); // nothing of its own
+		assertNull(org.dbgl.util.DBConfAdvice.configurationFor(List.of(demon, empty), "3-Demon 2"));
+		assertNull(org.dbgl.util.DBConfAdvice.configurationFor(List.of(demon, other), "3-Demon")); // two that do not agree
+
+		Configuration applies = new Configuration();
+		applies.setValue("dosbox", "machine", "svga_s3");
+		applies.setValue("cpu", "cycles", "750");
+		List<org.dbgl.util.DBConfAdvice.Difference> d = org.dbgl.util.DBConfAdvice.differences(demon, applies);
+		assertEquals(1, d.size());
+		assertEquals("[dosbox] machine = cga", org.dbgl.util.DBConfAdvice.shown(d, true));
+		assertEquals("[dosbox] machine = svga_s3", org.dbgl.util.DBConfAdvice.shown(d, false));
+
+		String x = SettingsService.DOSBOX_X_DOSBOX_FAM.title_, staging = SettingsService.STAGING_DOSBOX_FAM.title_;
+		assertTrue(org.dbgl.util.DBConfAdvice.forVersion(DosboxVersionFactory.create("t", SettingsService.OFFICIAL_DOSBOX_FAM.title_, "0.74-3", false, false, false, null, "x", "", "", "x/dosbox.conf")));
+		assertFalse(org.dbgl.util.DBConfAdvice.forVersion(DosboxVersionFactory.create("t", staging, "0.83.1", false, false, false, null, "x", "", "", "x/dosbox.conf")));
+		assertFalse(org.dbgl.util.DBConfAdvice.forVersion(DosboxVersionFactory.create("t", x, "2026.10.01", false, false, false, null, "x", "", "", "x/dosbox.conf")));
+		assertFalse(org.dbgl.util.DBConfAdvice.forVersion(DosboxVersionFactory.create("t", "Something else", "1.0", false, false, false, null, "x", "", "", "x/dosbox.conf")));
+		assertFalse(org.dbgl.util.DBConfAdvice.forVersion(null));
+	}
+
 	@Test
 	public void testFitIntoColumn() throws Exception {
 		StringBuilder pubs = new StringBuilder();

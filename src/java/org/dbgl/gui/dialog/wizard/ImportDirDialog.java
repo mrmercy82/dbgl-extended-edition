@@ -63,6 +63,7 @@ import org.dbgl.model.repository.GameFilesRepository.FileType;
 import org.dbgl.model.repository.GameFilesRepository.GameData;
 import org.dbgl.model.repository.GameFilesRepository.GameDirEntry;
 import org.dbgl.model.repository.TemplateRepository;
+import org.dbgl.service.DBConfDatabaseService;
 import org.dbgl.service.ImageService;
 import org.dbgl.util.FilesUtils;
 import org.dbgl.util.searchengine.MetropolisSearchEngine;
@@ -278,6 +279,12 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 		});
 		consultConf_ = Chain.on(step6Group).lbl(l -> l).but(b -> b.layoutData(new GridData(SWT.BEGINNING, SWT.CENTER, false, false)).horSpan(2).imageText(ImageService.IMG_SHARE,
 			"button.consultconfsearchengine", Constants.DBCONFWS).toggle()).button();
+		// alpha 53: DBConf from the database next to DBGL (DBGL 0.100 beta 18); without it the button is not shown
+		if (!DBConfDatabaseService.available()) {
+			consultConf_.setSelection(false);
+			consultConf_.setVisible(false);
+			((GridData)consultConf_.getLayoutData()).exclude = true;
+		}
 		addStep(step6Group);
 
 		addFinalStep("dialog.importdir.progress", "dialog.importdir.startimport");

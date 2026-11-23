@@ -59,6 +59,22 @@ public final class DosboxDownload {
 	private DosboxDownload() {
 	}
 
+	/**
+	 * Alpha 53: a build as offered for choosing, with its kind in front ("MinGW – dosbox-x-mingw-win64-….zip"), the recommended
+	 * one marked.
+	 */
+	public static String buildLabel(String[] asset, boolean recommended, ITextService text) {
+		String kind = DosboxInstaller.buildKind(asset[0]);
+		String name = "vsbuild".equals(kind) ? "Visual Studio – " + asset[0]: "mingw".equals(kind) ? "MinGW – " + asset[0]: asset[0];
+		return recommended ? name + "   (" + text.get("dialog.main.notice.recommended") + ")": name;
+	}
+
+	/** what tells the kind of a build apart, empty for builds of no particular kind */
+	public static String buildHint(String[] asset, ITextService text) {
+		String kind = DosboxInstaller.buildKind(asset[0]);
+		return kind == null ? "": text.get("dialog.dosboxdownload.hint." + kind);
+	}
+
 	/** the folder the files of a release end up in, for the folder chosen: a folder named after the release in it */
 	public static File targetDir(String chosen, Release r) {
 		String folderName = DosboxInstaller.folderName(r.family(), r.version());
@@ -120,6 +136,12 @@ public final class DosboxDownload {
 		buildLabel.setText(text.get("dialog.dosboxdownload.build"));
 		Combo build = new Combo(dlg, SWT.READ_ONLY);
 		build.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 2, 1));
+		// alpha 53: what the build chosen is good for (DOSBox-X: Visual Studio or MinGW)
+		new Label(dlg, SWT.NONE);
+		Label buildHint = new Label(dlg, SWT.WRAP);
+		GridData hintData = new GridData(SWT.FILL, SWT.BEGINNING, true, false, 2, 1);
+		hintData.widthHint = 600;
+		buildHint.setLayoutData(hintData);
 
 		Label dirLabel = new Label(dlg, SWT.NONE);
 		dirLabel.setText(text.get("dialog.dosboxdownload.basedir"));
@@ -164,20 +186,29 @@ public final class DosboxDownload {
 			page.redraw();
 			dlg.layout(true, true);
 		};
+		Runnable showHint = () -> {
+			int sel = table.getSelectionIndex(), b = build.getSelectionIndex();
+			buildHint.setText((sel >= 0) && (b >= 0) && (b < candidates.get(sel).size()) ? buildHint(candidates.get(sel).get(b), text): "");
+		};
 		Runnable showBuilds = () -> {
 			int sel = table.getSelectionIndex();
 			build.removeAll();
 			if (sel >= 0) {
 				List<String[]> fitting = candidates.get(sel);
 				for (int i = 0; i < fitting.size(); i++)
-					build.add(fitting.get(i)[0] + ((i == 0) && (fitting.size() > 1) ? "   (" + text.get("dialog.main.notice.recommended") + ")": ""));
+					build.add(buildLabel(fitting.get(i), (i == 0) && (fitting.size() > 1), text));
 				if (!fitting.isEmpty())
 					build.select(0);
 			}
 			build.setEnabled(build.getItemCount() > 1);
+			showHint.run();
 			showTarget.run();
 		};
 		table.addListener(SWT.Selection, e -> showBuilds.run());
+		build.addListener(SWT.Selection, e -> {
+			showHint.run();
+			dlg.layout(true, true);
+		});
 		dir.addListener(SWT.Modify, e -> showTarget.run());
 		browse.addListener(SWT.Selection, e -> {
 			DirectoryDialog dd = new DirectoryDialog(dlg);

@@ -127,14 +127,16 @@ public class GenerationAwareConfigurable extends Configurable {
 				return Generation.x_20240301;
 			else if (Strings.CS.equalsAny(ver, "2024.10.01", "2024.12.04", "2025.01.01", "2025.02.01"))
 				return Generation.x_20241001;
-			// dated releases DBGL doesn't list (yet): compare the dates
-			if (StringUtils.defaultString(ver).matches("\\d{4}\\.\\d{2}\\.\\d{2}")) {
+			// dated releases DBGL doesn't list (yet): compare the dates. Alpha 53: the releases from 0.83.x on (2020) up to
+			// 2024.02 ("2022.08.0", "2023.09.01") have the settings of 2024.03.01, only some values less; 0.82.x is the old one
+			if (StringUtils.defaultString(ver).matches("\\d{4}\\.\\d{2}\\.\\d{1,2}")) {
 				if (ver.compareTo("2024.10.01") >= 0)
 					return Generation.x_20241001;
-				if (ver.compareTo("2024.03.01") >= 0)
-					return Generation.x_20240301;
-				return Generation.x_08220;
+				return Generation.x_20240301;
 			}
+			Matcher x = STAGING_VERSION_PATRN.matcher(StringUtils.defaultString(ver));
+			if (x.matches())
+				return Integer.parseInt(x.group(1)) >= 83 ? Generation.x_20240301: Generation.x_08220;
 		}
 		
 		System.err.println("DOSBox generation could not be determined, assume official_073");

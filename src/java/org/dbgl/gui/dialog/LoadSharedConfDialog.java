@@ -126,14 +126,13 @@ public class LoadSharedConfDialog extends SizeControlledButtonDialog<LoadSharedC
 		sashForm.setWeights(40, 60);
 
 		Composite composite = Composite_.on(tabFolder).layout(new GridLayout(3, false)).tab("dialog.confsharing.tab.info").build();
-		Text author = Chain.on(composite).lbl(l -> l.key("dialog.confsharing.author")).txt(t -> t.horSpan(2).nonEditable()).text();
 		Text dosbox = Chain.on(composite).lbl(l -> l.key("dialog.loadsharedconf.dosboxversion")).txt(t -> t.horSpan(2).nonEditable()).text();
 		Text incrConf = Chain.on(composite).lbl(l -> l.key("dialog.confsharing.explanation")).txt(t -> t.multi().readOnly()).text();
 		Text explanation = Text_.on(composite).multi().readOnly().wrap().build();
 		Text notes = Chain.on(composite).lbl(l -> l.key("dialog.confsharing.notes")).txt(t -> t.multi().wrap().readOnly().horSpan(2)).text();
 		Button reloadDosboxDefaults = Button_.on(composite).horSpan(3).key("dialog.loadsharedconf.reloaddefaults").ctrl();
 
-		table.addListener(SWT.Selection, e -> displaySharedConfData(table, author, dosbox, incrConf, explanation, notes));
+		table.addListener(SWT.Selection, e -> displaySharedConfData(table, dosbox, incrConf, explanation, notes));
 
 		table.addMouseListener(new MouseAdapter() {
 			@Override
@@ -157,7 +156,7 @@ public class LoadSharedConfDialog extends SizeControlledButtonDialog<LoadSharedC
 			table.getColumn(i).pack();
 		table.setSelection(getEntryBestMatchIndex(title_, confs_));
 		table.showSelection();
-		displaySharedConfData(table, author, dosbox, incrConf, explanation, notes);
+		displaySharedConfData(table, dosbox, incrConf, explanation, notes);
 	}
 
 	private void populate(Table table) {
@@ -176,13 +175,13 @@ public class LoadSharedConfDialog extends SizeControlledButtonDialog<LoadSharedC
 		return StringRelatedUtils.findBestMatchIndex(search, titles);
 	}
 
-	private void displaySharedConfData(Table table, Text author, Text dosbox, Text incrConf, Text explanation, Text notes) {
+	private void displaySharedConfData(Table table, Text dosbox, Text incrConf, Text explanation, Text notes) {
 		int selection = table.getSelectionIndex();
 		if (selection != -1) {
 			SharedConf conf = confs_.get(selection);
-			author.setText(conf.getAuthor());
 			dosbox.setText(conf.getDosboxTitle() + " (" + conf.getDosboxVersion() + ")");
-			incrConf.setText(conf.getIncrConf());
+			// alpha 53: about half of the configurations of DBConf change nothing: the defaults of DOSBox do for the game
+			incrConf.setText(org.apache.commons.lang3.StringUtils.isBlank(conf.getIncrConf()) ? text_.get("dialog.loadsharedconf.nochanges"): conf.getIncrConf());
 			explanation.setText(conf.getExplanation());
 			notes.setText(conf.getNotes());
 		}

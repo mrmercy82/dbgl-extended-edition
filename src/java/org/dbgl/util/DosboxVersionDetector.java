@@ -168,8 +168,17 @@ public class DosboxVersionDetector {
 		while (m.find())
 			if ((latest == null) || (m.group(1).compareTo(latest) > 0))
 				latest = m.group(1);
+		if (latest == null) {
+			// alpha 53: releases before 2022.12 have no full date ("0.82.20", "0.84.1", "2022.08.0"); the program stores the
+			// version after the name of its SDL ("SDL1", a zero byte, "0.83.25") and in "dosbox-x 0.82.20 (C)"
+			Matcher o = X_OLD_PATRN.matcher(text);
+			if (o.find())
+				latest = o.group(1) != null ? o.group(1): o.group(2);
+		}
 		return latest == null ? null: new Result(SettingsService.DOSBOX_X_DOSBOX_FAM.title_, latest);
 	}
+
+	private static final Pattern X_OLD_PATRN = Pattern.compile("\0SDL[12]\0(0\\.\\d{2}\\.\\d{1,2}|20\\d{2}\\.[01]\\d\\.\\d{1,2})\0|dosbox-x (0\\.\\d{2}\\.\\d{1,2}) \\(C\\)");
 
 	private static final Pattern MAPPER_PATRN = Pattern.compile("\0mapper-([A-Za-z0-9.\\-]{2,24})\\.map\0");
 	private static final Pattern ECE_REVISION_PATRN = Pattern.compile("ECE[ ,_-]*(r\\d{4,})", Pattern.CASE_INSENSITIVE);
