@@ -2577,6 +2577,13 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				importScanFolder();
 			}
 		}).build();
+		// alpha 53: the selected profiles learned, so that the import above recognizes these games by their files later
+		MenuItem_.on(profilesMenu).key("dialog.main.menu.learnknown").image(ImageService.IMG_IMPORT).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				doLearnKnownGames();
+			}
+		}).build();
 		// alpha 52: game folders no profile uses yet
 		MenuItem_.on(profilesMenu).key("dialog.main.menu.importunlinked").image(ImageService.IMG_IMPORT).listen(new SelectionAdapter() {
 			@Override
@@ -6261,6 +6268,25 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				fileNames = new String[] {result};
 			}
 			doAddProfile(result, fileNames);
+		}
+	}
+
+	/** alpha 53: the selected profiles into config/known-games.json (start and setup program with checksums, title, details) */
+	private void doLearnKnownGames() {
+		if (profileTable_.getSelectionIndex() == -1)
+			return;
+		List<Profile> loaded = new ProfileLoader(shell_, getSelectedProfiles()).open();
+		if (loaded == null)
+			return;
+		File file = org.dbgl.util.OwnKnownGames.file();
+		try {
+			int learned = org.dbgl.util.OwnKnownGames.learn(file, loaded);
+			if (learned == 0)
+				Mess_.on(shell_).key("dialog.main.notice.learnknown.none").display();
+			else
+				Mess_.on(shell_).key("dialog.main.notice.learnknown", new Object[] {learned, loaded.size(), file.getPath()}).display();
+		} catch (Exception e) {
+			Mess_.on(shell_).exception(e).warning();
 		}
 	}
 

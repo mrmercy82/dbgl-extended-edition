@@ -20,7 +20,16 @@ Neu
   ruft er nur die vorhandenen Funktionen auf, jeder Schritt lässt sich
   überspringen. Wer schon Profile hat (z. B. nach einem Update), bekommt ihn
   nicht von selbst; Hilfe > „Einrichtungsassistent...“ öffnet ihn jederzeit.
-
+- Eigene Erkennung bekannter Spiele: Profile > „Markierte Profile für die
+  Erkennung merken“ merkt sich von den markierten Profilen Start- und
+  Setup-Programm (Name und Prüfsumme) mit Titel, Entwickler, Verlag, Jahr und
+  Genre. Ein Profil mit Titel und mindestens Entwickler, Verlag oder Jahr wird
+  auch beim Speichern im Profildialog gemerkt. „Bekannte Spiele aus Ordner
+  importieren“ erkennt diese Spiele danach zusätzlich zur mitgelieferten
+  Datenbank (die nur für einen Teil ihrer Spiele Prüfsummen hat), z. B. auf
+  einem anderen PC oder nach einer Neuinstallation. Gespeichert wird in
+  config\known-games.json, ohne Pfade; die mitgelieferte Datenbank bleibt
+  unverändert.
 Geändert
 - Eine neue Installation öffnet das Hauptfenster maximiert.
 - Import von Spielen (Ordner, GOG/Steam, LaunchBox, eXoDOS, ScummVM): als

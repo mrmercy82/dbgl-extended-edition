@@ -312,7 +312,10 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 
 					GameFilesRepository repo = new GameFilesRepository();
 
-					List<String> knownFilenames = repo.listAllFilenames();
+					// alpha 53: also the games learned from profiles (config/known-games.json), after the database of DBGL
+					List<org.dbgl.util.OwnKnownGames.Entry> own = org.dbgl.util.OwnKnownGames.load(org.dbgl.util.OwnKnownGames.file());
+					List<String> knownFilenames = new ArrayList<>(repo.listAllFilenames());
+					knownFilenames.addAll(org.dbgl.util.OwnKnownGames.filenames(own));
 					display_.asyncExec(() -> scanInfo_.append(text_.get("dialog.importdir.notice.scandirforknownfiles", new Object[] {dir_.getPath(), knownFilenames.size()}).concat("  ")));
 
 					List<ImmutablePair<File, byte[]>> fileMd5s = new ArrayList<>();
@@ -329,6 +332,8 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 					games_ = new ArrayList<>();
 					for (Map.Entry<File, List<ImmutablePair<File, byte[]>>> dirFile: fileMd5s.stream().collect(Collectors.groupingBy(x -> x.getKey().getParentFile())).entrySet()) {
 						GameDirEntry gameDirEntry = constructGameDirEntry(dirFile.getKey(), dirFile.getValue(), games);
+						if (gameDirEntry == null) // alpha 53: not in the database of DBGL, perhaps learned from a profile
+							gameDirEntry = ownGameDirEntry(dirFile.getKey(), dirFile.getValue(), own, text_.get("dialog.importdir.ownrecognition"));
 						if (gameDirEntry != null)
 							games_.add(gameDirEntry);
 					}
@@ -352,6 +357,42 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 				}
 			}
 		}.start();
+	}
+
+	/**
+	 * alpha 53: a folder whose start program is among the games learned from profiles: the details from there, the start program
+	 * and (if it is there with the same checksum) the setup program; scored as the database of DBGL would (35 and 15)
+	 */
+	public static GameDirEntry ownGameDirEntry(File dir, List<ImmutablePair<File, byte[]>> files, List<org.dbgl.util.OwnKnownGames.Entry> own, String source) {
+		if (own.isEmpty())
+			return null;
+		Map<String, String> md5s = new java.util.LinkedHashMap<>();
+		for (ImmutablePair<File, byte[]> file: files)
+			md5s.put(file.getKey().getName(), java.util.HexFormat.of().formatHex(file.getValue()));
+		org.dbgl.util.OwnKnownGames.Entry entry = org.dbgl.util.OwnKnownGames.match(own, md5s);
+		if (entry == null)
+			return null;
+		List<File> exes = FilesUtils.listExecutablesInDirRecursive(dir);
+		Optional<File> main = files.stream().map(ImmutablePair::getKey).filter(f -> f.getName().equalsIgnoreCase(entry.main().name())).findFirst();
+		if (main.isEmpty())
+			return null;
+		org.dbgl.util.OwnKnownGames.KnownFile setupKnown = entry.setupFile();
+		Optional<File> setup = setupKnown == null ? Optional.empty()
+				: files.stream().filter(f -> f.getKey().getName().equalsIgnoreCase(setupKnown.name()) && setupKnown.md5().equals(java.util.HexFormat.of().formatHex(f.getValue()))).map(
+					ImmutablePair::getKey).findFirst();
+		if (!exes.contains(main.get()))
+			exes = new ArrayList<>(Stream.concat(Stream.of(main.get()), exes.stream()).toList()); // e.g. a .BAT the list of programs leaves out
+		org.dbgl.model.WebProfile web = new org.dbgl.model.WebProfile();
+		web.setTitle(entry.title());
+		web.setDeveloperName(entry.developer());
+		web.setPublisherName(entry.publisher());
+		web.setYear(entry.year());
+		web.setGenre(entry.genre());
+		web.setUrl(StringUtils.EMPTY);
+		web.setNotes(StringUtils.EMPTY);
+		String explanation = main.get().getName() + " (35)" + (setup.isPresent() ? ", " + setup.get().getName() + " (15)": StringUtils.EMPTY) + " - "
+				+ source;
+		return new GameDirEntry(dir, main, setup, exes, web, setup.isPresent() ? 50: 35, explanation);
 	}
 
 	private static GameDirEntry constructGameDirEntry(File dir, List<ImmutablePair<File, byte[]>> files, Map<Integer, GameData> games) throws IOException {

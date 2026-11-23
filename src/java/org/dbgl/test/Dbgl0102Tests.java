@@ -3557,6 +3557,85 @@ public class Dbgl0102Tests {
 		assertFalse(org.dbgl.gui.dialog.WelcomeWizard.due(false, 12)); // updated from an earlier DBGL: has profiles
 	}
 
+	/** alpha 53: games learned from profiles: kept in a file of their own, read back, recognized by the start program */
+	@Test
+	public void testOwnKnownGames() throws Exception {
+		File dir = Files.createTempDirectory("dbgl-ownknown-").toFile();
+		File f = org.dbgl.util.OwnKnownGames.file(dir);
+		assertTrue(org.dbgl.util.OwnKnownGames.load(f).isEmpty()); // no file yet
+		String md5 = "0123456789abcdef0123456789abcdef", other = "fedcba9876543210fedcba9876543210";
+		java.util.List<org.dbgl.util.OwnKnownGames.Entry> entries = java.util.List.of(
+			new org.dbgl.util.OwnKnownGames.Entry("Ishar: Legend of the Fortress", "Silmarils", "Silmarils", "1992", "RPG",
+				java.util.List.of(new org.dbgl.util.OwnKnownGames.KnownFile("ISHAR.EXE", md5, false), new org.dbgl.util.OwnKnownGames.KnownFile("INSTALL.EXE", other, true))));
+		org.dbgl.util.OwnKnownGames.save(f, entries);
+		assertTrue(f.getPath().replace('\\', '/').endsWith("config/known-games.json"));
+		java.util.List<org.dbgl.util.OwnKnownGames.Entry> read = org.dbgl.util.OwnKnownGames.load(f);
+		assertEquals(entries, read);
+		assertTrue(org.dbgl.util.OwnKnownGames.filenames(read).containsAll(java.util.List.of("ISHAR.EXE", "ishar.exe", "INSTALL.EXE")));
+		// the start program with its checksum, in any case; another checksum (another version) is not the game
+		assertEquals("Ishar: Legend of the Fortress", org.dbgl.util.OwnKnownGames.match(read, java.util.Map.of("ishar.exe", md5, "README.TXT", other)).title());
+		assertNull(org.dbgl.util.OwnKnownGames.match(read, java.util.Map.of("ISHAR.EXE", other)));
+		assertNull(org.dbgl.util.OwnKnownGames.match(read, java.util.Map.of("INSTALL.EXE", other))); // the setup program alone is not enough
+		// what is no valid entry is left out: no title, a path as name, a bad checksum
+		Files.writeString(f.toPath(), "{\"games\":[{\"title\":\"\",\"files\":[{\"name\":\"A.EXE\",\"md5\":\"" + md5 + "\"}]},"
+				+ "{\"title\":\"B\",\"files\":[{\"name\":\"..\\\\B.EXE\",\"md5\":\"" + md5 + "\"}]},{\"title\":\"C\",\"files\":[{\"name\":\"C.EXE\",\"md5\":\"xyz\"}]},"
+				+ "{\"title\":\"D\",\"files\":[{\"name\":\"D.EXE\",\"md5\":\"" + md5.toUpperCase() + "\"}]}]}");
+		assertEquals(java.util.List.of("D"), org.dbgl.util.OwnKnownGames.load(f).stream().map(org.dbgl.util.OwnKnownGames.Entry::title).toList());
+		Files.writeString(f.toPath(), "{ damaged");
+		assertTrue(org.dbgl.util.OwnKnownGames.load(f).isEmpty());
+		org.apache.commons.io.FileUtils.deleteDirectory(dir);
+	}
+
+	/** alpha 53: learning from a profile: start and setup program with checksums, its details; a ScummVM-free, Windows-free game */
+	@Test
+	public void testOwnKnownGamesLearnFromProfile() throws Exception {
+		File dir = Files.createTempDirectory("dbgl-ownlearn-").toFile();
+		File dosboxConf = new File(dir, "dosbox.conf");
+		Files.copy(new File(DATA_DIR, "dosbox-staging-0.83.0.conf").toPath(), dosboxConf.toPath());
+		org.dbgl.model.aggregate.DosboxVersion dbv = DosboxVersionFactory.create(9100, "Staging", SettingsService.STAGING_DOSBOX_FAM.title_, "0.83.0", false, true, false, null, dir.getPath(), "", "",
+			dosboxConf.getPath(), null, null, null, 0);
+		dbv.resetAndLoadConfiguration();
+		File game = new File(dir, "ISHAR");
+		game.mkdirs();
+		Files.write(new File(game, "ISHAR.EXE").toPath(), program(false));
+		Files.write(new File(game, "INSTALL.EXE").toPath(), "setup".getBytes());
+		org.dbgl.model.aggregate.Profile p = org.dbgl.model.factory.ProfileFactory.create(dbv, null);
+		p.setTitle("Ishar: Legend of the Fortress");
+		assertFalse(org.dbgl.util.OwnKnownGames.worthLearning(p)); // a title alone: perhaps only the name of the folder
+		p.setYear("1992");
+		assertTrue(org.dbgl.util.OwnKnownGames.worthLearning(p));
+		p.setAutoexecSettings(new File(game, "ISHAR.EXE").getAbsolutePath(), "");
+		p.setSetupFileLocation(new File(game, "INSTALL.EXE").getAbsolutePath());
+		File f = org.dbgl.util.OwnKnownGames.file(dir);
+		assertEquals(1, org.dbgl.util.OwnKnownGames.learn(f, java.util.List.of(p)));
+		assertEquals(1, org.dbgl.util.OwnKnownGames.learn(f, java.util.List.of(p))); // again: replaced, not twice
+		java.util.List<org.dbgl.util.OwnKnownGames.Entry> read = org.dbgl.util.OwnKnownGames.load(f);
+		assertEquals(1, read.size());
+		assertEquals("ISHAR.EXE", read.get(0).main().name());
+		assertEquals(org.dbgl.util.OwnKnownGames.md5(new File(game, "ISHAR.EXE")), read.get(0).main().md5());
+		assertEquals("INSTALL.EXE", read.get(0).setupFile().name());
+		assertEquals("1992", read.get(0).year());
+		assertFalse(Files.readString(f.toPath()).contains(dir.getName())); // no paths kept
+		// the import of known games: the folder recognized by the start program learned, with the details and the setup program
+		java.util.List<org.apache.commons.lang3.tuple.ImmutablePair<File, byte[]>> files = new java.util.ArrayList<>();
+		for (String n: new String[] {"ISHAR.EXE", "INSTALL.EXE"})
+			files.add(new org.apache.commons.lang3.tuple.ImmutablePair<>(new File(game, n), org.dbgl.util.FilesUtils.md5(new File(game, n))));
+		org.dbgl.model.repository.GameFilesRepository.GameDirEntry e = org.dbgl.gui.dialog.wizard.ImportDirDialog.ownGameDirEntry(game, files, read, "own");
+		assertEquals("Ishar: Legend of the Fortress", e.webProfile_.getTitle());
+		assertEquals("1992", e.webProfile_.getYear());
+		assertEquals(new File(game, "ISHAR.EXE"), e.getMain());
+		assertEquals(new File(game, "INSTALL.EXE"), e.getSetup());
+		assertEquals(50, e.score_);
+		Files.write(new File(game, "ISHAR.EXE").toPath(), program(true)); // another version of the program: not recognized
+		files.set(0, new org.apache.commons.lang3.tuple.ImmutablePair<>(new File(game, "ISHAR.EXE"), org.dbgl.util.FilesUtils.md5(new File(game, "ISHAR.EXE"))));
+		assertNull(org.dbgl.gui.dialog.wizard.ImportDirDialog.ownGameDirEntry(game, files, read, "own"));
+		// Windows started: not the game
+		p.setAutoexecSettings(new File(game, "WIN.COM").getAbsolutePath(), "");
+		Files.write(new File(game, "WIN.COM").toPath(), new byte[10]);
+		assertNull(org.dbgl.util.OwnKnownGames.fromProfile(p));
+		org.apache.commons.io.FileUtils.deleteDirectory(dir);
+	}
+
 	/** alpha 53: DOSBox and ScummVM themselves are no games: their folders are left out of the import from a folder */
 	@Test
 	public void testUnlinkedLeavesOutDosbox() throws Exception {

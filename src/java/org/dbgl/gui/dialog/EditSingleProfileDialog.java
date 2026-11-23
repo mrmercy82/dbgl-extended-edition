@@ -904,6 +904,14 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 					});
 					if ((saveDosboxLog_ != null) && !saveDosboxLog_.isDisposed())
 						org.dbgl.util.DosboxLog.setOn(result_.getId(), saveDosboxLog_.getSelection());
+					// alpha 53: a game with its details filled in is learned, so that Import known games recognizes it by its files later
+					// (silently: a game not learned is no reason to stop saving)
+					if (org.dbgl.util.OwnKnownGames.worthLearning(result_))
+						try {
+							org.dbgl.util.OwnKnownGames.learn(org.dbgl.util.OwnKnownGames.file(), List.of(result_));
+						} catch (IOException | RuntimeException e) {
+							e.printStackTrace();
+						}
 
 					if (imageInformation_ != null) {
 						File canonicalCapturesDir = profile_.getCanonicalCaptures();

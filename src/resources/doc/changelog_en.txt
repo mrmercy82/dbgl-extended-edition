@@ -20,7 +20,15 @@ New
   only calls what DBGL has anyway, every step can be skipped. Who has
   profiles already (e.g. after an update) does not get it by itself; Help >
   "Welcome wizard..." opens it at any time.
-
+- Own recognition of known games: Profiles > "Learn selected profiles for
+  the recognition" keeps the start and setup program (name and checksum) of
+  the selected profiles with title, developer, publisher, year and genre. A
+  profile with a title and at least developer, publisher or year is also
+  learned when it is saved in the profile dialog. "Import known games in
+  folder" then recognizes these games in addition to the database that comes
+  with DBGL (which has checksums for only part of its games), e.g. on another
+  PC or after a new installation. Kept in config\known-games.json, without
+  paths; the database that comes with DBGL stays as it is.
 Changed
 - A new installation opens the main window maximized.
 - Importing games (folder, GOG/Steam, LaunchBox, eXoDOS, ScummVM): the
