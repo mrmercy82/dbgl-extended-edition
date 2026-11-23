@@ -48,6 +48,13 @@ Geändert
   Akzente, „&“/„and“, ein „The“ am Anfang), zählt jetzt als genauer Treffer,
   wenn er der einzige ist. Für MobyGames und TheGamesDB wird dabei in neuen
   Einstellungen auch ein Cover je Profil gespeichert (vorher keines).
+- „Bekannte Spiele aus Ordner importieren“: Fehlt einem erkannten Spiel das
+  Startprogramm, wird es geraten (das Startprogramm der Datenbank unter
+  seinem Namen, auch geändert; sonst eines, das wie der Ordner heißt; sonst
+  das einzige Programm im Ordner, das kein Setup, Installer oder DOS-Extender
+  ist). Der Spielordner lässt sich aus der Liste öffnen (Kontextmenü oder
+  Doppelklick auf den Ordner). Fehlt Spielen das Startprogramm, kommt eine
+  einzige Meldung, die sie nennt, statt derselben Zeile je Spiel.
 
 Fehler behoben
 - Unter Windows fragte die Firewall nach dem Start, ob Java ins Netz darf:
@@ -67,6 +74,10 @@ Fehler behoben
   ohne Startprogramm braucht es das Setup-Programm und eine weitere Datei
   oder drei weitere Dateien. Die Suche zeigt außerdem, wie viele Spiele aus
   Profilen gemerkt sind und wo die Datei liegt.
+- „Bekannte Spiele aus Ordner importieren“: Ein Start- oder Setup-Programm
+  in einem Unterordner des Spiels, in der Liste ausgewählt, wurde als
+  gleichnamige Datei im Spielordner selbst eingetragen, die es dort nicht
+  gab. Die Liste zeigt die Programme jetzt mit ihrem Unterordner.
 
 0.101 alpha 52 (2026-11-21)
 ---------------------------

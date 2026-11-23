@@ -48,6 +48,13 @@ Changed
   leading "The") now counts as an exact match when it is the only one. For
   MobyGames and TheGamesDB, new settings also save one cover per profile
   there (before: none).
+- "Import known games in folder": when a recognized game has no start
+  program, it is guessed (the start program of the database by its name,
+  also when changed; else one named like the folder; else the only program
+  in the folder that is no setup, installer or DOS extender). The game folder
+  can be opened from the list (context menu, or a double click on the
+  folder). When games have no start program, one message names them,
+  instead of the same line per game.
 
 Fixed
 - On Windows the firewall asked after the start whether Java may use the
@@ -66,6 +73,10 @@ Fixed
   one game count, and without the start program it takes the setup program
   and one further file, or three further files. The search also shows how
   many games are learned from profiles and where the file is.
+- "Import known games in folder": a start or setup program in a folder
+  below the game, chosen in the list, was entered as a file of that name in
+  the game folder itself, which was not there. The list now shows the
+  programs with their folder.
 
 0.101 alpha 52 (2026-11-21)
 ---------------------------

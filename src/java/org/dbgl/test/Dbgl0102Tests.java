@@ -3713,6 +3713,25 @@ public class Dbgl0102Tests {
 		org.apache.commons.io.FileUtils.deleteDirectory(dir);
 	}
 
+	/** alpha 53: the start program guessed for a game recognized by other files */
+	@Test
+	public void testImportGuessMain() {
+		File dir = new File("SPIELE", "BLOOD");
+		java.util.function.Function<String, File> f = n -> new File(dir, n);
+		java.util.function.BiFunction<List<File>, List<String>, String> guess = (exes, names) -> org.dbgl.gui.dialog.wizard.ImportDirDialog.guessMain(dir, exes, names).map(
+			x -> dir.toPath().relativize(x.toPath()).toString().replace('\\', '/')).orElse("-");
+		// the start program of the database by its name (here patched, so another checksum), in the folder itself before one below
+		assertEquals("BLOOD.EXE", guess.apply(List.of(f.apply("3DFX.EXE"), f.apply("BLOOD.EXE"), f.apply("SUB/BLOOD.EXE"), f.apply("SETUP.EXE")), List.of("BLOOD.EXE")));
+		assertEquals("SUB/BLOOD.EXE", guess.apply(List.of(f.apply("SETUP.EXE"), f.apply("SUB/BLOOD.EXE")), List.of("blood.exe")));
+		// else one named like the folder
+		assertEquals("BLOOD.BAT", guess.apply(List.of(f.apply("A.EXE"), f.apply("BLOOD.BAT"), f.apply("SETUP.EXE")), List.of()));
+		// else the only program that is no helper
+		assertEquals("GAME.EXE", guess.apply(List.of(f.apply("GAME.EXE"), f.apply("SETUP.EXE"), f.apply("DOS4GW.EXE"), f.apply("INSTALL.EXE")), List.of()));
+		// two candidates: none guessed
+		assertEquals("-", guess.apply(List.of(f.apply("A.EXE"), f.apply("B.EXE"), f.apply("SETUP.EXE")), List.of()));
+		assertEquals("-", guess.apply(List.of(f.apply("SETUP.EXE"), f.apply("SUB/GAME.EXE")), List.of()));
+	}
+
 	/** alpha 53: DOSBox and ScummVM themselves are no games: their folders are left out of the import from a folder */
 	@Test
 	public void testUnlinkedLeavesOutDosbox() throws Exception {

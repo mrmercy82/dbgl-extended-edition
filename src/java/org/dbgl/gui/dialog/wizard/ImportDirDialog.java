@@ -453,9 +453,11 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 		if (game == null)
 			return null;
 
-		GameDirEntry result = new GameDirEntry(dir,
-				set.set_.entrySet().stream().filter(x -> x.getValue().type_ == FileType.MAIN && x.getValue().getScore() > 0 && exes.stream().anyMatch(y -> y.getName().equals(x.getKey()))).map(
-					x -> new File(dir, x.getKey())).findFirst(),
+		Optional<File> mainFile = set.set_.entrySet().stream().filter(
+			x -> x.getValue().type_ == FileType.MAIN && x.getValue().getScore() > 0 && exes.stream().anyMatch(y -> y.getName().equals(x.getKey()))).map(x -> new File(dir, x.getKey())).findFirst();
+		if (mainFile.isEmpty()) // alpha 53: recognized by other files: the start program guessed
+			mainFile = guessMain(dir, exes, set.set_.entrySet().stream().filter(x -> x.getValue().type_ == FileType.MAIN).map(Map.Entry::getKey).toList());
+		GameDirEntry result = new GameDirEntry(dir, mainFile,
 				set.set_.entrySet().stream().filter(x -> x.getValue().type_ == FileType.SETUP && x.getValue().getScore() > 0 && exes.stream().anyMatch(y -> y.getName().equals(x.getKey()))).map(
 					x -> new File(dir, x.getKey())).findFirst(),
 				exes, MetropolisSearchEngine.getInstance().getEntryDetailedInformation(game.getValue().webProfile_), set.getScore(), set.set_.entrySet().stream().sorted((o1, o2) -> {
@@ -465,6 +467,37 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 
 		);
 		return result;
+	}
+
+	/** helpers that are no game: setup and install programs, DOS extenders, packers, drivers */
+	private static final java.util.regex.Pattern HELPER = java.util.regex.Pattern.compile(
+		"(?i)(setup|install|instal|inst|uninst.*|config|cfg|setsound|setmain|sndsetup|soundset|sound|setblast|dos4gw|dos32a|pmodew|cwsdpmi|dpmi.*|go32.*|readme|read|"
+				+ "unzip|pkunzip|pkzip|lha|lharc|arj|catalog|order|patch|univbe|vesa.*|mouse|keyb|loadfix|commit|tl|vbe.*)");
+
+	/**
+	 * alpha 53: the start program of a game recognized by other files: (1) the start program of the database by its name, even with
+	 * another checksum (e.g. patched), in the game folder itself before one below; (2) a program in the game folder named like the
+	 * folder; (3) the only program in the game folder that is no helper (setup, install, DOS extender ...); else none
+	 */
+	public static Optional<File> guessMain(File dir, List<File> exes, List<String> mainNames) {
+		Comparator<File> nearest = Comparator.comparingInt((File f) -> f.toPath().getNameCount()).thenComparing(File::getPath);
+		Optional<File> byName = exes.stream().filter(f -> mainNames.stream().anyMatch(n -> n.equalsIgnoreCase(f.getName()))).sorted(nearest).findFirst();
+		if (byName.isPresent())
+			return byName;
+		List<File> top = exes.stream().filter(f -> dir.equals(f.getParentFile()) && !HELPER.matcher(org.apache.commons.io.FilenameUtils.getBaseName(f.getName())).matches()).toList();
+		Optional<File> likeFolder = top.stream().filter(f -> org.apache.commons.io.FilenameUtils.getBaseName(f.getName()).equalsIgnoreCase(dir.getName())).findFirst();
+		if (likeFolder.isPresent())
+			return likeFolder;
+		return top.size() == 1 ? Optional.of(top.get(0)): Optional.empty();
+	}
+
+	/** a program as shown in the list: with the folder below the game folder, if it is in one */
+	static String relative(File dir, File f) {
+		try {
+			return dir.toPath().relativize(f.toPath()).toString();
+		} catch (IllegalArgumentException e) {
+			return f.getName();
+		}
 	}
 
 	@Override
@@ -499,8 +532,8 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 			newItemTableItem.setChecked(game.getOptMain().isPresent() && existingProfiles_.stream().noneMatch(x -> game.dir_.equals(x.getCombinedConfiguration().getAutoexec().getCanonicalGameDir())));
 			newItemTableItem.setText(1, game.dir_.getPath());
 			newItemTableItem.setText(2, game.webProfile_.getTitle());
-			newItemTableItem.setText(3, game.getOptMain().isPresent() ? game.getMain().getName() + (game.executables_.size() > 1 ? ' ' + TRIANGLE_DOWN: StringUtils.EMPTY): TRIANGLE_DOWN);
-			newItemTableItem.setText(4, game.getOptSetup().isPresent() ? game.getSetup().getName() + (game.executables_.size() > 1 ? ' ' + TRIANGLE_DOWN: StringUtils.EMPTY)
+			newItemTableItem.setText(3, game.getOptMain().isPresent() ? relative(game.dir_, game.getMain()) + (game.executables_.size() > 1 ? ' ' + TRIANGLE_DOWN: StringUtils.EMPTY): TRIANGLE_DOWN);
+			newItemTableItem.setText(4, game.getOptSetup().isPresent() ? relative(game.dir_, game.getSetup()) + (game.executables_.size() > 1 ? ' ' + TRIANGLE_DOWN: StringUtils.EMPTY)
 					: game.executables_.size() > 1 ? TRIANGLE_DOWN: StringUtils.EMPTY);
 			newItemTableItem.setText(5, StringUtils.defaultString(game.webProfile_.getPublisherName()));
 			newItemTableItem.setText(6, game.webProfile_.getYear());
@@ -511,6 +544,21 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 
 	private void constructGameList() {
 		populate(table_);
+
+		// alpha 53: the folder of a game opened in the file manager, from its context menu or with a double click on the folder
+		if (table_.getMenu() == null) {
+			org.eclipse.swt.widgets.Menu menu = new org.eclipse.swt.widgets.Menu(table_);
+			org.eclipse.swt.widgets.MenuItem open = new org.eclipse.swt.widgets.MenuItem(menu, SWT.PUSH);
+			open.setText(text_.get("dialog.main.profile.openfolder"));
+			open.addListener(SWT.Selection, e -> openSelectedFolder());
+			menu.addListener(SWT.Show, e -> open.setEnabled(table_.getSelectionIndex() >= 0));
+			table_.setMenu(menu);
+			table_.addListener(SWT.MouseDoubleClick, e -> {
+				int i = table_.getSelectionIndex();
+				if (i >= 0 && table_.getItem(i).getBounds(1).contains(e.x, e.y))
+					openSelectedFolder();
+			});
+		}
 
 		final TableEditor editor = new TableEditor(table_);
 		editor.horizontalAlignment = SWT.LEFT;
@@ -568,19 +616,17 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 								return;
 
 							final Combo combo = new Combo(table_, SWT.READ_ONLY);
-							combo.setItems(game.executables_.stream().map(File::getName).toArray(String[]::new));
+							// alpha 53: with the folder below the game folder (a program of the same name can be in several), chosen by its place
+							// in the list: before, only the name was kept, and a program in a folder below became one that was not there
+							combo.setItems(game.executables_.stream().map(f -> relative(game.dir_, f)).toArray(String[]::new));
 							combo.add("-", 0);
-							if (column == 3 && game.getOptMain().isPresent())
-								combo.setText(game.getMain().getName());
-							else if (column == 4 && game.getOptSetup().isPresent())
-								combo.setText(game.getSetup().getName());
-							else
-								combo.select(0);
+							int chosen = column == 3 ? game.executables_.indexOf(game.getOptMain().orElse(null)): game.executables_.indexOf(game.getOptSetup().orElse(null));
+							combo.select(chosen + 1);
 							editor.setEditor(combo, item, i);
 							combo.setFocus();
 
 							Listener comboListener = e -> {
-								Optional<File> optFile = combo.getSelectionIndex() == 0 ? Optional.empty(): Optional.of(new File(game.dir_, combo.getText()));
+								Optional<File> optFile = combo.getSelectionIndex() <= 0 ? Optional.empty(): Optional.of(game.executables_.get(combo.getSelectionIndex() - 1));
 								if (e.type == SWT.Selection) {
 									if (column == 3)
 										game.setOptMain(optFile);
@@ -601,9 +647,9 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 								}
 								if (column == 3)
 									item.setText(column,
-										game.getOptMain().isPresent() ? game.getMain().getName() + (game.executables_.size() > 1 ? ' ' + TRIANGLE_DOWN: StringUtils.EMPTY): TRIANGLE_DOWN);
+										game.getOptMain().isPresent() ? relative(game.dir_, game.getMain()) + (game.executables_.size() > 1 ? ' ' + TRIANGLE_DOWN: StringUtils.EMPTY): TRIANGLE_DOWN);
 								else
-									item.setText(column, game.getOptSetup().isPresent() ? game.getSetup().getName() + (game.executables_.size() > 1 ? ' ' + TRIANGLE_DOWN: StringUtils.EMPTY)
+									item.setText(column, game.getOptSetup().isPresent() ? relative(game.dir_, game.getSetup()) + (game.executables_.size() > 1 ? ' ' + TRIANGLE_DOWN: StringUtils.EMPTY)
 											: game.executables_.size() > 1 ? TRIANGLE_DOWN: StringUtils.EMPTY);
 							};
 							combo.addListener(SWT.Selection, comboListener);
@@ -694,20 +740,32 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 		table_.addListener(SWT.MouseHover, tableListener);
 	}
 
+	private void openSelectedFolder() {
+		int i = table_.getSelectionIndex();
+		if (i >= 0 && i < games_.size())
+			org.dbgl.util.SystemUtils.openForBrowsing(games_.get(i).dir_.getPath(), shell_);
+	}
+
 	private boolean conditionsForStep2Ok() {
 		Mess_.Builder mess = Mess_.on(shell_);
 		if (Stream.of(table_.getItems()).noneMatch(TableItem::getChecked))
 			mess.key("dialog.importdir.required.onegametoimport").bind(table_);
 
+		// alpha 53: each message once, with the games without a start program named (before: the same line once per game)
+		List<String> withoutMain = new ArrayList<>();
+		boolean withoutTitle = false;
 		for (int i = 0; i < games_.size(); i++) {
 			if (table_.getItem(i).getChecked()) {
 				GameDirEntry game = games_.get(i);
 				if (!game.getOptMain().isPresent() || StringUtils.isBlank(game.getMain().getName()))
-					mess.key("dialog.importdir.required.main").bind(table_);
-				if (StringUtils.isBlank(game.webProfile_.getTitle()))
-					mess.key("dialog.importdir.required.title").bind(table_);
+					withoutMain.add(StringUtils.defaultIfBlank(game.webProfile_.getTitle(), game.dir_.getName()));
+				withoutTitle |= StringUtils.isBlank(game.webProfile_.getTitle());
 			}
 		}
+		if (!withoutMain.isEmpty())
+			mess.key("dialog.importdir.required.mainfor", new Object[] {withoutMain.size(), String.join(", ", withoutMain)}).bind(table_);
+		if (withoutTitle)
+			mess.key("dialog.importdir.required.title").bind(table_);
 
 		return mess.valid();
 	}
