@@ -3704,6 +3704,11 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			public void fetchCovers() {
 				doCoverBatch();
 			}
+
+			@Override
+			public void importKnown() {
+				importScanFolder();
+			}
 		});
 		dosboxListWatcher_ = null;
 		if (r.processRestart())

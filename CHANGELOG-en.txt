@@ -8,14 +8,18 @@ Based on DBGL 0.100 beta 17 by Ronald Blankendaal (https://dbgl.org), source cod
 ----------------------------
 New
 - Welcome wizard at the first start (when there are no profiles yet):
-  language and appearance, finding or downloading DOSBox versions, taking
-  over the first games (from a folder, GOG/Steam, LaunchBox, eXoDOS, ScummVM,
-  D-Fend Reloaded) and game information from the internet (which database
-  for what, how it is done, that the search by the title can go wrong; a
-  button to get covers). It enters the DOSBox 0.74-3 that comes with DBGL
-  when it is missing; else it only calls what DBGL has anyway, every step can
-  be skipped. Who has profiles already (e.g. after an update) does not get it
-  by itself; Help > "Welcome wizard..." opens it at any time.
+  language and appearance; DOSBox (the advice to download both DOSBox
+  Staging and DOSBox-X, two sentences each on Staging, DOSBox-X and 0.74-3;
+  finding or downloading); taking over the first games (from a folder, known
+  games recognized by their files, GOG/Steam, LaunchBox, eXoDOS, ScummVM,
+  D-Fend Reloaded); game information (recommended: the Metropolis Launcher
+  MobyGames Database that comes with DBGL) and covers (recommended:
+  TheGamesDB.net) on a page each, with how it is done and that a precise
+  profile title makes the search better; at the end, what comes next. It
+  enters the DOSBox 0.74-3 that comes with DBGL when it is missing; else it
+  only calls what DBGL has anyway, every step can be skipped. Who has
+  profiles already (e.g. after an update) does not get it by itself; Help >
+  "Welcome wizard..." opens it at any time.
 
 Changed
 - A new installation opens the main window maximized.

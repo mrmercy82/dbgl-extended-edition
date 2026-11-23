@@ -84,6 +84,9 @@ public final class WelcomeWizard {
 
 		/** Profiles > Covers for profiles without pictures */
 		void fetchCovers();
+
+		/** Profiles > Import known games in folder (recognized by their files) */
+		void importKnown();
 	}
 
 	/** what came out of it: whether DBGL is to start again now (language or appearance changed), and whether the process must */
@@ -153,6 +156,8 @@ public final class WelcomeWizard {
 
 		// page 2: DOSBox
 		Composite p2 = page(stack, 2);
+		wrap(p2, text.get("dialog.welcome.p2.recommend"), 2);
+		bullets(p2, 2, text.get("dialog.welcome.p2.staging"), text.get("dialog.welcome.p2.dosboxx"), text.get("dialog.welcome.p2.classic"));
 		wrap(p2, text.get("dialog.welcome.p2.found"), 2);
 		// one row per version: tick, title, folder, in columns (the folders one below the other)
 		Composite versions = new Composite(p2, SWT.NONE);
@@ -166,12 +171,15 @@ public final class WelcomeWizard {
 		versions.setLayoutData(versionsData);
 		Button locate = push(p2, text.get("dialog.welcome.locate"), text.get("dialog.welcome.locate.tooltip"));
 		Button download = push(p2, text.get("dialog.welcome.download"), text.get("dialog.welcome.download.tooltip"));
+		for (Button b: new Button[] {locate, download}) // an empty line between the list and the buttons
+			((GridData)b.getLayoutData()).verticalIndent = 14;
 		wrap(p2, text.get("dialog.welcome.p2.text"), 2);
 
 		// page 3: the first games
 		Composite p3 = page(stack, 2);
 		wrap(p3, text.get("dialog.welcome.p3.text"), 2);
-		Button[] imports = {importRow(p3, text, "folder", actions::importFolder), importRow(p3, text, "store", actions::importStoreGames),
+		Button[] imports = {importRow(p3, text, "folder", actions::importFolder), importRow(p3, text, "known", actions::importKnown),
+				importRow(p3, text, "store", actions::importStoreGames),
 				importRow(p3, text, "launchbox", actions::importLaunchBox), importRow(p3, text, "exo", actions::importExo),
 				actions.scummvmWanted() ? importRow(p3, text, "scummvm", actions::importScummvm): null, importRow(p3, text, "dfend", actions::importDfend)};
 		Label games = new Label(p3, SWT.NONE);
@@ -179,24 +187,26 @@ public final class WelcomeWizard {
 		gamesData.verticalIndent = 8;
 		games.setLayoutData(gamesData);
 
-		// page 4: information from the internet: which database for what, how, and that it can go wrong
+		// page 4: game information from the internet: which database, how, and that a precise title helps
 		Composite pOnline = page(stack, 1);
 		wrap(pOnline, text.get("dialog.welcome.p5.text"), 1);
 		wrap(pOnline, text.get("dialog.welcome.p5.howto"), 1);
-		for (String k: new String[] {"single", "multi", "coversonly"}) {
-			Label l = new Label(pOnline, SWT.WRAP);
-			l.setText("\u2022 " + text.get("dialog.welcome.p5." + k));
-			GridData d = new GridData(SWT.FILL, SWT.BEGINNING, true, false);
-			d.widthHint = 528;
-			d.horizontalIndent = 12;
-			l.setLayoutData(d);
-		}
+		bullets(pOnline, 1, text.get("dialog.welcome.p5.single"), text.get("dialog.welcome.p5.multi"));
 		wrap(pOnline, text.get("dialog.welcome.p5.note"), 1);
 
-		// page 5: done
+		// page 5: covers from the internet
+		Composite pCovers = page(stack, 1);
+		wrap(pCovers, text.get("dialog.welcome.p6.text"), 1);
+		wrap(pCovers, text.get("dialog.welcome.p5.howto"), 1);
+		bullets(pCovers, 1, text.get("dialog.welcome.p6.single"), text.get("dialog.welcome.p6.batch"));
+		wrap(pCovers, text.get("dialog.welcome.p6.note"), 1);
+
+		// page 6: done, what comes next, and how the wizard is opened again
 		Composite p4 = page(stack, 1);
 		Label summary = new Label(p4, SWT.WRAP);
 		summary.setLayoutData(new GridData(SWT.FILL, SWT.BEGINNING, true, false));
+		wrap(p4, text.get("dialog.welcome.p4.next"), 1);
+		bullets(p4, 1, text.get("dialog.welcome.p4.next1"), text.get("dialog.welcome.p4.next2"), text.get("dialog.welcome.p4.next3"), text.get("dialog.welcome.p4.next4"));
 		wrap(p4, text.get("dialog.welcome.p4.again"), 1);
 		Button restart = new Button(p4, SWT.CHECK);
 		restart.setText(text.get("dialog.welcome.restart"));
@@ -208,7 +218,7 @@ public final class WelcomeWizard {
 		Composite row = new Composite(dlg, SWT.NONE);
 		row.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
 		row.setLayout(new GridLayout(4, false));
-		// the covers at the bottom left, as large as the buttons next to it; only on the page about the internet
+		// the covers at the bottom left, as large as the buttons next to it; only on the page about covers
 		Button covers = new Button(row, SWT.PUSH);
 		covers.setText(text.get("dialog.welcome.p5.covers"));
 		covers.setToolTipText(text.get("dialog.welcome.p5.covers.tooltip"));
@@ -223,9 +233,9 @@ public final class WelcomeWizard {
 		next.setText(text.get("dialog.welcome.next"));
 		SavegamesPanel.roomy(new Button[] {covers, back, skip, next}, text.get("dialog.welcome.finish"));
 
-		Composite[] all = {p1, p2, p3, pOnline, p4};
+		Composite[] all = {p1, p2, p3, pOnline, pCovers, p4};
 		String[] titles = {text.get("dialog.welcome.p1.title"), text.get("dialog.welcome.p2.title"), text.get("dialog.welcome.p3.title"), text.get("dialog.welcome.p5.title"),
-				text.get("dialog.welcome.p4.title")};
+				text.get("dialog.welcome.p6.title"), text.get("dialog.welcome.p4.title")};
 		int[] at = {0};
 		boolean[] finished = {false};
 		// the choices are read before the window is closed: its controls are gone after that
@@ -258,7 +268,7 @@ public final class WelcomeWizard {
 			int n = actions.profileCount();
 			games.setText(text.get("dialog.welcome.p3.count", new Object[] {n}));
 			covers.setEnabled(n > 0);
-			covers.setVisible(all[at[0]] == pOnline);
+			covers.setVisible(all[at[0]] == pCovers);
 			summary.setText(text.get("dialog.welcome.p4.dosbox", new Object[] {found.size()}) + "\n" + text.get("dialog.welcome.p4.games", new Object[] {n}));
 			restart.setVisible(pageOneChanged.getAsBoolean());
 			((GridData)restart.getLayoutData()).exclude = !pageOneChanged.getAsBoolean();
@@ -366,6 +376,18 @@ public final class WelcomeWizard {
 		GridData d = new GridData(SWT.FILL, SWT.BEGINNING, true, false, span, 1);
 		d.widthHint = 540;
 		l.setLayoutData(d);
+	}
+
+	/** paragraphs with a bullet, a little indented */
+	private static void bullets(Composite parent, int span, String... texts) {
+		for (String t: texts) {
+			Label l = new Label(parent, SWT.WRAP);
+			l.setText("\u2022 " + t);
+			GridData d = new GridData(SWT.FILL, SWT.BEGINNING, true, false, span, 1);
+			d.widthHint = 528;
+			d.horizontalIndent = 12;
+			l.setLayoutData(d);
+		}
 	}
 
 	private static void label(Composite parent, String s) {
