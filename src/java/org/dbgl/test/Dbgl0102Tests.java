@@ -3848,7 +3848,7 @@ public class Dbgl0102Tests {
 
 	/** alpha 52: a too long publisher (Doom from MobyGames, reported on Vogons) made saving fail: now cut after a whole name, marked */
 	@Test
-	public void testFitIntoColumn() {
+	public void testFitIntoColumn() throws Exception {
 		StringBuilder pubs = new StringBuilder();
 		for (int i = 1; pubs.length() < 400; i++)
 			pubs.append(i > 1 ? ", " : "").append("Publisher Number ").append(i).append(" Inc.");
@@ -3858,6 +3858,17 @@ public class Dbgl0102Tests {
 		assertEquals("id Software", org.dbgl.model.repository.TitledEntityRepository.fit("id Software"));
 		assertNull(org.dbgl.model.repository.TitledEntityRepository.fit(null));
 		assertEquals(256, org.dbgl.model.repository.TitledEntityRepository.fit("x".repeat(300)).length());
+		// alpha 53, as in beta 18 (remax): paths and parameters cut at the width of their column, without "..."
+		assertEquals("C:\\" + "d".repeat(253), org.dbgl.model.repository.TitledEntityRepository.cut("C:\\" + "d".repeat(300)));
+		assertEquals("SETUP.EXE", org.dbgl.model.repository.TitledEntityRepository.cut("SETUP.EXE"));
+		assertNull(org.dbgl.model.repository.TitledEntityRepository.cut(null));
+		// the code: every path and parameter of profiles, templates and DOSBox versions goes through it, links and filters do not
+		String repo = Files.readString(new File(DATA_DIR).toPath().resolve("../../model/repository/ProfileRepository.java").normalize());
+		assertTrue(repo.contains("cut(profile.getSetupString())") && repo.contains("cut(profile.getAltExeParams()[i])") && repo.contains("cut(cmd.getCwd().getPath())"));
+		assertFalse(repo.contains("cut(profile.getLinks()[i].getDestination())")); // links hold 2048 since database 0.103
+		String dbv = Files.readString(new File(DATA_DIR).toPath().resolve("../../model/repository/DosboxVersionRepository.java").normalize());
+		assertEquals(12, dbv.split("TitledEntityRepository.cut\\(", -1).length - 1);
+		assertFalse(Files.readString(new File(DATA_DIR).toPath().resolve("../../model/repository/FilterRepository.java").normalize()).contains("cut(filter.getFilter())")); // LONGVARCHAR
 		// a network share whose computer has "_" in its name: commons-io gave null, DBGL showed "null" (reported on Vogons)
 		assertEquals("\\\\nas_box\\games\\x.iso", org.dbgl.util.FilesUtils.concat("C:\\dosroot", "\\\\nas_box\\games\\x.iso"));
 		// as before (commons-io writes it with the separator of the system: \\nas\games on Windows, //nas/games elsewhere)

@@ -55,16 +55,16 @@ public class DosboxVersionRepository extends LoggingRepository<DosboxVersion> {
 		try (Transaction transaction = dbService_.startTransaction(); Statement stmt = transaction.createStatement(); PreparedStatement pstmt = transaction.prepareStatement(CREATE_QRY)) {
 			if (dbv.isDefault())
 				stmt.executeUpdate(UPD_NODEFAULT_QRY);
-			pstmt.setString(1, dbv.getTitle());
-			pstmt.setString(2, dbv.getFamily());
-			pstmt.setString(3, dbv.getVersion());
+			pstmt.setString(1, TitledEntityRepository.fit(dbv.getTitle())); // alpha 53: as in beta 18 (remax)
+			pstmt.setString(2, TitledEntityRepository.cut(dbv.getFamily()));
+			pstmt.setString(3, TitledEntityRepository.cut(dbv.getVersion()));
 			pstmt.setBoolean(4, dbv.isDefault());
 			pstmt.setBoolean(5, dbv.isMultiConfig());
 			pstmt.setBoolean(6, dbv.isUsingCurses());
-			pstmt.setString(7, dbv.getPath().getPath());
-			pstmt.setString(8, dbv.getExe().getPath());
-			pstmt.setString(9, dbv.getExecutableParameters());
-			pstmt.setString(10, dbv.getConfiguration().getFile().getPath());
+			pstmt.setString(7, TitledEntityRepository.cut(dbv.getPath().getPath()));
+			pstmt.setString(8, TitledEntityRepository.cut(dbv.getExe().getPath()));
+			pstmt.setString(9, TitledEntityRepository.cut(dbv.getExecutableParameters()));
+			pstmt.setString(10, TitledEntityRepository.cut(dbv.getConfiguration().getFile().getPath()));
 			pstmt.setObject(11, dbv.getDynamicOptions());
 			pstmt.executeUpdate();
 			dbv.setId(identity(transaction));
@@ -96,16 +96,16 @@ public class DosboxVersionRepository extends LoggingRepository<DosboxVersion> {
 		try (Transaction transaction = dbService_.startTransaction(); Statement stmt = transaction.createStatement(); PreparedStatement pstmt = transaction.prepareStatement(UPD_QRY)) {
 			if (dbv.isDefault())
 				stmt.executeUpdate(UPD_NODEFAULT_QRY);
-			pstmt.setString(1, dbv.getTitle());
-			pstmt.setString(2, dbv.getFamily());
-			pstmt.setString(3, dbv.getVersion());
+			pstmt.setString(1, TitledEntityRepository.fit(dbv.getTitle())); // alpha 53: as in beta 18 (remax)
+			pstmt.setString(2, TitledEntityRepository.cut(dbv.getFamily()));
+			pstmt.setString(3, TitledEntityRepository.cut(dbv.getVersion()));
 			pstmt.setBoolean(4, dbv.isDefault());
 			pstmt.setBoolean(5, dbv.isMultiConfig());
 			pstmt.setBoolean(6, dbv.isUsingCurses());
-			pstmt.setString(7, dbv.getPath().getPath());
-			pstmt.setString(8, dbv.getExe().getPath());
-			pstmt.setString(9, dbv.getExecutableParameters());
-			pstmt.setString(10, dbv.getConfiguration().getFile().getPath());
+			pstmt.setString(7, TitledEntityRepository.cut(dbv.getPath().getPath()));
+			pstmt.setString(8, TitledEntityRepository.cut(dbv.getExe().getPath()));
+			pstmt.setString(9, TitledEntityRepository.cut(dbv.getExecutableParameters()));
+			pstmt.setString(10, TitledEntityRepository.cut(dbv.getConfiguration().getFile().getPath()));
 			pstmt.setObject(11, dbv.getDynamicOptions());
 			pstmt.setInt(12, dbv.getId());
 			pstmt.executeUpdate();

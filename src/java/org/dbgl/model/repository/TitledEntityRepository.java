@@ -242,4 +242,12 @@ public class TitledEntityRepository extends BaseRepository<ITitledEntity> {
 			cut = cut.substring(0, at);
 		return cut.stripTrailing() + "...";
 	}
+
+	/**
+	 * alpha 53, as in DBGL 0.100 beta 18 by Ronald Blankendaal ("remax"): a path or parameters that fit into their column, cut
+	 * at its width (no "...": it would not be a path either way); before, a longer one made saving fail
+	 */
+	public static String cut(String value) {
+		return org.apache.commons.lang3.StringUtils.left(value, MAX_LENGTH);
+	}
 }

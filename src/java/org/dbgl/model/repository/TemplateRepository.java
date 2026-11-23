@@ -77,7 +77,7 @@ public class TemplateRepository extends LoggingRepository<Template> {
 					stmt.executeUpdate(UPD_NODEFAULT_QRY);
 				}
 			}
-			pstmt.setString(1, template.getTitle());
+			pstmt.setString(1, TitledEntityRepository.fit(template.getTitle())); // alpha 53: as in beta 18 (remax)
 			pstmt.setBoolean(2, template.isDefault());
 			pstmt.setInt(3, template.getDosboxVersion().getId());
 			pstmt.executeUpdate();
@@ -94,9 +94,9 @@ public class TemplateRepository extends LoggingRepository<Template> {
 			NativeCommand cmd = commands.get(i);
 			if (!cmd.isDosboxCommand()) {
 				try (PreparedStatement stmt = transaction.prepareStatement(CREATE_NTVCMD_QRY)) {
-					stmt.setString(1, cmd.getCommand().getPath());
-					stmt.setString(2, cmd.getParameters());
-					stmt.setString(3, cmd.getCwd().getPath());
+					stmt.setString(1, TitledEntityRepository.cut(cmd.getCommand().getPath()));
+					stmt.setString(2, TitledEntityRepository.cut(cmd.getParameters()));
+					stmt.setString(3, TitledEntityRepository.cut(cmd.getCwd().getPath()));
 					stmt.setBoolean(4, cmd.isWaitFor());
 					stmt.setInt(5, i);
 					stmt.setInt(6, template.getId());
@@ -149,7 +149,7 @@ public class TemplateRepository extends LoggingRepository<Template> {
 					stmt.executeUpdate(UPD_NODEFAULT_QRY);
 				}
 			}
-			pstmt.setString(1, template.getTitle());
+			pstmt.setString(1, TitledEntityRepository.fit(template.getTitle())); // alpha 53: as in beta 18 (remax)
 			pstmt.setBoolean(2, template.isDefault());
 			pstmt.setInt(3, template.getDosboxVersion().getId());
 			pstmt.setInt(4, template.getId());

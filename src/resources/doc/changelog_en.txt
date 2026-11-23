@@ -84,6 +84,13 @@ Fixed
   below the game, chosen in the list, was entered as a file of that name in
   the game folder itself, which was not there. The list now shows the
   programs with their folder.
+- Saving now also cuts paths and parameters (setup, alternative programs,
+  captures folder, configuration file, native commands), the details of the
+  DOSBox versions and the titles of templates and filters to the width of
+  their database column (256 characters); a longer value, e.g. from an
+  import, made saving fail otherwise. Taken over from DBGL 0.100 beta 18 by
+  Ronald Blankendaal ("remax"). Links (2048 characters) and filter
+  expressions (no limit) are not cut.
 
 0.101 alpha 52 (2026-11-21)
 ---------------------------

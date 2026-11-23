@@ -43,7 +43,7 @@ public class FilterRepository extends LoggingRepository<Filter> {
 
 	public Filter add(Filter filter) throws SQLException {
 		try (Transaction transaction = dbService_.startTransaction(); PreparedStatement pstmt = transaction.prepareStatement(CREATE_QRY)) {
-			pstmt.setString(1, filter.getTitle());
+			pstmt.setString(1, TitledEntityRepository.fit(filter.getTitle())); // alpha 53: as in beta 18 (remax); the filter itself is LONGVARCHAR, not cut
 			pstmt.setString(2, filter.getFilter());
 			pstmt.executeUpdate();
 			filter.setId(identity(transaction));
@@ -70,7 +70,7 @@ public class FilterRepository extends LoggingRepository<Filter> {
 
 	public void update(Filter filter) throws SQLException {
 		try (Transaction transaction = dbService_.startTransaction(); PreparedStatement pstmt = transaction.prepareStatement(UPD_QRY)) {
-			pstmt.setString(1, filter.getTitle());
+			pstmt.setString(1, TitledEntityRepository.fit(filter.getTitle())); // alpha 53: as in beta 18 (remax); the filter itself is LONGVARCHAR, not cut
 			pstmt.setString(2, filter.getFilter());
 			pstmt.setInt(3, filter.getId());
 			pstmt.executeUpdate();

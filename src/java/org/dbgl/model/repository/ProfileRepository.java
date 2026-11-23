@@ -158,11 +158,11 @@ public class ProfileRepository extends LoggingRepository<Profile> {
 				pstmt.setString(i * 2 + 24, profile.getLinks()[i].getDestination());
 			}
 			pstmt.setString(39, null);
-			pstmt.setString(40, profile.getSetupString());
-			pstmt.setString(41, profile.getSetupParams());
+			pstmt.setString(40, TitledEntityRepository.cut(profile.getSetupString()));
+			pstmt.setString(41, TitledEntityRepository.cut(profile.getSetupParams()));
 			for (int i = 0; i < Profile.NR_OF_ALT_EXECUTABLES; i++) {
-				pstmt.setString(i * 2 + 42, profile.getAltExeStrings()[i]);
-				pstmt.setString(i * 2 + 43, profile.getAltExeParams()[i]);
+				pstmt.setString(i * 2 + 42, TitledEntityRepository.cut(profile.getAltExeStrings()[i]));
+				pstmt.setString(i * 2 + 43, TitledEntityRepository.cut(profile.getAltExeParams()[i]));
 			}
 			pstmt.setInt(46, profile.getDosboxVersion().getId());
 			pstmt.setString(47, null);
@@ -191,9 +191,9 @@ public class ProfileRepository extends LoggingRepository<Profile> {
 			NativeCommand cmd = commands.get(i);
 			if (!cmd.isDosboxCommand()) {
 				try (PreparedStatement stmt = transaction.prepareStatement(CREATE_NTVCMD_QRY)) {
-					stmt.setString(1, cmd.getCommand().getPath());
-					stmt.setString(2, cmd.getParameters());
-					stmt.setString(3, cmd.getCwd().getPath());
+					stmt.setString(1, TitledEntityRepository.cut(cmd.getCommand().getPath())); // alpha 53: as in beta 18 (remax)
+					stmt.setString(2, TitledEntityRepository.cut(cmd.getParameters()));
+					stmt.setString(3, TitledEntityRepository.cut(cmd.getCwd().getPath()));
 					stmt.setBoolean(4, cmd.isWaitFor());
 					stmt.setInt(5, i);
 					stmt.setInt(6, profile.getId());
@@ -379,15 +379,15 @@ public class ProfileRepository extends LoggingRepository<Profile> {
 				pstmt.setString(i * 2 + 23, TitledEntityRepository.fit(profile.getLinks()[i].getTitle()));
 				pstmt.setString(i * 2 + 24, profile.getLinks()[i].getDestination());
 			}
-			pstmt.setString(39, profile.getCapturesString());
-			pstmt.setString(40, profile.getSetupString());
-			pstmt.setString(41, profile.getSetupParams());
+			pstmt.setString(39, TitledEntityRepository.cut(profile.getCapturesString())); // alpha 53: as in beta 18 (remax)
+			pstmt.setString(40, TitledEntityRepository.cut(profile.getSetupString()));
+			pstmt.setString(41, TitledEntityRepository.cut(profile.getSetupParams()));
 			for (int i = 0; i < Profile.NR_OF_ALT_EXECUTABLES; i++) {
-				pstmt.setString(i * 2 + 42, profile.getAltExeStrings()[i]);
-				pstmt.setString(i * 2 + 43, profile.getAltExeParams()[i]);
+				pstmt.setString(i * 2 + 42, TitledEntityRepository.cut(profile.getAltExeStrings()[i]));
+				pstmt.setString(i * 2 + 43, TitledEntityRepository.cut(profile.getAltExeParams()[i]));
 			}
 			pstmt.setInt(46, profile.getDosboxVersion().getId());
-			pstmt.setString(47, profile.getConfigurationFile().getPath());
+			pstmt.setString(47, TitledEntityRepository.cut(profile.getConfigurationFile().getPath()));
 			pstmt.setInt(48, profile.getId());
 			pstmt.executeUpdate();
 

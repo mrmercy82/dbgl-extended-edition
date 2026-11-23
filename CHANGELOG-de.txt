@@ -85,6 +85,13 @@ Fehler behoben
   in einem Unterordner des Spiels, in der Liste ausgewählt, wurde als
   gleichnamige Datei im Spielordner selbst eingetragen, die es dort nicht
   gab. Die Liste zeigt die Programme jetzt mit ihrem Unterordner.
+- Beim Speichern werden jetzt auch Pfade und Parameter (Setup, weitere
+  Startprogramme, Bildschirmfoto-Ordner, Konfigurationsdatei, native
+  Befehle), die Angaben der DOSBox-Versionen und die Titel von Vorlagen und
+  Filtern auf die Breite ihrer Datenbankspalte (256 Zeichen) gekürzt; ein zu
+  langer Wert, etwa aus einem Import, ließ das Speichern sonst scheitern.
+  Übernommen aus DBGL 0.100 beta 18 von Ronald Blankendaal („remax“). Links
+  (2048 Zeichen) und Filterausdrücke (ohne Grenze) bleiben ungekürzt.
 
 0.101 alpha 52 (2026-11-21)
 ---------------------------

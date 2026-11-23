@@ -28,6 +28,34 @@ Ronald Blankendaal developed DBGL up to version 0.100 beta 17 and is **not invol
 - Controller as keyboard, Add to Steam, an assistant for a USB stick
 - Dark mode and 19 languages
 
+## Screenshots
+
+![Main window with the profile list and the screenshots of the selected game](docs/screenshots/main-window.png)
+
+| Dark mode | TV mode |
+|---|---|
+| ![Main window in dark mode](docs/screenshots/main-window-dark.png) | ![TV mode with large covers](docs/screenshots/tv-mode.jpg) |
+
+<details>
+<summary>More screenshots</summary>
+
+**Welcome wizard**
+![Welcome wizard](docs/screenshots/welcome-wizard.png)
+
+**Profile editor with every setting of DOSBox Staging**
+![Profile editor](docs/screenshots/profile-editor.png)
+
+**Switching profiles to another DOSBox version, with a preview**
+![Switch profiles to another DOSBox version](docs/screenshots/switch-dosbox-version.png)
+
+**Downloading DOSBox Staging and DOSBox-X from GitHub**
+![Download DOSBox](docs/screenshots/download-dosbox.png)
+
+**Checking profiles, with solutions**
+![Check profiles](docs/screenshots/check-profiles.png)
+
+</details>
+
 ## What's new
 
 See [`src/resources/doc/whatsnew_en.txt`](src/resources/doc/whatsnew_en.txt) (also in DBGL under Help → New features) and the full [`CHANGELOG-en.txt`](CHANGELOG-en.txt) / [`CHANGELOG-de.txt`](CHANGELOG-de.txt).
