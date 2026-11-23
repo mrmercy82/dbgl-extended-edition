@@ -3629,6 +3629,21 @@ public class Dbgl0102Tests {
 		Files.write(new File(game, "ISHAR.EXE").toPath(), program(true)); // another version of the program: not recognized
 		files.set(0, new org.apache.commons.lang3.tuple.ImmutablePair<>(new File(game, "ISHAR.EXE"), org.dbgl.util.FilesUtils.md5(new File(game, "ISHAR.EXE"))));
 		assertNull(org.dbgl.gui.dialog.wizard.ImportDirDialog.ownGameDirEntry(game, files, read, "own"));
+		// the import from a folder: a whole game folder, the start program in a folder below; an unknown folder is not in the result
+		File collection = new File(dir, "collection");
+		File copy = new File(collection, "Ishar 1/BIN");
+		copy.mkdirs();
+		Files.write(new File(copy, "ISHAR.EXE").toPath(), program(false)); // the version learned (the one in the game was changed above)
+		Files.copy(new File(game, "INSTALL.EXE").toPath(), new File(collection, "Ishar 1/INSTALL.EXE").toPath());
+		File other = new File(collection, "Other");
+		other.mkdirs();
+		Files.write(new File(other, "OTHER.EXE").toPath(), program(false));
+		java.util.Map<File, org.dbgl.model.repository.GameFilesRepository.GameDirEntry> rec = org.dbgl.gui.dialog.wizard.ImportDirDialog.recognize(
+			List.of(new File(collection, "Ishar 1"), other), read, false, "own");
+		assertEquals(java.util.Set.of(new File(collection, "Ishar 1")), rec.keySet());
+		assertEquals(new File(copy, "ISHAR.EXE"), rec.get(new File(collection, "Ishar 1")).getMain());
+		assertEquals(new File(collection, "Ishar 1/INSTALL.EXE"), rec.get(new File(collection, "Ishar 1")).getSetup());
+		assertEquals("Ishar: Legend of the Fortress", rec.get(new File(collection, "Ishar 1")).webProfile_.getTitle());
 		// Windows started: not the game
 		p.setAutoexecSettings(new File(game, "WIN.COM").getAbsolutePath(), "");
 		Files.write(new File(game, "WIN.COM").toPath(), new byte[10]);

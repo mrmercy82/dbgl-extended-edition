@@ -30,6 +30,13 @@ Neu
   ihrer Spiele Prüfsummen hat), z. B. auf einem anderen PC oder nach einer
   Neuinstallation. Gespeichert wird in config\known-games.json, ohne Pfade;
   die mitgelieferte Datenbank bleibt unverändert.
+- „Spiele ohne Profil aus Ordner importieren“ erkennt bekannte Spiele: Ein
+  Spielordner, der aus einem Profil gemerkt wurde oder in der mitgelieferten
+  Datenbank steht (mit seinen Unterordnern betrachtet), bekommt Titel,
+  Entwickler, Verlag, Jahr, Genre, Beschreibung, Start- und Setup-Programm
+  von dort (Quelle „Ordner, bekanntes Spiel“); die übrigen Ordner kommen wie
+  bisher mit ihrem Ordnernamen in die Liste. So lassen sich alle Spielordner
+  auf einmal übernehmen, die bekannten schon ausgefüllt.
 
 Geändert
 - Eine neue Installation öffnet das Hauptfenster maximiert.

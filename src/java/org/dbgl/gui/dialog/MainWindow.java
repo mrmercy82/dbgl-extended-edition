@@ -6335,18 +6335,40 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		if (loaded == null)
 			return;
 		org.dbgl.util.UnlinkedGames.Result found;
+		int knownCount = 0;
 		List<org.dbgl.util.StoreGameImport.Found> entries = new java.util.ArrayList<>();
 		java.util.Map<File, File> mains = new java.util.HashMap<>();
 		try {
 			found = org.dbgl.gui.controls.BusyTask.run(shell_, text_.get("dialog.unlinkedgames.searching"),
 				() -> org.dbgl.util.UnlinkedGames.find(new File(dir), org.dbgl.util.UnlinkedGames.usedBy(loaded),
 					dbversionsList_.stream().map(DosboxVersion::getCanonicalPath).toList(), null, null));
+			// alpha 53: the known games among them (learned from profiles, or in the database of DBGL): title, details, start and setup
+			// program from there; the others as before, with the name of their folder
+			List<org.dbgl.util.UnlinkedGames.Game> folders = found.games();
+			java.util.Map<File, org.dbgl.model.repository.GameFilesRepository.GameDirEntry> known = folders.isEmpty() ? java.util.Map.of()
+					: org.dbgl.gui.controls.BusyTask.run(shell_, text_.get("dialog.unlinkedgames.searching"),
+						() -> org.dbgl.gui.dialog.wizard.ImportDirDialog.recognize(folders.stream().map(org.dbgl.util.UnlinkedGames.Game::dir).toList(),
+							text_.get("dialog.importdir.ownrecognition")));
 			File work = java.nio.file.Files.createTempDirectory("dbgl-folder").toFile();
 			work.deleteOnExit();
-			for (org.dbgl.util.UnlinkedGames.Game g: found.games()) {
-				mains.put(g.dir(), g.main());
-				entries.add(org.dbgl.util.UnlinkedGames.toFound(g, work, text_.get("dialog.unlinkedgames.store")));
+			for (org.dbgl.util.UnlinkedGames.Game g: folders) {
+				org.dbgl.model.repository.GameFilesRepository.GameDirEntry k = known.get(g.dir());
+				if (k == null) {
+					mains.put(g.dir(), g.main());
+					entries.add(org.dbgl.util.UnlinkedGames.toFound(g, work, text_.get("dialog.unlinkedgames.store")));
+					continue;
+				}
+				org.dbgl.util.UnlinkedGames.Game game = new org.dbgl.util.UnlinkedGames.Game(g.dir(), g.programs(), k.getOptMain().orElse(g.main()), k.getOptSetup().orElse(g.setup()));
+				mains.put(g.dir(), game.main());
+				org.dbgl.util.StoreGameImport.Found base = org.dbgl.util.UnlinkedGames.toFound(game, work, text_.get("dialog.unlinkedgames.known"));
+				org.dbgl.model.WebProfile w = k.webProfile_;
+				org.dbgl.util.StoreGameImport.Meta meta = new org.dbgl.util.StoreGameImport.Meta(StringUtils.defaultString(w.getDeveloperName()),
+						StringUtils.defaultString(w.getPublisherName()), StringUtils.defaultString(w.getYear()), StringUtils.defaultString(w.getGenre()),
+						StringUtils.defaultString(w.getNotes()), () -> null, List::of, List.of(), null, game.setup());
+				entries.add(new org.dbgl.util.StoreGameImport.Found(StringUtils.defaultIfBlank(w.getTitle(), base.title()), base.gameDir(), base.confs(), base.workingDir(),
+						base.store(), meta));
 			}
+			knownCount = known.size();
 		} catch (org.dbgl.gui.controls.BusyTask.Cancelled e) {
 			return;
 		} catch (Exception e) {
@@ -6359,7 +6381,8 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			return;
 		}
 		Integer added = StoreImportDialog.titled(shell_, entries, dbversionsList_, defaultVersion, StoreImportDialog.existingKeys(loaded), "dialog.unlinkedgames.title",
-			text_.get("dialog.unlinkedgames.info", counts)).showing("dialog.importdir.column.main",
+			text_.get("dialog.unlinkedgames.info", counts) + (knownCount > 0 ? " " + text_.get("dialog.unlinkedgames.knowncount", new Object[] {knownCount}): "")).showing(
+				"dialog.importdir.column.main",
 				f -> mains.containsKey(f.gameDir()) ? f.gameDir().toPath().relativize(mains.get(f.gameDir()).toPath()).toString(): "").open();
 		if ((added != null) && (added > 0)) {
 			updateProfilesList(getSelectedProfileIds());

@@ -453,19 +453,81 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 		if (game == null)
 			return null;
 
-		Optional<File> mainFile = set.set_.entrySet().stream().filter(
-			x -> x.getValue().type_ == FileType.MAIN && x.getValue().getScore() > 0 && exes.stream().anyMatch(y -> y.getName().equals(x.getKey()))).map(x -> new File(dir, x.getKey())).findFirst();
+		// alpha 53: the program found itself (nearest to the game folder), not one of that name in the game folder: since alpha 53 the
+		// files can be in folders below as well (the import from a folder looks at a whole game folder)
+		Comparator<File> nearest = Comparator.comparingInt((File f) -> f.toPath().getNameCount()).thenComparing(File::getPath);
+		Optional<File> mainFile = set.set_.entrySet().stream().filter(x -> x.getValue().type_ == FileType.MAIN && x.getValue().getScore() > 0).flatMap(
+			x -> exes.stream().filter(y -> y.getName().equals(x.getKey()))).sorted(nearest).findFirst();
 		if (mainFile.isEmpty()) // alpha 53: recognized by other files: the start program guessed
 			mainFile = guessMain(dir, exes, set.set_.entrySet().stream().filter(x -> x.getValue().type_ == FileType.MAIN).map(Map.Entry::getKey).toList());
 		GameDirEntry result = new GameDirEntry(dir, mainFile,
-				set.set_.entrySet().stream().filter(x -> x.getValue().type_ == FileType.SETUP && x.getValue().getScore() > 0 && exes.stream().anyMatch(y -> y.getName().equals(x.getKey()))).map(
-					x -> new File(dir, x.getKey())).findFirst(),
+				set.set_.entrySet().stream().filter(x -> x.getValue().type_ == FileType.SETUP && x.getValue().getScore() > 0).flatMap(
+					x -> exes.stream().filter(y -> y.getName().equals(x.getKey()))).sorted(nearest).findFirst(),
 				exes, MetropolisSearchEngine.getInstance().getEntryDetailedInformation(game.getValue().webProfile_), set.getScore(), set.set_.entrySet().stream().sorted((o1, o2) -> {
 					int comp = Integer.compare(o2.getValue().getScore(), o1.getValue().getScore());
 					return comp == 0 ? o1.getKey().compareTo(o2.getKey()): comp;
 				}).map(x -> x.getKey() + " (" + x.getValue().getScore() + ")").collect(Collectors.joining(", "))
 
 		);
+		return result;
+	}
+
+	/**
+	 * alpha 53: for the import from a folder: which of these game folders are known games, each looked at as a whole (with its
+	 * folders below): learned from a profile first, then the database of DBGL. Folders not known are not in the result; a folder
+	 * whose files cannot be read is left out as well.
+	 */
+	public static Map<File, GameDirEntry> recognize(List<File> gameDirs, String ownSource) {
+		return recognize(gameDirs, org.dbgl.util.OwnKnownGames.load(org.dbgl.util.OwnKnownGames.file()), true, ownSource);
+	}
+
+	public static Map<File, GameDirEntry> recognize(List<File> gameDirs, List<org.dbgl.util.OwnKnownGames.Entry> own, boolean database, String ownSource) {
+		Map<File, GameDirEntry> result = new java.util.LinkedHashMap<>();
+		GameFilesRepository repo = new GameFilesRepository();
+		List<String> names = new ArrayList<>();
+		try {
+			if (database)
+				names.addAll(repo.listAllFilenames());
+		} catch (SQLException | RuntimeException e) {
+			database = false; // without the database: only the games learned from profiles
+		}
+		names.addAll(org.dbgl.util.OwnKnownGames.filenames(own));
+		if (names.isEmpty())
+			return result;
+		NameFileFilter filter = new NameFileFilter(names);
+		Map<File, List<ImmutablePair<File, byte[]>>> perDir = new java.util.LinkedHashMap<>();
+		List<ImmutablePair<File, byte[]>> all = new ArrayList<>();
+		for (File dir: gameDirs) {
+			List<ImmutablePair<File, byte[]>> files = new ArrayList<>();
+			try {
+				for (File file: FileUtils.listFiles(dir, filter, TrueFileFilter.INSTANCE))
+					files.add(new ImmutablePair<>(file, FilesUtils.md5(file)));
+			} catch (IOException | NoSuchAlgorithmException | RuntimeException e) {
+				continue;
+			}
+			if (!files.isEmpty()) {
+				perDir.put(dir, files);
+				all.addAll(files);
+			}
+		}
+		Map<Integer, GameData> games = new java.util.HashMap<>();
+		try {
+			if (database && !all.isEmpty())
+				games = repo.getGamesWithMd5Ids(all);
+		} catch (SQLException | RuntimeException e) {
+			// as above
+		}
+		for (Map.Entry<File, List<ImmutablePair<File, byte[]>>> e: perDir.entrySet()) {
+			GameDirEntry entry = ownGameDirEntry(e.getKey(), e.getValue(), own, ownSource);
+			try {
+				if (entry == null && !games.isEmpty())
+					entry = constructGameDirEntry(e.getKey(), e.getValue(), games);
+			} catch (IOException | RuntimeException x) {
+				entry = null;
+			}
+			if (entry != null)
+				result.put(e.getKey(), entry);
+		}
 		return result;
 	}
 

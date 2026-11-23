@@ -30,6 +30,13 @@ New
   part of its games), e.g. on another PC or after a new installation. Kept
   in config\known-games.json, without paths; the database that comes with
   DBGL stays as it is.
+- "Import games without a profile from folder" recognizes known games: a
+  game folder learned from a profile or in the database that comes with DBGL
+  (looked at with its folders below) gets title, developer, publisher, year,
+  genre, description, start and setup program from there (source "Folder,
+  known game"); the other folders are in the list with their folder name as
+  before. So all game folders can be taken over at once, the known ones
+  already filled in.
 
 Changed
 - A new installation opens the main window maximized.
