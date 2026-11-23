@@ -316,6 +316,10 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 					List<org.dbgl.util.OwnKnownGames.Entry> own = org.dbgl.util.OwnKnownGames.load(org.dbgl.util.OwnKnownGames.file());
 					List<String> knownFilenames = new ArrayList<>(repo.listAllFilenames());
 					knownFilenames.addAll(org.dbgl.util.OwnKnownGames.filenames(own));
+					// alpha 53: how many learned games there are, and from where (to see at once when none were found)
+					File ownFile = org.dbgl.util.OwnKnownGames.file();
+					display_.asyncExec(() -> scanInfo_.append(
+						text_.get("dialog.importdir.notice.ownknown", new Object[] {own.size(), ownFile.getPath()}).concat(scanInfo_.getLineDelimiter())));
 					display_.asyncExec(() -> scanInfo_.append(text_.get("dialog.importdir.notice.scandirforknownfiles", new Object[] {dir_.getPath(), knownFilenames.size()}).concat("  ")));
 
 					List<ImmutablePair<File, byte[]>> fileMd5s = new ArrayList<>();
@@ -407,13 +411,24 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 	}
 
 	private static GameDirEntry scoreGameDirEntry(File dir, List<ImmutablePair<File, byte[]>> files, Map<Integer, GameData> games) throws IOException {
+		// alpha 53: a file that several games have (the same name and checksum, e.g. SIERRA.COM of the games of Sierra, or the
+		// SETUP.EXE of the games with the Build engine) says nothing about which game it is: it does not count. The map has a
+		// release per key: the releases of one game (its game id) are one owner
+		Map<String, java.util.Set<Integer>> owners = new java.util.HashMap<>();
+		for (GameData gameData: games.values())
+			for (FileSet set: gameData.fileSets_)
+				for (Map.Entry<String, FileData> fd: set.set_.entrySet())
+					if (fd.getValue().md5_ != null)
+						owners.computeIfAbsent(fd.getKey() + "|" + java.util.HexFormat.of().formatHex(fd.getValue().md5_), k -> new java.util.HashSet<>()).add(
+							gameData.webProfile_.getGameId());
 		for (Map.Entry<Integer, GameData> gameData: games.entrySet()) {
 			for (FileSet set: gameData.getValue().fileSets_) {
 				for (ImmutablePair<File, byte[]> file: files) {
 					String filename = file.getKey().getName();
 					if (set.set_.containsKey(filename)) {
 						FileData fileData = set.set_.get(filename);
-						if (Arrays.equals(fileData.md5_, file.getValue()))
+						if ((fileData.md5_ != null) && Arrays.equals(fileData.md5_, file.getValue())
+								&& (owners.getOrDefault(filename + "|" + java.util.HexFormat.of().formatHex(fileData.md5_), java.util.Set.of()).size() == 1))
 							fileData.scoreByType();
 					}
 				}
@@ -424,10 +439,10 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 
 		if (set == null || set.getScore() <= 0)
 			return null;
-		// alpha 53: one further file alone (e.g. a sound driver that many games have) is not enough: the start or the setup program,
-		// or at least two further files
-		boolean program = set.set_.values().stream().anyMatch(x -> x.getScore() > 0 && x.type_ != FileType.EXTRA);
-		if (!program && set.getScore() < 20)
+		// alpha 53: without the start program it takes more than the setup program or two further files alone (the setup program
+		// and one further file, or three further files): such a match was often another game of the same maker
+		boolean main = set.set_.values().stream().anyMatch(x -> x.getScore() > 0 && x.type_ == FileType.MAIN);
+		if (!main && set.getScore() < 25)
 			return null;
 
 		List<File> exes = FilesUtils.listExecutablesInDirRecursive(dir);

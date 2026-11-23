@@ -59,9 +59,13 @@ Fixed
   alpha 51 (the files whats-new-de/en.txt shipped next to it had them).
 - "Import known games in folder" gave folders wrong games: a folder with
   known files but no program (e.g. a folder of game data) left its matches
-  behind, and the next folder then got that game. Also, one further file
-  that many games have (e.g. a sound driver) was enough. Now it takes the
-  start or setup program, or at least two further files.
+  behind, and the next folder then got that game. Also, files that several
+  games have alike counted (e.g. SIERRA.COM of the games of Sierra, the
+  SETUP.EXE of the games with the Build engine), and the setup program or
+  one further file alone was enough. Now only files that belong to exactly
+  one game count, and without the start program it takes the setup program
+  and one further file, or three further files. The search also shows how
+  many games are learned from profiles and where the file is.
 
 0.101 alpha 52 (2026-11-21)
 ---------------------------

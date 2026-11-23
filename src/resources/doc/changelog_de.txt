@@ -60,9 +60,13 @@ Fehler behoben
 - „Bekannte Spiele aus Ordner importieren“ ordnete Ordnern falsche Spiele zu:
   Ein Ordner mit bekannten Dateien, aber ohne Programm (z. B. ein Ordner mit
   Spieldaten), ließ seine Treffer stehen, und der nächste Ordner bekam dann
-  dieses Spiel. Außerdem reichte eine einzige weitere Datei, die viele Spiele
-  haben (z. B. ein Soundtreiber). Jetzt braucht es das Start- oder
-  Setup-Programm oder mindestens zwei weitere Dateien.
+  dieses Spiel. Außerdem zählten Dateien, die mehrere Spiele gleich haben
+  (z. B. SIERRA.COM der Sierra-Spiele, das SETUP.EXE der Spiele mit der
+  Build-Engine), und schon das Setup-Programm oder eine weitere Datei
+  reichten. Jetzt zählen nur Dateien, die zu genau einem Spiel gehören, und
+  ohne Startprogramm braucht es das Setup-Programm und eine weitere Datei
+  oder drei weitere Dateien. Die Suche zeigt außerdem, wie viele Spiele aus
+  Profilen gemerkt sind und wo die Datei liegt.
 
 0.101 alpha 52 (2026-11-21)
 ---------------------------

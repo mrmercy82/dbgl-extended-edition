@@ -3676,6 +3676,40 @@ public class Dbgl0102Tests {
 			new org.apache.commons.lang3.tuple.ImmutablePair<>(new File(driver, "SNDDRV.COM"), md5.apply(new File(driver, "SNDDRV.COM"))));
 		assertNull(construct.invoke(null, driver, driverFiles, games)); // before: the game of the data files, or of the driver alone
 		assertEquals(0, game.fileSets_.get(0).getScore());
+		// a start program that two games have (e.g. SIERRA.COM): no game; the setup program alone: no game either
+		File sierra = new File(dir, "SQ3");
+		sierra.mkdirs();
+		Files.write(new File(sierra, "SIERRA.COM").toPath(), program(false));
+		Files.write(new File(sierra, "INSTALL.EXE").toPath(), "install".getBytes());
+		byte[] loader = md5.apply(new File(sierra, "SIERRA.COM")), install = md5.apply(new File(sierra, "INSTALL.EXE"));
+		games.clear();
+		for (int id = 1; id <= 2; id++) {
+			org.dbgl.model.repository.GameFilesRepository.GameData g = new org.dbgl.model.repository.GameFilesRepository.GameData();
+			java.util.Map<String, org.dbgl.model.repository.GameFilesRepository.FileData> fs = new java.util.HashMap<>();
+			fs.put("SIERRA.COM", new org.dbgl.model.repository.GameFilesRepository.FileData(org.dbgl.model.repository.GameFilesRepository.FileType.MAIN, loader));
+			if (id == 1)
+				fs.put("INSTALL.EXE", new org.dbgl.model.repository.GameFilesRepository.FileData(org.dbgl.model.repository.GameFilesRepository.FileType.SETUP, install));
+			g.fileSets_.add(new org.dbgl.model.repository.GameFilesRepository.FileSet(fs));
+			g.webProfile_.setGameId(100 + id);
+			games.put(id, g);
+		}
+		List<org.apache.commons.lang3.tuple.ImmutablePair<File, byte[]>> sierraFiles = List.of(
+			new org.apache.commons.lang3.tuple.ImmutablePair<>(new File(sierra, "SIERRA.COM"), loader),
+			new org.apache.commons.lang3.tuple.ImmutablePair<>(new File(sierra, "INSTALL.EXE"), install));
+		// two releases of the same game share their start program: that still counts (the map has releases, not games)
+		java.util.Map<Integer, org.dbgl.model.repository.GameFilesRepository.GameData> releases = new java.util.HashMap<>(games);
+		releases.get(2).webProfile_.setGameId(101);
+		java.lang.reflect.Method score = org.dbgl.gui.dialog.wizard.ImportDirDialog.class.getDeclaredMethod("scoreGameDirEntry", File.class, List.class, java.util.Map.class);
+		score.setAccessible(true);
+		try {
+			score.invoke(null, sierra, sierraFiles, releases); // gets as far as the details of the database, which this test does not have
+		} catch (java.lang.reflect.InvocationTargetException expected) {
+			// fine
+		}
+		assertEquals(50, releases.get(1).fileSets_.get(0).getScore()); // SIERRA.COM 35 and INSTALL.EXE 15 counted
+		releases.values().forEach(x -> x.fileSets_.forEach(y -> y.set_.values().forEach(org.dbgl.model.repository.GameFilesRepository.FileData::resetScore)));
+		releases.get(2).webProfile_.setGameId(102);
+		assertNull(construct.invoke(null, sierra, sierraFiles, games)); // the loader counts for neither, the setup program (15) alone is too little
 		org.apache.commons.io.FileUtils.deleteDirectory(dir);
 	}
 
