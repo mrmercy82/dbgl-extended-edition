@@ -399,7 +399,7 @@ public class CheckProfilesDialog extends SizeControlledButtonDialog<Boolean> {
 		Set<String> keys = ProfileFindings.dismissedKeys(), kinds = ProfileFindings.dismissedKinds();
 		for (List<Finding> list: result_found_.profiles().values())
 			for (Finding f: list)
-				if (f.fixable() && !isDismissed(f, keys, kinds) && known_.add(f.dismissKey()))
+				if (f.fixable() && !isDismissed(f, keys, kinds) && known_.add(f.dismissKey()) && !ProfileFindings.onlyByHand(f))
 					chosen_.add(f.dismissKey());
 	}
 
@@ -627,7 +627,7 @@ public class CheckProfilesDialog extends SizeControlledButtonDialog<Boolean> {
 	private void chooseAll(boolean on) {
 		for (TreeItem node: tree_.getItems())
 			for (TreeItem child: node.getItems())
-				if ((child.getData() instanceof Finding f) && f.fixable())
+				if ((child.getData() instanceof Finding f) && f.fixable() && (!on || !ProfileFindings.onlyByHand(f)))
 					setChosen(f, on);
 		refreshBoxes();
 	}

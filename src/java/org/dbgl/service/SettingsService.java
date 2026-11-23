@@ -101,8 +101,6 @@ public class SettingsService {
 			settings_.setValue("gui", "uidefaults", (settings_.getValue("gui", "uidefaults") + " a48cols").strip());
 		}
 		// alpha 51: the address of the shared configurations of DBGL 0.91 and older is gone (DBGL 0.92 asked to change it by hand)
-		if ("http://www.squadrablu.nl:8080/DBConfWS/apiv1/".equals(settings_.getValue("confsharing", "endpoint")))
-			settings_.setValue("confsharing", "endpoint", "https://share.dbgl.org/DBConfWS/apiv1/");
 		// MobyGames is no longer the default source: without an API key (paid) it gives nothing, so use TheGamesDB instead
 		if ("mobygames".equalsIgnoreCase(settings_.getValue("gui", "searchengine")) && StringUtils.isBlank(settings_.getValue("mobygames", "api_key")))
 			settings_.setValue("gui", "searchengine", "thegamesdb");
@@ -286,8 +284,6 @@ public class SettingsService {
 		settings_.setValue("gui", "migratedialog_height", "375");
 		settings_.setValue("gui", "settingsdialog_width", "715");
 		settings_.setValue("gui", "settingsdialog_height", "560");
-		settings_.setValue("gui", "shareconfdialog_width", "560");
-		settings_.setValue("gui", "shareconfdialog_height", "540");
 		settings_.setValue("gui", "sharedconfbrowser_width", "860");
 		settings_.setValue("gui", "sharedconfbrowser_height", "540");
 		settings_.setValue("gui", "importdirdialog_width", "1680");
@@ -562,6 +558,8 @@ public class SettingsService {
 		settings_.setValue("mobygames_database", "connectionstring", "jdbc:hsqldb:file:./db/mobygames;shutdown=true");
 		settings_.setValue("mobygames_database", "username", "sa");
 		settings_.setValue("mobygames_database", "pasword", "");
+		// alpha 53: the configurations of DBConf next to DBGL, as in DBGL 0.100 beta 18 (instead of share.dbgl.org)
+		settings_.setValue("dbconf_database", "connectionstring", "jdbc:hsqldb:file:./db/dbconf;shutdown=true");
 
 		settings_.setValue("directory", "data", ".");
 		settings_.setValue("directory", "dosbox", ".");
@@ -960,6 +958,5 @@ public class SettingsService {
 
 		settings_.setValue("exportwizard", "gamedata", false);
 
-		settings_.setValue("confsharing", "endpoint", "https://share.dbgl.org/DBConfWS/apiv1/");
 	}
 }

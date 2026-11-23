@@ -121,6 +121,11 @@ public class FileLocationService {
 				FilesUtils.copyFileIfDestinationDoesNotExist(new File(mobygamesDbFile.getParentFile(), MOBYGAMES_DATABASE_SCRIPT), new File(dataDir_, mobygamesDbFile.getParent()));
 				FilesUtils.copyFileIfDestinationDoesNotExist(new File(mobygamesDbFile.getParentFile(), MOBYGAMES_DATABASE_PROPERTIES), new File(dataDir_, mobygamesDbFile.getParent()));
 			}
+			// alpha 53: the database of DBConf (DBGL 0.100 beta 18) as the one of MobyGames
+			File dbconfFile = getFileFromConnectionString(settings.getValue("dbconf_database", "connectionstring"));
+			if (dbconfFile != null)
+				for (String name: new String[] {DBConfDatabaseService.DATA, DBConfDatabaseService.SCRIPT, DBConfDatabaseService.PROPERTIES})
+					FilesUtils.copyFileIfDestinationDoesNotExist(new File(dbconfFile.getParentFile(), name), new File(dataDir_, dbconfFile.getParent()));
 		}
 
 		FilesUtils.createDirIfNonExisting(profilesDir_);

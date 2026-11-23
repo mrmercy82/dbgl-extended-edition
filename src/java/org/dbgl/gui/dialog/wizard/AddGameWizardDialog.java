@@ -26,10 +26,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import javax.ws.rs.client.Client;
-import javax.ws.rs.client.ClientBuilder;
-import javax.ws.rs.core.GenericType;
-import javax.ws.rs.core.MediaType;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -58,6 +54,7 @@ import org.dbgl.model.aggregate.Profile;
 import org.dbgl.model.aggregate.Template;
 import org.dbgl.model.conf.Configuration;
 import org.dbgl.model.entity.SharedConf;
+import org.dbgl.service.DBConfDatabaseService;
 import org.dbgl.model.factory.ProfileFactory;
 import org.dbgl.model.repository.BaseRepository;
 import org.dbgl.model.repository.DosboxVersionRepository;
@@ -163,6 +160,8 @@ public class AddGameWizardDialog extends WizardDialog<Profile> {
 		engineSelector_.addToggleSelectionListener(settings_.getBooleanValue("addgamewizard", "consultsearchengine"));
 
 		boolean loadSharedConfEnabledByDefault = settings_.getBooleanValue("addgamewizard", "consultdbconfws");
+		// alpha 53: DBConf from the database next to DBGL; without it there is no button
+		if (DBConfDatabaseService.available()) {
 		loadSharedConfButton_ = createImageToolItem(toolBar, SWT.PUSH,
 			loadSharedConfEnabledByDefault ? ImageService.getResourceImage(shell_.getDisplay(), ImageService.IMG_SHARE)
 					: ImageService.createDisabledImage(ImageService.getResourceImage(shell_.getDisplay(), ImageService.IMG_SHARE)),
@@ -181,6 +180,7 @@ public class AddGameWizardDialog extends WizardDialog<Profile> {
 				}
 			});
 		loadSharedConfButton_.setData("selected", loadSharedConfEnabledByDefault);
+		}
 
 		boolean requiresInstallation = settings_.getBooleanValue("addgamewizard", "requiresinstallation");
 		SelectionAdapter adapter = new SelectionAdapter() {
@@ -447,14 +447,10 @@ public class AddGameWizardDialog extends WizardDialog<Profile> {
 	private boolean doWebSearch() {
 		String currTitle = title_.getText();
 
-		if (Boolean.TRUE.equals(loadSharedConfButton_.getData("selected"))) {
+		if ((loadSharedConfButton_ != null) && Boolean.TRUE.equals(loadSharedConfButton_.getData("selected"))) {
 			try {
-				Client client = ClientBuilder.newClient();
-				GenericType<List<SharedConf>> confType = new GenericType<List<SharedConf>>() {
-				};
-				List<SharedConf> confs = client.target(settings_.getValue("confsharing", "endpoint")).path("/configurations/bytitle/{i}").resolveTemplate("i", currTitle).request().accept(
-					MediaType.APPLICATION_XML).get(confType);
-				client.close();
+				// alpha 53: from the database next to DBGL, as in DBGL 0.100 beta 18 (no longer from share.dbgl.org)
+				List<SharedConf> confs = DBConfDatabaseService.search(currTitle);
 
 				if (confs.isEmpty()) {
 					Mess_.on(shell_).key("general.notice.searchenginenoresults", new String[] {Constants.DBCONFWS, currTitle}).display();

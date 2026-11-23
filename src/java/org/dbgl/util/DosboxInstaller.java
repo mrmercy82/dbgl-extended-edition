@@ -133,6 +133,19 @@ public final class DosboxInstaller {
 		return Math.max(score, 1);
 	}
 
+	/**
+	 * Alpha 53: the kind of a DOSBox-X build for Windows, to say what tells them apart: "vsbuild" (Visual Studio, recommended by
+	 * the DOSBox-X project), "mingw", or null for other files.
+	 */
+	public static String buildKind(String name) {
+		String n = name.toLowerCase(Locale.ROOT);
+		if (n.contains("vsbuild"))
+			return "vsbuild";
+		if (n.contains("mingw"))
+			return "mingw";
+		return null;
+	}
+
 	/** download a file, reporting the progress in percent (or -1 when the size is unknown) */
 	public static File download(String url, File target, IntConsumer progress) throws IOException, InterruptedException {
 		return download(url, target, progress, () -> false);

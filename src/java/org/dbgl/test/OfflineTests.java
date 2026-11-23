@@ -24,7 +24,7 @@ import org.junit.runners.Suite.SuiteClasses;
 
 
 /**
- * The tests that need no internet (no MobyGames, Pouet, TheGamesDB or DBConfWS): they run on GitHub with every push, on Linux
+ * The tests that need no internet (no MobyGames, Pouet or TheGamesDB): they run on GitHub with every push, on Linux
  * and on Windows (see .github/workflows/build.yml).
  */
 @RunWith(Suite.class)

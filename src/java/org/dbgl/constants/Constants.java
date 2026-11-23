@@ -64,7 +64,7 @@ public class Constants {
 	public static final List<String> SUPPORTED_LANGUAGES = Arrays.asList("ar", "da", "de", "el", "en", "es", "es__Capitalizado", "fi", "fr", "it", "ko", "nl", "pl", "pt_BR", "ru", "sk", "sl", "sv",
 		"zh", "zh_TW");
 
-	public static final String DBCONFWS = "DBConfWS";
+	public static final String DBCONFWS = "DBConf"; // alpha 53: the database next to DBGL (DBGL 0.100 beta 18), no longer the web service
 
 	private Constants() {
 	}

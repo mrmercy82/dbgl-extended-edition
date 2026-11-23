@@ -2169,7 +2169,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			if (candidates.size() > 1) {
 				List<String> names = new ArrayList<>();
 				for (int i = 0; i < candidates.size(); i++)
-					names.add(candidates.get(i)[0] + (i == 0 ? "   (" + text_.get("dialog.main.notice.recommended") + ")": ""));
+					names.add(org.dbgl.gui.controls.DosboxDownload.buildLabel(candidates.get(i), i == 0, text_));
 				Integer pick = new ChoiceDialog(shell_, text_.get("dialog.main.title.dosboxrelease", new Object[] {r.family(), r.version()}),
 					text_.get("dialog.main.notice.choosebuild"), names).open();
 				if (pick == null)

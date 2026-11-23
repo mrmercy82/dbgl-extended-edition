@@ -39,6 +39,30 @@ Neu
   auf einmal übernehmen, die bekannten schon ausgefüllt.
 
 Geändert
+- DBConf (gesammelte DOSBox-Konfigurationen anderer DBGL-Nutzer) kommt jetzt
+  aus einer Datenbank, die DBGL mitbringt (db\dbconf.*), statt von
+  share.dbgl.org; DBGL fragt dafür nicht mehr im Internet nach. Übernommen
+  aus DBGL 0.100 beta 18 von Ronald Blankendaal, der die Datenbank erstellt
+  hat und sie für die Extended Edition freigegeben hat. Die EE nutzt sie
+  überall, wo es DBConf gab: Profildialog, Assistent „Spiel hinzufügen“ und
+  „Bekannte Spiele aus Ordner importieren“. Der Import übernimmt eine
+  Konfiguration nur bei genau gleichem Titel (vorher bekam „Doom“ keine, weil
+  auch „Doom II“ gefunden wurde). Einträge ohne eigene Einstellungen sagen
+  das jetzt, statt ein leeres Feld zu zeigen. Das Teilen einer eigenen
+  Konfiguration entfällt (share.dbgl.org nimmt keine mehr an). Fehlt die
+  Datenbank, erscheinen die DBConf-Knöpfe nicht.
+- „Prüfen...“ nennt für Profile mit DOSBox 0.74 die Konfiguration von DBConf,
+  wenn es eine für genau diesen Titel gibt und sie etwas anders einstellt als
+  das Profil („Hinweis: DBConf hat eine Konfiguration ... mit [dosbox]
+  machine = cga; im Profil gilt ...“). Übernehmen lässt sie sich als Lösung,
+  sie ist aber nicht vorausgewählt und wird auch von „Alle lösbaren
+  auswählen“ nicht gewählt: Die Konfigurationen haben Nutzer eingesandt. Für
+  DOSBox Staging und DOSBox-X kommt kein Hinweis, weil alle Konfigurationen
+  von DBConf für 0.74 gemacht sind.
+- DOSBox herunterladen: Bei DOSBox-X steht vor jeder Variante ihre Art
+  („Visual Studio“ oder „MinGW“), darunter ein Satz, wofür sie gut ist
+  (Visual Studio empfiehlt das DOSBox-X-Projekt für Windows; MinGW rechnet
+  genauer mit Gleitkommazahlen und kann Netzwerk über „slirp“).
 - Eine neue Installation öffnet das Hauptfenster maximiert.
 - Import von Spielen (Ordner, GOG/Steam, LaunchBox, eXoDOS, ScummVM): als
   DOSBox-Version ist das neueste eingetragene DOSBox Staging vorgewählt
@@ -92,6 +116,12 @@ Fehler behoben
   langer Wert, etwa aus einem Import, ließ das Speichern sonst scheitern.
   Übernommen aus DBGL 0.100 beta 18 von Ronald Blankendaal („remax“). Links
   (2048 Zeichen) und Filterausdrücke (ohne Grenze) bleiben ungekürzt.
+- DOSBox-X-Fassungen von 2020 bis Anfang 2024 (0.83.x, 0.84.x, 2022.08.0
+  bis 2023.09.01): DBGL erkennt jetzt auch die Versionsnummern ohne volles
+  Datum und bietet im Profil die Einstellungen von 2024.03.01 an. Bisher
+  galten sie als 0.82.20 von 2019 (etwa ohne Ausgabe „ttf“ und viele
+  Grafikkarten) oder als DOSBox 0.73. Geprüft an den
+  Referenzkonfigurationen der Fassungen von 2022 und 2023.
 
 0.101 alpha 52 (2026-11-21)
 ---------------------------
