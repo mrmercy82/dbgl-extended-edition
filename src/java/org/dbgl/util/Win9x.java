@@ -61,7 +61,8 @@ public final class Win9x {
 		"java", "driver cache", "spool", "msapps", "twain_32", "web", "shellnew");
 	/** parts of a target that are programs of Windows itself */
 	static final String[] WINDOWS_OWN = {"\\zubeh", "\\accessories", "\\internet explorer", "\\windows messaging", "\\microsoft exchange", "\\online services", "\\online-dienste",
-		"\\outlook express", "\\netmeeting", "\\windows media player", "\\plus!"};
+		"\\outlook express", "\\netmeeting", "\\windows media player", "\\plus!", "\\access~1", "\\online~1", "\\icw-in~1", "\\internet connection wizard",
+		"\\zubeh~1"};
 
 	private Win9x() {
 	}
@@ -249,7 +250,7 @@ public final class Win9x {
 	/** true for a program of Windows itself (in its folder, or one of its accessories) */
 	static boolean windowsOwn(String target, String winDir) {
 		String t = target.toLowerCase(Locale.ROOT);
-		if (t.startsWith("c:\\" + winDir.toLowerCase(Locale.ROOT) + "\\"))
+		if (!winDir.isEmpty() && t.startsWith("c:\\" + winDir.toLowerCase(Locale.ROOT) + "\\"))
 			return true;
 		for (String w: WINDOWS_OWN)
 			if (t.contains(w))
@@ -297,7 +298,7 @@ public final class Win9x {
 				String shown = s.name() + " (" + s.target() + ")";
 				if (s.startup())
 					startup.add(shown);
-				if (windowsOwn(s.target(), winDir) || !seen.add(lower))
+				if (windowsOwn(s.target(), winDir) || windowsOwn("\\" + s.folder(), "") || !seen.add(lower))
 					continue;
 				(there(root, s.target()) ? programs: gone).add(shown);
 			}
