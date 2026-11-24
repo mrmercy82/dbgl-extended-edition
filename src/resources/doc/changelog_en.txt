@@ -56,9 +56,9 @@ New
 - Check: a hard disk image that cannot be written to (write protected or
   without permission) is reported: Windows 95 in it reports write errors
   otherwise, and ScanDisk runs at every start.
-- Check: "Export for the developers..." puts the results with the
+- Check: "Export for the developer..." puts the results with the
   configuration files of the profiles into a text file to send to the
-  developers. Folders, user name, computer name and e-mail addresses are
+  developer. Folders, user name, computer name and e-mail addresses are
   replaced; notes, links and own fields are left out. The whole text is
   shown before saving.
 - Check: "eXoDOS for comparison...": with an eXoDOS collection on the

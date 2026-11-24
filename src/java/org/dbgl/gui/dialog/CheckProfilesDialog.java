@@ -275,7 +275,7 @@ public class CheckProfilesDialog extends SizeControlledButtonDialog<Boolean> {
 				check();
 			}
 		}).ctrl();
-		// alpha 53: the results with the configurations, anonymous, to send to the developers of DBGL
+		// alpha 53: the results with the configurations, anonymous, to send to the developer of DBGL
 		Button_.on(otherButtons_).text().key("dialog.checkprofiles.export").tooltip("dialog.checkprofiles.export.tooltip").listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {

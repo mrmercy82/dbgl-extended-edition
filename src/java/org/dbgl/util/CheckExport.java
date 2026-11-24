@@ -39,7 +39,7 @@ import org.dbgl.util.ProfileFindings.Finding;
 
 /**
  * Alpha 53: the results of "Check profiles" with the configuration files of the profiles, as one text to send to the
- * developers of DBGL, so that the checks can be improved with real collections. Left out: notes, links, own fields, play
+ * developer of DBGL, so that the checks can be improved with real collections. Left out: notes, links, own fields, play
  * times. Replaced before the text is shown: the folders of DBGL, of the games (dosroot) and of the user, the user name, the
  * name of the computer and e-mail addresses. The user sees the whole text before saving it.
  */

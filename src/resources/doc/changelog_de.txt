@@ -58,8 +58,8 @@ Neu
 - Prüfen: Ein Festplattenabbild, das sich nicht beschreiben lässt
   (schreibgeschützt oder ohne Berechtigung), wird gemeldet: Windows 95 darin
   meldet sonst Schreibfehler, und ScanDisk läuft bei jedem Start.
-- Prüfen: „Für die Entwickler exportieren...“ legt die Ergebnisse mit den
-  Konfigurationsdateien der Profile in eine Textdatei, um sie an die
+- Prüfen: „Für den Entwickler exportieren...“ legt die Ergebnisse mit den
+  Konfigurationsdateien der Profile in eine Textdatei, um sie an den
   Entwickler zu schicken. Ordner, Benutzername, Rechnername und
   E-Mail-Adressen werden ersetzt; Notizen, Links und eigene Felder bleiben
   weg. Man sieht den ganzen Text vor dem Speichern.
