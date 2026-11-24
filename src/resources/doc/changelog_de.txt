@@ -53,8 +53,11 @@ Neu
 - Prüfen: Was DOSBox beim letzten Start eines Profils ausgegeben hat, wird
   mitgelesen und als Hinweis gezeigt: DOSBox-X findet kein WinPcap für die
   Netzwerkkarte (Lösung: [ne2000] backend = slirp), DOSBox darf einen Ordner
-  nicht anlegen, DOSBox nimmt einen Wert nicht an. Erkannt werden nur
-  Meldungen, deren Wortlaut aus echten Ausgaben bekannt ist.
+  nicht anlegen, DOSBox nimmt einen Wert nicht an, DOSBox findet die ROMs der
+  MT-32 nicht (mit den Ordnern, in denen DOSBox Staging gesucht hat).
+  Erkannt werden nur Meldungen, deren Wortlaut aus echten Ausgaben bekannt
+  ist; die Meldung von DOSBox-X zu einem Ordner beim Start mit -savedir (den
+  DBGL selbst anlegt) zählt nicht.
 - Prüfen: Ein Festplattenabbild, das sich nicht beschreiben lässt
   (schreibgeschützt oder ohne Berechtigung), wird gemeldet: Windows 95 darin
   meldet sonst Schreibfehler, und ScanDisk läuft bei jedem Start.
@@ -91,9 +94,25 @@ Neu
   Monat, Lieblingsgenre, meistgespielte Spiele, Spielzeit je Monat,
   Kalender). „Zufälliges ungespieltes Spiel...“ schlägt ein nie gestartetes
   Spiel vor und wählt es in der Liste aus.
-- Prüfen: Hinweis, wenn alle (mindestens drei) aufgezeichneten Spielsitzungen
-  eines Profils kürzer als 3 Minuten waren: Vielleicht startet das Spiel
-  nicht richtig oder beendet sich von selbst.
+- Prüfen: Hinweis, wenn die letzten (mindestens drei) Spielsitzungen eines
+  Profils hintereinander kürzer als 3 Minuten waren; ältere, längere zählen
+  nicht: Vielleicht startet das Spiel nicht (mehr) richtig oder beendet sich
+  von selbst.
+- Früheres Profil wiederherstellen: Mit jedem früheren Stand merkt sich DBGL
+  jetzt auch die DOSBox-Version, die das Profil damals hatte. Beim
+  Wiederherstellen bekommt das Profil diese Version zurück, wenn es sie noch
+  gibt (sonst bleibt die jetzige, mit Hinweis); in der Liste steht sie neben
+  dem Datum, wenn sie eine andere war. Für Stände von vor alpha 53 ist die
+  Version nicht bekannt.
+- DOSBox Staging liest vor den Dateien von DBGL auch seine eigene
+  Konfiguration im Benutzerordner (unter Windows
+  %LOCALAPPDATA%\DOSBox\dosbox-staging.conf): was DBGL nicht setzt, kommt
+  von dort, und ihr [autoexec] läuft mit. „Prüfen“ nennt bei der
+  DOSBox-Version, was daraus gilt (Einstellungen, die die Konfiguration der
+  Version nicht setzt und die vom Standard abweichen, und Autoexec-Zeilen).
+  Neu in den Einstellungen (DOSBox): „DOSBox Staging ohne die Konfiguration
+  im Benutzerordner starten“ (-noprimaryconf). DOSBox-X liest mit -conf nur
+  die Dateien, die es bekommt.
 - Profil bearbeiten, Audio: der Knopf neben „Mixer-Befehle“ heißt jetzt
   „Lautstärken einstellen...“ statt „...“.
 - Einrichtungsassistent beim ersten Start (wenn es noch keine Profile gibt):

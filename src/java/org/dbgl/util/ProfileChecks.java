@@ -650,7 +650,10 @@ public final class ProfileChecks {
 
 		// alpha 53: what the output of DOSBox told at the last start of the profile (RunIssues)
 		for (RunIssues.Issue ri: RunIssues.of(prof.getId()))
-			result.add(new Problem(ri.key(), ri.args().toArray()));
+			if (ri.key().equals("runmt32") && StringUtils.isBlank(ri.args().get(0))) // DOSBox-X does not name its folders: its setting
+				result.add(new Problem(ri.key(), dosboxX ? "[midi] mt32.romdir": "[mt32] romdir"));
+			else
+				result.add(new Problem(ri.key(), ri.args().toArray()));
 		// alpha 53: a hard disk image the system in it cannot write to (write protected, or no right to change it): Windows 95
 		// and DOS then report write errors and ScanDisk runs at every start (TEST19, EarthSiege II)
 		for (Mount m: netto)
@@ -701,6 +704,10 @@ public final class ProfileChecks {
 				: programFile(new FileLocation(autoexec.getMainWhereDosboxLooks(), FileLocationService.getInstance().dosrootRelative()).getCanonicalFile());
 		boolean stagingFamily = (gen != null) && (family == GenerationAwareConfigurable.familyIdx(Generation.staging_0830));
 		result.addAll(GameHints.check(prof, gameMain, netto, result, ansiDosbox, stagingFamily, dosboxX));
+		// alpha 53: the ROMs of the MT-32 missing at the last start is told by the check of the settings already (with where they
+		// belong), when DBGL sees it there too
+		if (result.stream().anyMatch(p -> p.key().equals("mt32norom")))
+			result.removeIf(p -> p.key().equals("runmt32"));
 
 		// umlauts in the [autoexec] in another charset than the DOSBox version reads it with: the folder is not found
 		ConfCharset.Mismatch cm = ConfCharset.mismatch(prof, prof.getDosboxVersion());
@@ -1372,6 +1379,10 @@ public final class ProfileChecks {
 			for (String[] gone: GONE_0831)
 				if (gone[2].equalsIgnoreCase(StringUtils.trimToEmpty(db.getConfiguration().getValue(gone[0], gone[1]))))
 					result.add(new Problem("dosboxconfauto0831", db.getTitle(), db.getConfigurationCanonicalFile().getName(), "[" + gone[0] + "] " + gone[1], gone[2]));
+		// alpha 53: DOSBox Staging also reads its configuration in the folder of the user: what of it counts
+		Problem primary = StagingPrimaryConf.hint(db);
+		if (primary != null)
+			result.add(primary);
 		return result;
 	}
 

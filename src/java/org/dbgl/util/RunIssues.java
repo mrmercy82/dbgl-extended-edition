@@ -51,6 +51,12 @@ public final class RunIssues {
 	/** DOSBox-X: "SETUP: mkdir_recursive failed: Permission denied" */
 	private static final Pattern MKDIR = Pattern.compile("(?i)mkdir_recursive failed: (Permission denied|Access is denied)");
 	/** DOSBox-X: "\"\" is not a valid value for variable: enable supermegazeux tweakmode." */
+	/**
+	 * DOSBox Staging: "MT32: Failed to find ROMs for model auto in:", then the folders ("MT32:  |- D:\\...\\mt32-roms", "MT32:
+	 * `- C:\\mt32-rom-data\\"); DOSBox-X: "MT32: failed to locate ROMs."
+	 */
+	private static final Pattern MT32 = Pattern.compile("(?i)MT32: (Failed to find ROMs|failed to locate ROMs)");
+	private static final Pattern MT32_DIR = Pattern.compile("MT32:\\s+(?:\\|-|`-)\\s*(.+)$");
 	private static final Pattern BAD_VALUE = Pattern.compile("\"([^\"]*)\" is not a valid value for variable: ([^.]+)\\.?");
 
 	private RunIssues() {
@@ -59,9 +65,21 @@ public final class RunIssues {
 	/** the issues in these lines of output, each once */
 	public static List<Issue> scan(List<String> lines) {
 		Set<Issue> found = new LinkedHashSet<>();
+		List<String> mt32Dirs = null; // the folders DOSBox Staging looked in, read after its line
 		for (String raw: lines) {
 			String line = StringUtils.defaultString(raw);
-			if (PCAP.matcher(line).find())
+			if (mt32Dirs != null) {
+				Matcher d = MT32_DIR.matcher(line);
+				if (d.find()) {
+					mt32Dirs.add(d.group(1).strip());
+					continue;
+				}
+				found.add(new Issue("runmt32", List.of(String.join(", ", mt32Dirs))));
+				mt32Dirs = null;
+			}
+			if (MT32.matcher(line).find())
+				mt32Dirs = new ArrayList<>();
+			else if (PCAP.matcher(line).find())
 				found.add(new Issue("runpcap", List.of()));
 			else if (MKDIR.matcher(line).find())
 				found.add(new Issue("runmkdir", List.of()));
@@ -73,7 +91,21 @@ public final class RunIssues {
 			if (found.size() >= MAX_ISSUES)
 				break;
 		}
+		if (mt32Dirs != null)
+			found.add(new Issue("runmt32", List.of(String.join(", ", mt32Dirs))));
 		return new ArrayList<>(found);
+	}
+
+	/**
+	 * DOSBox-X started with "-savedir" (the folder for the save states of the profile, made by DBGL beforehand) writes
+	 * "mkdir_recursive failed: Permission denied" although the folder is there (TEST21: only with -savedir, not without): then
+	 * no note of it
+	 */
+	public static List<Issue> withoutSaveDirNoise(List<Issue> issues, List<String> commandLine) {
+		int at = commandLine.indexOf("-savedir");
+		if ((at < 0) || (at + 1 >= commandLine.size()) || !new java.io.File(commandLine.get(at + 1)).isDirectory())
+			return issues;
+		return issues.stream().filter(i -> !i.key().equals("runmkdir")).toList();
 	}
 
 	/** keeps what the last start of a profile told (nothing: its entry goes) */

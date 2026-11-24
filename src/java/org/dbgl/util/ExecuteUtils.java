@@ -648,6 +648,9 @@ public class ExecuteUtils {
 		}
 		if (SettingsService.getInstance().getBooleanValue("dosbox", "hideconsole"))
 			commandItems.add("-noconsole");
+		// alpha 53: DOSBox Staging without its configuration in the user folder, if so chosen (it reads that one first)
+		if (StagingPrimaryConf.skipped(dbversion) && !commandItems.contains("-noprimaryconf"))
+			commandItems.add("-noprimaryconf");
 		if (SystemUtils.IS_OSX && dbversion.isUsingCurses()) {
 			String command = StringUtils.join(commandItems, ' ');
 			commandItems.clear();
@@ -728,7 +731,7 @@ public class ExecuteUtils {
 					synchronized (collected) {
 						lines = new ArrayList<>(collected);
 					}
-					List<RunIssues.Issue> issues = RunIssues.scan(lines);
+					List<RunIssues.Issue> issues = RunIssues.withoutSaveDirNoise(RunIssues.scan(lines), execCommands);
 					Display display = Display.getDefault();
 					if (!display.isDisposed())
 						display.asyncExec(() -> {

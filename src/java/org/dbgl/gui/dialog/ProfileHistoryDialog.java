@@ -81,9 +81,16 @@ public class ProfileHistoryDialog extends SizeControlledButtonDialog<Boolean> {
 		sash.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
 		list_ = new org.eclipse.swt.widgets.List(sash, SWT.BORDER | SWT.SINGLE | SWT.V_SCROLL);
 		DateFormat df = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.MEDIUM);
-		versions_.forEach(f -> list_.add(f.getName().equals(ProfileHistory.ORIGINAL)
-				? text_.get("dialog.profilehistory.original", new Object[] {df.format(new java.util.Date(f.lastModified()))})
-				: df.format(ProfileHistory.dateOf(f))));
+		versions_.forEach(f -> {
+			String label = f.getName().equals(ProfileHistory.ORIGINAL)
+					? text_.get("dialog.profilehistory.original", new Object[] {df.format(new java.util.Date(f.lastModified()))})
+					: df.format(ProfileHistory.dateOf(f));
+			// alpha 53: with the DOSBox version of then, when it was another one
+			String[] db = ProfileHistory.versionOf(f);
+			if ((db != null) && ((profile_.getDosboxVersion() == null) || !db[0].equals(String.valueOf(profile_.getDosboxVersion().getId()))))
+				label += " · " + db[1];
+			list_.add(label);
+		});
 		// as the preview of "Check profiles" and switching the DOSBox version: each section in a line, below it its values in color
 		diff_ = new org.eclipse.swt.custom.StyledText(sash, SWT.MULTI | SWT.READ_ONLY | SWT.V_SCROLL | SWT.H_SCROLL | SWT.BORDER);
 		font_ = new Font(shell_.getDisplay(), SystemUtils.IS_WINDOWS ? "Consolas": (SystemUtils.IS_OSX ? "Menlo": "Monospace"), 9, SWT.NORMAL);
@@ -139,10 +146,27 @@ public class ProfileHistoryDialog extends SizeControlledButtonDialog<Boolean> {
 			return;
 		try {
 			byte[] before = ProfileHistory.read(profile_);
+			String[] versionBefore = ProfileHistory.idAndTitle(profile_.getDosboxVersion());
 			Files.copy(versions_.get(i).toPath(), profile_.getConfigurationCanonicalFile().toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-			ProfileHistory.recordIfChanged(profile_, before); // the state before restoring can be brought back too
+			ProfileHistory.recordIfChanged(profile_, before, versionBefore); // the state before restoring can be brought back too
+			// alpha 53: the DOSBox version the profile had then, if it is still there (else it keeps the one it has)
+			String note = null;
+			String[] then = ProfileHistory.versionOf(versions_.get(i));
+			if ((then != null) && ((profile_.getDosboxVersion() == null) || !then[0].equals(String.valueOf(profile_.getDosboxVersion().getId())))) {
+				org.dbgl.model.aggregate.DosboxVersion found = new org.dbgl.model.repository.DosboxVersionRepository().listAll().stream()
+						.filter(v -> String.valueOf(v.getId()).equals(then[0])).findFirst().orElse(null);
+				if (found != null) {
+					found.resetAndLoadConfiguration(); // its settings, which the profile is read with
+					profile_.setDosboxVersion(found);
+					note = text_.get("dialog.profilehistory.versionback", new Object[] {found.getTitle()});
+				} else {
+					note = text_.get("dialog.profilehistory.versiongone", new Object[] {then[1], profile_.getDosboxVersion() == null ? "-": profile_.getDosboxVersion().getTitle()});
+				}
+			}
 			String warnings = profile_.resetAndLoadConfiguration();
 			new ProfileRepository().updateKeepingConfigurationFile(profile_); // the file byte for byte as it was then
+			if (note != null)
+				Mess_.on(shell_).txt(note).display();
 			if ((warnings != null) && !warnings.isBlank())
 				Mess_.on(shell_).txt(warnings).warning();
 			result_ = true;

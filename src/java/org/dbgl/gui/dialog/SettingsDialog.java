@@ -137,6 +137,9 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 		Button detectFailedStart = Chain.on(dosboxGroup).lbl(l -> l.key("dialog.settings.detectfailedstart")).but(b -> b.select(settings_.getBooleanValue("dosbox", "detectfailedstart"))).button();
 		Button checkVersions = Chain.on(dosboxGroup).lbl(l -> l.key("dialog.settings.checkversionsatstartup")).but(b -> b.select(settings_.getBooleanValue("dosbox", "checkversionsatstartup"))).button();
 		Button checkBeforeStart = Chain.on(dosboxGroup).lbl(l -> l.key("dialog.settings.checkbeforestart")).but(b -> b.select(settings_.getBooleanValue("dosbox", "checkbeforestart"))).button();
+		// alpha 53: DOSBox Staging without its configuration in the user folder (which it reads before those of DBGL)
+		Button noPrimaryConf = Chain.on(dosboxGroup).lbl(l -> l.key("dialog.settings.noprimaryconf")).but(b -> b.tooltip("dialog.settings.noprimaryconf.tooltip")
+			.select(settings_.getBooleanValue("dosbox", "noprimaryconf"))).button();
 		Button ownSavestates = Chain.on(dosboxGroup).lbl(l -> l.key("dialog.settings.ownsavestates")).but(b -> b.tooltip("dialog.settings.ownsavestates.tooltip")
 			.select(settings_.getBooleanValue("dosbox", "ownsavestates"))).button(); // alpha 48
 		// "Do not ask again" in the question about the charset of a file (CharsetQuestion): asked again when ticked here
@@ -831,6 +834,7 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 				settings_.setBooleanValue("dosbox", "checkforupdates", checkForUpdates.getSelection());
 				settings_.setBooleanValue("dosbox", "checkbeforestart", checkBeforeStart.getSelection());
 				settings_.setBooleanValue("dosbox", "ownsavestates", ownSavestates.getSelection());
+				settings_.setBooleanValue("dosbox", "noprimaryconf", noPrimaryConf.getSelection());
 				settings_.setBooleanValue(org.dbgl.gui.controls.CharsetQuestion.SECTION, org.dbgl.gui.controls.CharsetQuestion.ITEM, !askCharset.getSelection());
 				settings_.setBooleanValue("gui", "profilewarnings", profileWarnings.getSelection());
 				settings_.setBooleanValue("gui", "profilehints", profileHints.getSelection());

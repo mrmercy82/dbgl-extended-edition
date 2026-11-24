@@ -60,8 +60,18 @@ public final class ProfileHistory {
 		}
 	}
 
-	/** keep the previous content if the file changed when it was saved */
+	/** keep the previous content if the file changed when it was saved (the DOSBox version stayed the same) */
 	public static void recordIfChanged(Profile profile, byte[] before) {
+		recordIfChanged(profile, before, idAndTitle(profile.getDosboxVersion()));
+	}
+
+	/**
+	 * alpha 53: keep the previous content if the file changed when it was saved, and the DOSBox version the profile had with it,
+	 * so that restoring it brings back that version too (if it is still there)
+	 *
+	 * @param versionBefore the id and title of the DOSBox version before saving, null if not known
+	 */
+	public static void recordIfChanged(Profile profile, byte[] before, String[] versionBefore) {
 		if ((before == null) || (profile.getId() < 0))
 			return;
 		byte[] after = read(profile);
@@ -70,7 +80,7 @@ public final class ProfileHistory {
 		try {
 			File dir = dirOf(profile.getId());
 			dir.mkdirs();
-			keepOriginal(profile.getId(), before);
+			keepOriginal(profile.getId(), before, versionBefore);
 			File now = new File(dir, new SimpleDateFormat(STAMP).format(new Date()) + ".conf");
 			// a version with exactly this content is kept already (e.g. after applying and undoing a change): it is moved to
 			// now instead of keeping it twice, so that trying something out does not push the older versions out
@@ -80,13 +90,18 @@ public final class ProfileHistory {
 					same = f;
 					break;
 				}
-			if (same != null)
+			if (same != null) {
 				Files.move(same.toPath(), now.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-			else
+				Files.deleteIfExists(versionFile(same).toPath());
+			} else {
 				Files.write(now.toPath(), before);
+			}
+			writeVersion(now, versionBefore);
 			List<File> versions = list(profile.getId());
-			for (int i = KEEP; i < versions.size(); i++)
+			for (int i = KEEP; i < versions.size(); i++) {
 				Files.deleteIfExists(versions.get(i).toPath());
+				Files.deleteIfExists(versionFile(versions.get(i)).toPath());
+			}
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -96,7 +111,7 @@ public final class ProfileHistory {
 	 * the first state DBGL changed: the oldest kept version if there are some already (kept before alpha 46), else the state
 	 * before this change
 	 */
-	private static void keepOriginal(int profileId, byte[] before) throws IOException {
+	private static void keepOriginal(int profileId, byte[] before, String[] versionBefore) throws IOException {
 		File original = original(profileId);
 		if (original != null)
 			return;
@@ -104,6 +119,8 @@ public final class ProfileHistory {
 		byte[] oldest = versions.isEmpty() ? before: Files.readAllBytes(versions.get(versions.size() - 1).toPath());
 		File file = new File(dirOf(profileId), ORIGINAL);
 		Files.write(file.toPath(), oldest);
+		if (versions.isEmpty()) // the state before this change: with the DOSBox version of then
+			writeVersion(file, versionBefore);
 		if (!versions.isEmpty())
 			file.setLastModified(dateOf(versions.get(versions.size() - 1)).getTime());
 	}
@@ -129,6 +146,40 @@ public final class ProfileHistory {
 			return new SimpleDateFormat(STAMP).parse(version.getName().substring(0, STAMP.length()));
 		} catch (Exception e) {
 			return new Date(version.lastModified());
+		}
+	}
+
+	/** alpha 53: the DOSBox version a kept state went with: next to it, "&lt;name&gt;.dosbox" with its id and title */
+	static File versionFile(File version) {
+		return new File(version.getParentFile(), version.getName().replaceFirst("\\.conf$", "") + ".dosbox");
+	}
+
+	/** the id and title of a DOSBox version, null for none */
+	public static String[] idAndTitle(org.dbgl.model.aggregate.DosboxVersion db) {
+		return db == null ? null: new String[] {String.valueOf(db.getId()), db.getTitle()};
+	}
+
+	private static void writeVersion(File version, String[] db) {
+		try {
+			if (db == null)
+				Files.deleteIfExists(versionFile(version).toPath());
+			else
+				Files.writeString(versionFile(version).toPath(), db[0] + "\n" + db[1] + "\n", java.nio.charset.StandardCharsets.UTF_8);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+
+	/** alpha 53: the DOSBox version a kept state went with (id and title), null if not known (kept before alpha 53) */
+	public static String[] versionOf(File version) {
+		try {
+			File f = versionFile(version);
+			if (!f.isFile())
+				return null;
+			String[] lines = Files.readString(f.toPath(), java.nio.charset.StandardCharsets.UTF_8).split("\\R");
+			return (lines.length >= 2) && lines[0].strip().matches("\\d+") ? new String[] {lines[0].strip(), lines[1].strip()}: null;
+		} catch (IOException e) {
+			return null;
 		}
 	}
 

@@ -4041,6 +4041,17 @@ public class Dbgl0102Tests {
 
 	/** Alpha 53: a profile that starts Windows 3.x: what it starts, its sound and display drivers against DOSBox */
 	@Test
+	public void testStagingPrimaryConf() {
+		// alpha 53: what of the configuration of DOSBox Staging in the user folder counts: what the files of DBGL do not set, its autoexec
+		org.dbgl.util.StagingPrimaryConf.Counts c = org.dbgl.util.StagingPrimaryConf.counts(
+			"[sdl]\nfullscreen = true\noutput = opengl\n[cpu]\ncycles = max\n[autoexec]\n# a comment\nmount c d:\\games\n", List.of("[sdl]\nfullscreen=false\n"));
+		assertEquals(List.of("[sdl] output = opengl", "[cpu] cycles = max"), c.settings());
+		assertEquals(List.of("mount c d:\\games"), c.autoexec());
+		assertTrue(c.any());
+		assertFalse(org.dbgl.util.StagingPrimaryConf.counts("[sdl]\nfullscreen = true\n[autoexec]\n", List.of("[sdl]\nfullscreen=false\n")).any());
+	}
+
+	@Test
 	public void testStatisticsExtra() {
 		// alpha 53: days in a row, the length of sessions, the age of profiles, short sessions only
 		java.time.LocalDate d = java.time.LocalDate.of(2026, 11, 20);
@@ -4060,7 +4071,8 @@ public class Dbgl0102Tests {
 		assertEquals(3, org.dbgl.util.StatisticsExtra.ageBucket(d.minusMonths(13), d));
 		assertEquals(4, org.dbgl.util.StatisticsExtra.ageBucket(d.minusYears(3), d));
 		assertNull(org.dbgl.util.ProfileFindings.shortSessions(List.of(60, 70)));
-		assertNull(org.dbgl.util.ProfileFindings.shortSessions(List.of(60, 70, 900)));
+		assertNull(org.dbgl.util.ProfileFindings.shortSessions(List.of(60, 70, 900))); // the newest was long
+		org.junit.Assert.assertArrayEquals(new Object[] {3, 3}, org.dbgl.util.ProfileFindings.shortSessions(List.of(900, 1200, 60, 70, 40))); // the newest three short
 		org.junit.Assert.assertArrayEquals(new Object[] {3, 3}, org.dbgl.util.ProfileFindings.shortSessions(List.of(60, 70, 40)));
 	}
 
@@ -4091,7 +4103,20 @@ public class Dbgl0102Tests {
 		assertEquals("runmkdir", found.get(0).key());
 		assertEquals(List.of("", "enable supermegazeux tweakmode"), found.get(1).args());
 		assertEquals("runpcap", found.get(2).key());
+		// with -savedir and that folder there: the mkdir message is DOSBox-X itself, not told
+		String saveDir = System.getProperty("java.io.tmpdir");
+		assertEquals(2, org.dbgl.util.RunIssues.withoutSaveDirNoise(found, List.of("dosbox-x.exe", "-conf", "x.conf", "-savedir", saveDir)).size());
+		assertEquals(3, org.dbgl.util.RunIssues.withoutSaveDirNoise(found, List.of("dosbox-x.exe", "-conf", "x.conf")).size());
 		assertTrue(org.dbgl.util.RunIssues.scan(List.of("LOG: MT32: Found ROM pair in ./: CM32L_CONTROL.ROM and CM32L_PCM.ROM")).isEmpty());
+		// the ROMs of the MT-32 not found: DOSBox Staging 0.83.1 names the folders it looked in, DOSBox-X does not
+		List<org.dbgl.util.RunIssues.Issue> staging = org.dbgl.util.RunIssues.scan(List.of("2026-11-24 20:40:20.491 | MPU-401: Running in intelligent mode on ports 330h and 331h",
+			"2026-11-24 20:40:20.491 | MT32: Failed to find ROMs for model auto in:", "2026-11-24 20:40:20.491 | MT32:  |- D:\\Games\\DOSBox-Staging\\mt32-roms",
+			"2026-11-24 20:40:20.491 | MT32:  `- C:\\mt32-rom-data\\", "2026-11-24 20:40:20.491 | MIDI: Error opening MIDI device 'mt32'; using 'port'"));
+		assertEquals(1, staging.size());
+		assertEquals("runmt32", staging.get(0).key());
+		assertEquals("D:\\Games\\DOSBox-Staging\\mt32-roms, C:\\mt32-rom-data\\", staging.get(0).args().get(0));
+		List<org.dbgl.util.RunIssues.Issue> x = org.dbgl.util.RunIssues.scan(List.of("LOG: MT32: failed to locate ROMs.", "LOG: MT32 emulation requires the PCM and CONTROL ROM files."));
+		assertEquals(List.of(new org.dbgl.util.RunIssues.Issue("runmt32", List.of(""))), x);
 	}
 
 	@Test

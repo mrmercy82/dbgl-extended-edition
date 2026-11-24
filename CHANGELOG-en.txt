@@ -51,8 +51,10 @@ New
 - Check: what DOSBox wrote at the last start of a profile is read along and
   shown as a note: DOSBox-X finds no WinPcap for the network card (solution:
   [ne2000] backend = slirp), DOSBox may not create a folder, DOSBox does not
-  take a value. Only messages whose wording is known from real output are
-  recognized.
+  take a value, DOSBox finds no ROMs of the MT-32 (with the folders DOSBox
+  Staging looked in). Only messages whose wording is known from real output
+  are recognized; the message of DOSBox-X about a folder when started with
+  -savedir (which DBGL makes itself) does not count.
 - Check: a hard disk image that cannot be written to (write protected or
   without permission) is reported: Windows 95 in it reports write errors
   otherwise, and ScanDisk runs at every start.
@@ -87,9 +89,22 @@ New
   favourite genre, most played games, play time per month, calendar).
   "Random unplayed game..." suggests a game never started and selects it in
   the list.
-- Check: a note when all (at least three) recorded play sessions of a
-  profile were shorter than 3 minutes: the game may not start right or end
-  by itself.
+- Check: a note when the last (at least three) play sessions of a profile
+  in a row were shorter than 3 minutes; older, longer ones do not count: the
+  game may not start right (any more) or end by itself.
+- Restore an earlier profile: with each earlier state DBGL now also keeps
+  the DOSBox version the profile had then. Restoring gives the profile that
+  version back if it is still there (else the current one stays, with a
+  note); the list shows it next to the date when it was another one. For
+  states from before alpha 53 the version is not known.
+- DOSBox Staging also reads its own configuration in the user folder before
+  the files of DBGL (on Windows %LOCALAPPDATA%\DOSBox\dosbox-staging.conf):
+  what DBGL does not set comes from there, and its [autoexec] runs too.
+  "Check" tells for the DOSBox version what of it counts (settings the
+  configuration of the version does not set and that differ from the
+  default, and autoexec lines). New in the settings (DOSBox): "Start DOSBox
+  Staging without the configuration in the user folder" (-noprimaryconf).
+  DOSBox-X with -conf reads only the files it is given.
 - Edit profile, Audio: the button next to "Mixer command" now reads "Set
   volumes..." instead of "...".
 - Welcome wizard at the first start (when there are no profiles yet):

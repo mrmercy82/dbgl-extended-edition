@@ -302,13 +302,14 @@ public class ProfileRepository extends LoggingRepository<Profile> {
 			throw new SQLException(TextService.getInstance().get("general.error.confreadonly", new Object[] {conf.getPath()}));
 		}
 		try (Transaction transaction = dbService_.startTransaction()) {
+			String[] versionBefore = previousVersion(transaction, profile); // alpha 53: kept with the state before
 			doUpdate(transaction, profile);
 			actionOnEntity(transaction, DEL_NTVCMD_QRY, "remove profile native commands", profile);
 			addNativeCommands(transaction, profile);
 			log(transaction, LogEntry.Event.EDIT, LogEntry.EntityType.PROFILE, profile);
 			byte[] before = org.dbgl.util.ProfileHistory.read(profile);
 			profile.saveConfiguration();
-			org.dbgl.util.ProfileHistory.recordIfChanged(profile, before); // earlier states can be brought back
+			org.dbgl.util.ProfileHistory.recordIfChanged(profile, before, versionBefore); // earlier states can be brought back
 			transaction.commit();
 		} catch (SQLException | IOException e) {
 			e.printStackTrace();
@@ -331,6 +332,20 @@ public class ProfileRepository extends LoggingRepository<Profile> {
 		} catch (IOException | SQLException e) {
 			return false;
 		}
+	}
+
+	/** alpha 53: the id and title of the DOSBox version the profile has in the database still (before it is saved) */
+	private static String[] previousVersion(Transaction transaction, Profile profile) {
+		try (PreparedStatement stmt = transaction.prepareStatement("SELECT D.ID, D.TITLE FROM GAMES G, DOSBOXVERSIONS D WHERE G.DBVERSION_ID = D.ID AND G.ID = ?")) {
+			stmt.setInt(1, profile.getId());
+			try (ResultSet rs = stmt.executeQuery()) {
+				if (rs.next())
+					return new String[] {String.valueOf(rs.getInt(1)), rs.getString(2)};
+			}
+		} catch (SQLException | RuntimeException e) {
+			// not known: kept with the one it has now
+		}
+		return org.dbgl.util.ProfileHistory.idAndTitle(profile.getDosboxVersion());
 	}
 
 	/**

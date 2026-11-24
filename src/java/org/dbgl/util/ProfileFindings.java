@@ -153,11 +153,13 @@ public final class ProfileFindings {
 		return DBCONF.equals(f.kind()) || EXODOS.equals(f.kind());
 	}
 
-	/** alpha 53: the lengths (seconds) of the recorded play sessions per profile; none if they cannot be read */
+	/** alpha 53: the lengths (seconds) of the recorded play sessions per profile, the oldest first; none if they cannot be read */
 	static Map<Integer, List<Integer>> sessionsPerProfile() {
 		Map<Integer, List<Integer>> result = new java.util.HashMap<>();
 		try {
-			for (org.dbgl.model.repository.ProfileRepository.PlaySession s: new org.dbgl.model.repository.ProfileRepository().listPlaySessions())
+			List<org.dbgl.model.repository.ProfileRepository.PlaySession> all = new ArrayList<>(new org.dbgl.model.repository.ProfileRepository().listPlaySessions());
+			all.sort(java.util.Comparator.comparing(org.dbgl.model.repository.ProfileRepository.PlaySession::started));
+			for (org.dbgl.model.repository.ProfileRepository.PlaySession s: all)
 				result.computeIfAbsent(s.profileId(), k -> new ArrayList<>()).add(s.seconds());
 		} catch (java.sql.SQLException | RuntimeException e) {
 			// without them: no such note
@@ -165,24 +167,30 @@ public final class ProfileFindings {
 		return result;
 	}
 
-	/** how short "short" is, and how many sessions it takes to tell */
+	/** how short "short" is, and how many sessions in a row it takes to tell */
 	static final int SHORT_SECONDS = 3 * 60, SHORT_SESSIONS = 3;
 
 	/**
-	 * alpha 53: at least 3 recorded sessions, all of them shorter than 3 minutes: the game may not start right or end by
-	 * itself (args: the number, the minutes); null otherwise
+	 * alpha 53: the newest sessions, at least 3 of them, each shorter than 3 minutes (older, longer ones do not count: the game
+	 * may have stopped working since): the game may not start right or end by itself (args: their number, the minutes); null
+	 * otherwise. TEST21: Lure of the Temptress with 8 sessions, an earlier one longer, was not told before.
+	 *
+	 * @param seconds the lengths of the sessions, the oldest first
 	 */
 	public static Object[] shortSessions(List<Integer> seconds) {
-		if ((seconds == null) || (seconds.size() < SHORT_SESSIONS) || seconds.stream().anyMatch(s -> s >= SHORT_SECONDS))
+		if (seconds == null)
 			return null;
-		return new Object[] {seconds.size(), SHORT_SECONDS / 60};
+		int n = 0;
+		for (int i = seconds.size() - 1; (i >= 0) && (seconds.get(i) < SHORT_SECONDS); i--)
+			n++;
+		return n >= SHORT_SESSIONS ? new Object[] {n, SHORT_SECONDS / 60}: null;
 	}
 
 	/** alpha 53: a configuration of the eXoDOS collection on this computer for the game */
 	public static final String EXODOS = "exodos";
 
 	/** what ProfileChecks finds that is only for information */
-	private static final Set<String> HINTS = Set.of("gusnopatches", "cohortoptional", "lurecm32l", "dm2sbpro", "paw1942jemmex", "sounddeviceoff", "gamewantsmt32", "cdimageunused", "gameadvice", "soundmismatch", "win3start", "win16inwindows", "win3programs", "win3itemsgone", "win9xstartup", "win9xprograms", "win9xgone", "runpcap", "runmkdir", "runbadvalue", "shortsessions");
+	private static final Set<String> HINTS = Set.of("gusnopatches", "cohortoptional", "lurecm32l", "dm2sbpro", "paw1942jemmex", "sounddeviceoff", "gamewantsmt32", "cdimageunused", "gameadvice", "soundmismatch", "win3start", "win16inwindows", "win3programs", "win3itemsgone", "win9xstartup", "win9xprograms", "win9xgone", "runpcap", "runmkdir", "runbadvalue", "shortsessions", "runmt32");
 
 	private static final Fix REWRITE = fix((p, v) -> {
 		// nothing to change: saving writes it as DOSBox needs it
