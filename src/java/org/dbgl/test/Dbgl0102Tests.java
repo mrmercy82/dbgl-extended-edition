@@ -4041,6 +4041,30 @@ public class Dbgl0102Tests {
 
 	/** Alpha 53: a profile that starts Windows 3.x: what it starts, its sound and display drivers against DOSBox */
 	@Test
+	public void testStatisticsExtra() {
+		// alpha 53: days in a row, the length of sessions, the age of profiles, short sessions only
+		java.time.LocalDate d = java.time.LocalDate.of(2026, 11, 20);
+		java.util.Set<java.time.LocalDate> days = new java.util.HashSet<>(List.of(d, d.minusDays(1), d.minusDays(2), d.minusDays(5), d.minusDays(6), d.plusDays(4)));
+		org.dbgl.util.StatisticsExtra.Streak s = org.dbgl.util.StatisticsExtra.longestStreak(days);
+		assertEquals(3, s.days());
+		assertEquals(d.minusDays(2), s.from());
+		assertEquals(d, s.to());
+		assertNull(org.dbgl.util.StatisticsExtra.longestStreak(List.of()));
+		assertEquals(3, org.dbgl.util.StatisticsExtra.currentStreak(days, d));
+		assertEquals(3, org.dbgl.util.StatisticsExtra.currentStreak(days, d.plusDays(1))); // not played today yet: up to yesterday
+		assertEquals(0, org.dbgl.util.StatisticsExtra.currentStreak(days, d.plusDays(2)));
+		assertEquals(0, org.dbgl.util.StatisticsExtra.lengthBucket(60));
+		assertEquals(2, org.dbgl.util.StatisticsExtra.lengthBucket(45 * 60));
+		assertEquals(5, org.dbgl.util.StatisticsExtra.lengthBucket(5 * 3600));
+		assertEquals(0, org.dbgl.util.StatisticsExtra.ageBucket(d.minusDays(10), d));
+		assertEquals(3, org.dbgl.util.StatisticsExtra.ageBucket(d.minusMonths(13), d));
+		assertEquals(4, org.dbgl.util.StatisticsExtra.ageBucket(d.minusYears(3), d));
+		assertNull(org.dbgl.util.ProfileFindings.shortSessions(List.of(60, 70)));
+		assertNull(org.dbgl.util.ProfileFindings.shortSessions(List.of(60, 70, 900)));
+		org.junit.Assert.assertArrayEquals(new Object[] {3, 3}, org.dbgl.util.ProfileFindings.shortSessions(List.of(60, 70, 40)));
+	}
+
+	@Test
 	public void testCheckExportAnonymous() throws Exception {
 		// alpha 53: the folders and names of the user replaced, paths with \\ and / and in any case
 		java.util.Map<String, String> r = new java.util.LinkedHashMap<>();

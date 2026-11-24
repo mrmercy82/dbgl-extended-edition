@@ -71,6 +71,29 @@ Neu
   als 0.74 bleibt die Geschwindigkeit (core, cycles) weg, DOSBox Staging
   bekommt die Werte unter seinen Namen. Die Dateien von eXoDOS werden nur
   gelesen.
+- Datenbank aufräumen: Vorher erklärt ein Fenster, was passiert und was
+  unverändert bleibt, und legt auf Wunsch (voreingestellt) eine Sicherung
+  an (Datenbank, Profile, Vorlagen, Einstellungen), die unter „Sicherungen
+  verwalten“ erscheint und sich dort wiederherstellen lässt. Das Aufräumen
+  gibt es jetzt auch im Statistikfenster. Die alte deutsche Meldung
+  sprach fälschlich von gelöschten „Profilen“; gelöscht werden nur
+  ungenutzte Einträge der Auswahllisten.
+- Statistik, neue Abschnitte: Spielzeit der letzten 12 Wochen, nach
+  Wochentag und nach Tageszeit; Spieltage mit längster und aktueller Serie
+  und (auf der Webseite) einem Kalender der letzten 12 Monate; Länge der
+  Spielsitzungen; nie gestartete Spiele nach Alter des Profils und die
+  ältesten davon; Spielereihen und Publisher mit Spielzeit; Zustand der
+  Sammlung (ohne Bilder, Jahr, Genre, Entwickler, Publisher, mit Warnungen,
+  jeweils mit Anteil); die größten Spiele nach Speicherplatz.
+- Statistik: „Jahresrückblick“ als Webseite für dieses Jahr und frühere
+  Jahre mit Spielzeit (Spielzeit, Sitzungen, Spiele und neue Spiele,
+  Spieltage und Serie, längste Sitzung, erstes und letztes Spiel, stärkster
+  Monat, Lieblingsgenre, meistgespielte Spiele, Spielzeit je Monat,
+  Kalender). „Zufälliges ungespieltes Spiel...“ schlägt ein nie gestartetes
+  Spiel vor und wählt es in der Liste aus.
+- Prüfen: Hinweis, wenn alle (mindestens drei) aufgezeichneten Spielsitzungen
+  eines Profils kürzer als 3 Minuten waren: Vielleicht startet das Spiel
+  nicht richtig oder beendet sich von selbst.
 - Profil bearbeiten, Audio: der Knopf neben „Mixer-Befehle“ heißt jetzt
   „Lautstärken einstellen...“ statt „...“.
 - Einrichtungsassistent beim ersten Start (wenn es noch keine Profile gibt):

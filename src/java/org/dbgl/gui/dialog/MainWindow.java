@@ -1621,6 +1621,91 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		}
 	}
 
+	/**
+	 * alpha 53: "Database cleanup": first what it does and a backup (on at first), then entries of the same name merged, those
+	 * no profile uses removed, and similar ones offered to be merged by hand
+	 */
+	private void doDatabaseCleanup(Shell parent) {
+		File backupDir = org.dbgl.service.BackupService.defaultAutoBackupDir();
+		Boolean backup = new DatabaseCleanupDialog(parent, backupDir).open();
+		if (backup == null)
+			return;
+		String backupName = null;
+		try {
+			if (backup) {
+				java.nio.file.Files.createDirectories(backupDir.toPath());
+				File zip = new File(backupDir, "dbgl-backup-before-cleanup-" + new java.text.SimpleDateFormat("yyyyMMdd-HHmmss").format(new java.util.Date()) + ".zip");
+				parent.setCursor(display_.getSystemCursor(SWT.CURSOR_WAIT));
+				try {
+					org.dbgl.service.BackupService.backup(zip);
+				} finally {
+					parent.setCursor(null);
+				}
+				backupName = zip.getPath();
+			}
+			TitledEntityRepository repo = new TitledEntityRepository();
+			int itemsRemoved = repo.cleanup();
+			// entries of the same name apart from spaces and case are merged first; similar ones are offered to be merged by
+			// hand ("Sierra On-Line" and "Sierra Online"), those merged then go with a second cleanup
+			int merged = repo.lastMerged();
+			java.util.List<TitledEntityRepository.Similar> similar = repo.similar();
+			if (!similar.isEmpty()) {
+				Integer byHand = new SimilarEntriesDialog(parent, similar).open();
+				if ((byHand != null) && (byHand > 0)) {
+					merged += byHand;
+					itemsRemoved += repo.cleanup();
+				}
+			}
+			String done = text_.get("dialog.main.notice.databasecleanupok2", new Object[] {merged, itemsRemoved});
+			if (backupName != null)
+				done += "\n\n" + text_.get("dialog.databasecleanup.backupdone", new Object[] {backupName});
+			Mess_.on(parent).txt(done).display();
+			if (merged > 0)
+				updateProfilesList(getSelectedProfileIds());
+		} catch (IOException | SQLException e) {
+			Mess_.on(parent).exception(e).warning();
+		}
+	}
+
+	/** alpha 53: the years to review: this one and the ones before with play sessions (at most 5) */
+	private java.util.Map<String, Runnable> yearReviews(List<Profile> all, java.util.Locale locale, int thisYear) {
+		java.util.Map<String, Runnable> result = new java.util.LinkedHashMap<>();
+		java.util.TreeSet<Integer> years = new java.util.TreeSet<>(java.util.Comparator.reverseOrder());
+		years.add(thisYear);
+		try {
+			for (ProfileRepository.PlaySession s: new ProfileRepository().listPlaySessions())
+				years.add(s.started().toInstant().atZone(java.time.ZoneId.systemDefault()).getYear());
+		} catch (SQLException e) {
+			// this year only
+		}
+		years.stream().limit(5).forEach(y -> result.put(text_.get("dialog.statistics.yearreview", new Object[] {String.valueOf(y)}), () -> showYearReview(all, locale, y)));
+		return result;
+	}
+
+	/** alpha 53: the review of a year as a web page in the browser */
+	private void showYearReview(List<Profile> all, java.util.Locale locale, int year) {
+		try {
+			String html = org.dbgl.util.StatisticsExtra.yearReviewHtml(all, new ProfileRepository().listPlaySessions(), text_, locale, year);
+			File page = new File(FileLocationService.getInstance().getExportDir(), "dbgl-year-review-" + year + ".html");
+			java.nio.file.Files.writeString(page.toPath(), html, java.nio.charset.StandardCharsets.UTF_8);
+			SystemUtils.openForBrowsing(page.getPath(), shell_);
+		} catch (IOException | SQLException | RuntimeException e) {
+			Mess_.on(shell_).exception(e).warning();
+		}
+	}
+
+	/** alpha 53: a game never started, by chance, to be chosen in the list */
+	private void pickRandomUnplayed(Shell parent, List<Profile> all) {
+		Profile p = org.dbgl.util.StatisticsExtra.randomUnplayed(all, new java.util.Random());
+		if (p == null) {
+			Mess_.on(parent).key("dialog.statistics.random.none").display();
+			return;
+		}
+		String extra = java.util.stream.Stream.of(p.getYear(), p.getGenre()).filter(StringUtils::isNotBlank).collect(java.util.stream.Collectors.joining(", "));
+		if (Mess_.on(parent).key("dialog.statistics.random.pick", new Object[] {p.getTitle(), extra.isEmpty() ? "-": extra}).confirm())
+			updateProfilesList(java.util.Set.of(p.getId()));
+	}
+
 	private void doShowStatistics() {
 		try {
 			List<Profile> all = new ProfileRepository().list(StringUtils.EMPTY, StringUtils.EMPTY, dbversionsList_);
@@ -1635,6 +1720,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				shell_.setCursor(null);
 			}
 			org.dbgl.util.ProfileReports.overviewExtra = disk;
+			int thisYear = java.time.LocalDate.now().getYear();
 			String report = org.dbgl.util.ProfileReports.statistics(all, new ProfileRepository().listPlaySessions(), text_, locale, now);
 			new DifferencesDialog(shell_, text_.get("dialog.statistics.title"), report, "dbgl-statistics-" + new java.text.SimpleDateFormat("yyyy-MM-dd_HH-mm").format(now) + ".txt",
 					"statisticsdialog").withImage(ImageService.IMG_STATISTICS).withAction("dialog.statistics.cleanremoved", s -> cleanRemovedProfileData(s, all, locale))
@@ -1643,7 +1729,11 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 					.withExport("csv", text_.get("dialog.statistics.save.csv"), () -> statisticsAs(false, all, locale, now))
 					// alpha 49: as PDF: the web page opened in the browser with its print window ("Save as PDF" there), which
 					// knows the letters of every language
-					.withMenuAction(text_.get("dialog.statistics.save.pdf"), () -> printStatistics(statisticsAs(true, all, locale, now))).open();
+					.withMenuAction(text_.get("dialog.statistics.save.pdf"), () -> printStatistics(statisticsAs(true, all, locale, now)))
+					// alpha 53: the review of this and of last year, a game never started by chance, the cleanup of the lists
+					.withButton(text_.get("dialog.statistics.yearreview.button"), yearReviews(all, locale, thisYear))
+					.withButton(text_.get("dialog.statistics.random"), java.util.Map.of("", () -> pickRandomUnplayed(shell_, all)))
+					.withButton(text_.get("dialog.databasecleanup.button"), java.util.Map.of("", () -> doDatabaseCleanup(shell_))).open();
 		} catch (SQLException e) {
 			Mess_.on(shell_).exception(e).warning();
 		}
@@ -2512,28 +2602,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		SelectionAdapter cleanupAdapter = new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
-				try {
-					if (Mess_.on(shell_).key("dialog.main.confirm.databasecleanup2").confirm()) {
-						TitledEntityRepository repo = new TitledEntityRepository();
-						int itemsRemoved = repo.cleanup();
-						// alpha 53: entries of the same name apart from spaces and case are merged first; similar ones are offered
-						// to be merged by hand ("Sierra On-Line" and "Sierra Online"), those merged then go with a second cleanup
-						int merged = repo.lastMerged();
-						java.util.List<TitledEntityRepository.Similar> similar = repo.similar();
-						if (!similar.isEmpty()) {
-							Integer byHand = new SimilarEntriesDialog(shell_, similar).open();
-							if ((byHand != null) && (byHand > 0)) {
-								merged += byHand;
-								itemsRemoved += repo.cleanup();
-							}
-						}
-						Mess_.on(shell_).key("dialog.main.notice.databasecleanupok2", new Object[] {merged, itemsRemoved}).display();
-						if (merged > 0)
-							updateProfilesList(getSelectedProfileIds());
-					}
-				} catch (SQLException e) {
-					Mess_.on(shell_).exception(e).warning();
-				}
+				doDatabaseCleanup(shell_);
 			}
 		};
 		SelectionAdapter openAboutAdapter = new SelectionAdapter() {

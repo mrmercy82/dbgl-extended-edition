@@ -171,10 +171,10 @@ public final class ProfileReports {
 	}
 
 	/** how many entries the top lists have */
-	private static final int TOP = 15;
+	static final int TOP = 15;
 
 	/** where the statistics go: a text, a web page with bars, or a table (CSV) */
-	private interface Out {
+	interface Out {
 		void line(String line);
 
 		void section(String title);
@@ -185,9 +185,17 @@ public final class ProfileReports {
 		void more();
 
 		void empty();
+
+		/** alpha 53: a calendar of the days played (only the web page draws it) */
+		default void heatmap(java.time.LocalDate from, java.time.LocalDate to, Map<java.time.LocalDate, Long> seconds, java.util.Locale locale) {
+		}
+
+		/** alpha 53: a part only the web page shows (already HTML) */
+		default void raw(String htmlPart) {
+		}
 	}
 
-	private static final class TextOut implements Out {
+	static final class TextOut implements Out {
 		final StringBuilder sb_ = new StringBuilder();
 
 		public void line(String line) {
@@ -218,12 +226,12 @@ public final class ProfileReports {
 		}
 	}
 
-	private static String html(String s) {
+	static String html(String s) {
 		return StringUtils.defaultString(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;");
 	}
 
 	/** a web page that opens in any browser, without anything from the internet; bars as wide as their share of the largest */
-	private static final class HtmlOut implements Out {
+	static final class HtmlOut implements Out {
 		final StringBuilder sb_ = new StringBuilder();
 		final List<String[]> rows_ = new ArrayList<>();
 		final List<Long> bars_ = new ArrayList<>();
@@ -314,6 +322,18 @@ public final class ProfileReports {
 			bars_.add(-1L);
 		}
 
+		@Override
+		public void raw(String htmlPart) {
+			flush();
+			sb_.append(htmlPart);
+		}
+
+		@Override
+		public void heatmap(java.time.LocalDate from, java.time.LocalDate to, Map<java.time.LocalDate, Long> seconds, java.util.Locale locale) {
+			flush();
+			sb_.append(StatisticsExtra.heatmapHtml(from, to, seconds, locale));
+		}
+
 		/** @param url alpha 49: where the name at the bottom leads (the page of the Extended Edition) */
 		String finish(String footer, String url) {
 			flush();
@@ -333,7 +353,7 @@ public final class ProfileReports {
 	}
 
 	/** a table for a spreadsheet: section, values, name; ';' where the comma is the decimal sign (as Excel expects there) */
-	private static final class CsvOut implements Out {
+	static final class CsvOut implements Out {
 		final StringBuilder sb_ = new StringBuilder("﻿"); // UTF-8 for Excel
 		final char sep_;
 		String section_ = "";
@@ -413,7 +433,7 @@ public final class ProfileReports {
 	/** alpha 49: lines shown right below the date of the report (the disk space; found by the window that asks for the report) */
 	public static volatile List<String> overviewExtra;
 
-	private static final int[] W9 = {9}, W22 = {22}, W9_22 = {9, 22}, W7_9 = {7, 9}, W7 = {7};
+	static final int[] W9 = {9}, W22 = {22}, W9_22 = {9, 22}, W7_9 = {7, 9}, W7 = {7};
 
 	private static void statistics(Out out, List<Profile> profiles, List<org.dbgl.model.repository.ProfileRepository.PlaySession> sessions, ITextService text,
 			java.util.Locale locale, java.util.Date now) {
@@ -541,6 +561,9 @@ public final class ProfileReports {
 		if (profiles.stream().anyMatch(p -> StringUtils.isNotBlank(p.getStatus())))
 			groups(out, text.get("dialog.statistics.bystatus"), profiles, p -> StringUtils.defaultIfBlank(StringUtils.strip(p.getStatus()), none), none, false, false, Integer.MAX_VALUE);
 
+		// alpha 53: when and how long, the backlog, series and publishers, the state of the collection, the largest games
+		StatisticsExtra.sections(out, profiles, own, text, locale, now);
+
 		List<Profile> never = profiles.stream().filter(p -> runs(p) == 0).sorted(Comparator.comparing(p -> p.getTitle().toLowerCase())).toList();
 		out.section(text.get("dialog.statistics.neverplayed", new Object[] {never.size()}));
 		never.forEach(p -> out.row(new int[0], new String[0], p.getTitle(), -1));
@@ -597,7 +620,7 @@ public final class ProfileReports {
 	}
 
 	/** seconds as hours:minutes, "0:00" for none */
-	private static String time(long seconds) {
+	static String time(long seconds) {
 		return StringUtils.defaultIfEmpty(ProfileStats.formatPlayTime((int)Math.min(Integer.MAX_VALUE, seconds)), "0:00");
 	}
 
@@ -605,7 +628,7 @@ public final class ProfileReports {
 	 * The profiles counted per group, most first (or by name, for the decades), with their play time if wanted; the group
 	 * 'none' (no value) always last. At most 'max' groups are listed. The bars show the number of profiles.
 	 */
-	private static void groups(Out out, String title, List<Profile> profiles, java.util.function.Function<Profile, String> groupOf, String none, boolean withTime,
+	static void groups(Out out, String title, List<Profile> profiles, java.util.function.Function<Profile, String> groupOf, String none, boolean withTime,
 			boolean byName, int max) {
 		Map<String, long[]> counts = new LinkedHashMap<>(); // count and play time; groups are case-insensitive, shown as first seen
 		Map<String, String> names = new LinkedHashMap<>();
@@ -641,11 +664,11 @@ public final class ProfileReports {
 			out.empty();
 	}
 
-	private static int playTime(Profile p) {
+	static int playTime(Profile p) {
 		return p.getProfileStats() == null ? 0: p.getProfileStats().getPlayTime();
 	}
 
-	private static int runs(Profile p) {
+	static int runs(Profile p) {
 		return p.getStats() == null ? 0: p.getStats().getRuns();
 	}
 

@@ -153,11 +153,36 @@ public final class ProfileFindings {
 		return DBCONF.equals(f.kind()) || EXODOS.equals(f.kind());
 	}
 
+	/** alpha 53: the lengths (seconds) of the recorded play sessions per profile; none if they cannot be read */
+	static Map<Integer, List<Integer>> sessionsPerProfile() {
+		Map<Integer, List<Integer>> result = new java.util.HashMap<>();
+		try {
+			for (org.dbgl.model.repository.ProfileRepository.PlaySession s: new org.dbgl.model.repository.ProfileRepository().listPlaySessions())
+				result.computeIfAbsent(s.profileId(), k -> new ArrayList<>()).add(s.seconds());
+		} catch (java.sql.SQLException | RuntimeException e) {
+			// without them: no such note
+		}
+		return result;
+	}
+
+	/** how short "short" is, and how many sessions it takes to tell */
+	static final int SHORT_SECONDS = 3 * 60, SHORT_SESSIONS = 3;
+
+	/**
+	 * alpha 53: at least 3 recorded sessions, all of them shorter than 3 minutes: the game may not start right or end by
+	 * itself (args: the number, the minutes); null otherwise
+	 */
+	public static Object[] shortSessions(List<Integer> seconds) {
+		if ((seconds == null) || (seconds.size() < SHORT_SESSIONS) || seconds.stream().anyMatch(s -> s >= SHORT_SECONDS))
+			return null;
+		return new Object[] {seconds.size(), SHORT_SECONDS / 60};
+	}
+
 	/** alpha 53: a configuration of the eXoDOS collection on this computer for the game */
 	public static final String EXODOS = "exodos";
 
 	/** what ProfileChecks finds that is only for information */
-	private static final Set<String> HINTS = Set.of("gusnopatches", "cohortoptional", "lurecm32l", "dm2sbpro", "paw1942jemmex", "sounddeviceoff", "gamewantsmt32", "cdimageunused", "gameadvice", "soundmismatch", "win3start", "win16inwindows", "win3programs", "win3itemsgone", "win9xstartup", "win9xprograms", "win9xgone", "runpcap", "runmkdir", "runbadvalue");
+	private static final Set<String> HINTS = Set.of("gusnopatches", "cohortoptional", "lurecm32l", "dm2sbpro", "paw1942jemmex", "sounddeviceoff", "gamewantsmt32", "cdimageunused", "gameadvice", "soundmismatch", "win3start", "win16inwindows", "win3programs", "win3itemsgone", "win9xstartup", "win9xprograms", "win9xgone", "runpcap", "runmkdir", "runbadvalue", "shortsessions");
 
 	private static final Fix REWRITE = fix((p, v) -> {
 		// nothing to change: saving writes it as DOSBox needs it
@@ -270,9 +295,13 @@ public final class ProfileFindings {
 		}
 
 		Map<Profile, List<String>> shared = ProfileChecks.sharedConfigurations(all);
+		Map<Integer, List<Integer>> sessions = sessionsPerProfile(); // alpha 53: for "only short sessions"
 		for (Profile prof: profiles) {
 			List<Finding> list = new ArrayList<>();
 			java.util.function.BiConsumer<String, Object[]> told = (kind, args) -> list.add(plain(prof, kind, args, text.get("dialog.checkprofiles." + kind, args)));
+			Object[] shortArgs = shortSessions(sessions.get(prof.getId()));
+			if (shortArgs != null)
+				told.accept("shortsessions", shortArgs);
 			if (shared.containsKey(prof))
 				told.accept("sharedconf", new Object[] {prof.getConfigurationCanonicalFile().getPath(), String.join(", ", shared.get(prof))});
 			try {

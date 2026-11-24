@@ -68,6 +68,28 @@ New
   over, but only chosen by hand. For DOSBox versions other than 0.74 the
   speed (core, cycles) is left out, DOSBox Staging gets the values under its
   names. The files of eXoDOS are only read.
+- Database cleanup: a window first tells what happens and what stays as it
+  is, and makes a backup if wanted (on at first: database, profiles,
+  templates, settings), which shows in "Manage backups" and can be restored
+  there. The cleanup is now also offered in the statistics window. The old
+  German message wrongly spoke of deleted "profiles"; only unused entries
+  of the lists are deleted.
+- Statistics, new sections: play time of the last 12 weeks, by weekday and
+  by time of day; days played with the longest and the current streak and
+  (on the web page) a calendar of the last 12 months; the length of the
+  play sessions; games never started by the age of their profile and the
+  oldest of them; game series and publishers with play time; the state of
+  the collection (without pictures, year, genre, developer, publisher, with
+  warnings, each with its share); the largest games by disk space.
+- Statistics: "Year in review" as a web page for this year and earlier
+  years with play time (play time, sessions, games and new games, days
+  played and streak, longest session, first and last game, strongest month,
+  favourite genre, most played games, play time per month, calendar).
+  "Random unplayed game..." suggests a game never started and selects it in
+  the list.
+- Check: a note when all (at least three) recorded play sessions of a
+  profile were shorter than 3 minutes: the game may not start right or end
+  by itself.
 - Edit profile, Audio: the button next to "Mixer command" now reads "Set
   volumes..." instead of "...".
 - Welcome wizard at the first start (when there are no profiles yet):

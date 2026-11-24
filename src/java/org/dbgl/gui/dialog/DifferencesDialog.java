@@ -85,6 +85,14 @@ public class DifferencesDialog extends SizeControlledButtonDialog<Object> {
 		return this;
 	}
 
+	/** alpha 53: more buttons at the left: one action, or (several) a small menu below the button */
+	private final java.util.Map<String, java.util.Map<String, Runnable>> buttons_ = new java.util.LinkedHashMap<>();
+
+	public DifferencesDialog withButton(String label, java.util.Map<String, Runnable> actions) {
+		buttons_.put(label, actions);
+		return this;
+	}
+
 	public DifferencesDialog withAction(String key, java.util.function.Function<Shell, String> action) {
 		actionKey_ = key;
 		action_ = action;
@@ -115,6 +123,28 @@ public class DifferencesDialog extends SizeControlledButtonDialog<Object> {
 			}).ctrl();
 		createOkButton(closeShellAdapter);
 		okCancelButtons_.setLayoutData(new GridData(SWT.END, SWT.FILL, true, false));
+		if (!buttons_.isEmpty())
+			otherButtons_.moveAbove(okCancelButtons_);
+		buttons_.forEach((label, actions) -> {
+			org.eclipse.swt.widgets.Button button = org.dbgl.gui.controls.Button_.on(otherButtons_).text().txt(label).ctrl();
+			button.addListener(SWT.Selection, e -> {
+				if (actions.size() == 1) {
+					actions.values().iterator().next().run();
+					return;
+				}
+				org.eclipse.swt.widgets.Menu menu = new org.eclipse.swt.widgets.Menu(shell_, SWT.POP_UP);
+				actions.forEach((n, a) -> {
+					org.eclipse.swt.widgets.MenuItem item = new org.eclipse.swt.widgets.MenuItem(menu, SWT.PUSH);
+					item.setText(n);
+					item.addListener(SWT.Selection, x -> a.run());
+				});
+				org.eclipse.swt.graphics.Rectangle r = button.getBounds();
+				menu.setLocation(button.getParent().toDisplay(r.x, r.y + r.height));
+				menu.setVisible(true);
+			});
+		});
+		if (!buttons_.isEmpty())
+			((GridLayout)otherButtons_.getLayout()).numColumns = otherButtons_.getChildren().length + (action_ != null ? 1: 0);
 		// another action at the far left
 		if (action_ != null) {
 			otherButtons_.moveAbove(okCancelButtons_);
