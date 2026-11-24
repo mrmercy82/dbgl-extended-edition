@@ -103,7 +103,8 @@ public class ImportDirThread extends UIThread<GameDirEntry> {
 				messageLog_.append(PREFIX_ERR).append(text_.get("general.notice.searchenginenoresults", new String[] {Constants.DBCONFWS, prof.getTitle()})).append(StringUtils.LF);
 			} else if (confs.size() == 1) {
 				prof.getConfiguration().clearSections();
-				prof.loadConfigurationData(text_, confs.get(0).getIncrConf(), new File(confs.get(0).getGameTitle()));
+				// alpha 53: for DOSBox 0.74 also the settings about the game from the full configuration
+				prof.loadConfigurationData(text_, org.dbgl.util.DBConfAdvice.toLoad(confs.get(0), prof.getDosboxVersion()), new File(confs.get(0).getGameTitle()));
 				messageLog_.append(PREFIX_OK).append(text_.get("dialog.importdir.notice.conffound", prof.getTitle())).append(StringUtils.LF);
 			} else {
 				messageLog_.append(PREFIX_ERR).append(text_.get("dialog.multiprofile.notice.titlenotunique", new String[] {Constants.DBCONFWS, prof.getTitle()})).append(StringUtils.LF);

@@ -721,13 +721,14 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 								return;
 							}
 
-							SharedConfLoading result = new LoadSharedConfDialog(shell_, currTitle, confs).open();
+							SharedConfLoading result = new LoadSharedConfDialog(shell_, currTitle, confs, profile_.getDosboxVersion()).open();
 							if (result != null) {
 								computeAllPages(profile_);
 								updateConfigurableByControls(profile_);
 								if (result.reloadDosboxDefaults_)
 									profile_.getConfiguration().clearSections();
-								profile_.loadConfigurationData(text_, result.conf_.getIncrConf(), new File(result.conf_.getGameTitle()));
+								// alpha 53: for DOSBox 0.74 also the settings about the game from the full configuration
+								profile_.loadConfigurationData(text_, org.dbgl.util.DBConfAdvice.toLoad(result.conf_, profile_.getDosboxVersion()), new File(result.conf_.getGameTitle()));
 								updateControlsByConfigurable(profile_);
 							}
 						} catch (Exception e) {

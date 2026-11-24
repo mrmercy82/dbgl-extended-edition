@@ -57,6 +57,20 @@ Changed
   but it is not chosen at first, nor by "Choose all solvable": the
   configurations were sent in by users. For DOSBox Staging and DOSBox-X
   there is no note, as all configurations of DBConf were made for 0.74.
+  Only settings about the game are compared (machine, memory, CPU,
+  EMS/XMS/UMB, sound cards, joystick), not those about the own computer
+  (window, output, keyboard layout, MIDI device). For entries without own
+  settings the full configuration of DBConf counts: a Doom profile with
+  memsize = 8 gets the note about memsize = 16.
+- Loading DBConf (profile dialog, "Add Game" wizard, import of known games):
+  for profiles of DOSBox 0.74 DBGL now takes over, besides the own settings
+  of the entry, the settings about the game from its full configuration
+  (machine, memory, CPU, EMS/XMS/UMB, sound cards, joystick). A Doom profile
+  with memsize = 8 so gets 16 again; window, output, keyboard and MIDI
+  device stay. For other DOSBox versions it stays with the own settings,
+  values that DOSBox Staging calls otherwise under their new name. The
+  dialog shows what is taken over, and for versions other than 0.74 says
+  why it is less.
 - Download DOSBox: for DOSBox-X each build now shows its kind ("Visual
   Studio" or "MinGW") in front, with a sentence below on what it is good for
   (Visual Studio is what the DOSBox-X project recommends for Windows; MinGW

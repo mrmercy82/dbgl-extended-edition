@@ -3914,7 +3914,34 @@ public class Dbgl0102Tests {
 		org.dbgl.model.entity.SharedConf other = new org.dbgl.model.entity.SharedConf(null, "", "3-Demon", "", "1983", "[cpu]\ncycles=1000", "", "x", "DOSBox", "0.74");
 		assertEquals(2, org.dbgl.util.DBConfAdvice.settings(demon.getIncrConf()).size()); // without [autoexec]
 		assertSame(demon, org.dbgl.util.DBConfAdvice.configurationFor(List.of(demon, empty), "3-demon"));
-		assertNull(org.dbgl.util.DBConfAdvice.configurationFor(List.of(demon, empty), "Doom")); // nothing of its own
+		assertNull(org.dbgl.util.DBConfAdvice.configurationFor(List.of(demon, empty), "Doom")); // no configuration at all
+		// nothing of its own: the full configuration says what does (TEST12: Doom with memsize = 8 got no note); settings about
+		// the own computer are left out
+		org.dbgl.model.entity.SharedConf doom = new org.dbgl.model.entity.SharedConf(null, "", "DOOM", "", "1993", "",
+				"[sdl]\nfullscreen=false\noutput=surface\n[dosbox]\nmachine=svga_s3\nmemsize=16\n[dos]\nkeyboardlayout=auto\n[autoexec]\nmount c .", "N/A", "DOSBox", "0.74");
+		assertSame(doom, org.dbgl.util.DBConfAdvice.configurationFor(List.of(doom), "Doom"));
+		Configuration mine = new Configuration();
+		mine.setValue("sdl", "fullscreen", "true");
+		mine.setValue("dosbox", "machine", "svga_s3");
+		mine.setValue("dosbox", "memsize", "8");
+		mine.setValue("dos", "keyboardlayout", "gr");
+		assertEquals("[dosbox] memsize = 16", org.dbgl.util.DBConfAdvice.shown(org.dbgl.util.DBConfAdvice.differences(doom, mine), true));
+
+		// loading: DOSBox 0.74 also takes the settings about the game from the full configuration, the others the own ones only
+		org.dbgl.model.aggregate.DosboxVersion v74 = DosboxVersionFactory.create("t", SettingsService.OFFICIAL_DOSBOX_FAM.title_, "0.74-3", false, false, false, null, "x", "", "", "x/dosbox.conf");
+		org.dbgl.model.aggregate.DosboxVersion st = DosboxVersionFactory.create("t", SettingsService.STAGING_DOSBOX_FAM.title_, "0.83.1", false, false, false, null, "x", "", "", "x/dosbox.conf");
+		assertEquals("[dosbox]\nmachine=svga_s3\nmemsize=16\n", org.dbgl.util.DBConfAdvice.toLoad(doom, v74));
+		assertEquals("", org.dbgl.util.DBConfAdvice.toLoad(doom, st));
+		org.dbgl.model.entity.SharedConf mixed = new org.dbgl.model.entity.SharedConf(null, "", "X", "", "1990", "[cpu]\ncputype=pentium_slow\ncycles=3000\n\n[autoexec]\nmount c .",
+				"[dosbox]\nmemsize=16\n[cpu]\ncputype=auto\ncycles=auto\ncore=auto\n[sdl]\nfullscreen=true", "x", "DOSBox", "0.74");
+		assertEquals("[cpu]\ncputype=pentium_slow\ncycles=3000\ncore=auto\n\n[dosbox]\nmemsize=16\n\n[autoexec]\nmount c .\n", org.dbgl.util.DBConfAdvice.toLoad(mixed, v74));
+		assertEquals("[cpu]\ncputype=pentium\ncycles=3000\n\n[autoexec]\nmount c .\n", org.dbgl.util.DBConfAdvice.toLoad(mixed, st));
+		Configuration loaded = new Configuration();
+		loaded.loadDataWithAutoexec(GenericTextService.getInstance(), org.dbgl.util.DBConfAdvice.toLoad(mixed, v74), new File("x.conf"), null);
+		assertEquals("16", loaded.getValue("dosbox", "memsize"));
+		assertEquals("3000", loaded.getValue("cpu", "cycles"));
+		assertEquals("auto", loaded.getValue("cpu", "core"));
+		assertFalse(loaded.hasValue("sdl", "fullscreen"));
 		assertNull(org.dbgl.util.DBConfAdvice.configurationFor(List.of(demon, empty), "3-Demon 2"));
 		assertNull(org.dbgl.util.DBConfAdvice.configurationFor(List.of(demon, other), "3-Demon")); // two that do not agree
 

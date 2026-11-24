@@ -455,11 +455,12 @@ public class AddGameWizardDialog extends WizardDialog<Profile> {
 				if (confs.isEmpty()) {
 					Mess_.on(shell_).key("general.notice.searchenginenoresults", new String[] {Constants.DBCONFWS, currTitle}).display();
 				} else {
-					SharedConfLoading result = new LoadSharedConfDialog(shell_, currTitle, confs).open();
+					SharedConfLoading result = new LoadSharedConfDialog(shell_, currTitle, confs, profile_.getDosboxVersion()).open();
 					if (result != null) {
 						if (result.reloadDosboxDefaults_)
 							profile_.getConfiguration().clearSections();
-						profile_.loadConfigurationData(text_, result.conf_.getIncrConf(), new File(result.conf_.getGameTitle()));
+						// alpha 53: for DOSBox 0.74 also the settings about the game from the full configuration
+						profile_.loadConfigurationData(text_, org.dbgl.util.DBConfAdvice.toLoad(result.conf_, profile_.getDosboxVersion()), new File(result.conf_.getGameTitle()));
 						updateControlsByProfile();
 					}
 				}

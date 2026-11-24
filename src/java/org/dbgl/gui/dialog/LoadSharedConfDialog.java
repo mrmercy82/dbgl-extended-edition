@@ -62,10 +62,14 @@ public class LoadSharedConfDialog extends SizeControlledButtonDialog<LoadSharedC
 	private String title_;
 	private List<SharedConf> confs_;
 
-	public LoadSharedConfDialog(Shell parent, String title, List<SharedConf> confs) {
+	private final org.dbgl.model.aggregate.DosboxVersion dosbox_;
+
+	/** alpha 53: with the DOSBox version of the profile, to say what loading takes over (DBConf was made for DOSBox 0.74) */
+	public LoadSharedConfDialog(Shell parent, String title, List<SharedConf> confs, org.dbgl.model.aggregate.DosboxVersion dosbox) {
 		super(parent, "sharedconfbrowser");
 		title_ = title;
 		confs_ = confs;
+		dosbox_ = dosbox;
 	}
 
 	@Override
@@ -131,6 +135,13 @@ public class LoadSharedConfDialog extends SizeControlledButtonDialog<LoadSharedC
 		Text explanation = Text_.on(composite).multi().readOnly().wrap().build();
 		Text notes = Chain.on(composite).lbl(l -> l.key("dialog.confsharing.notes")).txt(t -> t.multi().wrap().readOnly().horSpan(2)).text();
 		Button reloadDosboxDefaults = Button_.on(composite).horSpan(3).key("dialog.loadsharedconf.reloaddefaults").ctrl();
+		// alpha 53: what is taken over, and why less for DOSBox Staging and DOSBox-X
+		org.eclipse.swt.widgets.Label takes = new org.eclipse.swt.widgets.Label(composite, SWT.WRAP);
+		org.eclipse.swt.layout.GridData takesData = new org.eclipse.swt.layout.GridData(SWT.FILL, SWT.BEGINNING, true, false, 3, 1);
+		takesData.widthHint = 400;
+		takes.setLayoutData(takesData);
+		takes.setText(org.dbgl.util.DBConfAdvice.forVersion(dosbox_) ? text_.get("dialog.loadsharedconf.takes074")
+				: text_.get("dialog.loadsharedconf.takesother", new Object[] {dosbox_ == null ? "?": dosbox_.getTitle()}));
 
 		table.addListener(SWT.Selection, e -> displaySharedConfData(table, dosbox, incrConf, explanation, notes));
 
@@ -180,8 +191,10 @@ public class LoadSharedConfDialog extends SizeControlledButtonDialog<LoadSharedC
 		if (selection != -1) {
 			SharedConf conf = confs_.get(selection);
 			dosbox.setText(conf.getDosboxTitle() + " (" + conf.getDosboxVersion() + ")");
-			// alpha 53: about half of the configurations of DBConf change nothing: the defaults of DOSBox do for the game
-			incrConf.setText(org.apache.commons.lang3.StringUtils.isBlank(conf.getIncrConf()) ? text_.get("dialog.loadsharedconf.nochanges"): conf.getIncrConf());
+			// alpha 53: what loading puts into the profile (DOSBox 0.74: also the settings about the game from the full
+			// configuration); about half of the configurations of DBConf set nothing of their own
+			String toLoad = org.dbgl.util.DBConfAdvice.toLoad(conf, dosbox_);
+			incrConf.setText(org.apache.commons.lang3.StringUtils.isBlank(toLoad) ? text_.get("dialog.loadsharedconf.nochanges"): toLoad);
 			explanation.setText(conf.getExplanation());
 			notes.setText(conf.getNotes());
 		}

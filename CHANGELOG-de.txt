@@ -58,7 +58,22 @@ Geändert
   sie ist aber nicht vorausgewählt und wird auch von „Alle lösbaren
   auswählen“ nicht gewählt: Die Konfigurationen haben Nutzer eingesandt. Für
   DOSBox Staging und DOSBox-X kommt kein Hinweis, weil alle Konfigurationen
-  von DBConf für 0.74 gemacht sind.
+  von DBConf für 0.74 gemacht sind. Verglichen werden nur Einstellungen, die
+  das Spiel betreffen (Maschine, Speicher, CPU, EMS/XMS/UMB, Soundkarten,
+  Joystick), nicht die für den eigenen Rechner (Fenster, Ausgabe,
+  Tastaturbelegung, MIDI-Gerät). Bei Einträgen ohne eigene Einstellungen
+  zählt die vollständige Konfiguration von DBConf: Ein Doom-Profil mit
+  memsize = 8 bekommt den Hinweis auf memsize = 16.
+- DBConf laden (Profildialog, Assistent „Spiel hinzufügen“, Import bekannter
+  Spiele): Bei Profilen mit DOSBox 0.74 übernimmt DBGL jetzt außer den
+  eigenen Einstellungen des Eintrags auch die Einstellungen für das Spiel
+  aus seiner vollständigen Konfiguration (Maschine, Speicher, CPU,
+  EMS/XMS/UMB, Soundkarten, Joystick). Ein Doom-Profil mit memsize = 8 kommt
+  so wieder auf 16; Fenster, Ausgabe, Tastatur und MIDI-Gerät bleiben. Bei
+  anderen DOSBox-Versionen bleibt es bei den eigenen Einstellungen, Werte,
+  die DOSBox Staging anders nennt, unter ihrem neuen Namen. Der Dialog zeigt,
+  was übernommen wird, und sagt bei anderen Versionen als 0.74, warum es
+  weniger ist.
 - DOSBox herunterladen: Bei DOSBox-X steht vor jeder Variante ihre Art
   („Visual Studio“ oder „MinGW“), darunter ein Satz, wofür sie gut ist
   (Visual Studio empfiehlt das DOSBox-X-Projekt für Windows; MinGW rechnet
