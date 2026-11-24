@@ -80,8 +80,8 @@ Geändert
   Konfiguration nur bei genau gleichem Titel (vorher bekam „Doom“ keine, weil
   auch „Doom II“ gefunden wurde). Einträge ohne eigene Einstellungen sagen
   das jetzt, statt ein leeres Feld zu zeigen. Das Teilen einer eigenen
-  Konfiguration entfällt (share.dbgl.org nimmt keine mehr an). Fehlt die
-  Datenbank, erscheinen die DBConf-Knöpfe nicht.
+  Konfiguration entfällt (share.dbgl.org nimmt bald keine mehr an). Fehlt
+  die Datenbank, erscheinen die DBConf-Knöpfe nicht.
 - „Prüfen...“ nennt für Profile mit DOSBox 0.74 die Konfiguration von DBConf,
   wenn es eine für genau diesen Titel gibt und sie etwas anders einstellt als
   das Profil („Hinweis: DBConf hat eine Konfiguration ... mit [dosbox]

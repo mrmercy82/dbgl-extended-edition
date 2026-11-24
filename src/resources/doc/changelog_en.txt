@@ -78,8 +78,8 @@ Changed
   from folder". The import takes a configuration only for exactly the same
   title (before, "Doom" got none because "Doom II" was found too). Entries
   without own settings now say so instead of showing an empty field. Sharing
-  an own configuration is gone (share.dbgl.org takes none any more). Without
-  the database the DBConf buttons do not show.
+  an own configuration is gone (share.dbgl.org will soon take none any
+  more). Without the database the DBConf buttons do not show.
 - "Check..." names the configuration of DBConf for profiles of DOSBox 0.74
   when there is one for exactly this title and it sets something otherwise
   than the profile ("Note: DBConf has a configuration ... with [dosbox]
