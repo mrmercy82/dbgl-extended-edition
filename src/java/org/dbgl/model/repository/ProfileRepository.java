@@ -524,6 +524,9 @@ public class ProfileRepository extends LoggingRepository<Profile> {
 			log(transaction, LogEntry.Event.DUPLICATE, LogEntry.EntityType.PROFILE, profile);
 			Profile duplicate = ProfileFactory.createCopy(profile);
 			duplicate.loadConfigurationData(TextService.getInstance(), profile.getConfigurationString(), profile.getConfigurationCanonicalFile());
+			// alpha 53: the own lines DBGL keeps as they are ("SET TEMP=...", "win" after "cd \\WINDOWS") kept in the copy as well,
+			// as when a profile is read from its file; before, the copy had lost them
+			org.dbgl.util.UnknownAutoexecLines.keepOnRead(duplicate.getConfiguration().getAutoexec());
 			duplicate.getConfiguration().setCharset(profile.getConfiguration().getCharset()); // the copy in the same charset as the file
 			doAdd(transaction, duplicate, false);
 			doUpdate(transaction, duplicate); // set correct captures and configuration file paths into the database

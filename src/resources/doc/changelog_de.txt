@@ -16,9 +16,28 @@ Neu
     Einstellungen von DOSBox passt, sonst bleibt Windows stumm,
   - ob ein S3-Grafiktreiber die S3-Karte von DOSBox hat, sonst startet
     Windows nicht oder zeigt nichts.
+  Dazu die Gruppen des Programm-Managers (PROGMAN.INI und die .GRP-Dateien):
+  ein Hinweis, welche Programme außerhalb des Windows-Ordners darin stehen,
+  und einer, welche Programmsymbole auf ein fehlendes Programm zeigen
+  (Programme auf einem CD-Abbild zählen als vorhanden); die Autostart-Gruppe
+  zählt zu dem, was Windows startet. Erkannt wird Windows auch, wenn es
+  über eigene Autoexec-Zeilen startet („C:“, „cd \WINDOWS“, „win“), nicht
+  nur als Startprogramm WIN.COM.
+  Neu im Kontextmenü der Profile: „Programme aus Windows 3.x als
+  Profile...“ zeigt die Programme dieser Gruppen; jedes markierte bekommt
+  ein eigenes Profil, eine Kopie des Windows-Profils, deren Windows das
+  Programm gleich startet („win C:\BADMOJO\BADMOJO.EXE“), mit dem Namen
+  des Programmsymbols als Titel.
   Lösung jeweils: den Wert von Windows ins Profil übernehmen. Programme für
   Windows 3.x als Setup oder weiteres Programm gelten in solchen Profilen
   nicht mehr als Fehler; ein Setup-Programm lässt sich über WIN.COM starten.
+- Windows 95/98: Bei Profilen, die Windows von einem Festplattenabbild
+  booten („imgmount 2 ... -t hdd“, „boot -l C“), liest „Prüfen...“ das
+  Abbild (nur lesend, FAT): Hinweise, welche Programme im Startmenü stehen
+  (Verknüpfungen, ohne die von Windows selbst), welche Windows von selbst
+  startet (Autostart, „run=“/„load=“ der WIN.INI) und welche Verknüpfungen
+  auf ein fehlendes Programm auf C: zeigen. Eigene Profile je Programm gibt
+  es hier nicht: dafür müsste DBGL das Abbild ändern.
 - Einrichtungsassistent beim ersten Start (wenn es noch keine Profile gibt):
   Sprache und Darstellung; DOSBox (Empfehlung, DOSBox Staging und DOSBox-X
   beide herunterzuladen, je zwei Sätze zu Staging, DOSBox-X und 0.74-3;
@@ -115,6 +134,8 @@ Geändert
   einzige Meldung, die sie nennt, statt derselben Zeile je Spiel.
 
 Fehler behoben
+- Duplizieren: Eigene Autoexec-Zeilen, die DBGL unverändert lässt (etwa
+  „SET TEMP=...“ oder „win“ nach „cd \WINDOWS“), fehlten in der Kopie.
 - Ein Setup-Programm für Windows tragen der Import und der Assistent „Spiel
   hinzufügen“ nicht mehr selbst ein (bei Ultima VII Teil 2 nannte die
   Datenbank von DBGL eine SETUP.EXE, die einen Bildschirmschoner für Windows

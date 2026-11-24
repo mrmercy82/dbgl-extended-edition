@@ -84,6 +84,20 @@ public final class FatLfnDirectoryEntry {
 		return "LFN = " + fileName_ + " / SFN = " + realEntry_.getShortName();
 	}
 
+	/** alpha 53: the size of the file in bytes */
+	public long getLength() {
+		return realEntry_.getLength();
+	}
+
+	/** alpha 53: the content of the file, at most max bytes (for small files of a disk image, read only) */
+	public byte[] read(int max) throws java.io.IOException {
+		int len = (int)Math.min(getLength(), max);
+		java.nio.ByteBuffer buf = java.nio.ByteBuffer.allocate(len);
+		if ((len > 0) && (realEntry_.getStartCluster() != 0))
+			new ClusterChain(parent_.getFat(), realEntry_.getStartCluster()).readData(0, buf);
+		return buf.array();
+	}
+
 	public boolean isFile() {
 		return realEntry_.isFile();
 	}

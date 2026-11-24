@@ -16,9 +16,27 @@ New
     settings of DOSBox, else Windows stays silent,
   - whether an S3 display driver has the S3 card of DOSBox, else Windows
     does not start or shows nothing.
+  Also the groups of the Program Manager (PROGMAN.INI and the .GRP files):
+  a note on the programs outside the folder of Windows in them, and one on
+  the program items that point to a missing program (programs on a CD image
+  count as there); the startup group counts to what Windows starts.
+  Windows is also recognized when own lines of the autoexec start it ("C:",
+  "cd \WINDOWS", "win"), not only as the start program WIN.COM.
+  New in the context menu of the profiles: "Programs of Windows 3.x as
+  profiles..." shows the programs of these groups; each one ticked gets a
+  profile of its own, a copy of the Windows profile whose Windows starts the
+  program right away ("win C:\BADMOJO\BADMOJO.EXE"), with the name of the
+  program item as title.
   The solution each time: take the value of Windows into the profile.
   Programs for Windows 3.x as setup or further program no longer count as
   faults in such profiles; a setup program can be started through WIN.COM.
+- Windows 95/98: for profiles that boot Windows from a hard disk image
+  ("imgmount 2 ... -t hdd", "boot -l C"), "Check..." reads the image
+  (reading only, FAT): notes on the programs in the Start menu (shortcuts,
+  without those of Windows itself), on those Windows starts on its own
+  (startup folder, "run="/"load=" of WIN.INI) and on the shortcuts that point
+  to a missing program on C:. Profiles of their own per program are not
+  offered here: DBGL would have to change the image for that.
 - Welcome wizard at the first start (when there are no profiles yet):
   language and appearance; DOSBox (the advice to download both DOSBox
   Staging and DOSBox-X, two sentences each on Staging, DOSBox-X and 0.74-3;
@@ -113,6 +131,8 @@ Changed
   instead of the same line per game.
 
 Fixed
+- Duplicate: own lines of the autoexec DBGL leaves as they are (e.g. "SET
+  TEMP=..." or "win" after "cd \WINDOWS") were missing in the copy.
 - The import and the "Add Game" wizard no longer fill in a setup program for
   Windows by themselves (for Ultima VII Part Two the database of DBGL named a
   SETUP.EXE that sets up a screen saver of Windows 3.x). "Check..." offers

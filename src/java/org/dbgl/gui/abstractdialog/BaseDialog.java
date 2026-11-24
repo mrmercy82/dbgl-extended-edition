@@ -170,7 +170,7 @@ public abstract class BaseDialog<T> extends Dialog {
 		java.util.Map.entry("ReplaceValuesDialog", ImageService.IMG_EDIT), java.util.Map.entry("ExtrasDialog", ImageService.IMG_ZOOM),
 		java.util.Map.entry("DeleteProfilesDialog", ImageService.IMG_DELETE), java.util.Map.entry("AddGameWizardDialog", ImageService.IMG_TB_ADDGAMEWIZARD),
 		java.util.Map.entry("LoadSharedConfDialog", ImageService.IMG_SHARE),
-		java.util.Map.entry("BrowseSearchEngineDialog", ImageService.IMG_GLOBE), java.util.Map.entry("CoverBatchDialog", ImageService.IMG_GLOBE));
+		java.util.Map.entry("BrowseSearchEngineDialog", ImageService.IMG_GLOBE), java.util.Map.entry("CoverBatchDialog", ImageService.IMG_GLOBE), java.util.Map.entry("Win3ProgramsDialog", ImageService.IMG_DUPLICATE));
 
 	/** the symbol of this window instead of the one found by its kind (e.g. for a report) */
 	protected String windowImage_;

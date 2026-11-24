@@ -154,7 +154,7 @@ public final class ProfileFindings {
 	}
 
 	/** what ProfileChecks finds that is only for information */
-	private static final Set<String> HINTS = Set.of("gusnopatches", "cohortoptional", "lurecm32l", "dm2sbpro", "paw1942jemmex", "sounddeviceoff", "gamewantsmt32", "cdimageunused", "gameadvice", "soundmismatch", "win3start", "win16inwindows");
+	private static final Set<String> HINTS = Set.of("gusnopatches", "cohortoptional", "lurecm32l", "dm2sbpro", "paw1942jemmex", "sounddeviceoff", "gamewantsmt32", "cdimageunused", "gameadvice", "soundmismatch", "win3start", "win16inwindows", "win3programs", "win3itemsgone", "win9xstartup", "win9xprograms", "win9xgone");
 
 	private static final Fix REWRITE = fix((p, v) -> {
 		// nothing to change: saving writes it as DOSBox needs it

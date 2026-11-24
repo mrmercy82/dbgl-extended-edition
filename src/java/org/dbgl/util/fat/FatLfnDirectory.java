@@ -117,6 +117,11 @@ public final class FatLfnDirectory {
 		return result;
 	}
 
+	/** alpha 53: the FAT, to read the files of this directory */
+	Fat getFat() {
+		return fat_;
+	}
+
 	public FatDirectoryEntry getEntry(int idx) {
 		return dir_.getEntry(idx);
 	}

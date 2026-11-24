@@ -521,6 +521,27 @@ public final class ProfileChecks {
 		for (int i = 0; i < alt.length; i++)
 			if (StringUtils.isNotBlank(alt[i]))
 				checkOtherProgram(prof, result, paths, autoexec, netto, new FileLocation(alt[i], FileLocationService.getInstance().dataRelative()).getCanonicalFile(), "altexe", i + 1, windows);
+		// alpha 53: Windows 3.x started by own lines of the autoexec ("C:", "cd \\WINDOWS", "win"), as many profiles do it; the
+		// lines start in the folder of the program DBGL read from them ("cd \\WINDOWS" and SMARTDRV.EXE before "win")
+		if (win3 == null) {
+			File startDir = StringUtils.isBlank(autoexec.getMainWhereDosboxLooks()) ? null
+					: new FileLocation(autoexec.getMainWhereDosboxLooks(), FileLocationService.getInstance().dosrootRelative()).getCanonicalFile().getParentFile();
+			Win3x.Started s = Win3x.fromAutoexec(ownLines(autoexec), netto, startDir);
+			if (s != null) {
+				win3 = s.install();
+				Win3x.check(win3, s.params(), prof.getCombinedConfigurationForReading(), netto, result);
+			}
+		}
+		// alpha 53: Windows 95/98 booted from a hard disk image ("imgmount 2 ... -t hdd", "boot -l C"): the programs of its Start
+		// menu and of its startup folder, read from the image without changing it
+		if ((win3 == null) && (autoexec.isBooter() || ownLines(autoexec).stream().anyMatch(l -> BOOT_LINE.matcher(l.strip()).matches())))
+			for (File img: Win9x.hddImages(netto)) {
+				Win9x.Report r = Win9x.read(img);
+				if (r != null) {
+					Win9x.check(r, result);
+					break;
+				}
+			}
 		// alpha 53: a program of Windows 3.x as setup or further program of a profile that starts Windows 3.x: it runs in that
 		// Windows (told, with the way to start it there), no fault
 		if (win3 != null)

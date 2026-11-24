@@ -138,6 +138,11 @@ public final class FatDirectoryEntry {
 	 *
 	 * @return int
 	 */
+	/** alpha 53: the size of the file in bytes */
+	public long getLength() {
+		return (data_[28] & 0xffL) | ((data_[29] & 0xffL) << 8) | ((data_[30] & 0xffL) << 16) | ((data_[31] & 0xffL) << 24);
+	}
+
 	public long getStartCluster() {
 		return Util.getUInt16(data_, 0x1a);
 	}

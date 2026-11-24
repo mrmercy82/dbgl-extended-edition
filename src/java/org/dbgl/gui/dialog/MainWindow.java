@@ -3119,6 +3119,13 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				doDuplicateProfile();
 			}
 		}).build();
+		// alpha 53: the programs in the groups of the Program Manager of a Windows 3.x as profiles of their own
+		MenuItem_.on(menu).key("dialog.main.profile.win3programs").image(ImageService.IMG_DUPLICATE).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				doWin3Programs();
+			}
+		}).build();
 		MenuItem_.on(menu).key("dialog.main.profile.remove").image(ImageService.IMG_DELETE).listen(removeProfAdapter).build();
 		MenuItem_.on(menu).build();
 		// alpha 50: the order as wished: the earlier version, then the submenus, checking, the controller and the extras
@@ -6135,6 +6142,38 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			} catch (SQLException | IOException e) {
 				Mess_.on(shell_).exception(e).warning();
 			}
+		}
+	}
+
+	/**
+	 * Alpha 53: profiles for programs in the groups of the Program Manager of the Windows 3.x the selected profile starts: each a
+	 * copy of it, whose line that starts Windows starts the program right away ("win C:\\BADMOJO\\BADMOJO.EXE"), with the name
+	 * of the program item as title
+	 */
+	private void doWin3Programs() {
+		int index = profileTable_.getSelectionIndex();
+		if (index == -1)
+			return;
+		try {
+			Profile profile = profilesList_.get(index);
+			profile.resetAndLoadConfiguration();
+			org.dbgl.util.Win3x.Started started = org.dbgl.util.Win3x.of(profile);
+			List<org.dbgl.util.Win3x.GroupItem> items = started == null ? List.of()
+					: org.dbgl.util.Win3x.ownPrograms(started.install(), org.dbgl.util.Win3x.groups(started.install(), profile.getNettoMountingPoints()), profile.getNettoMountingPoints());
+			if (items.isEmpty()) {
+				Mess_.on(shell_).key(started == null ? "dialog.win3programs.nowindows": "dialog.win3programs.none", new Object[] {profile.getTitle()}).display();
+				return;
+			}
+			List<Boolean> there = items.stream().map(it -> org.dbgl.util.Win3x.isThere(it.program(), started.install(), profile.getNettoMountingPoints())).toList();
+			List<org.dbgl.util.Win3x.GroupItem> chosen = new Win3ProgramsDialog(shell_, profile.getTitle(), items, there).open();
+			if ((chosen == null) || chosen.isEmpty())
+				return;
+			List<Profile> added = org.dbgl.util.Win3x.createProfiles(profile, chosen);
+			for (Profile copy: added)
+				updateWithAddedProfile(copy);
+			Mess_.on(shell_).key("dialog.win3programs.done", new Object[] {added.size(), profile.getTitle()}).display();
+		} catch (SQLException | IOException e) {
+			Mess_.on(shell_).exception(e).warning();
 		}
 	}
 

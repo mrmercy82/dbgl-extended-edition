@@ -3986,7 +3986,85 @@ public class Dbgl0102Tests {
 		}
 	}
 
+	/** a group file of the Program Manager of Windows 3.1 with these items (name, command line), without icons */
+	private static byte[] group(String name, String[][] items) {
+		java.io.ByteArrayOutputStream strings = new java.io.ByteArrayOutputStream();
+		int base = 34 + 2 * items.length + 24 * items.length;
+		java.util.function.Function<String, Integer> add = s -> {
+			int at = base + strings.size();
+			strings.writeBytes(s.getBytes(StandardCharsets.ISO_8859_1));
+			strings.write(0);
+			return at;
+		};
+		int pName = add.apply(name);
+		byte[] d = new byte[base];
+		java.util.function.BiConsumer<Integer, Integer> word = (o, v) -> {
+			d[o] = (byte)(v & 0xff);
+			d[o + 1] = (byte)(v >> 8);
+		};
+		d[0] = 'P';
+		d[1] = 'M';
+		d[2] = 'C';
+		d[3] = 'C';
+		word.accept(22, pName);
+		word.accept(32, items.length);
+		for (int i = 0; i < items.length; i++) {
+			int off = 34 + 2 * items.length + 24 * i;
+			word.accept(34 + 2 * i, off);
+			word.accept(off + 18, add.apply(items[i][0]));
+			word.accept(off + 20, add.apply(items[i][1]));
+			word.accept(off + 22, add.apply(""));
+		}
+		java.io.ByteArrayOutputStream all = new java.io.ByteArrayOutputStream();
+		all.writeBytes(d);
+		all.writeBytes(strings.toByteArray());
+		byte[] r = all.toByteArray();
+		r[6] = (byte)(r.length & 0xff); // the size of the group: the tags (none) follow
+		r[7] = (byte)(r.length >> 8);
+		return r;
+	}
+
 	/** Alpha 53: a profile that starts Windows 3.x: what it starts, its sound and display drivers against DOSBox */
+	@Test
+	public void testWin9x() throws Exception {
+		// alpha 53: Windows 95 in a hard disk image (MBR, FAT16 at sector 63, long names), see data/make_win95_hdd.py
+		File img = unzipToTemp("win95-hdd.img.gz");
+		org.dbgl.util.Win9x.Report r = org.dbgl.util.Win9x.read(img);
+		assertNotNull(r);
+		java.util.Map<String, org.dbgl.util.Win9x.Shortcut> byName = new java.util.HashMap<>();
+		for (org.dbgl.util.Win9x.Shortcut s: r.shortcuts())
+			byName.put(s.name(), s);
+		assertEquals(6, r.shortcuts().size());
+		assertEquals("C:\\SIERRA\\ES2\\ES2.EXE", byName.get("EarthSiege 2").target());
+		assertEquals("Startmenü\\Programme", byName.get("EarthSiege 2").folder());
+		assertEquals("D:\\SETUP.EXE", byName.get("CD Game").target());
+		assertTrue(byName.get("Tool").startup());
+		assertFalse(byName.get("EarthSiege 2").startup());
+		assertEquals(List.of("C:\\TOOLS\\CLOCK.EXE"), r.run());
+		List<org.dbgl.util.ProfileChecks.Problem> found = new java.util.ArrayList<>();
+		org.dbgl.util.Win9x.check(r, found);
+		java.util.Map<String, String> byKey = new java.util.HashMap<>();
+		for (org.dbgl.util.ProfileChecks.Problem p: found)
+			byKey.put(p.key(), String.valueOf(p.args()[0]));
+		// the programs of Windows itself (Editor, Zubehör) and documents (Readme) are left out; D: (the CD) counts as there
+		assertEquals(java.util.Set.of("win9xstartup", "win9xprograms", "win9xgone"), byKey.keySet());
+		assertTrue(byKey.get("win9xprograms"), byKey.get("win9xprograms").contains("EarthSiege 2 (C:\\SIERRA\\ES2\\ES2.EXE)"));
+		assertTrue(byKey.get("win9xprograms").contains("CD Game"));
+		assertFalse(byKey.get("win9xprograms").contains("Editor"));
+		assertFalse(byKey.get("win9xprograms").contains("Readme"));
+		assertTrue(byKey.get("win9xgone").contains("Gone Game (C:\\GAMES\\GONE.EXE)"));
+		assertTrue(byKey.get("win9xstartup").contains("Tool"));
+		assertTrue(byKey.get("win9xstartup").contains("CLOCK.EXE"));
+		img.delete();
+
+		// no Windows 9x (a DOS hard disk image, no VMM32.VXD), no FAT, no shortcut
+		File hdi = unzipToTemp("pc98-512.hdi.gz");
+		assertNull(org.dbgl.util.Win9x.read(hdi));
+		hdi.delete();
+		assertNull(org.dbgl.util.Win9x.linkTarget(new byte[10]));
+		assertNull(org.dbgl.util.Win9x.linkTarget("MZ not a shortcut, long enough to be read as one, but no header of 0x4C at its start......".getBytes()));
+	}
+
 	@Test
 	public void testWin3x() throws Exception {
 		File root = Files.createTempDirectory("dbgl-win3-").toFile();
@@ -4026,10 +4104,37 @@ public class Dbgl0102Tests {
 			found.clear();
 			org.dbgl.util.Win3x.check(in, "C:\\NOTHERE.EXE", applies, mounts, found);
 			assertEquals(List.of("win3start", "win3startmissing"), found.stream().map(org.dbgl.util.ProfileChecks.Problem::key).toList());
+			// started by own lines of the autoexec, as many profiles do it ("C:", "cd \\WINDOWS", "win")
+			assertEquals(win.getCanonicalFile(), org.dbgl.util.Win3x.fromAutoexec(List.of("@echo off", "C:", "cd \\WINDOWS", "SET TEMP=C:\\TEMP", "win"), mounts, null).install().dir().getCanonicalFile());
+			assertEquals(win.getCanonicalFile(), org.dbgl.util.Win3x.fromAutoexec(List.of("cls", "win /3"), mounts, win).install().dir().getCanonicalFile()); // where DBGL left it
+			assertEquals("/3", org.dbgl.util.Win3x.fromAutoexec(List.of("C:\\WINDOWS\\WIN.COM /3"), mounts, null).params());
+			assertNull(org.dbgl.util.Win3x.fromAutoexec(List.of("C:", "cd \\GAME", "win"), mounts, null)); // no Windows there
+			assertNull(org.dbgl.util.Win3x.fromAutoexec(List.of("winmine"), mounts, win));
+
+			// a profile for a program of Windows: the line that starts Windows starts it right away
+			assertEquals("[sdl]\r\nwin=x\r\n[autoexec]\r\nC:\r\ncd \\WINDOWS\r\n@win C:\\GAME\\GAME.EXE\r\nexit", org.dbgl.util.Win3x.withProgram(
+				"[sdl]\r\nwin=x\r\n[autoexec]\r\nC:\r\ncd \\WINDOWS\r\n@win\r\nexit", "C:\\GAME\\GAME.EXE"));
+			assertEquals("[autoexec]\nC:\\WINDOWS\\WIN.COM C:\\GAME\\GAME.EXE\n", org.dbgl.util.Win3x.withProgram("[autoexec]\nC:\\WINDOWS\\WIN.COM /3\n", "C:\\GAME\\GAME.EXE"));
+			assertNull(org.dbgl.util.Win3x.withProgram("[autoexec]\nwinmine\n", "C:\\GAME\\GAME.EXE"));
+
+			// the groups of the Program Manager: a group file of Windows 3.1 ("PMCC") with two items
+			Files.writeString(new File(win, "PROGMAN.INI").toPath(), "[Groups]\r\nGroup1=C:\\WINDOWS\\GAMES.GRP\r\n;Group2=C:\\WINDOWS\\OLD.GRP\r\n", StandardCharsets.ISO_8859_1);
+			Files.write(new File(win, "GAMES.GRP").toPath(), group("Games", new String[][] {{"My Game", "C:\\GAME\\GAME.EXE /x"}, {"Clock", "CLOCK.EXE"}, {"Gone", "C:\\OLD\\OLD.EXE"}}));
+			List<org.dbgl.util.Win3x.GroupItem> items = org.dbgl.util.Win3x.groups(in, mounts);
+			assertEquals(3, items.size());
+			assertEquals("Games", items.get(0).group());
+			assertEquals("C:\\GAME\\GAME.EXE", items.get(0).program());
+			found.clear();
+			applies.setValue("sblaster", "sbtype", "sb16");
+			org.dbgl.util.Win3x.check(in, "", applies, mounts, found);
+			assertEquals(List.of("win3start", "win3programs", "win3itemsgone"), found.stream().map(org.dbgl.util.ProfileChecks.Problem::key).toList());
+			assertEquals("My Game (C:\\GAME\\GAME.EXE)", found.get(1).args()[0]);
+			assertEquals("Gone (C:\\OLD\\OLD.EXE)", found.get(2).args()[0]);
+
 			applies.setValue("sblaster", "sbtype", "none");
 			found.clear();
 			org.dbgl.util.Win3x.check(in, "", applies, mounts, found);
-			org.junit.Assert.assertArrayEquals(new Object[] {"[sblaster] sbtype", "sb16", "none"}, found.get(1).args());
+			org.junit.Assert.assertArrayEquals(new Object[] {"[sblaster] sbtype", "sb16", "none"}, found.stream().filter(x -> x.key().equals("win3nosound")).findFirst().get().args());
 		} finally {
 			org.apache.commons.io.FileUtils.deleteQuietly(root);
 		}
