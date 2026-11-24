@@ -2513,9 +2513,23 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			@Override
 			public void widgetSelected(SelectionEvent event) {
 				try {
-					if (Mess_.on(shell_).key("dialog.main.confirm.databasecleanup").confirm()) {
-						int itemsRemoved = new TitledEntityRepository().cleanup();
-						Mess_.on(shell_).key("dialog.main.notice.databasecleanupok", new Object[] {itemsRemoved}).display();
+					if (Mess_.on(shell_).key("dialog.main.confirm.databasecleanup2").confirm()) {
+						TitledEntityRepository repo = new TitledEntityRepository();
+						int itemsRemoved = repo.cleanup();
+						// alpha 53: entries of the same name apart from spaces and case are merged first; similar ones are offered
+						// to be merged by hand ("Sierra On-Line" and "Sierra Online"), those merged then go with a second cleanup
+						int merged = repo.lastMerged();
+						java.util.List<TitledEntityRepository.Similar> similar = repo.similar();
+						if (!similar.isEmpty()) {
+							Integer byHand = new SimilarEntriesDialog(shell_, similar).open();
+							if ((byHand != null) && (byHand > 0)) {
+								merged += byHand;
+								itemsRemoved += repo.cleanup();
+							}
+						}
+						Mess_.on(shell_).key("dialog.main.notice.databasecleanupok2", new Object[] {merged, itemsRemoved}).display();
+						if (merged > 0)
+							updateProfilesList(getSelectedProfileIds());
 					}
 				} catch (SQLException e) {
 					Mess_.on(shell_).exception(e).warning();
@@ -5707,6 +5721,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			Mess_.on(shell_).key("dialog.exoimport.none", new Object[] {dir}).display();
 			return;
 		}
+		org.dbgl.util.ExoAdvice.setRoot(found.root()); // alpha 53: also the comparison for "Check profiles"
 		if (found.games().isEmpty()) {
 			Mess_.on(shell_).key("dialog.exoimport.noneinstalled", new Object[] {found.root().getPath(), found.notInstalled()}).display();
 			return;

@@ -68,13 +68,18 @@ public final class ExoImport {
 		return null;
 	}
 
+	/** alpha 53: the folder of the collection for the comparison of "Check profiles", null if this is none */
+	public static File rootOfForCheck(File chosen) {
+		return rootOf(chosen);
+	}
+
 	/** the projects in eXo: folders with a "!..." folder of start files in them */
-	private static File[] projects(File exo) {
+	static File[] projects(File exo) {
 		File[] dirs = exo.listFiles(f -> f.isDirectory() && (bangs(f).length > 0));
 		return dirs == null ? new File[0]: dirs;
 	}
 
-	private static File[] bangs(File project) {
+	static File[] bangs(File project) {
 		File[] dirs = project.listFiles(f -> f.isDirectory() && f.getName().startsWith("!"));
 		return dirs == null ? new File[0]: dirs;
 	}

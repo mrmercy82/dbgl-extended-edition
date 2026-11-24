@@ -1806,7 +1806,7 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 			"blocksize").build(metaControls_).init(configurable);
 		Chain.on(generalGroup).lbl(l -> l.key("dialog.template.prebuffer")).cmb(c -> c.horSpan(2).editable().tooltip("dialog.template.prebuffer.tooltip").items("profile", "prebuffer")).section(
 			"mixer").item("prebuffer").build(metaControls_).init(configurable);
-		Chain chnMixer = Chain.on(generalGroup).lbl(l -> l.key("dialog.template.mixercommand")).txt(t -> t.tooltip("dialog.template.mixercommand.tooltip")).autoexec(Autoexec::getMixer, Autoexec::setMixer).but(Button_.Builder::threedots).build(
+		Chain chnMixer = Chain.on(generalGroup).lbl(l -> l.key("dialog.template.mixercommand")).txt(t -> t.tooltip("dialog.template.mixercommand.tooltip")).autoexec(Autoexec::getMixer, Autoexec::setMixer).but(b -> b.text().key("dialog.template.mixercommand.button").tooltip("dialog.template.mixercommand.button.tooltip")).build(
 			metaControls_).init(configurable);
 		chnMixer.getButton().addSelectionListener(new SelectionAdapter() {
 			@Override

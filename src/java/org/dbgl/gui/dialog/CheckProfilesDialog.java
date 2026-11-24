@@ -255,6 +255,36 @@ public class CheckProfilesDialog extends SizeControlledButtonDialog<Boolean> {
 				moveOrphans();
 			}
 		}).ctrl();
+		// alpha 53: an eXoDOS collection on this computer as a comparison (its configurations are only read)
+		Button_.on(otherButtons_).text().key("dialog.checkprofiles.exodosdir").tooltip("dialog.checkprofiles.exodosdir.tooltip").listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				org.eclipse.swt.widgets.DirectoryDialog dialog = new org.eclipse.swt.widgets.DirectoryDialog(shell_);
+				File current = org.dbgl.util.ExoAdvice.root();
+				if (current != null)
+					dialog.setFilterPath(current.getPath());
+				String dir = dialog.open();
+				if (dir == null)
+					return;
+				File root = org.dbgl.util.ExoImport.rootOfForCheck(new File(dir));
+				if (root == null) {
+					Mess_.on(shell_).key("dialog.exoimport.none", new Object[] {dir}).display();
+					return;
+				}
+				org.dbgl.util.ExoAdvice.setRoot(root);
+				check();
+			}
+		}).ctrl();
+		// alpha 53: the results with the configurations, anonymous, to send to the developers of DBGL
+		Button_.on(otherButtons_).text().key("dialog.checkprofiles.export").tooltip("dialog.checkprofiles.export.tooltip").listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				if (result_found_ == null)
+					return;
+				String content = org.dbgl.util.CheckExport.text(profiles_, result_found_, dbversions_);
+				new DifferencesDialog(shell_, text_.get("dialog.checkprofiles.export.title"), content, org.dbgl.util.CheckExport.fileName(), "checkexportdialog").open();
+			}
+		}).ctrl();
 		Button_.on(otherButtons_).text().key("dialog.switchdosbox.savereport").listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {

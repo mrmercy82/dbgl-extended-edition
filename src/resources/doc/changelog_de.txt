@@ -38,6 +38,41 @@ Neu
   startet (Autostart, „run=“/„load=“ der WIN.INI) und welche Verknüpfungen
   auf ein fehlendes Programm auf C: zeigen. Eigene Profile je Programm gibt
   es hier nicht: dafür müsste DBGL das Abbild ändern.
+- Entwickler, Publisher und Genres: Namen aus MobyGames mit geschütztem
+  Leerzeichen („Accolade, Inc.“ mit U+00A0) ergaben einen zweiten Eintrag
+  neben dem gleichen Namen mit normalem Leerzeichen. DBGL speichert solche
+  Leerzeichen jetzt als normale und nimmt beim Übernehmen den vorhandenen
+  Eintrag, auch bei anderer Groß-/Kleinschreibung („Role-playing (RPG)“).
+  „Datenbank aufräumen“ führt schon vorhandene gleichlautende Einträge
+  zusammen und sagt, wie viele. In einer Sammlung von 180 Profilen waren es
+  28 doppelte Einträge.
+  Danach zeigt „Datenbank aufräumen“ ähnliche, aber nicht gleiche Einträge
+  zum Abhaken („Sierra On-Line“ / „Sierra Online“, „Dynamix, Inc.“ /
+  „Dynamix“, „Strategy“ / „Strategy/Tactics“): Für jede angehakte Gruppe
+  wählt man den Namen, der bleibt; nichts ist vorausgewählt.
+- Prüfen: Was DOSBox beim letzten Start eines Profils ausgegeben hat, wird
+  mitgelesen und als Hinweis gezeigt: DOSBox-X findet kein WinPcap für die
+  Netzwerkkarte (Lösung: [ne2000] backend = slirp), DOSBox darf einen Ordner
+  nicht anlegen, DOSBox nimmt einen Wert nicht an. Erkannt werden nur
+  Meldungen, deren Wortlaut aus echten Ausgaben bekannt ist.
+- Prüfen: Ein Festplattenabbild, das sich nicht beschreiben lässt
+  (schreibgeschützt oder ohne Berechtigung), wird gemeldet: Windows 95 darin
+  meldet sonst Schreibfehler, und ScanDisk läuft bei jedem Start.
+- Prüfen: „Für die Entwickler exportieren...“ legt die Ergebnisse mit den
+  Konfigurationsdateien der Profile in eine Textdatei, um sie an die
+  Entwickler zu schicken. Ordner, Benutzername, Rechnername und
+  E-Mail-Adressen werden ersetzt; Notizen, Links und eigene Felder bleiben
+  weg. Man sieht den ganzen Text vor dem Speichern.
+- Prüfen: „eXoDOS zum Vergleich...“: Mit einer eXoDOS-Sammlung auf dem
+  Rechner (auch die, aus der man importiert hat) sagt „Prüfen“ bei Profilen
+  mit genau dem Titel eines ihrer Spiele, welche Einstellungen zum Spiel
+  eXoDOS anders setzt (Speicher, Maschine, Soundkarte ...). Die Werte lassen
+  sich übernehmen, aber nur von Hand gewählt. Für andere DOSBox-Versionen
+  als 0.74 bleibt die Geschwindigkeit (core, cycles) weg, DOSBox Staging
+  bekommt die Werte unter seinen Namen. Die Dateien von eXoDOS werden nur
+  gelesen.
+- Profil bearbeiten, Audio: der Knopf neben „Mixer-Befehle“ heißt jetzt
+  „Lautstärken einstellen...“ statt „...“.
 - Einrichtungsassistent beim ersten Start (wenn es noch keine Profile gibt):
   Sprache und Darstellung; DOSBox (Empfehlung, DOSBox Staging und DOSBox-X
   beide herunterzuladen, je zwei Sätze zu Staging, DOSBox-X und 0.74-3;

@@ -694,7 +694,9 @@ public class ExecuteUtils {
 		int linkProfile = LINK_PROFILE.get();
 		if (statusWindow != null)
 			statusWindow.setProfileId(linkProfile);
-		List<String> collected = (statusWindow == null) && detectFailedStart && SettingsService.getInstance().getBooleanValue("dosbox", "detectfailedstart") ? new ArrayList<>(): null;
+		boolean quickExitCheck = (statusWindow == null) && detectFailedStart && SettingsService.getInstance().getBooleanValue("dosbox", "detectfailedstart");
+		boolean runIssues = dosbox && (linkProfile >= 0); // alpha 53: what the output tells, for "Check profiles"
+		List<String> collected = quickExitCheck || runIssues ? new ArrayList<>(): null;
 		if (statusWindow != null)
 			proc.onExit().thenAccept(p -> statusWindow.processEnded(p.exitValue()));
 		try {
@@ -714,7 +716,27 @@ public class ExecuteUtils {
 					}
 					log.close(p.exitValue());
 				});
-			if (collected != null) {
+			if (runIssues)
+				proc.onExit().thenAccept(p -> {
+					try {
+						outputGobbler.join(3000);
+						errorGobbler.join(3000);
+					} catch (InterruptedException e) {
+						Thread.currentThread().interrupt();
+					}
+					List<String> lines;
+					synchronized (collected) {
+						lines = new ArrayList<>(collected);
+					}
+					List<RunIssues.Issue> issues = RunIssues.scan(lines);
+					Display display = Display.getDefault();
+					if (!display.isDisposed())
+						display.asyncExec(() -> {
+							RunIssues.save(linkProfile, issues);
+							ProfileWarnings.forget(linkProfile); // its marks in the list are found again with them
+						});
+				});
+			if (quickExitCheck) {
 				proc.onExit().thenAccept(p -> {
 					long elapsed = System.currentTimeMillis() - startMillis;
 					if (elapsed >= DosboxStatusWindow.QUICK_EXIT_MILLIS)

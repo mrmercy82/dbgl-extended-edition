@@ -150,11 +150,14 @@ public final class ProfileFindings {
 
 	/** alpha 53: solvable, but only chosen by hand (not at first, not by "Choose all solvable"): DBConf was sent in by users */
 	public static boolean onlyByHand(Finding f) {
-		return DBCONF.equals(f.kind());
+		return DBCONF.equals(f.kind()) || EXODOS.equals(f.kind());
 	}
 
+	/** alpha 53: a configuration of the eXoDOS collection on this computer for the game */
+	public static final String EXODOS = "exodos";
+
 	/** what ProfileChecks finds that is only for information */
-	private static final Set<String> HINTS = Set.of("gusnopatches", "cohortoptional", "lurecm32l", "dm2sbpro", "paw1942jemmex", "sounddeviceoff", "gamewantsmt32", "cdimageunused", "gameadvice", "soundmismatch", "win3start", "win16inwindows", "win3programs", "win3itemsgone", "win9xstartup", "win9xprograms", "win9xgone");
+	private static final Set<String> HINTS = Set.of("gusnopatches", "cohortoptional", "lurecm32l", "dm2sbpro", "paw1942jemmex", "sounddeviceoff", "gamewantsmt32", "cdimageunused", "gameadvice", "soundmismatch", "win3start", "win16inwindows", "win3programs", "win3itemsgone", "win9xstartup", "win9xprograms", "win9xgone", "runpcap", "runmkdir", "runbadvalue");
 
 	private static final Fix REWRITE = fix((p, v) -> {
 		// nothing to change: saving writes it as DOSBox needs it
@@ -359,6 +362,18 @@ public final class ProfileFindings {
 								(p, t) -> diffs.forEach(d -> t.setRaw(d.section(), d.item(), d.value()))), false));
 					}
 				}
+				// alpha 53: what the configuration of eXoDOS on this computer (if one was chosen) sets otherwise for exactly this
+				// game; a note, solvable by hand like DBConf
+				if (!org.dbgl.util.Scummvm.is(prof.getDosboxVersion())) {
+					ExoAdvice.Game exo = ExoAdvice.gameFor(prof.getTitle());
+					List<DBConfAdvice.Difference> exoDiffs = exo == null ? List.of(): ExoAdvice.differences(exo, prof.getDosboxVersion(), prof.getCombinedConfigurationForReading());
+					if (!exoDiffs.isEmpty()) {
+						Object[] args = {exo.title(), DBConfAdvice.shown(exoDiffs, true), DBConfAdvice.shown(exoDiffs, false)};
+						list.add(new Finding(prof, prof.getDosboxVersion(), EXODOS, args, text.get("dialog.checkprofiles.exodos", args), true, "setexodos",
+							fix((p, vs) -> exoDiffs.forEach(d -> p.getConfiguration().setValue(d.section(), d.item(), d.value())),
+								(p, t) -> exoDiffs.forEach(d -> t.setRaw(d.section(), d.item(), d.value()))), false));
+					}
+				}
 				// "seems incomplete" says less than what was found: left out then
 				Set<String> driveCauses = Set.of("drivenotmounted", "drivebeforemount", "driveunmounted", "driveunmountedown", "startsectiondrive");
 				boolean mountTold = problems.stream().anyMatch(pr -> pr.key().startsWith("mount") || driveCauses.contains(pr.key()));
@@ -553,6 +568,11 @@ public final class ProfileFindings {
 						rewrite = true;
 					}
 				}
+			}
+			case "runpcap" -> {
+				// alpha 53: DOSBox-X found no WinPcap for its network card at the last start: slirp needs none
+				solution = "setslirp";
+				fix = fix((p, vs) -> p.getConfiguration().setValue("ne2000", "backend", "slirp"), (p, t) -> t.setRaw("ne2000", "backend", "slirp"));
 			}
 			case "win3sound", "win3nosound", "win3display" -> {
 				// alpha 53: the setting of DOSBox the driver of Windows 3.x was set up with (Windows itself stays as it is)

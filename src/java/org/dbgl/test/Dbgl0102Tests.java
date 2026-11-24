@@ -2942,6 +2942,21 @@ public class Dbgl0102Tests {
 		assertTrue(p.getConfiguration().getAutoexec().getMountingpoints().get(0).toString(), p.getConfiguration().getAutoexec().getMountingpoints().get(0).toString().contains(new File(root, "eXo").getPath()));
 		assertEquals("off", p.getConfiguration().getValue("dos", "xms")); // converted for Staging 0.83
 
+		// alpha 53: the collection as a comparison for "Check profiles": by the exact title, the speed left out for Staging
+		org.dbgl.util.ExoAdvice.setRoot(root);
+		try {
+			org.dbgl.util.ExoAdvice.Game g = org.dbgl.util.ExoAdvice.gameFor("1942 - The Pacific Air War");
+			assertNotNull(g);
+			assertEquals("1942: The Pacific Air War", g.title());
+			assertNull(org.dbgl.util.ExoAdvice.gameFor("1942"));
+			assertNotNull(org.dbgl.util.ExoAdvice.gameFor("keen1")); // not installed, without LaunchBox data: its folder
+			List<org.dbgl.util.DBConfAdvice.Difference> diffs = org.dbgl.util.ExoAdvice.differences(g, v, v.getConfiguration());
+			assertTrue(diffs.stream().anyMatch(d -> d.item().equals("xms")));
+			assertFalse(diffs.stream().anyMatch(d -> d.item().equals("cycles")));
+		} finally {
+			org.dbgl.util.ExoAdvice.setRoot(null);
+		}
+
 		assertNull(org.dbgl.util.ExoImport.find(game)); // no collection: nothing
 	}
 
@@ -4025,6 +4040,56 @@ public class Dbgl0102Tests {
 	}
 
 	/** Alpha 53: a profile that starts Windows 3.x: what it starts, its sound and display drivers against DOSBox */
+	@Test
+	public void testCheckExportAnonymous() throws Exception {
+		// alpha 53: the folders and names of the user replaced, paths with \\ and / and in any case
+		java.util.Map<String, String> r = new java.util.LinkedHashMap<>();
+		r.put("D:\\Spiele\\DOS\\dosroot", "<DOSROOT>");
+		r.put("D:\\Spiele\\DOS", "<DBGL>");
+		r.put("C:\\Users\\Erika", "<HOME>");
+		r.put("Erika", "<USER>");
+		r.put("ab", "<SHORT>"); // too short to be replaced safely
+		java.lang.reflect.Method m = org.dbgl.util.CheckExport.class.getDeclaredMethod("anonymous", String.class, java.util.Map.class);
+		m.setAccessible(true);
+		String out = (String)m.invoke(null, "mount C \"d:/spiele/dos/dosroot/KEEN\"\nconf D:\\Spiele\\DOS\\profiles\\1.conf\nC:\\Users\\Erika\\x erika@example.org Erikas Erika\nabc", r);
+		assertEquals("set PATH=<HOME>\\games;<HOME>\\x\n\"<HOME>\"", m.invoke(null, "set PATH=C:\\Users\\Max Muster\\games;/home/max\\x\n\"C:\\Documents and Settings\\Max\"", r));
+		assertEquals("mount C \"<DOSROOT>/KEEN\"\nconf <DBGL>\\profiles\\1.conf\n<HOME>\\x <EMAIL> Erikas <USER>\nabc", out);
+	}
+
+	@Test
+	public void testRunIssues() {
+		// alpha 53: lines as DOSBox-X 2026.10.01 writes them (EarthSiege II, TEST19)
+		List<org.dbgl.util.RunIssues.Issue> found = org.dbgl.util.RunIssues.scan(List.of("LOG: SETUP: mkdir_recursive failed: Permission denied",
+			"LOG: \"\" is not a valid value for variable: enable supermegazeux tweakmode.", "It might now be reset to the default value: ",
+			"LOG: \"\" is not a valid value for variable: enable supermegazeux tweakmode.", "LOG: WinPcap has to be installed for the NE2000 to work.",
+			"LOG: ETHERNET: NE2000 Ethernet emulation backend selected: ethnet"));
+		assertEquals(3, found.size());
+		assertEquals("runmkdir", found.get(0).key());
+		assertEquals(List.of("", "enable supermegazeux tweakmode"), found.get(1).args());
+		assertEquals("runpcap", found.get(2).key());
+		assertTrue(org.dbgl.util.RunIssues.scan(List.of("LOG: MT32: Found ROM pair in ./: CM32L_CONTROL.ROM and CM32L_PCM.ROM")).isEmpty());
+	}
+
+	@Test
+	public void testTitledEntityTidy() {
+		// alpha 53: MobyGames gives names with no-break spaces; they are kept with normal ones and found as the same entry
+		assertEquals("Accolade, Inc.", org.dbgl.model.repository.TitledEntityRepository.tidy("Accolade,\u00a0Inc."));
+		assertEquals("Core Design Ltd.", org.dbgl.model.repository.TitledEntityRepository.tidy("  Core\u00a0\u00a0Design  Ltd. "));
+		assertTrue(org.dbgl.model.repository.TitledEntityRepository.same("Role-playing (RPG)", "Role-Playing (RPG)"));
+		assertTrue(org.dbgl.model.repository.TitledEntityRepository.same("ORIGIN\u00a0Systems,\u00a0Inc.", "ORIGIN Systems, Inc."));
+		assertFalse(org.dbgl.model.repository.TitledEntityRepository.same("Sierra On-Line", "Sierra On-Line, Inc."));
+		assertNull(org.dbgl.model.repository.TitledEntityRepository.tidy(null));
+		// similar, not the same: offered by hand after the cleanup
+		java.util.function.BinaryOperator<String> k = org.dbgl.model.repository.TitledEntityRepository::similarKey;
+		assertEquals(k.apply("DEVELOPERS", "Sierra On-Line, Inc."), k.apply("DEVELOPERS", "Sierra Online"));
+		assertEquals(k.apply("PUBLISHERS", "Logic Factory, Inc., The"), k.apply("PUBLISHERS", "The Logic Factory"));
+		assertEquals(k.apply("PUBLISHERS", "Max Design GmbH & Co."), k.apply("PUBLISHERS", "Max Design"));
+		assertFalse(k.apply("DEVELOPERS", "Impressions").equals(k.apply("DEVELOPERS", "Impressions Games")));
+		assertEquals(k.apply("GENRES", "Simulation, Strategy/Tactics"), k.apply("GENRES", "Strategy, Simulation"));
+		assertEquals(k.apply("GENRES", "Role-Playing (RPG), Add-on"), k.apply("GENRES", "Role-playing (RPG), DLC / Add-on"));
+		assertFalse(k.apply("GENRES", "Action").equals(k.apply("GENRES", "Action, Adventure")));
+	}
+
 	@Test
 	public void testWin9x() throws Exception {
 		// alpha 53: Windows 95 in a hard disk image (MBR, FAT16 at sector 63, long names), see data/make_win95_hdd.py

@@ -648,6 +648,18 @@ public final class ProfileChecks {
 						result.add(new Problem("boothdd", f.getName(), prof.getDosboxVersion() == null ? "": prof.getDosboxVersion().getTitle()));
 				}
 
+		// alpha 53: what the output of DOSBox told at the last start of the profile (RunIssues)
+		for (RunIssues.Issue ri: RunIssues.of(prof.getId()))
+			result.add(new Problem(ri.key(), ri.args().toArray()));
+		// alpha 53: a hard disk image the system in it cannot write to (write protected, or no right to change it): Windows 95
+		// and DOS then report write errors and ScanDisk runs at every start (TEST19, EarthSiege II)
+		for (Mount m: netto)
+			if ((m instanceof org.dbgl.model.conf.mount.ImageMount im) && !m.isUnmounted()
+					&& ("hdd".equalsIgnoreCase(StringUtils.defaultString(m.getMountAs())) || (m.getDrive() == '2') || (m.getDrive() == '3')))
+				for (File f: im.getCanonicalImgPaths())
+					if (f.isFile() && !java.nio.file.Files.isWritable(f.toPath()))
+						result.add(new Problem("imagereadonly", f.getPath()));
+
 		// Lure of the Temptress plays its music and also its sound effects on a Roland CM-32L/MT-32: DOSBox Staging and DOSBox-X
 		// emulate it (with its ROM), the profile does not use it
 		if (autoexec.isDos() && new File(StringUtils.defaultString(autoexec.getMain()).replace('\\', '/')).getName().equalsIgnoreCase("LURE.EXE") && (dosboxX || ((family >= 0) && !ansiDosbox))
