@@ -103,6 +103,11 @@ Geändert
   einzige Meldung, die sie nennt, statt derselben Zeile je Spiel.
 
 Fehler behoben
+- Ein Setup-Programm für Windows tragen der Import und der Assistent „Spiel
+  hinzufügen“ nicht mehr selbst ein (bei Ultima VII Teil 2 nannte die
+  Datenbank von DBGL eine SETUP.EXE, die einen Bildschirmschoner für Windows
+  3.x einrichtet). „Prüfen...“ bietet bei einem solchen Setup-Programm die
+  Lösung „Setup-Programm aus dem Profil entfernen“ an.
 - Unter Windows fragte die Firewall nach dem Start, ob Java ins Netz darf:
   DBGL öffnete seinen Port für „Senden an“ und den Start aus Steam (4740)
   für das ganze Netz, sodass andere Rechner dort Profile hinzufügen oder

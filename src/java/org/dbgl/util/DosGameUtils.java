@@ -220,6 +220,10 @@ public class DosGameUtils {
 				rank = SETUP_ORDER.size() * 2;
 			if (rank < 0)
 				continue;
+			// alpha 53: never a program for Windows (Ultima VII Part Two has a SETUP.EXE for a screen saver of Windows 3.x)
+			String kind = files.get(i).isFile() ? ProfileChecks.programKind(files.get(i)): null;
+			if ("pe".equals(kind) || "ne".equals(kind))
+				continue;
 			rank = rank * 100 + Math.min(depth(files.get(i)), 99); // among the same names the one nearer to the top
 			if (rank < bestRank) {
 				bestRank = rank;

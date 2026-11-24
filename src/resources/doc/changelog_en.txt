@@ -101,6 +101,11 @@ Changed
   instead of the same line per game.
 
 Fixed
+- The import and the "Add Game" wizard no longer fill in a setup program for
+  Windows by themselves (for Ultima VII Part Two the database of DBGL named a
+  SETUP.EXE that sets up a screen saver of Windows 3.x). "Check..." offers
+  the solution "remove the setup program from the profile" for such a setup
+  program.
 - On Windows the firewall asked after the start whether Java may use the
   network: DBGL opened its port for "Send to" and the start from Steam
   (4740) to the whole network, so that other computers could add profiles

@@ -468,8 +468,10 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 		if (mainFile.isEmpty()) // alpha 53: recognized by other files: the start program guessed
 			mainFile = guessMain(dir, exes, set.set_.entrySet().stream().filter(x -> x.getValue().type_ == FileType.MAIN).map(Map.Entry::getKey).toList());
 		GameDirEntry result = new GameDirEntry(dir, mainFile,
+				// alpha 53: no program for Windows as the setup program (the database gives the SETUP.EXE of Ultima VII Part Two, which
+				// sets up a screen saver of Windows 3.x)
 				set.set_.entrySet().stream().filter(x -> x.getValue().type_ == FileType.SETUP && x.getValue().getScore() > 0).flatMap(
-					x -> exes.stream().filter(y -> y.getName().equals(x.getKey()))).sorted(nearest).findFirst(),
+					x -> exes.stream().filter(y -> y.getName().equals(x.getKey()))).filter(ImportDirDialog::forDos).sorted(nearest).findFirst(),
 				exes, MetropolisSearchEngine.getInstance().getEntryDetailedInformation(game.getValue().webProfile_), set.getScore(), set.set_.entrySet().stream().sorted((o1, o2) -> {
 					int comp = Integer.compare(o2.getValue().getScore(), o1.getValue().getScore());
 					return comp == 0 ? o1.getKey().compareTo(o2.getKey()): comp;
@@ -536,6 +538,12 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 				result.put(e.getKey(), entry);
 		}
 		return result;
+	}
+
+	/** alpha 53: no program for Windows (DOSBox cannot run one) */
+	static boolean forDos(File f) {
+		String kind = f.isFile() ? org.dbgl.util.ProfileChecks.programKind(f): null;
+		return !"pe".equals(kind) && !"ne".equals(kind);
 	}
 
 	/** helpers that are no game: setup and install programs, DOS extenders, packers, drivers */

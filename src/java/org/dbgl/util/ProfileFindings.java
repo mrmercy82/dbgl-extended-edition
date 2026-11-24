@@ -538,6 +538,22 @@ public final class ProfileFindings {
 					fix = fix((p, vs) -> p.getConfiguration().setValue(setting[0], setting[1], advised), (p, t) -> t.setRaw(setting[0], setting[1], advised));
 				}
 			}
+			case "windowsprogram", "win16program" -> {
+				// alpha 53: a Windows program as the setup program (TEST14: Ultima VII Part Two, its SETUP.EXE sets up a screen
+				// saver for Windows 3.x): it can go from the profile; a start program is only told
+				if (prof.hasSetup()) {
+					File setup = new FileLocation(prof.getSetupString(), org.dbgl.service.FileLocationService.getInstance().dosrootRelative()).getCanonicalFile();
+					if (setup.getPath().equalsIgnoreCase(String.valueOf(pr.args()[0]))) {
+						solution = "removesetup";
+						fix = fix((p, vs) -> {
+							p.setSetupFileLocation(null);
+							p.setSetupParams(StringUtils.EMPTY);
+						}, (p, t) -> {
+						});
+						rewrite = true;
+					}
+				}
+			}
 			case "longdosnames", "cdrelative", "drivebeforemount" -> {
 				solution = "rewrite";
 				fix = REWRITE;
@@ -547,7 +563,8 @@ public final class ProfileFindings {
 				// told only: DBGL cannot know what is right (a missing file, a Windows program, ...)
 			}
 		}
-		if ((fix != null) && (fix != REWRITE) && (setting == null) && !pr.key().equals("charsetmismatch") && !pr.key().equals("soundmismatch") && !(fix instanceof TextFix))
+		if ((fix != null) && (fix != REWRITE) && (setting == null) && !pr.key().equals("charsetmismatch") && !pr.key().equals("soundmismatch") && !(fix instanceof TextFix)
+				&& !"removesetup".equals(solution))
 			fix = null;
 		boolean hint = HINTS.contains(pr.key()); // only for information: no warning sign, nothing to solve
 		return new Finding(prof, prof.getDosboxVersion(), pr.key(), pr.args(), shown, hint, solution, fix, rewrite);

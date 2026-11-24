@@ -3961,6 +3961,31 @@ public class Dbgl0102Tests {
 		assertFalse(org.dbgl.util.DBConfAdvice.forVersion(null));
 	}
 
+	/** Alpha 53: a setup program for Windows (Ultima VII Part Two: SETUP.EXE of a screen saver) is not guessed */
+	@Test
+	public void testNoWindowsSetupGuessed() throws Exception {
+		File dir = Files.createTempDirectory("dbgl-winsetup-").toFile();
+		try {
+			byte[] ne = new byte[0x100];
+			ne[0] = 'M';
+			ne[1] = 'Z';
+			ne[0x3c] = (byte)0x80;
+			ne[0x80] = 'N';
+			ne[0x81] = 'E';
+			ne[0x80 + 0x36] = 2; // Windows
+			File setup = new File(dir, "SETUP.EXE"), install = new File(dir, "INSTALL.EXE"), game = new File(dir, "SERPENT.EXE");
+			Files.write(setup.toPath(), ne);
+			Files.write(install.toPath(), "MZ dos program".getBytes(StandardCharsets.ISO_8859_1));
+			Files.write(game.toPath(), "MZ dos program".getBytes(StandardCharsets.ISO_8859_1));
+			assertEquals("ne", org.dbgl.util.ProfileChecks.programKind(setup));
+			List<File> files = List.of(game, setup, install);
+			assertEquals(2, org.dbgl.util.DosGameUtils.findSetupIndex(files)); // INSTALL.EXE, not the SETUP.EXE for Windows
+			assertEquals(-1, org.dbgl.util.DosGameUtils.findSetupIndex(List.of(game, setup)));
+		} finally {
+			org.apache.commons.io.FileUtils.deleteQuietly(dir);
+		}
+	}
+
 	@Test
 	public void testFitIntoColumn() throws Exception {
 		StringBuilder pubs = new StringBuilder();
