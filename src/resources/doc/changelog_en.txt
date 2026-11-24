@@ -7,6 +7,18 @@ Based on DBGL 0.100 beta 17 by Ronald Blankendaal (https://dbgl.org), source cod
 0.101 alpha 53 (in progress)
 ----------------------------
 New
+- Windows 3.x: for profiles that start Windows (WIN.COM), "Check..." now
+  looks into its SYSTEM.INI and WIN.INI (reading only):
+  - what Windows starts then: the program after WIN, "run=" and "load=" of
+    WIN.INI, "shell=" of SYSTEM.INI (if not the Program Manager); if such a
+    program is not on the drives of the profile, there is a warning,
+  - whether the sound driver (Sound Blaster: port, interrupt, DMA) fits the
+    settings of DOSBox, else Windows stays silent,
+  - whether an S3 display driver has the S3 card of DOSBox, else Windows
+    does not start or shows nothing.
+  The solution each time: take the value of Windows into the profile.
+  Programs for Windows 3.x as setup or further program no longer count as
+  faults in such profiles; a setup program can be started through WIN.COM.
 - Welcome wizard at the first start (when there are no profiles yet):
   language and appearance; DOSBox (the advice to download both DOSBox
   Staging and DOSBox-X, two sentences each on Staging, DOSBox-X and 0.74-3;

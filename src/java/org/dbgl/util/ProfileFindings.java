@@ -154,7 +154,7 @@ public final class ProfileFindings {
 	}
 
 	/** what ProfileChecks finds that is only for information */
-	private static final Set<String> HINTS = Set.of("gusnopatches", "cohortoptional", "lurecm32l", "dm2sbpro", "paw1942jemmex", "sounddeviceoff", "gamewantsmt32", "cdimageunused", "gameadvice", "soundmismatch");
+	private static final Set<String> HINTS = Set.of("gusnopatches", "cohortoptional", "lurecm32l", "dm2sbpro", "paw1942jemmex", "sounddeviceoff", "gamewantsmt32", "cdimageunused", "gameadvice", "soundmismatch", "win3start", "win16inwindows");
 
 	private static final Fix REWRITE = fix((p, v) -> {
 		// nothing to change: saving writes it as DOSBox needs it
@@ -554,6 +554,32 @@ public final class ProfileFindings {
 					}
 				}
 			}
+			case "win3sound", "win3nosound", "win3display" -> {
+				// alpha 53: the setting of DOSBox the driver of Windows 3.x was set up with (Windows itself stays as it is)
+				String value = String.valueOf(pr.args()[1]);
+				if (setting != null) {
+					solution = "setwin3";
+					fix = fix((p, vs) -> p.getConfiguration().setValue(setting[0], setting[1], value), (p, t) -> t.setRaw(setting[0], setting[1], value));
+				}
+			}
+			case "win16inwindows" -> {
+				// alpha 53: the setup program started through Windows 3.x of the profile (WIN.COM C:\...\SETUP.EXE)
+				org.dbgl.model.conf.Autoexec ax = prof.getConfiguration().getAutoexec();
+				if (prof.hasSetup() && StringUtils.isNotBlank(ax.getMainWhereDosboxLooks())) {
+					File setup = new FileLocation(prof.getSetupString(), org.dbgl.service.FileLocationService.getInstance().dosrootRelative()).getCanonicalFile();
+					String dos = setup.getPath().equalsIgnoreCase(String.valueOf(pr.args()[0])) ? ax.getDosPath(setup.getPath(), prof.getNettoMountingPoints()): null;
+					String win = ax.getMainWhereDosboxLooks();
+					if (dos != null) {
+						solution = "setupviawin";
+						fix = fix((p, vs) -> {
+							p.setSetupFileLocation(win);
+							p.setSetupParams(dos);
+						}, (p, t) -> {
+						});
+						rewrite = true;
+					}
+				}
+			}
 			case "longdosnames", "cdrelative", "drivebeforemount" -> {
 				solution = "rewrite";
 				fix = REWRITE;
@@ -564,7 +590,7 @@ public final class ProfileFindings {
 			}
 		}
 		if ((fix != null) && (fix != REWRITE) && (setting == null) && !pr.key().equals("charsetmismatch") && !pr.key().equals("soundmismatch") && !(fix instanceof TextFix)
-				&& !"removesetup".equals(solution))
+				&& !"removesetup".equals(solution) && !"setupviawin".equals(solution))
 			fix = null;
 		boolean hint = HINTS.contains(pr.key()); // only for information: no warning sign, nothing to solve
 		return new Finding(prof, prof.getDosboxVersion(), pr.key(), pr.args(), shown, hint, solution, fix, rewrite);

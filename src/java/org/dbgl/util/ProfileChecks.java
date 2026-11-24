@@ -479,11 +479,16 @@ public final class ProfileChecks {
 		Set<String> paths = new LinkedHashSet<>(); // for the checks of all paths: length, characters
 
 		// the programs: main, setup and the alternative ones
+		Win3x.Install win3 = null;
 		if (StringUtils.isNotBlank(autoexec.getMainWhereDosboxLooks())) {
 			File main = programFile(new FileLocation(autoexec.getMainWhereDosboxLooks(), FileLocationService.getInstance().dosrootRelative()).getCanonicalFile());
 			if (main != null) {
 				paths.add(main.getPath());
 				checkProgram(result, main, "main", null);
+				// alpha 53: Windows 3.x started: what it starts then, and whether its drivers fit the settings of DOSBox
+				win3 = Win3x.of(main);
+				if (win3 != null)
+					Win3x.check(win3, autoexec.getParameters(), prof.getCombinedConfigurationForReading(), netto, result);
 				if (!autoexec.canBeReachedUsingMounts(false, autoexec.getMainWhereDosboxLooks(), netto))
 					result.add(notReachable(prof, main, netto, windows));
 				// a name longer than 8.3 or with spaces in the autoexec (e.g. "cd \DEATHGATE"): DOSBox does not find it, only its short
@@ -516,6 +521,10 @@ public final class ProfileChecks {
 		for (int i = 0; i < alt.length; i++)
 			if (StringUtils.isNotBlank(alt[i]))
 				checkOtherProgram(prof, result, paths, autoexec, netto, new FileLocation(alt[i], FileLocationService.getInstance().dataRelative()).getCanonicalFile(), "altexe", i + 1, windows);
+		// alpha 53: a program of Windows 3.x as setup or further program of a profile that starts Windows 3.x: it runs in that
+		// Windows (told, with the way to start it there), no fault
+		if (win3 != null)
+			result.replaceAll(p -> p.key().equals("win16program") ? new Problem("win16inwindows", p.args()): p);
 
 		// the mounts of the profile itself
 		for (Mount m: autoexec.getMountingpoints()) {

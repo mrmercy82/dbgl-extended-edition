@@ -761,6 +761,14 @@ public class Autoexec {
 		return new DosPath(new FileLocation(location, FileLocationService.getInstance().dosrootRelative()), combinedMountingpoints).file_;
 	}
 
+	/** alpha 53: the whole DOS path of a file ("C:\\SERPENT\\SETUP.EXE"), or null if no mount reaches it */
+	public String getDosPath(String location, List<Mount> combinedMountingpoints) {
+		DosPath p = new DosPath(new FileLocation(location, FileLocationService.getInstance().dosrootRelative()), combinedMountingpoints);
+		if (p.drive_ == null)
+			return null;
+		return p.drive_ + (StringUtils.isEmpty(p.directory_) ? "\\": (p.directory_.startsWith("\\") ? "": "\\") + p.directory_ + "\\") + p.file_;
+	}
+
 	public boolean canBeReachedUsingMounts(boolean booter, String location, List<Mount> combinedMountingpoints) {
 		return (booter && hasImageMountMatch(location)) || (new DosPath(new FileLocation(location, FileLocationService.getInstance().dosrootRelative()), combinedMountingpoints).drive_ != null);
 	}

@@ -7,6 +7,18 @@ Grundlage: DBGL 0.100 beta 17 von Ronald Blankendaal (https://dbgl.org), Quellco
 0.101 alpha 53 (in Arbeit)
 --------------------------
 Neu
+- Windows 3.x: Bei Profilen, die Windows starten (WIN.COM), sieht „Prüfen...“
+  jetzt in dessen SYSTEM.INI und WIN.INI nach (nur lesend):
+  - was Windows danach startet: das Programm nach WIN, „run=“ und „load=“ der
+    WIN.INI, „shell=“ der SYSTEM.INI (wenn nicht der Programm-Manager); fehlt
+    so ein Programm auf den Laufwerken des Profils, kommt eine Warnung,
+  - ob der Soundtreiber (Sound Blaster: Port, Interrupt, DMA) zu den
+    Einstellungen von DOSBox passt, sonst bleibt Windows stumm,
+  - ob ein S3-Grafiktreiber die S3-Karte von DOSBox hat, sonst startet
+    Windows nicht oder zeigt nichts.
+  Lösung jeweils: den Wert von Windows ins Profil übernehmen. Programme für
+  Windows 3.x als Setup oder weiteres Programm gelten in solchen Profilen
+  nicht mehr als Fehler; ein Setup-Programm lässt sich über WIN.COM starten.
 - Einrichtungsassistent beim ersten Start (wenn es noch keine Profile gibt):
   Sprache und Darstellung; DOSBox (Empfehlung, DOSBox Staging und DOSBox-X
   beide herunterzuladen, je zwei Sätze zu Staging, DOSBox-X und 0.74-3;

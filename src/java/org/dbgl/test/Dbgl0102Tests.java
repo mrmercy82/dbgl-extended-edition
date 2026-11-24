@@ -3986,6 +3986,55 @@ public class Dbgl0102Tests {
 		}
 	}
 
+	/** Alpha 53: a profile that starts Windows 3.x: what it starts, its sound and display drivers against DOSBox */
+	@Test
+	public void testWin3x() throws Exception {
+		File root = Files.createTempDirectory("dbgl-win3-").toFile();
+		try {
+			File win = new File(root, "WINDOWS"), game = new File(root, "GAME");
+			win.mkdirs();
+			game.mkdirs();
+			Files.write(new File(win, "WIN.COM").toPath(), "MZ dos program".getBytes(StandardCharsets.ISO_8859_1));
+			Files.write(new File(game, "GAME.EXE").toPath(), "MZ".getBytes(StandardCharsets.ISO_8859_1));
+			Files.writeString(new File(win, "system.ini").toPath(), "[boot]\r\ndisplay.drv=s3vsnd.drv\r\nshell=progman.exe\r\n[drivers]\r\nWave=sb16snd.drv\r\n[sndblst.drv]\r\nPort=220\r\nInt=5\r\nDmaChannel=1\r\nHDmaChannel=5\r\n",
+				StandardCharsets.ISO_8859_1);
+			Files.writeString(new File(win, "WIN.INI").toPath(), "[windows]\r\nload=\r\nrun=C:\\game\\game.exe\r\n", StandardCharsets.ISO_8859_1);
+			org.dbgl.util.Win3x.Install in = org.dbgl.util.Win3x.of(new File(win, "WIN.COM"));
+			assertNotNull(in);
+			assertNull(org.dbgl.util.Win3x.of(new File(game, "GAME.EXE"))); // no start of Windows
+			assertEquals(List.of("C:\\game\\game.exe"), org.dbgl.util.Win3x.started(in, ""));
+			assertEquals(List.of("C:\\GAME\\GAME.EXE", "C:\\game\\game.exe"), org.dbgl.util.Win3x.started(in, "C:\\GAME\\GAME.EXE /s"));
+			assertEquals(List.of("C:\\game\\game.exe"), org.dbgl.util.Win3x.started(in, "/3")); // a switch of WIN.COM, no program
+			List<org.dbgl.model.conf.mount.Mount> mounts = List.of(org.dbgl.model.factory.MountFactory.create("mount C \"" + root.getPath() + "\""));
+			assertEquals(new File(game, "GAME.EXE").getCanonicalFile(), org.dbgl.util.Win3x.resolve("C:\\game\\game", win, mounts).getCanonicalFile());
+			assertNull(org.dbgl.util.Win3x.resolve("D:\\GAME\\GAME.EXE", win, mounts));
+			assertEquals(java.util.Map.of("sbbase", "220", "irq", "5", "dma", "1", "hdma", "5"), org.dbgl.util.Win3x.sound(in));
+
+			Configuration applies = new Configuration();
+			applies.setValue("dosbox", "machine", "svga_et4000");
+			applies.setValue("sblaster", "sbtype", "sb16");
+			applies.setValue("sblaster", "sbbase", "220");
+			applies.setValue("sblaster", "irq", "7");
+			applies.setValue("sblaster", "dma", "1");
+			applies.setValue("sblaster", "hdma", "5");
+			List<org.dbgl.util.ProfileChecks.Problem> found = new java.util.ArrayList<>();
+			org.dbgl.util.Win3x.check(in, "", applies, mounts, found);
+			assertEquals(List.of("win3start", "win3sound", "win3display"), found.stream().map(org.dbgl.util.ProfileChecks.Problem::key).toList());
+			org.junit.Assert.assertArrayEquals(new Object[] {"[sblaster] irq", "5", "7"}, found.get(1).args());
+			applies.setValue("dosbox", "machine", "svga_s3");
+			applies.setValue("sblaster", "irq", "5");
+			found.clear();
+			org.dbgl.util.Win3x.check(in, "C:\\NOTHERE.EXE", applies, mounts, found);
+			assertEquals(List.of("win3start", "win3startmissing"), found.stream().map(org.dbgl.util.ProfileChecks.Problem::key).toList());
+			applies.setValue("sblaster", "sbtype", "none");
+			found.clear();
+			org.dbgl.util.Win3x.check(in, "", applies, mounts, found);
+			org.junit.Assert.assertArrayEquals(new Object[] {"[sblaster] sbtype", "sb16", "none"}, found.get(1).args());
+		} finally {
+			org.apache.commons.io.FileUtils.deleteQuietly(root);
+		}
+	}
+
 	@Test
 	public void testFitIntoColumn() throws Exception {
 		StringBuilder pubs = new StringBuilder();
