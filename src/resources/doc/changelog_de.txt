@@ -86,8 +86,11 @@ Neu
   Hinweis und ist nicht angehakt: sein Profil hätte den ganzen Ordner als
   Laufwerk. Wird derselbe Titel in mehreren Ordnern gefunden (Kopien, ein
   Installationsordner neben dem Spiel), steht bei jedem „gleicher Titel auch
-  in ...“; angehakt bleibt nur einer (der mit dem höchsten Score, dann der
-  mit dem kürzesten Pfad, also „PRINCE“ vor „PRINCE - Kopie“). Diese
+  in ...“; angehakt bleibt nur einer: der mit dem höchsten Score, dann der
+  in einem Ordner nur mit diesem Spiel (nicht der Ordner einer Sammlung, die
+  sein Programm mitbringt), dann der, dessen Ordnername wie der Titel
+  beginnt („PRINCE“ für Prince of Persia), dann der mit dem kürzesten Pfad.
+  Wurden alle gemerkten Spiele erkannt, sagt das Protokoll auch das. Diese
   Hinweise stehen in der Liste zum Ankreuzen in einer eigenen Spalte
   „Hinweise“ (bei nicht erkannten Ordnern auch, woher der Titel kommt).
   Mehrere gemerkte Spiele in einem Ordner (etwa Wing Commander II mit

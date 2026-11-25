@@ -397,8 +397,11 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 					display_.syncExec(() -> {
 						scanInfo_.append(text_.get("dialog.importdir.notice.foundgames", new Object[] {games_.size()}).concat(scanInfo_.getLineDelimiter()));
 						if (ownReport != null) {
-							scanInfo_.append(ownReport.concat(scanInfo_.getLineDelimiter()));
-							Mess_.on(shell_).txt(ownReport).display();
+							boolean all = ownReport.startsWith("\u0000");
+							String said = all ? ownReport.substring(1): ownReport;
+							scanInfo_.append(said.concat(scanInfo_.getLineDelimiter()));
+							if (!all)
+								Mess_.on(shell_).txt(said).display();
 						}
 						progress_.setVisible(false);
 						((GridData)progress_.getLayoutData()).exclude = true;
@@ -497,8 +500,14 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 			List<GameDirEntry> same = e.getValue();
 			if (e.getKey().isEmpty() || (same.size() < 2))
 				continue;
-			GameDirEntry keep = same.stream().min(java.util.Comparator.comparingInt((GameDirEntry g) -> -g.score_).thenComparingInt(g -> g.dir_.getPath().length())
-					.thenComparing(g -> g.dir_.getPath())).get();
+			// TEST30: the highest score, then a folder with this game alone (not the folder of a collection that has its program too:
+			// SimCity 2000 in SIM2000, not in SC2000 of the CD Collection), then a folder named like the title ("PRINCE" for Prince of
+			// Persia, not "ARGER"), then the shortest path
+			Map<File, Long> perDir = games.stream().collect(Collectors.groupingBy(g -> canonical(g.dir_), Collectors.counting()));
+			GameDirEntry keep = same.stream().min(java.util.Comparator.comparingInt((GameDirEntry g) -> -g.score_)
+					.thenComparingLong(g -> perDir.getOrDefault(canonical(g.dir_), 1L))
+					.thenComparingInt(g -> namedLike(g) ? 0: 1)
+					.thenComparingInt(g -> g.dir_.getPath().length()).thenComparing(g -> g.dir_.getPath())).get();
 			for (GameDirEntry g: same) {
 				List<String> others = same.stream().filter(o -> o != g).map(o -> shortPath(r, o.dir_)).toList();
 				String note = text.get("dialog.importdir.sametitle", new Object[] {String.join(", ", others)});
@@ -507,6 +516,14 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 			}
 		}
 		return new ArrayList<>(games);
+	}
+
+	/** the name of the folder begins as the title does ("PRINCE" for "Prince of Persia", "DOOM2" for "DOOM II": the first letters) */
+	static boolean namedLike(GameDirEntry g) {
+		String folder = org.dbgl.util.searchengine.WebSearchEngine.comparable(g.dir_.getName());
+		String title = org.dbgl.util.searchengine.WebSearchEngine.comparable(g.webProfile_.getTitle());
+		int n = Math.min(4, Math.min(folder.length(), title.length()));
+		return (n >= 2) && title.startsWith(folder.substring(0, n));
 	}
 
 	private static String shortPath(java.nio.file.Path root, File dir) {
@@ -600,9 +617,9 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 			md5s.computeIfAbsent(f.getKey().getName(), k -> new java.util.TreeSet<>()).add(java.util.HexFormat.of().formatHex(f.getValue()));
 		java.util.Set<String> titles = found.stream().map(g -> g.webProfile_.getTitle()).collect(Collectors.toSet());
 		org.dbgl.util.OwnKnownGames.Report r = org.dbgl.util.OwnKnownGames.report(own, md5s, titles);
-		if (r.changed().isEmpty() && r.missing().isEmpty())
-			return null;
 		var text = org.dbgl.service.TextService.getInstance();
+		if (r.changed().isEmpty() && r.missing().isEmpty()) // TEST30: said in the log too (no window for it)
+			return "\u0000" + text.get("dialog.importdir.ownreport.all", new Object[] {r.learned()});
 		StringBuilder sb = new StringBuilder(text.get("dialog.importdir.ownreport", new Object[] {r.learned(), r.recognized().size(), r.changed().size(), r.missing().size()}));
 		if (!r.changed().isEmpty())
 			sb.append("\n\n").append(text.get("dialog.importdir.ownreport.changed")).append("\n  ").append(shortList(r.changed()));

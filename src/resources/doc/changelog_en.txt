@@ -81,9 +81,11 @@ New
   chosen folder itself (loose files there) gets a note and is not ticked:
   its profile would have the whole folder as its drive. If the same title is
   found in several folders (copies, an installer folder next to the game),
-  each gets "same title also in ..."; only one stays ticked (the one with the
-  highest score, then the shortest path, so "PRINCE" before "PRINCE -
-  Kopie"). These notes are in a column "Notes" of the list to tick (for
+  each gets "same title also in ..."; only one stays ticked: the one with the
+  highest score, then the one in a folder with this game alone (not the
+  folder of a collection that brings its program along), then the one whose
+  folder name begins like the title ("PRINCE" for Prince of Persia), then the
+  shortest path. If all learned games were recognized, the log says so too. These notes are in a column "Notes" of the list to tick (for
   folders not recognized also where the title comes from). Several learned
   games in one folder (such as Wing Commander II with Special Operations 1
   and 2) are each recognized; before, the folder got only one of them.

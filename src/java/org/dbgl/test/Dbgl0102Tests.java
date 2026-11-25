@@ -4163,6 +4163,27 @@ public class Dbgl0102Tests {
 		assertTrue(titled.get(0).untick_);
 		assertFalse(titled.get(1).untick_);
 		assertTrue(String.join(" ", titled.get(1).notes_).contains("Game - Kopie"));
+		// TEST30: a folder with this game alone before one that has another game too; then a folder named like the title
+		File coll = new File(dir, "COLL");
+		org.dbgl.model.WebProfile otherWeb = new org.dbgl.model.WebProfile();
+		otherWeb.setTitle("Collection");
+		org.dbgl.model.repository.GameFilesRepository.GameDirEntry inColl = new org.dbgl.model.repository.GameFilesRepository.GameDirEntry(coll,
+				java.util.Optional.of(new File(coll, "GAME.EXE")), java.util.Optional.empty(), List.of(), web, 35, "c");
+		org.dbgl.model.repository.GameFilesRepository.GameDirEntry collItself = new org.dbgl.model.repository.GameFilesRepository.GameDirEntry(coll,
+				java.util.Optional.of(new File(coll, "COLL.EXE")), java.util.Optional.empty(), List.of(), otherWeb, 35, "d");
+		org.dbgl.model.repository.GameFilesRepository.GameDirEntry alone = new org.dbgl.model.repository.GameFilesRepository.GameDirEntry(new File(dir, "GAMEFOLDER"),
+				java.util.Optional.of(new File(dir, "GAMEFOLDER/GAME.EXE")), java.util.Optional.empty(), List.of(), web, 35, "a");
+		org.dbgl.gui.dialog.wizard.ImportDirDialog.sameTitles(List.of(inColl, collItself, alone), dir);
+		assertTrue(inColl.untick_);
+		assertFalse(alone.untick_);
+		assertFalse(collItself.untick_);
+		org.dbgl.model.repository.GameFilesRepository.GameDirEntry arger = new org.dbgl.model.repository.GameFilesRepository.GameDirEntry(new File(dir, "ARGER"),
+				java.util.Optional.of(new File(dir, "ARGER/X.EXE")), java.util.Optional.empty(), List.of(), web, 35, "");
+		org.dbgl.model.repository.GameFilesRepository.GameDirEntry named = new org.dbgl.model.repository.GameFilesRepository.GameDirEntry(new File(dir, "GAMES"),
+				java.util.Optional.of(new File(dir, "GAMES/X.EXE")), java.util.Optional.empty(), List.of(), web, 35, "");
+		org.dbgl.gui.dialog.wizard.ImportDirDialog.sameTitles(List.of(arger, named), dir);
+		assertTrue(arger.untick_);
+		assertFalse(named.untick_);
 		org.apache.commons.io.FileUtils.deleteDirectory(dir);
 	}
 
