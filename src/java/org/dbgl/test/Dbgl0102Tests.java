@@ -4149,6 +4149,14 @@ public class Dbgl0102Tests {
 			new org.dbgl.model.repository.GameFilesRepository.GameDirEntry(dir, java.util.Optional.empty(), java.util.Optional.empty(), List.of(), web, 35, "r")), dir);
 		assertEquals("x", marked.get(0).explanation_);
 		assertTrue(marked.get(1).explanation_.startsWith("r; "));
+		// TEST28: the same title in several folders: one ticked (higher score, then the shorter path), the others told and not ticked
+		File copy = new File(dir, "Game - Kopie");
+		org.dbgl.model.repository.GameFilesRepository.GameDirEntry other = new org.dbgl.model.repository.GameFilesRepository.GameDirEntry(copy,
+				java.util.Optional.of(new File(copy, "GAME.EXE")), java.util.Optional.empty(), List.of(), web, 35, "z");
+		List<org.dbgl.model.repository.GameFilesRepository.GameDirEntry> titled = org.dbgl.gui.dialog.wizard.ImportDirDialog.sameTitles(List.of(other, upper), dir);
+		assertTrue(titled.get(0).untick_);
+		assertFalse(titled.get(1).untick_);
+		assertTrue(titled.get(0).explanation_.contains("Game") && titled.get(1).explanation_.contains("Game - Kopie"));
 		org.apache.commons.io.FileUtils.deleteDirectory(dir);
 	}
 

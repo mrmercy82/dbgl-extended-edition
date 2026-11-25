@@ -79,7 +79,11 @@ New
   log at the end begins with that of the search (with the report on the
   learned games), so that it is saved with it. A game recognized in the
   chosen folder itself (loose files there) gets a note and is not ticked:
-  its profile would have the whole folder as its drive.
+  its profile would have the whole folder as its drive. If the same title is
+  found in several folders (copies, an installer folder next to the game),
+  each gets "same title also in ..."; only one stays ticked (the one with the
+  highest score, then the shortest path, so "PRINCE" before "PRINCE -
+  Kopie").
 - "Manage learned games..." (menu Profiles and context menu under Tools):
   all games learned from profiles, with a search. Change the details, choose
   the start or setup program anew (name and checksum are taken from the file

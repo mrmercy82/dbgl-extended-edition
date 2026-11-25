@@ -383,6 +383,7 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 					int extras = extra.size();
 					display_.asyncExec(() -> scanInfo_.append(text_.get("dialog.importdir.notice.foldersfound", new Object[] {extras, fromText, recognized}).concat(
 						scanInfo_.getLineDelimiter())));
+					games_ = sameTitles(games_, dir_); // TEST28: the same title in several folders: one ticked, the others told
 					Collections.sort(games_);
 
 					// alpha 53 (TEST24): what became of the learned games, to see why one was not recognized
@@ -454,6 +455,7 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 				continue;
 			GameDirEntry with = new GameDirEntry(g.dir_, g.getOptMain(), g.getOptSetup(), g.executables_, g.webProfile_, g.score_, g.explanation_ + "; " + String.join("; ", n));
 			with.params_ = g.params_;
+			with.untick_ = g.untick_;
 			result.set(i, with);
 		}
 		return result;
@@ -474,9 +476,45 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 			GameDirEntry with = new GameDirEntry(g.dir_, g.getOptMain(), g.getOptSetup(), g.executables_, g.webProfile_, g.score_,
 					g.explanation_ + "; " + org.dbgl.service.TextService.getInstance().get("dialog.importdir.rootfolder"));
 			with.params_ = g.params_;
+			with.untick_ = true;
 			result.add(with);
 		}
 		return result;
+	}
+
+	/**
+	 * TEST28: games found with the same title in several folders (copies of a game, an installer folder next to the game): each
+	 * gets a note on the other folders; only one stays ticked: the one with the highest score, then the shortest folder path
+	 * (the copy with the plainer name: "PRINCE" before "PRINCE - Kopie")
+	 */
+	public static List<GameDirEntry> sameTitles(List<GameDirEntry> games, File root) {
+		var text = org.dbgl.service.TextService.getInstance();
+		java.nio.file.Path r = canonical(root).toPath();
+		Map<String, List<GameDirEntry>> byTitle = new java.util.LinkedHashMap<>();
+		for (GameDirEntry g: games)
+			byTitle.computeIfAbsent(org.dbgl.util.searchengine.WebSearchEngine.comparable(g.webProfile_.getTitle()), k -> new ArrayList<>()).add(g);
+		Map<GameDirEntry, GameDirEntry> replaced = new java.util.HashMap<>();
+		for (Map.Entry<String, List<GameDirEntry>> e: byTitle.entrySet()) {
+			List<GameDirEntry> same = e.getValue();
+			if (e.getKey().isEmpty() || (same.size() < 2))
+				continue;
+			GameDirEntry keep = same.stream().min(java.util.Comparator.comparingInt((GameDirEntry g) -> -g.score_).thenComparingInt(g -> g.dir_.getPath().length())
+					.thenComparing(g -> g.dir_.getPath())).get();
+			for (GameDirEntry g: same) {
+				List<String> others = same.stream().filter(o -> o != g).map(o -> shortPath(r, o.dir_)).toList();
+				String note = text.get("dialog.importdir.sametitle", new Object[] {String.join(", ", others)});
+				GameDirEntry with = new GameDirEntry(g.dir_, g.getOptMain(), g.getOptSetup(), g.executables_, g.webProfile_, g.score_, g.explanation_ + "; " + note);
+				with.params_ = g.params_;
+				with.untick_ = g.untick_ || (g != keep);
+				replaced.put(g, with);
+			}
+		}
+		return games.stream().map(g -> replaced.getOrDefault(g, g)).collect(Collectors.toCollection(ArrayList::new));
+	}
+
+	private static String shortPath(java.nio.file.Path root, File dir) {
+		java.nio.file.Path d = canonical(dir).toPath();
+		return d.startsWith(root) && !d.equals(root) ? root.relativize(d).toString(): dir.getPath();
 	}
 
 	private static boolean sameFile(File a, File b) {
@@ -822,7 +860,7 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 	private void populate(Table table) {
 		for (GameDirEntry game: games_) {
 			TableItem newItemTableItem = new TableItem(table, SWT.NONE);
-			newItemTableItem.setChecked(game.getOptMain().isPresent() && !canonical(game.dir_).equals(canonical(dir_))
+			newItemTableItem.setChecked(game.getOptMain().isPresent() && !game.untick_ && !canonical(game.dir_).equals(canonical(dir_))
 					&& existingProfiles_.stream().noneMatch(x -> game.dir_.equals(x.getCombinedConfiguration().getAutoexec().getCanonicalGameDir())));
 			newItemTableItem.setText(1, game.dir_.getPath());
 			newItemTableItem.setText(2, game.webProfile_.getTitle());

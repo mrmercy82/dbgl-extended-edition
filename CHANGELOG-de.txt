@@ -84,7 +84,10 @@ Neu
   gemerkten Spiele), damit es mitgespeichert wird. Ein Spiel, das im
   gewählten Ordner selbst erkannt wird (lose Dateien dort), bekommt einen
   Hinweis und ist nicht angehakt: sein Profil hätte den ganzen Ordner als
-  Laufwerk.
+  Laufwerk. Wird derselbe Titel in mehreren Ordnern gefunden (Kopien, ein
+  Installationsordner neben dem Spiel), steht bei jedem „gleicher Titel auch
+  in ...“; angehakt bleibt nur einer (der mit dem höchsten Score, dann der
+  mit dem kürzesten Pfad, also „PRINCE“ vor „PRINCE - Kopie“).
 - „Gemerkte Spiele verwalten...“ (Menü Profile und Kontextmenü unter
   Werkzeuge): alle aus Profilen gemerkten Spiele, mit Suche. Angaben ändern,
   Start- oder Setup-Programm neu wählen (Name und Prüfsumme kommen aus der
