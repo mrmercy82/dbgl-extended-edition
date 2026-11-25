@@ -248,10 +248,13 @@ public final class ProfileReports {
 					.append("td.l{white-space:normal}td.b{width:35%}div.bar{height:12px;background:#4a7fb5;border-radius:2px;min-width:1px}")
 					.append("ul.o{list-style:none;padding:0}ul.o li{padding:2px 0}footer{margin-top:3em;color:#888;font-size:.85em}footer a{color:inherit}")
 					.append("nav{margin:1em 0;line-height:1.9}nav a{margin-right:1.2em;white-space:nowrap}h2 a.t{float:right;text-decoration:none;font-weight:normal;color:#888}")
+					.append(StatisticsExtra.heatCss(StatisticsExtra.HEAT_LIGHT, false))
 					// alpha 49: printed (or saved as PDF from the print window): no links to jump, the bars in colour, no row or heading torn apart
 					.append("@media print{body{max-width:none;margin:0;background:#fff;color:#000}nav,h2 a.t{display:none}tr{break-inside:avoid}h2{break-after:avoid}")
-					.append("div.bar{background:#4a7fb5;-webkit-print-color-adjust:exact;print-color-adjust:exact}td.n{color:#333}footer a{text-decoration:none}}")
-					.append("@media(prefers-color-scheme:dark){body{background:#1e1e1e;color:#ddd}td.n{color:#aaa}h2{border-color:#444}div.bar{background:#6f9fd8}}</style></head><body>\n");
+					.append("div.bar{background:#4a7fb5;-webkit-print-color-adjust:exact;print-color-adjust:exact}td.n{color:#333}footer a{text-decoration:none}")
+					.append(StatisticsExtra.heatCss(StatisticsExtra.HEAT_LIGHT, true)).append("}")
+					.append("@media(prefers-color-scheme:dark){body{background:#1e1e1e;color:#ddd}td.n{color:#aaa}h2{border-color:#444}div.bar{background:#6f9fd8}")
+					.append(StatisticsExtra.heatCss(StatisticsExtra.HEAT_DARK, false)).append("}</style></head><body>\n");
 			sb_.append("<h1 id=\"top\">").append(html(title)).append("</h1>\n").append(NAV_MARK);
 		}
 

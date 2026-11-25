@@ -6696,4 +6696,18 @@ public class Dbgl0102Tests {
 		assertFalse(org.dbgl.gui.controls.WindowTour.looksLikeKey(""));
 		assertFalse(org.dbgl.gui.controls.WindowTour.looksLikeKey(null));
 	}
+
+	/** alpha 53: the calendar of the days played takes its colours from classes, so that the dark mode of the page has its own */
+	@Test
+	public void testHeatmapColoursByClass() {
+		java.time.LocalDate from = java.time.LocalDate.of(2026, 11, 1);
+		String html = org.dbgl.util.StatisticsExtra.heatmapHtml(from, from.plusDays(13), java.util.Map.of(from.plusDays(2), 600L, from.plusDays(3), 3600L), java.util.Locale.GERMANY);
+		assertFalse(html, html.contains("background"));
+		assertTrue(html.contains("class=\"h0\""));
+		assertTrue(html.contains("class=\"h5\"")); // the longest day
+		assertTrue(html.contains("class=\"h1\"")); // a sixth of it
+		String dark = org.dbgl.util.StatisticsExtra.heatCss(org.dbgl.util.StatisticsExtra.HEAT_DARK, false);
+		assertTrue(dark.contains("td.h0{background:#2b3036}"));
+		assertTrue(org.dbgl.util.StatisticsExtra.heatCss(org.dbgl.util.StatisticsExtra.HEAT_LIGHT, true).contains("print-color-adjust:exact"));
+	}
 }

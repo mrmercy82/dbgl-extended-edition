@@ -243,7 +243,7 @@ public final class StatisticsExtra {
 	}
 
 	/** a calendar of the days played, one column a week, darker the longer; for the web page */
-	static String heatmapHtml(LocalDate from, LocalDate to, Map<LocalDate, Long> seconds, Locale locale) {
+	public static String heatmapHtml(LocalDate from, LocalDate to, Map<LocalDate, Long> seconds, Locale locale) {
 		long max = seconds.entrySet().stream().filter(e -> !e.getKey().isBefore(from) && !e.getKey().isAfter(to)).mapToLong(Map.Entry::getValue).max().orElse(0);
 		StringBuilder sb = new StringBuilder("<div style=\"overflow-x:auto;margin:8px 0\"><table style=\"border-collapse:separate;border-spacing:2px;width:auto\">");
 		WeekFields wf = WeekFields.of(locale);
@@ -258,9 +258,11 @@ public final class StatisticsExtra {
 					continue;
 				}
 				long s = seconds.getOrDefault(d, 0L);
-				String color = s == 0 ? "#e4e8ee": shade(max == 0 ? 0: (double)s / max);
-				sb.append("<td title=\"").append(d).append(s == 0 ? "": " · " + ProfileReports.time(s)).append("\" style=\"width:11px;height:11px;padding:0;border-radius:2px;background:")
-						.append(color).append("\"></td>");
+				// alpha 53: the colour as a class (h0 not played, h1 to h5 longer and longer), so that the dark mode of the page can
+				// give the calendar its own colours (inline, the light grey of the days not played glared on the dark page)
+				int level = s == 0 ? 0: shade(max == 0 ? 0: (double)s / max);
+				sb.append("<td class=\"h").append(level).append("\" title=\"").append(d).append(s == 0 ? "": " · " + ProfileReports.time(s))
+						.append("\" style=\"width:11px;height:11px;padding:0;border-radius:2px\"></td>");
 			}
 			sb.append("</tr>");
 		}
@@ -268,9 +270,20 @@ public final class StatisticsExtra {
 		return sb.toString();
 	}
 
-	private static String shade(double share) {
-		String[] steps = {"#c6dbef", "#9ecae1", "#6baed6", "#3182bd", "#08519c"};
-		return steps[Math.min(steps.length - 1, (int)(share * steps.length))];
+	/** 1 to 5: the share of the longest day */
+	static int shade(double share) {
+		return 1 + Math.min(4, (int)(share * 5));
+	}
+
+	/** the colours of the calendar (class h0 to h5): light (also printed) and for the dark mode of the page */
+	public static final String[] HEAT_LIGHT = {"#e4e8ee", "#c6dbef", "#9ecae1", "#6baed6", "#3182bd", "#08519c"},
+			HEAT_DARK = {"#2b3036", "#1d3b5c", "#24578c", "#3478c0", "#5b9de3", "#9cc8ff"};
+
+	public static String heatCss(String[] colours, boolean print) {
+		StringBuilder sb = new StringBuilder();
+		for (int i = 0; i < colours.length; i++)
+			sb.append("td.h").append(i).append("{background:").append(colours[i]).append(print ? ";-webkit-print-color-adjust:exact;print-color-adjust:exact}": "}");
+		return sb.toString();
 	}
 
 	/** what the review of a year needs from the sessions of that year */
