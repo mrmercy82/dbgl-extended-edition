@@ -2650,59 +2650,44 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		}
 
 		Menu profilesMenu = createMenu(appMenuBar, "dialog.main.menu.profiles");
-		MenuItem_.on(profilesMenu).key("dialog.main.menu.import").image(ImageService.IMG_IMPORT).accel(SWT.MOD1 | SWT.MOD3 | 'I').listen(new SelectionAdapter() {
-			@Override
-			public void widgetSelected(SelectionEvent event) {
-				doImportProfiles(true);
-			}
-		}).build();
-		MenuItem_.on(profilesMenu).key("dialog.main.menu.importprofile").image(ImageService.IMG_IMPORT).listen(new SelectionAdapter() {
-			@Override
-			public void widgetSelected(SelectionEvent event) {
-				doImportProfiles(false);
-			}
-		}).build();
-		MenuItem_.on(profilesMenu).key("dialog.main.menu.importscanfolder").image(ImageService.IMG_IMPORT).listen(new SelectionAdapter() {
+		// alpha 53 (TEST24): all the imports in a submenu of their own: the games of a folder (one import for known and other
+		// games), the collections and programs, and the files of DBGL
+		Menu imports = createMenu(profilesMenu, "dialog.main.menu.importsub", ImageService.IMG_IMPORT);
+		MenuItem_.on(imports).key("dialog.main.menu.importfolder").image(ImageService.IMG_IMPORT).listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
 				importScanFolder();
 			}
 		}).build();
-		// alpha 52: game folders no profile uses yet
-		MenuItem_.on(profilesMenu).key("dialog.main.menu.importunlinked").image(ImageService.IMG_IMPORT).listen(new SelectionAdapter() {
-			@Override
-			public void widgetSelected(SelectionEvent event) {
-				doImportUnlinked();
-			}
-		}).build();
-		MenuItem_.on(profilesMenu).key("dialog.main.menu.importstoregames").image(ImageService.IMG_IMPORT).listen(new SelectionAdapter() {
+		MenuItem_.on(imports).build();
+		MenuItem_.on(imports).key("dialog.main.menu.importstoregames").image(ImageService.IMG_IMPORT).listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
 				doImportStoreGames();
 			}
 		}).build();
-		MenuItem_.on(profilesMenu).key("dialog.main.menu.importexo").image(ImageService.IMG_IMPORT).listen(new SelectionAdapter() {
+		MenuItem_.on(imports).key("dialog.main.menu.importexo").image(ImageService.IMG_IMPORT).listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
 				doImportExo();
 			}
 		}).build();
-		MenuItem_.on(profilesMenu).key("dialog.main.menu.importlaunchbox").image(ImageService.IMG_IMPORT).listen(new SelectionAdapter() {
+		MenuItem_.on(imports).key("dialog.main.menu.importlaunchbox").image(ImageService.IMG_IMPORT).listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
 				doImportLaunchBox();
 			}
 		}).build();
 		// alpha 52: only while ScummVM is wanted in the settings ([gui] scummvm); its games start anyway
-		MenuItem launchBoxItem = profilesMenu.getItem(profilesMenu.getItemCount() - 1);
+		MenuItem launchBoxItem = imports.getItem(imports.getItemCount() - 1);
 		MenuItem[] scummvmItem = new MenuItem[1];
-		profilesMenu.addListener(SWT.Show, e -> {
+		imports.addListener(SWT.Show, e -> {
 			boolean wanted = settings_.getBooleanValue("gui", org.dbgl.util.Scummvm.SETTING);
 			boolean shown = (scummvmItem[0] != null) && !scummvmItem[0].isDisposed();
 			if (shown && !wanted)
 				scummvmItem[0].dispose();
 			else if (!shown && wanted)
-				scummvmItem[0] = MenuItem_.on(profilesMenu).pos(profilesMenu.indexOf(launchBoxItem) + 1).key("dialog.main.menu.importscummvm").image(ImageService.IMG_IMPORT)
+				scummvmItem[0] = MenuItem_.on(imports).pos(imports.indexOf(launchBoxItem) + 1).key("dialog.main.menu.importscummvm").image(ImageService.IMG_IMPORT)
 						.listen(new SelectionAdapter() {
 							@Override
 							public void widgetSelected(SelectionEvent event) {
@@ -2710,14 +2695,14 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 							}
 						}).build();
 		});
-		MenuItem_.on(profilesMenu).key("dialog.main.menu.importdfendprofiles").image(ImageService.IMG_DFEND).listen(new SelectionAdapter() {
+		MenuItem_.on(imports).key("dialog.main.menu.importdfendprofiles").image(ImageService.IMG_DFEND).listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
 				doImportDfendProfiles(); // alpha 53: a method of its own, also for the welcome wizard
 			}
 		}).build();
 		// alpha 48: a game archive of DFendX (the same dialog, with its part open)
-		MenuItem_.on(profilesMenu).key("dialog.main.menu.importdfendx").image(ImageService.IMG_DFEND).listen(new SelectionAdapter() {
+		MenuItem_.on(imports).key("dialog.main.menu.importdfendx").image(ImageService.IMG_DFEND).listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
 				DosboxVersion defaultDbversion = requireDefaultDBVersion();
@@ -2730,6 +2715,19 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				Set<Integer> before = allProfileIds();
 				if (new DFendImportDialog(shell_, defaultDbversion, true).open() != null)
 					showImportedProfiles(before);
+			}
+		}).build();
+		MenuItem_.on(imports).build();
+		MenuItem_.on(imports).key("dialog.main.menu.import").image(ImageService.IMG_IMPORT).accel(SWT.MOD1 | SWT.MOD3 | 'I').listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				doImportProfiles(true);
+			}
+		}).build();
+		MenuItem_.on(imports).key("dialog.main.menu.importprofile").image(ImageService.IMG_IMPORT).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				doImportProfiles(false);
 			}
 		}).build();
 		MenuItem_.on(profilesMenu).build();
@@ -3783,7 +3781,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 
 			@Override
 			public void importFolder() {
-				doImportUnlinked();
+				importScanFolder(); // alpha 53 (TEST24): one import from a folder, known and other games
 			}
 
 			@Override
@@ -3821,10 +3819,6 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				doCoverBatch();
 			}
 
-			@Override
-			public void importKnown() {
-				importScanFolder();
-			}
 		});
 		dosboxListWatcher_ = null;
 		if (r.processRestart())
@@ -6449,77 +6443,6 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		if ((loadedProfiles != null) && (new ImportDirDialog(shell_, new File(dir), loadedProfiles).open() != null)) {
 			updateProfilesList(getSelectedProfileIds());
 			displayProfileInformation(false);
-		}
-	}
-
-	/** alpha 52: the DOS games in a folder that no profile has yet (see UnlinkedGames), to the import window */
-	private void doImportUnlinked() {
-		DosboxVersion defaultVersion = requireDefaultDBVersion();
-		if (defaultVersion == null)
-			return;
-		DirectoryDialog dialog = new DirectoryDialog(shell_);
-		dialog.setMessage(text_.get("dialog.unlinkedgames.choose"));
-		dialog.setFilterPath(FileLocationService.getInstance().getDosroot().getPath());
-		String dir = dialog.open();
-		if (dir == null)
-			return;
-		List<Profile> loaded = new ProfileLoader(shell_, profilesList_).open();
-		if (loaded == null)
-			return;
-		org.dbgl.util.UnlinkedGames.Result found;
-		int knownCount = 0;
-		List<org.dbgl.util.StoreGameImport.Found> entries = new java.util.ArrayList<>();
-		java.util.Map<File, File> mains = new java.util.HashMap<>();
-		try {
-			found = org.dbgl.gui.controls.BusyTask.run(shell_, text_.get("dialog.unlinkedgames.searching"),
-				() -> org.dbgl.util.UnlinkedGames.find(new File(dir), org.dbgl.util.UnlinkedGames.usedBy(loaded),
-					dbversionsList_.stream().map(DosboxVersion::getCanonicalPath).toList(), null, null));
-			// alpha 53: the known games among them (learned from profiles, or in the database of DBGL): title, details, start and setup
-			// program from there; the others as before, with the name of their folder
-			List<org.dbgl.util.UnlinkedGames.Game> folders = found.games();
-			java.util.Map<File, org.dbgl.model.repository.GameFilesRepository.GameDirEntry> known = folders.isEmpty() ? java.util.Map.of()
-					: org.dbgl.gui.controls.BusyTask.run(shell_, text_.get("dialog.unlinkedgames.searching"),
-						() -> org.dbgl.gui.dialog.wizard.ImportDirDialog.recognize(folders.stream().map(org.dbgl.util.UnlinkedGames.Game::dir).toList(),
-							text_.get("dialog.importdir.ownrecognition")));
-			File work = java.nio.file.Files.createTempDirectory("dbgl-folder").toFile();
-			work.deleteOnExit();
-			for (org.dbgl.util.UnlinkedGames.Game g: folders) {
-				org.dbgl.model.repository.GameFilesRepository.GameDirEntry k = known.get(g.dir());
-				if (k == null) {
-					mains.put(g.dir(), g.main());
-					entries.add(org.dbgl.util.UnlinkedGames.toFound(g, work, text_.get("dialog.unlinkedgames.store")));
-					continue;
-				}
-				org.dbgl.util.UnlinkedGames.Game game = new org.dbgl.util.UnlinkedGames.Game(g.dir(), g.programs(), k.getOptMain().orElse(g.main()), k.getOptSetup().orElse(g.setup()));
-				mains.put(g.dir(), game.main());
-				org.dbgl.util.StoreGameImport.Found base = org.dbgl.util.UnlinkedGames.toFound(game, work, text_.get("dialog.unlinkedgames.known"));
-				org.dbgl.model.WebProfile w = k.webProfile_;
-				org.dbgl.util.StoreGameImport.Meta meta = new org.dbgl.util.StoreGameImport.Meta(StringUtils.defaultString(w.getDeveloperName()),
-						StringUtils.defaultString(w.getPublisherName()), StringUtils.defaultString(w.getYear()), StringUtils.defaultString(w.getGenre()),
-						StringUtils.defaultString(w.getNotes()), () -> null, List::of, List.of(), null, game.setup());
-				entries.add(new org.dbgl.util.StoreGameImport.Found(StringUtils.defaultIfBlank(w.getTitle(), base.title()), base.gameDir(), base.confs(), base.workingDir(),
-						base.store(), meta));
-			}
-			knownCount = known.size();
-		} catch (org.dbgl.gui.controls.BusyTask.Cancelled e) {
-			return;
-		} catch (Exception e) {
-			Mess_.on(shell_).exception(e).warning();
-			return;
-		}
-		Object[] counts = {found.games().size(), found.linked(), found.windows(), found.store()};
-		if (entries.isEmpty()) {
-			Mess_.on(shell_).key("dialog.unlinkedgames.none", new Object[] {dir, found.linked(), found.windows(), found.store()}).display();
-			return;
-		}
-		Integer added = StoreImportDialog.titled(shell_, entries, dbversionsList_, defaultVersion, StoreImportDialog.existingKeys(loaded), "dialog.unlinkedgames.title",
-			text_.get("dialog.unlinkedgames.info", counts) + (knownCount > 0 ? " " + text_.get("dialog.unlinkedgames.knowncount", new Object[] {knownCount}): "")).showing(
-				"dialog.importdir.column.main",
-				f -> mains.containsKey(f.gameDir()) ? f.gameDir().toPath().relativize(mains.get(f.gameDir()).toPath()).toString(): "").open();
-		if ((added != null) && (added > 0)) {
-			updateProfilesList(getSelectedProfileIds());
-			displayProfileInformation(false);
-			Mess_.on(shell_).key("dialog.storeimport.done", new Object[] {added}).display();
 		}
 	}
 

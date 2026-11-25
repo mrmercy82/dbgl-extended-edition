@@ -4107,6 +4107,65 @@ public class Dbgl0102Tests {
 	}
 
 	@Test
+	public void testTextTitles() throws Exception {
+		// alpha 53 (TEST24): title candidates from the text files of a game folder
+		assertTrue(org.dbgl.util.TextTitles.fromText("\r\n   ********************\r\n   WING COMMANDER II\r\n   ********************\r\nPlease read this file.", false)
+				.contains("WING COMMANDER II"));
+		assertTrue(org.dbgl.util.TextTitles.fromText("Welcome to Ultima Underworld!\r\nThis file tells you how to start.", false).contains("Ultima Underworld"));
+		assertTrue(org.dbgl.util.TextTitles.fromText("x\r\ny\r\nz\r\nDOOM v1.9 - the shareware version", false).contains("DOOM"));
+		assertTrue(org.dbgl.util.TextTitles.fromText("x\r\ny\r\nz\r\nMaster of Orion (c) 1993 MicroProse", false).contains("Master of Orion"));
+		assertEquals("Commander Keen 4", org.dbgl.util.TextTitles.fromText("Commander Keen 4 v1.4\r\nThe galaxy awaits", true).get(0));
+		assertTrue(org.dbgl.util.TextTitles.fromText("Please insert the disk into your drive and type INSTALL", false).isEmpty());
+		File dir = Files.createTempDirectory("dbgl-texttitles-").toFile();
+		File game = new File(dir, "WC2");
+		game.mkdirs();
+		Files.writeString(game.toPath().resolve("README.TXT"), "\r\n      WING COMMANDER II\r\n\r\nPlease read this file first.\r\n");
+		Files.writeString(game.toPath().resolve("LICENSE.TXT"), "Welcome to Something Else\r\n");
+		Files.write(game.toPath().resolve("WC2.EXE"), program(false));
+		// a CD image with its volume label
+		byte[] iso = new byte[50 * 2048];
+		System.arraycopy(new byte[] {1, 'C', 'D', '0', '0', '1'}, 0, iso, 16 * 2048, 6);
+		byte[] label = String.format("%-32s", "MONKEY_ISLAND_2").getBytes(java.nio.charset.StandardCharsets.US_ASCII);
+		System.arraycopy(label, 0, iso, 16 * 2048 + 40, 32);
+		Files.write(game.toPath().resolve("CD.ISO"), iso);
+		List<String[]> c = org.dbgl.util.TextTitles.candidates(game);
+		assertEquals("WING COMMANDER II", c.get(0)[0]);
+		assertEquals("README.TXT", c.get(0)[1]);
+		assertTrue(c.stream().noneMatch(x -> x[1].equals("LICENSE.TXT"))); // a file not about the game
+		assertTrue(c.stream().anyMatch(x -> x[0].equals("MONKEY ISLAND 2") && x[1].equals("CD.ISO")));
+		// only a title the database has, of one game: "Wing Commander II" for "Wing Commander II: Vengeance of the Kilrathi"
+		java.util.function.BiFunction<String, Integer, org.dbgl.model.WebProfile> w = (title, id) -> {
+			org.dbgl.model.WebProfile p = new org.dbgl.model.WebProfile();
+			p.setTitle(title);
+			p.setGameId(id);
+			return p;
+		};
+		org.dbgl.util.TextTitles.Found f = org.dbgl.util.TextTitles.match(game, t -> t.toUpperCase().contains("WING") ? List.of(w.apply("Wing Commander II: Vengeance of the Kilrathi", 7),
+			w.apply("Wing Commander II: Special Operations 1", 8)): List.of());
+		assertNull(f); // two games of that name before the colon
+		f = org.dbgl.util.TextTitles.match(game, t -> t.toUpperCase().contains("WING") ? List.of(w.apply("Wing Commander II: Vengeance of the Kilrathi", 7)): List.of());
+		assertEquals("Wing Commander II: Vengeance of the Kilrathi", f.game().getTitle());
+		assertEquals("README.TXT", f.source());
+		// the import from a folder: the folders not recognized, with the start program guessed and the title from the text or the folder
+		File other = new File(dir, "my_game");
+		other.mkdirs();
+		Files.write(other.toPath().resolve("PLAY.EXE"), program(false));
+		List<org.dbgl.model.repository.GameFilesRepository.GameDirEntry> extra = org.dbgl.gui.dialog.wizard.ImportDirDialog.unrecognizedFolders(dir, List.of(), List.of(), List.of(),
+			t -> t.toUpperCase().contains("WING") ? List.of(w.apply("Wing Commander II: Vengeance of the Kilrathi", 7)): List.of());
+		assertEquals(2, extra.size());
+		assertEquals("My Game", extra.get(0).webProfile_.getTitle()); // in the order of the folders
+		assertEquals(0, extra.get(0).score_);
+		assertEquals(new File(other, "PLAY.EXE"), extra.get(0).getMain());
+		assertEquals(10, extra.get(1).score_);
+		assertEquals("Wing Commander II: Vengeance of the Kilrathi", extra.get(1).webProfile_.getTitle());
+		// a folder already recognized (or in one) is not taken twice
+		org.dbgl.model.repository.GameFilesRepository.GameDirEntry known = new org.dbgl.model.repository.GameFilesRepository.GameDirEntry(game, java.util.Optional.empty(),
+				java.util.Optional.empty(), List.of(), w.apply("WC2", 1), 50, "");
+		assertEquals(1, org.dbgl.gui.dialog.wizard.ImportDirDialog.unrecognizedFolders(dir, List.of(known), List.of(), List.of(), null).size());
+		org.apache.commons.io.FileUtils.deleteDirectory(dir);
+	}
+
+	@Test
 	public void testPresetPictureVersion() {
 		// alpha 53: the heading of the picture presets names the newest DOSBox Staging set up that has them, else 0.83
 		java.util.function.BiFunction<String, String, org.dbgl.model.aggregate.DosboxVersion> v = (family, version) -> DosboxVersionFactory.create("t " + version, family, version, false,

@@ -91,6 +91,10 @@ public class ImportDirThread extends UIThread<GameDirEntry> {
 			prof.setCustomInts(new int[] {entry.webProfile_.getRank(), 0});
 		prof.setSetupFileLocation(entry.getOptSetup().isPresent() ? entry.getSetup().getPath(): StringUtils.EMPTY);
 
+		// alpha 53 (TEST24): a start program in a folder below the game folder (a game folder of the import from a folder): the game
+		// folder as the drive, as "Games without profile from folder" had it, so that the game finds its other folders
+		if (!entry.getMain().getParentFile().equals(entry.dir_) && entry.getMain().toPath().startsWith(entry.dir_.toPath()))
+			prof.addRequiredMount(false, new File(entry.dir_, entry.getMain().getName()).getPath(), false);
 		prof.addRequiredMount(false, entry.getMain().getPath(), false);
 		prof.setAutoexecSettings(entry.getMain().getPath(), StringUtils.EMPTY);
 

@@ -84,9 +84,6 @@ public final class WelcomeWizard {
 
 		/** Profiles > Covers for profiles without pictures */
 		void fetchCovers();
-
-		/** Profiles > Import known games in folder (recognized by their files) */
-		void importKnown();
 	}
 
 	/** what came out of it: whether DBGL is to start again now (language or appearance changed), and whether the process must */
@@ -178,7 +175,7 @@ public final class WelcomeWizard {
 		// page 3: the first games
 		Composite p3 = page(stack, 2);
 		wrap(p3, text.get("dialog.welcome.p3.text"), 2);
-		Button[] imports = {importRow(p3, text, "folder", actions::importFolder), importRow(p3, text, "known", actions::importKnown),
+		Button[] imports = {importRow(p3, text, "folder2", actions::importFolder),
 				importRow(p3, text, "store", actions::importStoreGames),
 				importRow(p3, text, "launchbox", actions::importLaunchBox), importRow(p3, text, "exo", actions::importExo),
 				actions.scummvmWanted() ? importRow(p3, text, "scummvm", actions::importScummvm): null, importRow(p3, text, "dfend", actions::importDfend)};

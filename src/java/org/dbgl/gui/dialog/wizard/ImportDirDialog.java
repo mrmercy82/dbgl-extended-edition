@@ -120,7 +120,7 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 
 	@Override
 	protected String getDialogTitle() {
-		return text_.get("dialog.importdir.title");
+		return text_.get("dialog.importdir.title2"); // alpha 53 (TEST24): one import from a folder
 	}
 
 	@Override
@@ -153,7 +153,7 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 	@Override
 	protected void onShellCreated() {
 		Group progressGroup = Group_.on(shell_).layoutData(new GridData(SWT.FILL, SWT.CENTER, true, false)).layout(new GridLayout()).key("dialog.importdir.processing").build();
-		Label_.on(progressGroup).key("dialog.importdir.intro", dir_.getPath()).build();
+		Label_.on(progressGroup).key("dialog.importdir.intro2", dir_.getPath()).build();
 		progress_ = ProgressBar_.on(progressGroup).indeterminate().build();
 		finished_ = ProgressBar_.on(progressGroup).sel(100).build();
 		((GridData)finished_.getLayoutData()).exclude = true;
@@ -349,6 +349,19 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 						if (gameDirEntry != null)
 							games_.add(gameDirEntry);
 					}
+					// alpha 53 (TEST24): one import from a folder: also the game folders not recognized by their files (as "Games without
+					// profile from folder" had them), the title from their text files or CD images if the database of MobyGames has it,
+					// else from the name of the folder
+					display_.asyncExec(() -> scanInfo_.append(text_.get("dialog.importdir.notice.folders").concat("  ")));
+					List<File> dosboxDirs = new ArrayList<>();
+					for (DosboxVersion db: new DosboxVersionRepository().listAll())
+						dosboxDirs.add(db.getCanonicalPath());
+					int recognized = games_.size();
+					List<GameDirEntry> extra = unrecognizedFolders(dir_, games_, existingProfiles_, dosboxDirs, titleLookup());
+					games_.addAll(extra);
+					long fromText = extra.stream().filter(g -> g.score_ > 0).count();
+					display_.asyncExec(() -> scanInfo_.append(text_.get("dialog.importdir.notice.foldersfound", new Object[] {extra.size(), fromText, recognized}).concat(
+						scanInfo_.getLineDelimiter())));
 					Collections.sort(games_);
 
 					// alpha 53 (TEST24): what became of the learned games, to see why one was not recognized
@@ -376,6 +389,72 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 				}
 			}
 		}.start();
+	}
+
+	/**
+	 * alpha 53 (TEST24): the game folders in the chosen folder (each folder in it a game, see UnlinkedGames) that no profile uses
+	 * and that are not one of the games recognized (nor in one, nor one in them): with the start program guessed, the title from
+	 * the text files if the database has it (score 10), else from the name of the folder (score 0)
+	 * @param lookup the games of the database for a title, or null for none
+	 */
+	public static List<GameDirEntry> unrecognizedFolders(File dir, List<GameDirEntry> recognized, List<Profile> existing, List<File> dosboxDirs,
+			java.util.function.Function<String, List<org.dbgl.model.WebProfile>> lookup) {
+		List<GameDirEntry> result = new ArrayList<>();
+		org.dbgl.util.UnlinkedGames.Result found = org.dbgl.util.UnlinkedGames.find(dir, org.dbgl.util.UnlinkedGames.usedBy(existing), dosboxDirs, null, null);
+		var text = org.dbgl.service.TextService.getInstance();
+		for (org.dbgl.util.UnlinkedGames.Game g: found.games()) {
+			java.nio.file.Path gp = canonical(g.dir()).toPath();
+			if (recognized.stream().map(r -> canonical(r.dir_).toPath()).anyMatch(r -> r.startsWith(gp) || gp.startsWith(r)))
+				continue;
+			org.dbgl.model.WebProfile web = new org.dbgl.model.WebProfile();
+			web.setTitle(org.dbgl.util.UnlinkedGames.titleOf(g.dir()));
+			web.setDeveloperName(StringUtils.EMPTY);
+			web.setPublisherName(StringUtils.EMPTY);
+			web.setYear(StringUtils.EMPTY);
+			web.setGenre(StringUtils.EMPTY);
+			web.setUrl(StringUtils.EMPTY);
+			web.setNotes(StringUtils.EMPTY);
+			int score = 0;
+			String explanation = text.get("dialog.importdir.fromfolder");
+			org.dbgl.util.TextTitles.Found t = lookup == null ? null: org.dbgl.util.TextTitles.match(g.dir(), lookup);
+			if (t != null) {
+				org.dbgl.model.WebProfile w = t.game();
+				try {
+					w = MetropolisSearchEngine.getInstance().getEntryDetailedInformation(w);
+				} catch (IOException | RuntimeException e) {
+					// the title only
+				}
+				web = w;
+				score = 10;
+				explanation = text.get("dialog.importdir.fromtext", new Object[] {t.source()});
+			}
+			result.add(new GameDirEntry(g.dir(), Optional.ofNullable(g.main()), Optional.ofNullable(g.setup()), new ArrayList<>(g.programs()), web, score, explanation));
+		}
+		return result;
+	}
+
+	private static File canonical(File f) {
+		try {
+			return f.getCanonicalFile();
+		} catch (IOException e) {
+			return f.getAbsoluteFile();
+		}
+	}
+
+	/** the games of the database of MobyGames that comes with DBGL for a title (its platform filter), or null without it */
+	static java.util.function.Function<String, List<org.dbgl.model.WebProfile>> titleLookup() {
+		int[] version = org.dbgl.service.MetropolisDatabaseService.getInstance().getVersion();
+		if ((version.length != 2) || ((version[0] == 0) && (version[1] == 0)))
+			return null;
+		var engine = MetropolisSearchEngine.getInstance();
+		String[] platforms = org.dbgl.service.SettingsService.getInstance().getValues(engine.getSimpleName(), "platform_filter");
+		return title -> {
+			try {
+				return engine.getEntries(title, platforms);
+			} catch (IOException e) {
+				return List.of();
+			}
+		};
 	}
 
 	/** alpha 53 (TEST24): of the learned games, how many were recognized, and which not and why; null if all or none learned */
