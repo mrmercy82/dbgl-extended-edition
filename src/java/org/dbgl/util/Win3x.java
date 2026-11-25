@@ -233,7 +233,7 @@ public final class Win3x {
 					base = dm.getCanonicalPath();
 			if (base == null)
 				return null;
-			rest = StringUtils.removeStart(p.substring(2), "\\");
+			rest = org.apache.commons.lang3.Strings.CS.removeStart(p.substring(2), "\\");
 		} else {
 			base = windowsDir;
 			rest = p;
