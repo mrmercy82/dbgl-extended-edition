@@ -92,8 +92,7 @@ Neu
   beginnt („PRINCE“ für Prince of Persia), dann der mit dem kürzesten Pfad.
   Wurden alle gemerkten Spiele erkannt, sagt das Protokoll auch das. Im
   Protokoll stehen Profil-IDs ab 1000 ohne Tausendertrennzeichen („ID:1000“
-  statt „ID:1,000“). Diese
-  Hinweise stehen in der Liste zum Ankreuzen in einer eigenen Spalte
+  statt „ID:1,000“). Diese Hinweise stehen in der Liste zum Ankreuzen in einer eigenen Spalte
   „Hinweise“ (bei nicht erkannten Ordnern auch, woher der Titel kommt).
   Mehrere gemerkte Spiele in einem Ordner (etwa Wing Commander II mit
   Special Operations 1 und 2) werden jedes für sich erkannt; vorher bekam der
@@ -225,7 +224,7 @@ Neu
   Sprache und Darstellung; DOSBox (Empfehlung, DOSBox Staging und DOSBox-X
   beide herunterzuladen, je zwei Sätze zu Staging, DOSBox-X und 0.74-3;
   suchen oder herunterladen); die ersten Spiele übernehmen (aus einem Ordner,
-  bekannte Spiele an ihren Dateien erkannt, GOG/Steam, LaunchBox, eXoDOS,
+  die bekannten an ihren Dateien erkannt, GOG/Steam, LaunchBox, eXoDOS,
   ScummVM, D-Fend Reloaded); Spielinformationen (empfohlen: die mitgelieferte
   Metropolis Launcher MobyGames Database) und Cover (empfohlen:
   TheGamesDB.net) auf je einer Seite, mit Anleitung und dem Hinweis, dass ein
@@ -239,18 +238,11 @@ Neu
   Setup-Programm (Name und Prüfsumme) mit Titel, Entwickler, Verlag, Jahr und
   Genre (auch im Kontextmenü unter Werkzeuge). Ein Profil mit Titel und
   mindestens Entwickler, Verlag oder Jahr wird auch beim Speichern im
-  Profildialog gemerkt. „Bekannte Spiele aus Ordner importieren“ erkennt diese
+  Profildialog gemerkt. „Spiele aus Ordner importieren...“ erkennt diese
   Spiele danach vor der mitgelieferten Datenbank (die nur für einen Teil
   ihrer Spiele Prüfsummen hat), z. B. auf einem anderen PC oder nach einer
   Neuinstallation. Gespeichert wird in config\known-games.json, ohne Pfade;
   die mitgelieferte Datenbank bleibt unverändert.
-- „Spiele ohne Profil aus Ordner importieren“ erkennt bekannte Spiele: Ein
-  Spielordner, der aus einem Profil gemerkt wurde oder in der mitgelieferten
-  Datenbank steht (mit seinen Unterordnern betrachtet), bekommt Titel,
-  Entwickler, Verlag, Jahr, Genre, Beschreibung, Start- und Setup-Programm
-  von dort (Quelle „Ordner, bekanntes Spiel“); die übrigen Ordner kommen wie
-  bisher mit ihrem Ordnernamen in die Liste. So lassen sich alle Spielordner
-  auf einmal übernehmen, die bekannten schon ausgefüllt.
 
 Geändert
 - Dunkelmodus unter Windows: angehakte Kästchen in Listen (etwa beim Import
@@ -262,7 +254,7 @@ Geändert
   aus DBGL 0.100 beta 18 von Ronald Blankendaal, der die Datenbank erstellt
   hat und sie für die Extended Edition freigegeben hat. Die EE nutzt sie
   überall, wo es DBConf gab: Profildialog, Assistent „Spiel hinzufügen“ und
-  „Bekannte Spiele aus Ordner importieren“. Der Import übernimmt eine
+  Import aus einem Ordner. Der Import übernimmt eine
   Konfiguration nur bei genau gleichem Titel (vorher bekam „Doom“ keine, weil
   auch „Doom II“ gefunden wurde). Einträge ohne eigene Einstellungen sagen
   das jetzt, statt ein leeres Feld zu zeigen. Das Teilen einer eigenen
@@ -319,7 +311,7 @@ Geändert
   Akzente, „&“/„and“, ein „The“ am Anfang), zählt jetzt als genauer Treffer,
   wenn er der einzige ist. Für MobyGames und TheGamesDB wird dabei in neuen
   Einstellungen auch ein Cover je Profil gespeichert (vorher keines).
-- „Bekannte Spiele aus Ordner importieren“: Fehlt einem erkannten Spiel das
+- Import aus einem Ordner: Fehlt einem erkannten Spiel das
   Startprogramm, wird es geraten (das Startprogramm der Datenbank unter
   seinem Namen, auch geändert; sonst eines, das wie der Ordner heißt; sonst
   das einzige Programm im Ordner, das kein Setup, Installer oder DOS-Extender
@@ -342,7 +334,7 @@ Fehler behoben
   Computer an; die Firewall fragt nicht mehr.
 - Hilfe > „Neue Funktionen“ zeigte seit alpha 51 die Abschnitte zu alpha 51
   und 52 nicht (die mitgelieferten Dateien whats-new-de/en.txt hatten sie).
-- „Bekannte Spiele aus Ordner importieren“ ordnete Ordnern falsche Spiele zu:
+- Import aus einem Ordner (bekannte Spiele) ordnete Ordnern falsche Spiele zu:
   Ein Ordner mit bekannten Dateien, aber ohne Programm (z. B. ein Ordner mit
   Spieldaten), ließ seine Treffer stehen, und der nächste Ordner bekam dann
   dieses Spiel. Außerdem zählten Dateien, die mehrere Spiele gleich haben
@@ -352,7 +344,7 @@ Fehler behoben
   ohne Startprogramm braucht es das Setup-Programm und eine weitere Datei
   oder drei weitere Dateien. Die Suche zeigt außerdem, wie viele Spiele aus
   Profilen gemerkt sind und wo die Datei liegt.
-- „Bekannte Spiele aus Ordner importieren“: Ein Start- oder Setup-Programm
+- Import aus einem Ordner (bekannte Spiele): Ein Start- oder Setup-Programm
   in einem Unterordner des Spiels, in der Liste ausgewählt, wurde als
   gleichnamige Datei im Spielordner selbst eingetragen, die es dort nicht
   gab. Die Liste zeigt die Programme jetzt mit ihrem Unterordner.

@@ -6556,6 +6556,21 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		}, () -> {
 		})));
 		steps.add(new org.dbgl.gui.controls.WindowTour.Step("statistics", none, this::doShowStatistics));
+		// alpha 53: the learned games, completing profiles and getting covers (nothing is searched or saved by just opening them)
+		steps.add(new org.dbgl.gui.controls.WindowTour.Step("known-games", none, () -> new KnownGamesDialog(shell_).open()));
+		if (!profilesList_.isEmpty()) {
+			steps.add(new org.dbgl.gui.controls.WindowTour.Step("complete-profiles", none, () -> {
+				List<Profile> loaded = new ArrayList<>(profilesList_);
+				for (Profile p: loaded) // as the ProfileLoader does, without its own window
+					try {
+						p.resetAndLoadConfiguration();
+					} catch (IOException e) {
+						throw new IllegalStateException(e);
+					}
+				new CompleteProfilesDialog(shell_, loaded).open();
+			}));
+			steps.add(new org.dbgl.gui.controls.WindowTour.Step("cover-batch", none, () -> new CoverBatchDialog(shell_, new ArrayList<>(profilesList_)).open()));
+		}
 		if (version != null) {
 			steps.add(new org.dbgl.gui.controls.WindowTour.Step("add-game-wizard", none, () -> new AddGameWizardDialog(shell_).open()));
 			steps.add(new org.dbgl.gui.controls.WindowTour.Step("switch-dosbox", none, () -> new SwitchDosboxVersionDialog(shell_).open()));

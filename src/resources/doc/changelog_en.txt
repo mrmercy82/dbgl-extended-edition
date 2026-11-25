@@ -206,8 +206,8 @@ New
 - Welcome wizard at the first start (when there are no profiles yet):
   language and appearance; DOSBox (the advice to download both DOSBox
   Staging and DOSBox-X, two sentences each on Staging, DOSBox-X and 0.74-3;
-  finding or downloading); taking over the first games (from a folder, known
-  games recognized by their files, GOG/Steam, LaunchBox, eXoDOS, ScummVM,
+  finding or downloading); taking over the first games (from a folder, the
+  known ones recognized by their files, GOG/Steam, LaunchBox, eXoDOS, ScummVM,
   D-Fend Reloaded); game information (recommended: the Metropolis Launcher
   MobyGames Database that comes with DBGL) and covers (recommended:
   TheGamesDB.net) on a page each, with how it is done and that a precise
@@ -221,18 +221,11 @@ New
   the selected profiles with title, developer, publisher, year and genre
   (also in the context menu under Tools). A profile with a title and at
   least developer, publisher or year is also learned when it is saved in the
-  profile dialog. "Import known games in folder" then recognizes these games
+  profile dialog. "Import games from folder..." then recognizes these games
   before the database that comes with DBGL (which has checksums for only
   part of its games), e.g. on another PC or after a new installation. Kept
   in config\known-games.json, without paths; the database that comes with
   DBGL stays as it is.
-- "Import games without a profile from folder" recognizes known games: a
-  game folder learned from a profile or in the database that comes with DBGL
-  (looked at with its folders below) gets title, developer, publisher, year,
-  genre, description, start and setup program from there (source "Folder,
-  known game"); the other folders are in the list with their folder name as
-  before. So all game folders can be taken over at once, the known ones
-  already filled in.
 
 Changed
 - Dark mode on Windows: ticked boxes in lists (such as in the import of
@@ -243,8 +236,8 @@ Changed
   share.dbgl.org; DBGL no longer asks the internet for it. Taken over from
   DBGL 0.100 beta 18 by Ronald Blankendaal, who made the database and
   allowed the Extended Edition to ship it. The EE uses it wherever there was
-  DBConf: the profile dialog, the "Add Game" wizard and "Import known games
-  from folder". The import takes a configuration only for exactly the same
+  DBConf: the profile dialog, the "Add Game" wizard and the import from a
+  folder. The import takes a configuration only for exactly the same
   title (before, "Doom" got none because "Doom II" was found too). Entries
   without own settings now say so instead of showing an empty field. Sharing
   an own configuration is gone (share.dbgl.org will soon take none any
@@ -298,7 +291,7 @@ Changed
   leading "The") now counts as an exact match when it is the only one. For
   MobyGames and TheGamesDB, new settings also save one cover per profile
   there (before: none).
-- "Import known games in folder": when a recognized game has no start
+- Import from a folder: when a recognized game has no start
   program, it is guessed (the start program of the database by its name,
   also when changed; else one named like the folder; else the only program
   in the folder that is no setup, installer or DOS extender). The game folder
@@ -321,7 +314,7 @@ Fixed
   the firewall does not ask any more.
 - Help > "New features" did not show the parts about alpha 51 and 52 since
   alpha 51 (the files whats-new-de/en.txt shipped next to it had them).
-- "Import known games in folder" gave folders wrong games: a folder with
+- Import from a folder (known games) gave folders wrong games: a folder with
   known files but no program (e.g. a folder of game data) left its matches
   behind, and the next folder then got that game. Also, files that several
   games have alike counted (e.g. SIERRA.COM of the games of Sierra, the
@@ -330,7 +323,7 @@ Fixed
   one game count, and without the start program it takes the setup program
   and one further file, or three further files. The search also shows how
   many games are learned from profiles and where the file is.
-- "Import known games in folder": a start or setup program in a folder
+- Import from a folder (known games): a start or setup program in a folder
   below the game, chosen in the list, was entered as a file of that name in
   the game folder itself, which was not there. The list now shows the
   programs with their folder.

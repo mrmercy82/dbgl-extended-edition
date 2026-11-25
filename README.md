@@ -19,7 +19,9 @@ Ronald Blankendaal developed DBGL up to version 0.100 beta 17 and is **not invol
 - TV mode: the games full screen as large covers, chosen and started with the keyboard or an XInput controller (e.g. an Xbox controller), at any time with F11
 - Stand-alone packages for Windows (with Java), Linux and macOS, and a one-click update of the Extended Edition itself
 - A welcome wizard at the first start: language, appearance, DOSBox, the first games
-- Imports of games in folders (known games recognized by their files), from GOG and Steam, LaunchBox, eXoDOS, ScummVM and D-Fend Reloaded
+- One import for a whole folder of games: known games recognized by their files (also games learned from your own profiles), the other game folders with their title from README files or CD labels; also imports from GOG and Steam, LaunchBox, eXoDOS, ScummVM and D-Fend Reloaded
+- "Complete profiles": title, details and covers in this order, with a traffic light from the MobyGames database that comes with DBGL
+- Windows 3.x and Windows 95/98 in DOSBox profiles: "Check" looks into their settings, program groups and start menu; programs of Windows 3.x as profiles of their own
 - ScummVM games next to the DOSBox profiles
 - Saved games backed up before each start and restored with a click, with a manager for the backups
 - Check and repair profiles, warning signs, presets, backups, undo for bulk changes
