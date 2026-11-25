@@ -23,8 +23,8 @@ Neu
   zählt zu dem, was Windows startet. Erkannt wird Windows auch, wenn es
   über eigene Autoexec-Zeilen startet („C:“, „cd \WINDOWS“, „win“), nicht
   nur als Startprogramm WIN.COM.
-  Neu im Kontextmenü der Profile: „Programme aus Windows 3.x als
-  Profile...“ zeigt die Programme dieser Gruppen; jedes markierte bekommt
+  Neu im Kontextmenü der Profile unter „Werkzeuge“: „Programme aus
+  Windows 3.x als Profile...“ zeigt die Programme dieser Gruppen; jedes markierte bekommt
   ein eigenes Profil, eine Kopie des Windows-Profils, deren Windows das
   Programm gleich startet („win C:\BADMOJO\BADMOJO.EXE“), mit dem Namen
   des Programmsymbols als Titel.
@@ -38,6 +38,10 @@ Neu
   startet (Autostart, „run=“/„load=“ der WIN.INI) und welche Verknüpfungen
   auf ein fehlendes Programm auf C: zeigen. Eigene Profile je Programm gibt
   es hier nicht: dafür müsste DBGL das Abbild ändern.
+- Einstellungen, DOSBox: drei Hinweise lassen sich ausblenden, und sie sind
+  von Anfang an ausgeblendet: fehlende Programmsymbole in Windows-Profilen,
+  die Programme im Programm-Manager bzw. Startmenü, und wiederholt kurze
+  Spielesitzungen. Sie fehlen dann in „Prüfen“ und an der Profilliste.
 - Entwickler, Publisher und Genres: Namen aus MobyGames mit geschütztem
   Leerzeichen („Accolade, Inc.“ mit U+00A0) ergaben einen zweiten Eintrag
   neben dem gleichen Namen mit normalem Leerzeichen. DBGL speichert solche
@@ -57,7 +61,13 @@ Neu
   MT-32 nicht (mit den Ordnern, in denen DOSBox Staging gesucht hat).
   Erkannt werden nur Meldungen, deren Wortlaut aus echten Ausgaben bekannt
   ist; die Meldung von DOSBox-X zu einem Ordner beim Start mit -savedir (den
-  DBGL selbst anlegt) zählt nicht.
+  DBGL selbst anlegt) zählt nicht. Steht ein abgelehnter Wert nur in der
+  Konfigurationsdatei der DOSBox-Version (etwa „enable supermegazeux
+  tweakmode“ leer in der dosbox-x.conf), nennt der Hinweis diese Datei.
+- Profilliste: Warn- und Hinweiszeichen samt Tooltip werden sofort neu
+  ermittelt, wenn sich etwas geändert hat, ohne dass die Liste neu aufgebaut
+  wird (DOSBox beendet, Profil repariert, Einstellungen geändert); vorher
+  zeigten sie teils erst nach einem Neustart von DBGL den neuen Stand.
 - Prüfen: Ein Festplattenabbild, das sich nicht beschreiben lässt
   (schreibgeschützt oder ohne Berechtigung), wird gemeldet: Windows 95 darin
   meldet sonst Schreibfehler, und ScanDisk läuft bei jedem Start.

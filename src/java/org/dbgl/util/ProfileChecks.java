@@ -465,7 +465,36 @@ public final class ProfileChecks {
 	 * @param windows      check what only matters on Windows (path length, characters an old DOSBox cannot open)
 	 * @param systemCharset the code page of file names for programs that do not use Unicode (Windows: the ANSI code page)
 	 */
+	/**
+	 * alpha 53: the value DOSBox did not take is in the configuration of the DOSBox version and not in that of the profile
+	 * (TEST22: DOSBox-X, "enable supermegazeux tweakmode" empty in its dosbox-x.conf, told before the profile was read)
+	 */
+	static boolean badValueInVersionOnly(Profile prof, String item, String value) {
+		DosboxVersion db = prof.getDosboxVersion();
+		if ((db == null) || StringUtils.isBlank(item))
+			return false;
+		return hasLine(db.getConfigurationCanonicalFile(), item, value) && !hasLine(prof.getConfigurationCanonicalFile(), item, value);
+	}
+
+	public static boolean hasLine(File conf, String item, String value) {
+		if ((conf == null) || !conf.isFile())
+			return false;
+		try {
+			java.util.regex.Pattern line = java.util.regex.Pattern.compile("(?im)^\\s*" + java.util.regex.Pattern.quote(item.strip()) + "\\s*=\\s*"
+					+ java.util.regex.Pattern.quote(StringUtils.strip(value)) + "\\s*$");
+			return line.matcher(ConfTakeover.read(conf)).find();
+		} catch (IOException | RuntimeException e) {
+			return false;
+		}
+	}
+
 	public static List<Problem> check(Profile prof, boolean windows, Charset systemCharset, List<DosboxVersion> versions) {
+		List<Problem> result = checkAll(prof, windows, systemCharset, versions);
+		result.removeIf(p -> ProfileFindings.hidden(p.key())); // alpha 53: notes the user chose not to see (Settings, DOSBox)
+		return result;
+	}
+
+	private static List<Problem> checkAll(Profile prof, boolean windows, Charset systemCharset, List<DosboxVersion> versions) {
 		List<Problem> result = new ArrayList<>();
 		if (Scummvm.is(prof.getDosboxVersion()))
 			return result; // alpha 52: a game of ScummVM, none of the DOSBox checks apply
@@ -652,6 +681,8 @@ public final class ProfileChecks {
 		for (RunIssues.Issue ri: RunIssues.of(prof.getId()))
 			if (ri.key().equals("runmt32") && StringUtils.isBlank(ri.args().get(0))) // DOSBox-X does not name its folders: its setting
 				result.add(new Problem(ri.key(), dosboxX ? "[midi] mt32.romdir": "[mt32] romdir"));
+			else if (ri.key().equals("runbadvalue") && (ri.args().size() >= 2) && badValueInVersionOnly(prof, ri.args().get(1), ri.args().get(0)))
+				result.add(new Problem("runbadvaluedb", ri.args().get(0), ri.args().get(1), prof.getDosboxVersion().getConfigurationCanonicalFile().getPath()));
 			else
 				result.add(new Problem(ri.key(), ri.args().toArray()));
 		// alpha 53: a hard disk image the system in it cannot write to (write protected, or no right to change it): Windows 95

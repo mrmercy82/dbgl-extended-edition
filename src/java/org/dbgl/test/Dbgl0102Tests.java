@@ -4108,6 +4108,27 @@ public class Dbgl0102Tests {
 		assertEquals(2, org.dbgl.util.RunIssues.withoutSaveDirNoise(found, List.of("dosbox-x.exe", "-conf", "x.conf", "-savedir", saveDir)).size());
 		assertEquals(3, org.dbgl.util.RunIssues.withoutSaveDirNoise(found, List.of("dosbox-x.exe", "-conf", "x.conf")).size());
 		assertTrue(org.dbgl.util.RunIssues.scan(List.of("LOG: MT32: Found ROM pair in ./: CM32L_CONTROL.ROM and CM32L_PCM.ROM")).isEmpty());
+		// where the value is: an empty one in the configuration of the DOSBox version (TEST22, dosbox-x.conf), not elsewhere
+		try {
+			java.io.File conf = java.io.File.createTempFile("dbgl-badvalue", ".conf");
+			conf.deleteOnExit();
+			java.nio.file.Files.writeString(conf.toPath(), "[video]\r\nenable supermegazeux tweakmode = \r\nvmemsize = 4\r\n");
+			assertTrue(org.dbgl.util.ProfileChecks.hasLine(conf, "enable supermegazeux tweakmode", ""));
+			assertFalse(org.dbgl.util.ProfileChecks.hasLine(conf, "enable supermegazeux tweakmode", "true"));
+			assertFalse(org.dbgl.util.ProfileChecks.hasLine(conf, "vmemsize", ""));
+			assertFalse(org.dbgl.util.ProfileChecks.hasLine(null, "vmemsize", "4"));
+		} catch (java.io.IOException e) {
+			fail(e.toString());
+		}
+		// the notes that can be switched off in the settings (DOSBox), off at first
+		org.dbgl.service.SettingsService settings = org.dbgl.service.SettingsService.getInstance();
+		boolean before = settings.getBooleanValue("dosbox", "hideshortsessions");
+		settings.setBooleanValue("dosbox", "hideshortsessions", true);
+		assertTrue(org.dbgl.util.ProfileFindings.hidden("shortsessions"));
+		settings.setBooleanValue("dosbox", "hideshortsessions", false);
+		assertFalse(org.dbgl.util.ProfileFindings.hidden("shortsessions"));
+		settings.setBooleanValue("dosbox", "hideshortsessions", before);
+		assertFalse(org.dbgl.util.ProfileFindings.hidden("runbadvalue"));
 		// the ROMs of the MT-32 not found: DOSBox Staging 0.83.1 names the folders it looked in, DOSBox-X does not
 		List<org.dbgl.util.RunIssues.Issue> staging = org.dbgl.util.RunIssues.scan(List.of("2026-11-24 20:40:20.491 | MPU-401: Running in intelligent mode on ports 330h and 331h",
 			"2026-11-24 20:40:20.491 | MT32: Failed to find ROMs for model auto in:", "2026-11-24 20:40:20.491 | MT32:  |- D:\\Games\\DOSBox-Staging\\mt32-roms",

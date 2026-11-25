@@ -347,6 +347,14 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		checkForEditionUpdateInBackground(); // has its own setting
 		display_.asyncExec(this::syncScummvmVersions);
 		checkAllProfilesInBackground();
+		// alpha 53: a profile whose result was forgotten (DOSBox ended, repaired, settings) gets its sign and tooltip anew at once
+		org.dbgl.util.ProfileWarnings.setOnForget(id -> {
+			if (!display_.isDisposed())
+				display_.asyncExec(() -> {
+					if (!shell_.isDisposed() && markersOn())
+						scheduleProfileWarnings();
+				});
+		});
 
 		display_.asyncExec(this::moveSavegames); // alpha 52: before the automatic backup, so that it has them at their new place
 		display_.asyncExec(this::welcomeIfDue); // alpha 53
@@ -3202,13 +3210,6 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				doDuplicateProfile();
 			}
 		}).build();
-		// alpha 53: the programs in the groups of the Program Manager of a Windows 3.x as profiles of their own
-		MenuItem_.on(menu).key("dialog.main.profile.win3programs").image(ImageService.IMG_DUPLICATE).listen(new SelectionAdapter() {
-			@Override
-			public void widgetSelected(SelectionEvent event) {
-				doWin3Programs();
-			}
-		}).build();
 		MenuItem_.on(menu).key("dialog.main.profile.remove").image(ImageService.IMG_DELETE).listen(removeProfAdapter).build();
 		MenuItem_.on(menu).build();
 		// alpha 50: the order as wished: the earlier version, then the submenus, checking, the controller and the extras
@@ -3263,6 +3264,14 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			@Override
 			public void widgetSelected(SelectionEvent event) {
 				doImportConf(profileTable_.getSelectionIndex(), null);
+			}
+		}).build();
+		MenuItem_.on(tools).build();
+		// alpha 53: the programs in the groups of the Program Manager of a Windows 3.x as profiles of their own (TEST22: in the tools, between lines)
+		MenuItem_.on(tools).key("dialog.main.profile.win3programs").image(ImageService.IMG_DUPLICATE).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				doWin3Programs();
 			}
 		}).build();
 		MenuItem_.on(tools).build();

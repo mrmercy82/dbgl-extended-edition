@@ -153,6 +153,25 @@ public final class ProfileFindings {
 		return DBCONF.equals(f.kind()) || EXODOS.equals(f.kind());
 	}
 
+	/**
+	 * alpha 53: the notes that can be switched off in the settings (DOSBox), each with its setting; off at first: program items
+	 * of Windows whose program is missing, the programs of the Program Manager or Start menu, sessions that are all short
+	 */
+	static final Map<String, String> HIDEABLE = Map.of("win3itemsgone", "hidewin3missing", "win9xgone", "hidewin3missing", "win3programs", "hidewin3programs",
+		"win9xprograms", "hidewin3programs", "shortsessions", "hideshortsessions");
+
+	/** alpha 53: true if notes of this kind are not to be shown (as set in the settings) */
+	public static boolean hidden(String kind) {
+		String key = HIDEABLE.get(kind);
+		if (key == null)
+			return false;
+		try {
+			return org.dbgl.service.SettingsService.getInstance().getBooleanValue("dosbox", key);
+		} catch (RuntimeException e) {
+			return true;
+		}
+	}
+
 	/** alpha 53: the lengths (seconds) of the recorded play sessions per profile, the oldest first; none if they cannot be read */
 	static Map<Integer, List<Integer>> sessionsPerProfile() {
 		Map<Integer, List<Integer>> result = new java.util.HashMap<>();
@@ -190,7 +209,7 @@ public final class ProfileFindings {
 	public static final String EXODOS = "exodos";
 
 	/** what ProfileChecks finds that is only for information */
-	private static final Set<String> HINTS = Set.of("gusnopatches", "cohortoptional", "lurecm32l", "dm2sbpro", "paw1942jemmex", "sounddeviceoff", "gamewantsmt32", "cdimageunused", "gameadvice", "soundmismatch", "win3start", "win16inwindows", "win3programs", "win3itemsgone", "win9xstartup", "win9xprograms", "win9xgone", "runpcap", "runmkdir", "runbadvalue", "shortsessions", "runmt32");
+	private static final Set<String> HINTS = Set.of("gusnopatches", "cohortoptional", "lurecm32l", "dm2sbpro", "paw1942jemmex", "sounddeviceoff", "gamewantsmt32", "cdimageunused", "gameadvice", "soundmismatch", "win3start", "win16inwindows", "win3programs", "win3itemsgone", "win9xstartup", "win9xprograms", "win9xgone", "runpcap", "runmkdir", "runbadvalue", "runbadvaluedb", "shortsessions", "runmt32");
 
 	private static final Fix REWRITE = fix((p, v) -> {
 		// nothing to change: saving writes it as DOSBox needs it
@@ -308,7 +327,7 @@ public final class ProfileFindings {
 			List<Finding> list = new ArrayList<>();
 			java.util.function.BiConsumer<String, Object[]> told = (kind, args) -> list.add(plain(prof, kind, args, text.get("dialog.checkprofiles." + kind, args)));
 			Object[] shortArgs = shortSessions(sessions.get(prof.getId()));
-			if (shortArgs != null)
+			if ((shortArgs != null) && !hidden("shortsessions"))
 				told.accept("shortsessions", shortArgs);
 			if (shared.containsKey(prof))
 				told.accept("sharedconf", new Object[] {prof.getConfigurationCanonicalFile().getPath(), String.join(", ", shared.get(prof))});

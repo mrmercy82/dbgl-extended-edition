@@ -22,8 +22,8 @@ New
   count as there); the startup group counts to what Windows starts.
   Windows is also recognized when own lines of the autoexec start it ("C:",
   "cd \WINDOWS", "win"), not only as the start program WIN.COM.
-  New in the context menu of the profiles: "Programs of Windows 3.x as
-  profiles..." shows the programs of these groups; each one ticked gets a
+  New in the context menu of the profiles under "Tools": "Programs of
+  Windows 3.x as profiles..." shows the programs of these groups; each one ticked gets a
   profile of its own, a copy of the Windows profile whose Windows starts the
   program right away ("win C:\BADMOJO\BADMOJO.EXE"), with the name of the
   program item as title.
@@ -37,6 +37,10 @@ New
   (startup folder, "run="/"load=" of WIN.INI) and on the shortcuts that point
   to a missing program on C:. Profiles of their own per program are not
   offered here: DBGL would have to change the image for that.
+- Settings, DOSBox: three notes can be hidden, and they are hidden from the
+  start: missing program items in Windows profiles, the programs in the
+  Program Manager or Start menu, and repeatedly short sessions. They are then
+  left out of "Check" and the profile list.
 - Developers, publishers and genres: names from MobyGames with a no-break
   space ("Accolade, Inc." with U+00A0) made a second entry next to the same
   name with a normal space. DBGL now stores such spaces as normal ones and
@@ -54,7 +58,13 @@ New
   take a value, DOSBox finds no ROMs of the MT-32 (with the folders DOSBox
   Staging looked in). Only messages whose wording is known from real output
   are recognized; the message of DOSBox-X about a folder when started with
-  -savedir (which DBGL makes itself) does not count.
+  -savedir (which DBGL makes itself) does not count. If a value not taken is
+  only in the configuration file of the DOSBox version (such as "enable
+  supermegazeux tweakmode" empty in dosbox-x.conf), the note names that file.
+- Profile list: warning and note signs with their tooltip are found again at
+  once when something changed without the list being built anew (DOSBox
+  ended, profile repaired, settings changed); before, they sometimes showed
+  the new state only after DBGL was started again.
 - Check: a hard disk image that cannot be written to (write protected or
   without permission) is reported: Windows 95 in it reports write errors
   otherwise, and ScanDisk runs at every start.

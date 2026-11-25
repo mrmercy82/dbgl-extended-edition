@@ -140,6 +140,12 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 		// alpha 53: DOSBox Staging without its configuration in the user folder (which it reads before those of DBGL)
 		Button noPrimaryConf = Chain.on(dosboxGroup).lbl(l -> l.key("dialog.settings.noprimaryconf")).but(b -> b.tooltip("dialog.settings.noprimaryconf.tooltip")
 			.select(settings_.getBooleanValue("dosbox", "noprimaryconf"))).button();
+		Button hideWin3Missing = Chain.on(dosboxGroup).lbl(l -> l.key("dialog.settings.hidewin3missing")).but(b -> b.tooltip("dialog.settings.hidewin3missing.tooltip")
+			.select(settings_.getBooleanValue("dosbox", "hidewin3missing"))).button();
+		Button hideWin3Programs = Chain.on(dosboxGroup).lbl(l -> l.key("dialog.settings.hidewin3programs")).but(b -> b.tooltip("dialog.settings.hidewin3programs.tooltip")
+			.select(settings_.getBooleanValue("dosbox", "hidewin3programs"))).button();
+		Button hideShortSessions = Chain.on(dosboxGroup).lbl(l -> l.key("dialog.settings.hideshortsessions")).but(b -> b.tooltip("dialog.settings.hideshortsessions.tooltip")
+			.select(settings_.getBooleanValue("dosbox", "hideshortsessions"))).button();
 		Button ownSavestates = Chain.on(dosboxGroup).lbl(l -> l.key("dialog.settings.ownsavestates")).but(b -> b.tooltip("dialog.settings.ownsavestates.tooltip")
 			.select(settings_.getBooleanValue("dosbox", "ownsavestates"))).button(); // alpha 48
 		// "Do not ask again" in the question about the charset of a file (CharsetQuestion): asked again when ticked here
@@ -835,6 +841,14 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 				settings_.setBooleanValue("dosbox", "checkbeforestart", checkBeforeStart.getSelection());
 				settings_.setBooleanValue("dosbox", "ownsavestates", ownSavestates.getSelection());
 				settings_.setBooleanValue("dosbox", "noprimaryconf", noPrimaryConf.getSelection());
+				boolean hidingChanged = (hideWin3Missing.getSelection() != settings_.getBooleanValue("dosbox", "hidewin3missing"))
+						|| (hideWin3Programs.getSelection() != settings_.getBooleanValue("dosbox", "hidewin3programs"))
+						|| (hideShortSessions.getSelection() != settings_.getBooleanValue("dosbox", "hideshortsessions"));
+				settings_.setBooleanValue("dosbox", "hidewin3missing", hideWin3Missing.getSelection());
+				settings_.setBooleanValue("dosbox", "hidewin3programs", hideWin3Programs.getSelection());
+				settings_.setBooleanValue("dosbox", "hideshortsessions", hideShortSessions.getSelection());
+				if (hidingChanged)
+					org.dbgl.util.ProfileWarnings.forgetAll(); // the signs in the list without (or with) these notes
 				settings_.setBooleanValue(org.dbgl.gui.controls.CharsetQuestion.SECTION, org.dbgl.gui.controls.CharsetQuestion.ITEM, !askCharset.getSelection());
 				settings_.setBooleanValue("gui", "profilewarnings", profileWarnings.getSelection());
 				settings_.setBooleanValue("gui", "profilehints", profileHints.getSelection());

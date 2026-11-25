@@ -215,13 +215,31 @@ public final class ProfileWarnings {
 		"cdrelative", "cdrelativecustom", "startsectiondrive", "casemismatchdb3", "casemismatchprof2", "charsetmismatch", "stagingumlaut2", "xumlaut2", "stagingumlautlinux2", "prefetchcore",
 		"win3startmissing", "win3display"); // alpha 53: Windows 3.x starts nothing or does not start
 
+	/**
+	 * alpha 53: told when results were forgotten (the id, or -1 for all), so that the list checks them again at once; before,
+	 * a profile forgotten without the list being built anew (e.g. when DOSBox ended) kept its old sign until DBGL started again
+	 */
+	private static volatile java.util.function.IntConsumer onForget_;
+
+	public static void setOnForget(java.util.function.IntConsumer onForget) {
+		onForget_ = onForget;
+	}
+
+	private static void told(int profileId) {
+		java.util.function.IntConsumer c = onForget_;
+		if (c != null)
+			c.accept(profileId);
+	}
+
 	public static void forget(int profileId) {
 		CACHE.remove(profileId);
 		DiskUsage.forget(profileId); // alpha 49: changed or run: the size of its game folder is found again
+		told(profileId);
 	}
 
 	/** all checked again (e.g. after something was hidden for good in "Check profiles") */
 	public static void forgetAll() {
 		CACHE.clear();
+		told(-1);
 	}
 }
