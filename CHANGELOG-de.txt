@@ -67,6 +67,27 @@ Neu
   Startprogramms nicht gefunden wurden. Ein gemerktes Spiel, dessen
   Startprogramm sich geändert hat, wird erkannt, wenn sein Setup-Programm
   gleich geblieben ist (Score 30).
+- Import aus einem Ordner, weitere Regeln: SMARTDRV.EXE, HIMEM, EMM386,
+  MSCDEX und andere DOS-Werkzeuge gelten nicht als Startprogramm. Liegt im
+  Spielordner ein Windows (WIN.COM mit SYSTEM.INI), startet das Profil
+  WIN.COM: startet Windows das Spiel selbst („run=“, „load=“, Shell), so
+  bleibt es dabei, sonst bekommt WIN.COM das eine Programm der
+  Programmgruppen außerhalb des Windows-Ordners mit. Dieselbe oder eine
+  gleichnamige Startdatei in einem Ordner und einem Unterordner ergibt ein
+  Spiel, das obere, mit Hinweis auf die andere. Die Suche nach weiteren
+  Spielordnern zeigt, welchen Ordner sie gerade ansieht; ein Fehler dabei
+  wird gemeldet, die erkannten Spiele bleiben. Lange Zeilen in Textdateien
+  werden für die Titelsuche übersprungen (sie konnten die Suche minutenlang
+  aufhalten), gleiche Suchbegriffe nur einmal abgefragt. Der Knopf für DBConf
+  heißt „DOSBox-Konfiguration aus DBConf übernehmen“ und hat einen Tooltip.
+- „Gemerkte Spiele verwalten...“ (Menü Profile und Kontextmenü unter
+  Werkzeuge): alle aus Profilen gemerkten Spiele, mit Suche. Angaben ändern,
+  Start- oder Setup-Programm neu wählen (Name und Prüfsumme kommen aus der
+  gewählten Datei, der Pfad wird nicht gespeichert) oder Einträge vergessen;
+  jede Änderung wird sofort gespeichert.
+- Assistenten für Import und Export: das Protokoll am Ende lässt sich wie
+  im DOSBox-Fenster kopieren (Auswahl oder alles) und als Textdatei
+  speichern.
 - „Profile vervollständigen...“ (Menü Profile und Kontextmenü unter
   Werkzeuge, für die markierten Profile): erst der Titel, dann die Angaben,
   dann die Cover, weil Angaben und Cover nach dem Titel gesucht werden. Jedes

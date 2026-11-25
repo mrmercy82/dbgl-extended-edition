@@ -96,7 +96,7 @@ public class ImportDirThread extends UIThread<GameDirEntry> {
 		if (!entry.getMain().getParentFile().equals(entry.dir_) && entry.getMain().toPath().startsWith(entry.dir_.toPath()))
 			prof.addRequiredMount(false, new File(entry.dir_, entry.getMain().getName()).getPath(), false);
 		prof.addRequiredMount(false, entry.getMain().getPath(), false);
-		prof.setAutoexecSettings(entry.getMain().getPath(), StringUtils.EMPTY);
+		prof.setAutoexecSettings(entry.getMain().getPath(), StringUtils.defaultString(entry.params_)); // TEST26: e.g. the program for Windows
 
 		if (consultConf_) {
 			// alpha 53: from the database next to DBGL (DBGL 0.100 beta 18), and only for exactly this title: share.dbgl.org also

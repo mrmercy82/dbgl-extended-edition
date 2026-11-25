@@ -78,7 +78,44 @@ public abstract class JobWizardDialog<T> extends WizardDialog<T> {
 		Chain chain = Chain.on(progressGroup).lbl(l -> l.key(statusText)).txt(t -> t.multi().readOnly()).build();
 		status_ = chain.getLabel();
 		log_ = chain.getText();
+		logButtons(progressGroup);
 		addStep(progressGroup);
+	}
+
+	/** EE TEST26: the log copied or saved, as in the window of DOSBox (the selection, else all of it) */
+	private void logButtons(Group parent) {
+		org.eclipse.swt.widgets.Composite row = new org.eclipse.swt.widgets.Composite(parent, org.eclipse.swt.SWT.NONE);
+		row.setLayout(new GridLayout(2, false));
+		row.setLayoutData(new org.eclipse.swt.layout.GridData(org.eclipse.swt.SWT.END, org.eclipse.swt.SWT.CENTER, true, false));
+		org.eclipse.swt.widgets.Button copy = new org.eclipse.swt.widgets.Button(row, org.eclipse.swt.SWT.PUSH);
+		copy.setText(text_.get("dialog.statuswindow.copy"));
+		org.eclipse.swt.widgets.Button save = new org.eclipse.swt.widgets.Button(row, org.eclipse.swt.SWT.PUSH);
+		save.setText(text_.get("dialog.statuswindow.save"));
+		copy.addListener(org.eclipse.swt.SWT.Selection, e -> {
+			String chosen = log_.getSelectionCount() > 0 ? log_.getSelectionText(): log_.getText();
+			if (chosen.isEmpty())
+				return;
+			org.eclipse.swt.dnd.Clipboard clipboard = new org.eclipse.swt.dnd.Clipboard(shell_.getDisplay());
+			try {
+				clipboard.setContents(new Object[] {chosen}, new org.eclipse.swt.dnd.Transfer[] {org.eclipse.swt.dnd.TextTransfer.getInstance()});
+			} finally {
+				clipboard.dispose();
+			}
+		});
+		save.addListener(org.eclipse.swt.SWT.Selection, e -> {
+			org.eclipse.swt.widgets.FileDialog dialog = new org.eclipse.swt.widgets.FileDialog(shell_, org.eclipse.swt.SWT.SAVE);
+			dialog.setFilterExtensions(new String[] {"*.txt", "*.log", "*.*"});
+			dialog.setFileName("dbgl-log-" + java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss", java.util.Locale.ROOT)) + ".txt");
+			dialog.setOverwrite(true);
+			String file = dialog.open();
+			if (file == null)
+				return;
+			try {
+				java.nio.file.Files.writeString(new java.io.File(file).toPath(), log_.getText(), java.nio.charset.StandardCharsets.UTF_8);
+			} catch (java.io.IOException ex) {
+				org.dbgl.gui.controls.Mess_.on(shell_).exception(ex).warning();
+			}
+		});
 	}
 	/**
 	 * The status line at the end: "please review the log" only when the log says something. When everything went fine the

@@ -4107,6 +4107,47 @@ public class Dbgl0102Tests {
 	}
 
 	@Test
+	public void testImportFolderRulesTest26() throws Exception {
+		File dir = Files.createTempDirectory("dbgl-import26-").toFile();
+		// SMARTDRV.EXE and the like are no start programs
+		File g = new File(dir, "Game");
+		g.mkdirs();
+		Files.write(new File(g, "SMARTDRV.EXE").toPath(), program(false));
+		Files.write(new File(g, "GAME.EXE").toPath(), program(false));
+		// Windows in the game folder: WIN.COM starts it, Windows starts the game (run= of WIN.INI)
+		File w = new File(dir, "WinGame");
+		File windows = new File(w, "WINDOWS");
+		windows.mkdirs();
+		Files.write(new File(windows, "WIN.COM").toPath(), new byte[200]);
+		Files.writeString(new File(windows, "SYSTEM.INI").toPath(), "[boot]\r\nshell=progman.exe\r\n");
+		Files.writeString(new File(windows, "WIN.INI").toPath(), "[windows]\r\nrun=C:\\GAME\\PLAY.EXE\r\n");
+		Files.write(new File(windows, "SMARTDRV.EXE").toPath(), program(false));
+		List<org.dbgl.util.UnlinkedGames.Game> found = org.dbgl.util.UnlinkedGames.find(dir, List.of(), null, null).games();
+		assertEquals(2, found.size());
+		assertEquals("GAME.EXE", found.get(0).main().getName());
+		assertEquals("WIN.COM", found.get(1).main().getName());
+		assertEquals("", found.get(1).params()); // Windows starts the game itself
+		Files.writeString(new File(windows, "WIN.INI").toPath(), "[windows]\r\n");
+		assertEquals("WIN.COM", org.dbgl.util.UnlinkedGames.find(dir, List.of(), null, null).games().get(1).main().getName());
+		// the same start program in a folder and one below it: one game, the upper one, with a note
+		File sub = new File(g, "COPY");
+		sub.mkdirs();
+		Files.copy(new File(g, "GAME.EXE").toPath(), new File(sub, "game.exe").toPath());
+		org.dbgl.model.WebProfile web = new org.dbgl.model.WebProfile();
+		web.setTitle("Game");
+		org.dbgl.model.repository.GameFilesRepository.GameDirEntry upper = new org.dbgl.model.repository.GameFilesRepository.GameDirEntry(g,
+				java.util.Optional.of(new File(g, "GAME.EXE")), java.util.Optional.empty(), List.of(), web, 35, "x");
+		org.dbgl.model.repository.GameFilesRepository.GameDirEntry lower = new org.dbgl.model.repository.GameFilesRepository.GameDirEntry(sub,
+				java.util.Optional.of(new File(sub, "game.exe")), java.util.Optional.empty(), List.of(), web, 35, "y");
+		List<org.dbgl.model.repository.GameFilesRepository.GameDirEntry> once = org.dbgl.gui.dialog.wizard.ImportDirDialog.nestedOnce(List.of(lower, upper));
+		assertEquals(1, once.size());
+		assertEquals(g, once.get(0).dir_);
+		assertTrue(once.get(0).explanation_.startsWith("x; "));
+		assertTrue(once.get(0).explanation_.contains("COPY"));
+		org.apache.commons.io.FileUtils.deleteDirectory(dir);
+	}
+
+	@Test
 	public void testProfileCompletion() {
 		// alpha 53 (TEST24): the traffic light of "Complete profiles", and what is taken into a profile
 		java.util.function.BiFunction<String, Integer, org.dbgl.model.WebProfile> w = (title, id) -> {
@@ -4187,7 +4228,7 @@ public class Dbgl0102Tests {
 		assertEquals(2, extra.size());
 		assertEquals("My Game", extra.get(0).webProfile_.getTitle()); // in the order of the folders
 		assertEquals(0, extra.get(0).score_);
-		assertEquals(new File(other, "PLAY.EXE"), extra.get(0).getMain());
+		assertEquals(new File(other, "PLAY.EXE").getCanonicalFile(), extra.get(0).getMain().getCanonicalFile()); // Windows: RUNNER~1 or runneradmin
 		assertEquals(10, extra.get(1).score_);
 		assertEquals("Wing Commander II: Vengeance of the Kilrathi", extra.get(1).webProfile_.getTitle());
 		// a folder already recognized (or in one) is not taken twice

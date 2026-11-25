@@ -65,7 +65,10 @@ import org.dbgl.model.conf.mount.Mount;
 public final class UnlinkedGames {
 
 	/** a folder of a game: the DOS programs in it (the most likely start file first), the setup program if there is one */
-	public record Game(File dir, List<File> programs, File main, File setup) {
+	public record Game(File dir, List<File> programs, File main, File setup, String params) {
+		public Game(File dir, List<File> programs, File main, File setup) {
+			this(dir, programs, main, setup, "");
+		}
 	}
 
 	/** what was found, and how many folders were left out: had a profile, only Windows programs, a store game's DOSBox, nothing */
@@ -77,7 +80,8 @@ public final class UnlinkedGames {
 
 	/** programs that are not the game: installers, helpers, DOS extenders */
 	static final Pattern NOT_MAIN = Pattern.compile("(?i)(setup|install|instal|config|setsound|sndsetup|soundset|sound|uninst|unins\\d*|unzip|pkunzip|lha|arj|dos4gw|dos32a|pmode\\w*|cwsdpmi|rtm|dpmi\\w*|"
-			+ "readme|read|catalog|order|patch|update|chkdsk|mem|debug|edit|cmd|command|keyb|mouse|vesa\\w*|univbe|uvconfig|drvinst|ipxsetup|nullmod|serial|modem)\\.(exe|com|bat)");
+			+ "readme|read|catalog|order|patch|update|chkdsk|mem|debug|edit|cmd|command|keyb|mouse|vesa\\w*|univbe|uvconfig|drvinst|ipxsetup|nullmod|serial|modem|"
+			+ "smartdrv|himem|emm386|mscdex|share|doskey|setver|ramdrive|scandisk|defrag|format|fdisk|sys|attrib|xcopy|deltree|choice|mode|label|subst|append)\\.(exe|com|bat)"); // TEST26: tools of DOS, no game
 	static final Pattern SETUP = Pattern.compile("(?i)(setup|install|config|setsound|sndsetup|soundset)\\w*\\.(exe|com|bat)");
 
 	private UnlinkedGames() {
@@ -192,9 +196,36 @@ public final class UnlinkedGames {
 			}
 			dos.sort(order(dir));
 			File setup = dos.stream().filter(f -> SETUP.matcher(f.getName()).matches()).findFirst().orElse(null);
+			// TEST26: a Windows in the game folder (WIN.COM with its SYSTEM.INI): the game runs in it, Windows starts it
+			String[] win = windowsStart(dir, dos);
+			if (win != null) {
+				File winCom = new File(win[0]);
+				games.add(new Game(dir, dos, winCom, setup == winCom ? null: setup, win[1]));
+				continue;
+			}
 			games.add(new Game(dir, dos, dos.get(0), setup == dos.get(0) ? null: setup));
 		}
 		return new Result(games, linked, windows, store, empty);
+	}
+
+	/**
+	 * TEST26: a game folder with Windows in it (a WIN.COM among the DOS programs, its SYSTEM.INI next to it): {WIN.COM, what to
+	 * give it}. If Windows starts a program itself (after WIN, "run=", "load=", the shell of SYSTEM.INI), WIN.COM alone; else the
+	 * one program of the groups of the Program Manager outside the folder of Windows, if there is exactly one. Null without Windows.
+	 */
+	static String[] windowsStart(File dir, List<File> dos) {
+		for (File f: dos) {
+			if (!f.getName().equalsIgnoreCase("win.com"))
+				continue;
+			Win3x.Install in = Win3x.of(f);
+			if (in == null)
+				continue;
+			if (!Win3x.started(in, "").isEmpty())
+				return new String[] {f.getPath(), ""};
+			List<Win3x.GroupItem> own = Win3x.ownPrograms(in, Win3x.groups(in, List.of()), List.of());
+			return new String[] {f.getPath(), own.size() == 1 ? own.get(0).program(): ""};
+		}
+		return null;
 	}
 
 	/** a DOSBox or ScummVM program right in the folder, and it is no game of GOG (which has its info file there) */

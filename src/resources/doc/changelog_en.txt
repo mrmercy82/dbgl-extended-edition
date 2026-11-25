@@ -64,6 +64,25 @@ New
   version), and which were not found by the name of their start program. A
   learned game whose start program changed is recognized if its setup
   program stayed the same (score 30).
+- Import from a folder, further rules: SMARTDRV.EXE, HIMEM, EMM386, MSCDEX
+  and other DOS tools do not count as start program. If the game folder has
+  a Windows in it (WIN.COM with SYSTEM.INI), the profile starts WIN.COM: if
+  Windows starts the game itself ("run=", "load=", shell), that is all, else
+  WIN.COM gets the one program of the program groups outside the folder of
+  Windows. The same start program, or one of the same name, in a folder and
+  a folder below it makes one game, the upper one, with a note on the other.
+  The search for further game folders shows which folder it is looking at;
+  a fault there is reported, the games recognized stay. Long lines in text
+  files are skipped for the title (they could hold the search up for
+  minutes), the same search term is asked only once. The DBConf button is
+  called "Take the DOSBox configuration from DBConf" and has a tooltip.
+- "Manage learned games..." (menu Profiles and context menu under Tools):
+  all games learned from profiles, with a search. Change the details, choose
+  the start or setup program anew (name and checksum are taken from the file
+  chosen, the path is not kept) or forget entries; each change is saved at
+  once.
+- Import and export wizards: the log at the end can be copied (selection or
+  all) and saved as a text file, as in the window of DOSBox.
 - "Complete profiles..." (menu Profiles and context menu under Tools, for the
   selected profiles): first the title, then the details, then the covers,
   because details and covers are searched by the title. Each profile is

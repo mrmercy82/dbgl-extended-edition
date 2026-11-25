@@ -127,6 +127,8 @@ public class GameFilesRepository {
 		public final WebProfile webProfile_;
 		public final int score_;
 		public final String explanation_;
+		/** EE TEST26: what the start program is given (e.g. the program Windows is to start: "win C:\\GAME\\GAME.EXE") */
+		public String params_ = "";
 
 		public GameDirEntry(File dir, Optional<File> main, Optional<File> setup, List<File> executables, WebProfile webProfile, int score, String explanation) {
 			super();

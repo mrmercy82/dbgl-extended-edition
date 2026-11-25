@@ -106,6 +106,7 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 
 	private ProgressBar progress_, finished_;
 	private Text scanInfo_;
+	private Label scanStatus_;
 	private List<GameDirEntry> games_;
 	private Table table_;
 
@@ -159,6 +160,8 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 		((GridData)finished_.getLayoutData()).exclude = true;
 		finished_.setVisible(false);
 		scanInfo_ = Text_.on(progressGroup).multi().wrap().readOnly().build();
+		scanStatus_ = Label_.on(progressGroup).build(); // TEST26: which game folder is looked at now
+		scanStatus_.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
 		addStep(progressGroup);
 
 		Group gamesGroup = Group_.on(shell_).layout(new GridLayout(6, true)).key("dialog.importdir.selectgames").build();
@@ -278,7 +281,7 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 			}
 		});
 		consultConf_ = Chain.on(step6Group).lbl(l -> l).but(b -> b.layoutData(new GridData(SWT.BEGINNING, SWT.CENTER, false, false)).horSpan(2).imageText(ImageService.IMG_SHARE,
-			"button.consultconfsearchengine", Constants.DBCONFWS).toggle()).button();
+			"dialog.importdir.dbconf").tooltip("dialog.importdir.dbconf.tooltip").toggle()).button(); // TEST26: what it does now (the database next to DBGL)
 		// alpha 53: DBConf from the database next to DBGL (DBGL 0.100 beta 18); without it the button is not shown
 		if (!DBConfDatabaseService.available()) {
 			consultConf_.setSelection(false);
@@ -349,6 +352,7 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 						if (gameDirEntry != null)
 							games_.add(gameDirEntry);
 					}
+					games_ = nestedOnce(games_); // TEST26: the same start program in a folder and one below it: one game, the upper one
 					// alpha 53 (TEST24): one import from a folder: also the game folders not recognized by their files (as "Games without
 					// profile from folder" had them), the title from their text files or CD images if the database of MobyGames has it,
 					// else from the name of the folder
@@ -357,10 +361,26 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 					for (DosboxVersion db: new DosboxVersionRepository().listAll())
 						dosboxDirs.add(db.getCanonicalPath());
 					int recognized = games_.size();
-					List<GameDirEntry> extra = unrecognizedFolders(dir_, games_, existingProfiles_, dosboxDirs, org.dbgl.util.ProfileCompletion.databaseLookup());
+					List<GameDirEntry> extra;
+					try {
+						extra = unrecognizedFolders(dir_, games_, existingProfiles_, dosboxDirs, cached(org.dbgl.util.ProfileCompletion.databaseLookup()),
+							(n, of, name) -> display_.asyncExec(() -> {
+								if (!scanStatus_.isDisposed())
+									scanStatus_.setText(text_.get("dialog.importdir.notice.folderat", new Object[] {n, of, name}));
+							}));
+					} catch (RuntimeException e) { // TEST26: told, not lost in the thread; the games recognized stay
+						e.printStackTrace();
+						extra = List.of();
+						display_.asyncExec(() -> scanInfo_.append(text_.get("dialog.importdir.notice.foldersfailed", new Object[] {String.valueOf(e)}).concat(scanInfo_.getLineDelimiter())));
+					}
+					display_.asyncExec(() -> {
+						if (!scanStatus_.isDisposed())
+							scanStatus_.setText("");
+					});
 					games_.addAll(extra);
 					long fromText = extra.stream().filter(g -> g.score_ > 0).count();
-					display_.asyncExec(() -> scanInfo_.append(text_.get("dialog.importdir.notice.foldersfound", new Object[] {extra.size(), fromText, recognized}).concat(
+					int extras = extra.size();
+					display_.asyncExec(() -> scanInfo_.append(text_.get("dialog.importdir.notice.foldersfound", new Object[] {extras, fromText, recognized}).concat(
 						scanInfo_.getLineDelimiter())));
 					Collections.sort(games_);
 
@@ -384,7 +404,7 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 							goForward();
 						}
 					});
-				} catch (SQLException | NoSuchAlgorithmException | IOException e) {
+				} catch (SQLException | NoSuchAlgorithmException | IOException | RuntimeException e) { // TEST26: also a fault of the program, not lost
 					display_.syncExec(() -> Mess_.on(shell_).exception(e).warning());
 				}
 			}
@@ -399,10 +419,71 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 	 */
 	public static List<GameDirEntry> unrecognizedFolders(File dir, List<GameDirEntry> recognized, List<Profile> existing, List<File> dosboxDirs,
 			java.util.function.Function<String, List<org.dbgl.model.WebProfile>> lookup) {
-		List<GameDirEntry> result = new ArrayList<>();
-		org.dbgl.util.UnlinkedGames.Result found = org.dbgl.util.UnlinkedGames.find(dir, org.dbgl.util.UnlinkedGames.usedBy(existing), dosboxDirs, null, null);
+		return unrecognizedFolders(dir, recognized, existing, dosboxDirs, lookup, null);
+	}
+
+	/**
+	 * TEST26: games found in a folder and in one below it with a start program of the same name (a copy of the game, or the
+	 * program twice): one game, the one higher up, with a note on the other (the same file, or one of that name)
+	 */
+	public static List<GameDirEntry> nestedOnce(List<GameDirEntry> games) {
 		var text = org.dbgl.service.TextService.getInstance();
+		List<GameDirEntry> result = new ArrayList<>(games);
+		java.util.Set<GameDirEntry> gone = new java.util.HashSet<>();
+		Map<GameDirEntry, List<String>> notes = new java.util.HashMap<>();
+		for (GameDirEntry lower: games) {
+			if (lower.getOptMain().isEmpty())
+				continue;
+			java.nio.file.Path lp = canonical(lower.dir_).toPath();
+			GameDirEntry upper = games.stream().filter(u -> (u != lower) && !gone.contains(u) && u.getOptMain().isPresent()
+					&& u.getMain().getName().equalsIgnoreCase(lower.getMain().getName()) && lp.startsWith(canonical(u.dir_).toPath()) && !lp.equals(canonical(u.dir_).toPath()))
+					.min(java.util.Comparator.comparingInt(u -> canonical(u.dir_).toPath().getNameCount())).orElse(null);
+			if (upper == null)
+				continue;
+			gone.add(lower);
+			String where = canonical(upper.dir_).toPath().relativize(canonical(lower.getMain()).toPath()).toString();
+			notes.computeIfAbsent(upper, k -> new ArrayList<>()).add(text.get(sameFile(upper.getMain(), lower.getMain()) ? "dialog.importdir.nested.same": "dialog.importdir.nested.name",
+				new Object[] {where}));
+		}
+		result.removeAll(gone);
+		for (int i = 0; i < result.size(); i++) {
+			GameDirEntry g = result.get(i);
+			List<String> n = notes.get(g);
+			if (n == null)
+				continue;
+			GameDirEntry with = new GameDirEntry(g.dir_, g.getOptMain(), g.getOptSetup(), g.executables_, g.webProfile_, g.score_, g.explanation_ + "; " + String.join("; ", n));
+			with.params_ = g.params_;
+			result.set(i, with);
+		}
+		return result;
+	}
+
+	private static boolean sameFile(File a, File b) {
+		try {
+			return (a.length() == b.length()) && Arrays.equals(FilesUtils.md5(a), FilesUtils.md5(b));
+		} catch (IOException | NoSuchAlgorithmException | RuntimeException e) {
+			return false;
+		}
+	}
+
+	/** told for each folder looked at: the how manieth of how many, and its name */
+	public interface Progress {
+		void at(int n, int of, String name);
+	}
+
+	public static List<GameDirEntry> unrecognizedFolders(File dir, List<GameDirEntry> recognized, List<Profile> existing, List<File> dosboxDirs,
+			java.util.function.Function<String, List<org.dbgl.model.WebProfile>> lookup, Progress progress) {
+		List<GameDirEntry> result = new ArrayList<>();
+		File[] top = dir.listFiles(File::isDirectory);
+		int of = top == null ? 0: top.length;
+		int[] n = {0};
+		org.dbgl.util.UnlinkedGames.Result found = org.dbgl.util.UnlinkedGames.find(dir, org.dbgl.util.UnlinkedGames.usedBy(existing), dosboxDirs,
+			progress == null ? null: f -> progress.at(++n[0], of, f.getName()), null);
+		var text = org.dbgl.service.TextService.getInstance();
+		int at = 0;
 		for (org.dbgl.util.UnlinkedGames.Game g: found.games()) {
+			if (progress != null)
+				progress.at(++at, found.games().size(), g.dir().getName());
 			java.nio.file.Path gp = canonical(g.dir()).toPath();
 			if (recognized.stream().map(r -> canonical(r.dir_).toPath()).anyMatch(r -> r.startsWith(gp) || gp.startsWith(r)))
 				continue;
@@ -428,9 +509,21 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 				score = 10;
 				explanation = text.get("dialog.importdir.fromtext", new Object[] {t.source()});
 			}
-			result.add(new GameDirEntry(g.dir(), Optional.ofNullable(g.main()), Optional.ofNullable(g.setup()), new ArrayList<>(g.programs()), web, score, explanation));
+			if ((g.main() != null) && org.dbgl.util.DuplicateProfiles.startsWindows(g.main().getName()))
+				explanation += ", " + text.get("dialog.importdir.windowsgame", new Object[] {StringUtils.defaultIfBlank(g.params(), "-")});
+			GameDirEntry entry = new GameDirEntry(g.dir(), Optional.ofNullable(g.main()), Optional.ofNullable(g.setup()), new ArrayList<>(g.programs()), web, score, explanation);
+			entry.params_ = g.params();
+			result.add(entry);
 		}
 		return result;
+	}
+
+	/** the answers of the database kept for the search terms asked once (the same title comes in many folders) */
+	static java.util.function.Function<String, List<org.dbgl.model.WebProfile>> cached(java.util.function.Function<String, List<org.dbgl.model.WebProfile>> lookup) {
+		if (lookup == null)
+			return null;
+		Map<String, List<org.dbgl.model.WebProfile>> answers = new java.util.HashMap<>();
+		return t -> answers.computeIfAbsent(t.toUpperCase(java.util.Locale.ROOT), k -> lookup.apply(t));
 	}
 
 	private static File canonical(File f) {
@@ -648,7 +741,8 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 	/** helpers that are no game: setup and install programs, DOS extenders, packers, drivers */
 	private static final java.util.regex.Pattern HELPER = java.util.regex.Pattern.compile(
 		"(?i)(setup|install|instal|inst|uninst.*|config|cfg|setsound|setmain|sndsetup|soundset|sound|setblast|dos4gw|dos32a|pmodew|cwsdpmi|dpmi.*|go32.*|readme|read|"
-				+ "unzip|pkunzip|pkzip|lha|lharc|arj|catalog|order|patch|univbe|vesa.*|mouse|keyb|loadfix|commit|tl|vbe.*)");
+				+ "unzip|pkunzip|pkzip|lha|lharc|arj|catalog|order|patch|univbe|vesa.*|mouse|keyb|loadfix|commit|tl|vbe.*|"
+				+ "smartdrv|himem|emm386|mscdex|share|doskey|setver|ramdrive|scandisk|defrag)"); // TEST26: tools of DOS
 
 	/**
 	 * alpha 53: the start program of a game recognized by other files: (1) the start program of the database by its name, even with

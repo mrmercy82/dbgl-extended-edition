@@ -49,7 +49,7 @@ public final class TextTitles {
 	public record Found(WebProfile game, String source) {
 	}
 
-	private static final int MAX_FILES = 12, MAX_BYTES = 16 * 1024, MAX_LINES = 40;
+	private static final int MAX_FILES = 12, MAX_BYTES = 16 * 1024, MAX_LINES = 40, MAX_LINE = 160, MAX_TRIES = 6;
 	private static final long MAX_TEXT_FILE = 512L * 1024;
 	private static final Charset CP437 = charset("IBM437");
 
@@ -116,7 +116,7 @@ public final class TextTitles {
 				exact = found.stream().filter(w -> w.getTitle().contains(":") && WebSearchEngine.comparable(StringUtils.substringBefore(w.getTitle(), ":")).equals(key)).toList();
 			if (!exact.isEmpty() && exact.stream().map(WebProfile::getGameId).distinct().count() == 1) // one game, not two of that name
 				return new Found(exact.get(0), c[1]);
-			if (tried.size() >= 8)
+			if (tried.size() >= MAX_TRIES)
 				break;
 		}
 		return null;
@@ -130,6 +130,8 @@ public final class TextTitles {
 		for (String raw: lines) {
 			if (seen >= MAX_LINES)
 				break;
+			if (raw.length() > MAX_LINE) // a title is short; a long line (a paragraph, or a file without line breaks) took the patterns minutes (TEST26)
+				continue;
 			String line = tidy(raw);
 			if (line.isEmpty() || DECORATION.matcher(line).matches())
 				continue;

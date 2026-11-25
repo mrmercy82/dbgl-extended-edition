@@ -2779,6 +2779,13 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				doLearnKnownGames();
 			}
 		}).build();
+		// TEST26: what was learned, to change or forget
+		MenuItem_.on(profilesMenu).key("dialog.main.menu.knowngames").image(ImageService.IMG_EDIT).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				new KnownGamesDialog(shell_).open();
+			}
+		}).build();
 		MenuItem_.on(profilesMenu).build();
 		// alpha 49: game series suggested from the titles
 		MenuItem_.on(profilesMenu).key("dialog.main.menu.series").image(ImageService.IMG_DUPLICATE).listen(new SelectionAdapter() {
@@ -3253,6 +3260,12 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			@Override
 			public void widgetSelected(SelectionEvent event) {
 				doLearnKnownGames();
+			}
+		}).build();
+		MenuItem_.on(tools).key("dialog.main.menu.knowngames").image(ImageService.IMG_EDIT).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				new KnownGamesDialog(shell_).open();
 			}
 		}).build();
 		MenuItem_.on(tools).build();
