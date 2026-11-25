@@ -9,3 +9,5 @@ build_ant/
 .project
 .settings/
 bin/
+# packages of tools/mkrelease.py
+/dist-release/
