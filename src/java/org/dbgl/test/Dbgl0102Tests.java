@@ -6710,4 +6710,120 @@ public class Dbgl0102Tests {
 		assertTrue(dark.contains("td.h0{background:#2b3036}"));
 		assertTrue(org.dbgl.util.StatisticsExtra.heatCss(org.dbgl.util.StatisticsExtra.HEAT_LIGHT, true).contains("print-color-adjust:exact"));
 	}
+
+	/** alpha 54: a game in a ZIP: unpacked for DOSBox versions without archives, DOSBox-X's own mount with an overlay */
+	@Test
+	public void testZipStart() throws Exception {
+		File dir = Files.createTempDirectory("zipstart").toFile();
+		File zip = new File(dir, "GAME.ZIP"), zip7 = new File(dir, "GAME.7Z");
+		try (java.util.zip.ZipOutputStream out = new java.util.zip.ZipOutputStream(new java.io.FileOutputStream(zip))) {
+			for (String[] e: new String[][] {{"GAME.EXE", "MZ"}, {"DATA/LEVEL.DAT", "level 1"}, {"../EVIL.TXT", "outside"}}) {
+				java.util.zip.ZipEntry ze = new java.util.zip.ZipEntry(e[0]);
+				ze.setTime(System.currentTimeMillis() - 86_400_000L);
+				out.putNextEntry(ze);
+				out.write(e[1].getBytes(StandardCharsets.US_ASCII));
+			}
+		}
+		Files.write(zip7.toPath(), new byte[] {'7', 'z'});
+		int id = 424242;
+		File changes = org.dbgl.util.ZipStart.ownChangesDir(id);
+		org.apache.commons.io.FileUtils.deleteQuietly(changes);
+		try {
+			org.dbgl.model.aggregate.DosboxVersion staging = DosboxVersionFactory.create("DOSBox Staging 0.83.1", SettingsService.STAGING_DOSBOX_FAM.title_, "0.83.1", false, true, false,
+				null, new File(DATA_DIR).getAbsolutePath(), "", "", new File(DATA_DIR, "dosbox-staging-0.83.0.conf").getAbsolutePath());
+			org.dbgl.model.aggregate.DosboxVersion x = DosboxVersionFactory.create("DOSBox-X", SettingsService.DOSBOX_X_DOSBOX_FAM.title_, "2024.03.01", false, true, false, null,
+				new File(DATA_DIR).getAbsolutePath(), "", "", new File(DATA_DIR, "dosbox-staging-0.83.0.conf").getAbsolutePath());
+			assertEquals(org.dbgl.util.ZipStart.Way.UNPACK, org.dbgl.util.ZipStart.wayFor(staging));
+			assertEquals(org.dbgl.util.ZipStart.Way.DOSBOX_X, org.dbgl.util.ZipStart.wayFor(x));
+			assertEquals(org.dbgl.util.ZipStart.Way.UNPACK, org.dbgl.util.ZipStart.wayFor(DosboxVersionFactory.create("X old", SettingsService.DOSBOX_X_DOSBOX_FAM.title_, "0.82.20", false, true,
+				false, null, "x", "", "", "x/dosbox.conf")));
+			assertEquals(org.dbgl.util.ZipStart.Way.AS_IS, org.dbgl.util.ZipStart.wayFor(DosboxVersionFactory.create("Daum", SettingsService.DAUM_DOSBOX_FAM.title_, "2015.01.25", false, true,
+				false, null, "x", "", "", "x/dosbox.conf")));
+			java.util.function.Function<File, org.dbgl.model.aggregate.Profile> profile = archive -> {
+				try {
+					org.dbgl.model.aggregate.Profile p = org.dbgl.model.factory.ProfileFactory.create(staging, null);
+					p.loadConfigurationData(GenericTextService.getInstance(), "[autoexec]\nmount C \"" + archive.getPath() + ":\\\"\nC:\nGAME.EXE\n", new File(dir, "game.conf"));
+					return p;
+				} catch (IOException e) {
+					throw new IllegalStateException(e);
+				}
+			};
+			org.dbgl.model.aggregate.Profile p = profile.apply(zip);
+			assertTrue(p.getConfiguration().getAutoexec().getMountingpoints().toString(), org.dbgl.util.ZipStart.needsAdapting(p, staging));
+
+			// DOSBox Staging: unpacked into a work folder, nothing outside of it
+			List<org.dbgl.util.ZipStart.Unpacked> u = org.dbgl.util.ZipStart.prepare(p, staging, id);
+			assertEquals(1, u.size());
+			File work = u.get(0).work();
+			assertEquals("mount C \"" + work.getPath() + "\"", p.getConfiguration().getAutoexec().getMountingpoints().get(0).toString(false));
+			assertTrue(new File(work, "GAME.EXE").isFile() && new File(work, "DATA/LEVEL.DAT").isFile());
+			assertFalse(new File(work.getParentFile(), "EVIL.TXT").exists());
+			// the game writes: a new file and a changed one
+			Files.writeString(new File(work, "SAVE.DAT").toPath(), "saved");
+			Files.writeString(new File(work, "DATA/LEVEL.DAT").toPath(), "level 2 reached");
+			assertEquals(2, org.dbgl.util.ZipStart.finish(u, null));
+			assertFalse(work.exists());
+			File drive = org.dbgl.util.ZipStart.driveDir(changes, 'C');
+			assertEquals("saved", Files.readString(new File(drive, "SAVE.DAT").toPath()));
+			assertEquals("level 2 reached", Files.readString(new File(drive, "DATA/LEVEL.DAT").toPath()));
+			assertFalse(new File(drive, "GAME.EXE").exists());
+
+			// the next start has them again; a start whose end DBGL did not see is taken over by the next one
+			p = profile.apply(zip);
+			u = org.dbgl.util.ZipStart.prepare(p, staging, id);
+			work = u.get(0).work();
+			assertEquals("saved", Files.readString(new File(work, "SAVE.DAT").toPath()));
+			assertEquals("level 2 reached", Files.readString(new File(work, "DATA/LEVEL.DAT").toPath()));
+			Thread.sleep(20);
+			Files.writeString(new File(work, "SAVE2.DAT").toPath(), "second");
+			p = profile.apply(zip);
+			u = org.dbgl.util.ZipStart.prepare(p, staging, id); // the left work folder: SAVE2.DAT kept, the folder gone
+			assertFalse(work.exists());
+			assertEquals("second", Files.readString(new File(drive, "SAVE2.DAT").toPath()));
+			assertEquals(0, org.dbgl.util.ZipStart.finish(u, null));
+
+			// DOSBox-X: its own mount of the archive, what the game writes into an overlay
+			p = profile.apply(zip);
+			assertTrue(org.dbgl.util.ZipStart.prepare(p, x, id).isEmpty());
+			List<org.dbgl.model.conf.mount.Mount> m = p.getConfiguration().getAutoexec().getMountingpoints();
+			assertEquals("mount C \"" + zip.getPath() + ":\\\"", m.get(0).toString(false));
+			assertEquals("mount C \"" + changes.getPath() + "\" -t overlay", m.get(1).toString(false));
+
+			// a new profile for the ZIP: its most likely program, the archive as drive C (as the profile dialog makes it)
+			assertEquals("GAME.EXE", org.dbgl.util.ZipStart.mainIn(zip));
+			assertFalse(org.dbgl.util.ZipStart.isDbglExport(zip));
+			File keen = new File(dir, "KEEN4.ZIP");
+			try (java.util.zip.ZipOutputStream out = new java.util.zip.ZipOutputStream(new java.io.FileOutputStream(keen))) {
+				for (String[] e: new String[][] {{"SETUP.EXE", "MZ setup that is the biggest file of all"}, {"KEEN4/KEEN4E.EXE", "MZ"}, {"KEEN4/GO.BAT", "keen4e"}}) {
+					out.putNextEntry(new java.util.zip.ZipEntry(e[0]));
+					out.write(e[1].getBytes(StandardCharsets.US_ASCII));
+				}
+			}
+			assertEquals("KEEN4" + File.separator + "KEEN4E.EXE", org.dbgl.util.ZipStart.mainIn(keen));
+			org.dbgl.model.aggregate.Profile fresh = org.dbgl.model.factory.ProfileFactory.create(staging, null);
+			fresh.loadConfigurationData(GenericTextService.getInstance(), "[autoexec]\n", new File(dir, "new.conf"));
+			String main = keen.getPath() + File.separator + org.dbgl.util.ZipStart.mainIn(keen);
+			fresh.addRequiredMount(false, main, false);
+			fresh.setAutoexecSettings(main, "");
+			assertTrue(fresh.getConfigurationString(), fresh.getConfigurationString().contains("mount C \"" + keen.getPath() + ":\\\""));
+			assertTrue(fresh.getConfigurationString(), fresh.getConfigurationString().contains("KEEN4E.EXE"));
+			assertTrue(org.dbgl.util.ZipStart.needsAdapting(fresh, staging));
+
+			// 7z: only DOSBox-X
+			p = profile.apply(zip7);
+			try {
+				org.dbgl.util.ZipStart.prepare(p, staging, id);
+				fail("7z unpacked");
+			} catch (IOException e) {
+				assertTrue(e.getMessage(), e.getMessage().contains("GAME.7Z"));
+			}
+		} finally {
+			org.apache.commons.io.FileUtils.deleteQuietly(changes);
+			org.apache.commons.io.FileUtils.deleteQuietly(dir);
+			File[] left = org.dbgl.util.ZipStart.workRoot().listFiles((d, n) -> n.startsWith(id + "-"));
+			if (left != null)
+				for (File f: left)
+					org.apache.commons.io.FileUtils.deleteQuietly(f);
+		}
+	}
 }

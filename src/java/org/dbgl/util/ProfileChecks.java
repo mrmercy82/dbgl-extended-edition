@@ -550,6 +550,11 @@ public final class ProfileChecks {
 		for (int i = 0; i < alt.length; i++)
 			if (StringUtils.isNotBlank(alt[i]))
 				checkOtherProgram(prof, result, paths, autoexec, netto, new FileLocation(alt[i], FileLocationService.getInstance().dataRelative()).getCanonicalFile(), "altexe", i + 1, windows);
+		// alpha 54: a game in a 7z archive starts only with DOSBox-X (and builds with PhysFS); DBGL unpacks ZIP archives only
+		if (ZipStart.wayFor(prof.getDosboxVersion()) == ZipStart.Way.UNPACK)
+			for (Mount m: autoexec.getMountingpoints())
+				if (ZipStart.isArchiveMount(m) && !ZipStart.archiveOf(m).getName().toLowerCase(Locale.ROOT).endsWith(".zip"))
+					result.add(new Problem("zip7z", ZipStart.archiveOf(m).getName(), prof.getDosboxVersion().getTitle()));
 		// alpha 53: Windows 3.x started by own lines of the autoexec ("C:", "cd \\WINDOWS", "win"), as many profiles do it; the
 		// lines start in the folder of the program DBGL read from them ("cd \\WINDOWS" and SMARTDRV.EXE before "win")
 		if (win3 == null) {

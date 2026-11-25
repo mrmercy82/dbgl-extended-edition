@@ -2659,6 +2659,13 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				importScanFolder();
 			}
 		}).build();
+		// alpha 54: a game in a ZIP (or 7z) as a profile that starts it from the archive (ZipStart)
+		MenuItem_.on(imports).key("dialog.main.menu.importzip").image(ImageService.IMG_IMPORT).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				doAddGameFromZip();
+			}
+		}).build();
 		MenuItem_.on(imports).build();
 		MenuItem_.on(imports).key("dialog.main.menu.importstoregames").image(ImageService.IMG_IMPORT).listen(new SelectionAdapter() {
 			@Override
@@ -5219,6 +5226,8 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			Profile profile = new EditSingleProfileDialog(shell_, null, filename, false).open();
 			if (profile != null)
 				updateWithAddedProfile(profile);
+		} else if (FilesUtils.isArchive(filename) && (fileNames.length == 1) && !org.dbgl.util.ZipStart.isDbglExport(new File(filename)) && addGameFromZip(new File(filename))) {
+			// alpha 54: one ZIP of a game (not an export of DBGL): a profile that starts it from the archive
 		} else if (FilesUtils.isArchive(filename)) {
 			if (Stream.of(fileNames).allMatch(FilesUtils::isArchive)) {
 				Boolean updateCustomFields = new ImportDialog(shell_, dbversionsList_, new File(filename), fileNames).open();
@@ -5238,6 +5247,42 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		} else {
 			Mess_.on(shell_).key("general.error.cannotimportunknownfile").warning();
 		}
+	}
+
+	private void doAddGameFromZip() {
+		if (requireDefaultDBVersion() == null)
+			return;
+		org.eclipse.swt.widgets.FileDialog dialog = new org.eclipse.swt.widgets.FileDialog(shell_, SWT.OPEN);
+		dialog.setFilterPath(FileLocationService.getInstance().getDosroot().getPath());
+		dialog.setFilterNames(new String[] {"ZIP (.zip)", FilesUtils.ALL_FILTER});
+		dialog.setFilterExtensions(new String[] {"*.zip;*.ZIP", FilesUtils.ALL_FILTER});
+		String file = dialog.open();
+		if ((file != null) && !addGameFromZip(new File(file)))
+			Mess_.on(shell_).key("dialog.main.zip.noprogram", new Object[] {new File(file).getName()}).warning();
+	}
+
+	/**
+	 * alpha 54: the profile dialog for a new profile with the ZIP as drive C and its most likely start file (the profile
+	 * dialog's own way for a program in a ZIP, as Ronald's DBGL has it). A 7z DBGL cannot look into: not here.
+	 *
+	 * @return false if it is no ZIP or has no program
+	 */
+	private boolean addGameFromZip(File archive) {
+		if (!FilesUtils.isZipFile(archive.getName()))
+			return false;
+		String main;
+		try {
+			main = org.dbgl.util.ZipStart.mainIn(archive);
+		} catch (IOException e) {
+			Mess_.on(shell_).exception(e).warning();
+			return true;
+		}
+		if (main == null)
+			return false;
+		Profile profile = new EditSingleProfileDialog(shell_, null, archive.getPath() + File.separator + main, false).open();
+		if (profile != null)
+			updateWithAddedProfile(profile);
+		return true;
 	}
 
 	public void addProfile(String file) {

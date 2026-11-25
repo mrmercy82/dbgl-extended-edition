@@ -72,6 +72,14 @@ public class ExecuteUtils {
 		private final int playTimeProfileId_;
 		private File saveDir_;
 
+		private List<ZipStart.Unpacked> unpacked_ = List.of();
+
+		/** alpha 54: archives unpacked for this start; what the game wrote is kept and the work folders deleted when DOSBox has ended */
+		ConfigurableExecutor unpacked(List<ZipStart.Unpacked> unpacked) {
+			unpacked_ = unpacked;
+			return this;
+		}
+
 		/** alpha 48: DOSBox-X keeps the saved states of this start in this folder (-savedir), null: where it keeps them by itself */
 		ConfigurableExecutor saveDir(File saveDir) {
 			saveDir_ = saveDir;
@@ -124,6 +132,9 @@ public class ExecuteUtils {
 				if (!display_.isDisposed()) {
 					display_.syncExec(() -> Mess_.on(display_.getActiveShell()).exception(e).warning());
 				}
+			} finally {
+				if (!unpacked_.isEmpty())
+					ZipStart.finish(unpacked_, System.err);
 			}
 		}
 	}
@@ -409,7 +420,11 @@ public class ExecuteUtils {
 		// names DOS can't use: written by an older DBGL version ("cd \M&M 3", "MM 3.EXE") or too long ("cd \DEATHGATE"); DOSBox
 		// gets them with the short names it gives them (M&M3~1, MM3~1.EXE, DEATHG~1). Since alpha 46 only in a temporary copy for
 		// this start: the file of the profile is not changed without the user knowing it ("Check profiles" offers it)
-		boolean runFromCopy = (mode == ProfileRunMode.NORMAL) && !prepareOnly && (pc98Changed || mountsChanged || needsShortNamesForStart(prof));
+		// alpha 54: a ZIP mounted as a drive: DOSBox-X mounts it itself with an overlay for what the game writes, other versions
+		// get it unpacked by DBGL (ZipStart); both only in the copy for this start
+		boolean archives = (mode != ProfileRunMode.INSTALLER) && !prepareOnly && ZipStart.needsAdapting(prof, dosboxVersion);
+		boolean runFromCopy = (mode == ProfileRunMode.NORMAL) && !prepareOnly && (pc98Changed || mountsChanged || archives || needsShortNamesForStart(prof));
+		List<ZipStart.Unpacked> unpacked = new ArrayList<>();
 
 		if (mode != ProfileRunMode.NORMAL || prepareOnly || runFromCopy) {
 			preparedProfile = ProfileFactory.createCopy(prof);
@@ -437,6 +452,8 @@ public class ExecuteUtils {
 			if ((mapper != null) && !new File(preparedProfile.getConfiguration().getValue("sdl", "mapperfile")).isAbsolute()
 					&& !mapper.getParentFile().equals(preparedProfile.getConfigurationCanonicalFile().getParentFile()))
 				preparedProfile.getConfiguration().setValue("sdl", "mapperfile", mapper.getPath());
+			if (archives)
+				unpacked = ZipStart.prepare(preparedProfile, dosboxVersion, prof.getId());
 			preparedProfile.saveConfiguration(prepareOnly);
 		}
 
@@ -444,7 +461,7 @@ public class ExecuteUtils {
 			doRunDosbox(dosboxVersion, new String[] {"-conf", preparedProfile.getConfigurationCanonicalFile().getPath()}, false, dosboxVersion.getCwd(), true);
 		else {
 			ConfigurableExecutor executor = new ConfigurableExecutor(preparedProfile, dosboxVersion, preparedProfile.getConfigurationCanonicalFile(), display,
-					(!prepareOnly && (mode != ProfileRunMode.SETUP)) ? prof.getId(): -1).saveDir(usesOwnSavestates(dosboxVersion) ? savestatesDir(prof): null);
+					(!prepareOnly && (mode != ProfileRunMode.SETUP)) ? prof.getId(): -1).saveDir(usesOwnSavestates(dosboxVersion) ? savestatesDir(prof): null).unpacked(unpacked);
 			lastStarted_ = executor;
 			executor.start();
 		}

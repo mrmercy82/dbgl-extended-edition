@@ -91,6 +91,8 @@ public final class FullBackup {
 			add(result, new Item(Part.PROGRAM, "dbgl", canonical(programDir)));
 		add(result, new Item(Part.CAPTURES, "captures", canonical(new File(f.getDataDir(), "captures"))));
 		add(result, new Item(Part.CAPTURES, SavegameBackup.DIR, canonical(new File(f.getDataDir(), SavegameBackup.DIR)))); // alpha 52: their own folder
+		// alpha 54: what games started from a ZIP wrote (not the work folders, which only exist while DOSBox runs)
+		add(result, new Item(Part.CAPTURES, ZipStart.DIR + "/changes", canonical(new File(new File(f.getDataDir(), ZipStart.DIR), "changes"))));
 		// the backups made before: automatic ones, before a new version, before updates (not the earlier ones of these)
 		add(result, new Item(Part.BACKUPS, "backups", canonical(BackupService.defaultAutoBackupDir())));
 		String autoDir = org.dbgl.service.SettingsService.getInstance().getValue("backup", "dir");

@@ -151,8 +151,8 @@ public class EditMountDialog extends SizeControlledButtonDialog<String> {
 
 		Composite zipComposite = Composite_.on(contents_).layoutData(new GridData(SWT.FILL, SWT.BEGINNING, true, false)).innerLayout(3).build();
 
-		Text zipMountZip = Chain.on(zipComposite).lbl(l -> l.key("dialog.mount.zipfile")).txt(t -> t).but(b -> b.browse(false, Button_.BrowseType.FILE, Button_.CanonicalType.ZIP, false)).text();
-		Text zipMountWrite = Chain.on(zipComposite).lbl(l -> l.key("dialog.mount.writedirectory")).txt(t -> t).but(
+		Text zipMountZip = Chain.on(zipComposite).lbl(l -> l.key("dialog.mount.zipfile")).txt(t -> t.tooltip("dialog.mount.zipfile.tooltip")).but(b -> b.browse(false, Button_.BrowseType.FILE, Button_.CanonicalType.ZIP, false)).text();
+		Text zipMountWrite = Chain.on(zipComposite).lbl(l -> l.key("dialog.mount.writedirectory")).txt(t -> t.tooltip("dialog.mount.writedirectory.tooltip")).but(
 			b -> b.browse(false, Button_.BrowseType.DIR, Button_.CanonicalType.DOSROOT, false)).text();
 		Combo zipMountType = Chain.on(zipComposite).lbl(l -> l.key("dialog.mount.mountzipas")).cmb(c -> c.horSpan(2).items("profile", "zipmount_type")).combo();
 		Text zipMountLabel = Chain.on(zipComposite).lbl(l -> l.key("dialog.mount.drivelabel")).txt(t -> t.horSpan(2)).text();

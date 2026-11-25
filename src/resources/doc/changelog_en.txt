@@ -4,6 +4,41 @@ DBGL Extended Edition - Changes since 0.100 beta 17
 Based on DBGL 0.100 beta 17 by Ronald Blankendaal (https://dbgl.org), source code.
 
 
+0.101 alpha 54 (in progress)
+----------------------------
+New
+- Start games from a ZIP, with every DOSBox version: Profiles > Import >
+  "Game from a ZIP file..." (or dropping a ZIP on DBGL that is not an export
+  of DBGL) opens a new profile with the archive as drive C: and its most
+  likely start program, as the profile dialog of Ronald Blankendaal's DBGL
+  could do already ("Mount Zip"). At the start:
+  - DOSBox-X 0.84.1 and newer mounts the archive itself (read-only); what
+    the game writes goes to a folder of its own through "mount -t overlay".
+  - All others (DOSBox Staging, 0.74, SVN, ECE, older DOSBox-X): DBGL unpacks
+    the ZIP into a work folder, puts the files written before over it and
+    mounts it; after the game, what is new or changed goes to that folder of
+    its own, and the work folder is deleted. If DBGL ends while DOSBox runs,
+    the next start takes over the saved games.
+  The folder of its own is the "Write" folder of the mount, or else
+  zipstart\changes\<profile id> in DBGL's data folder, both ways with the
+  same layout (C_DRIVE), so switching the DOSBox version keeps the saved
+  games. It is in the full backup, the backups of saved games use it, and
+  the profile itself is never changed. 7z archives start with DOSBox-X only;
+  "Check" says so for other versions. The fields "Zip" and "Write" in the
+  mount dialog have tooltips.
+
+Changed
+- For development: tools/mkrelease.py builds all packages of a release
+  (update, source, Windows with and without Java, Linux, macOS, SHA256SUMS)
+  from a commit; from the release commit of alpha 53 it gives the same files
+  as the published packages.
+
+Fixed
+- Statistics as a web page, dark mode: in the calendar of the days played
+  the days not played were light grey and stood out. The calendar has dark
+  colours of its own now; light and printed it stays as it was.
+
+
 0.101 alpha 53 (2026-11-25)
 ---------------------------
 New

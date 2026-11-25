@@ -214,6 +214,13 @@ public final class SavegameBackup {
 	public static File gameDir(Profile p) {
 		DirMount first = null;
 		for (Mount m: p.getNettoMountingPoints()) {
+			// alpha 54: a game in a ZIP keeps what it writes in a folder of its own (ZipStart): its saved games are there
+			if (ZipStart.isArchiveMount(m)) {
+				File written = existing(ZipStart.driveDir(ZipStart.changesDir(m, p.getId()), m.getDrive()));
+				if (Character.toUpperCase(m.getDrive()) == 'C')
+					return written;
+				continue;
+			}
 			if (m instanceof DirMount dm) {
 				if (Character.toUpperCase(dm.getDrive()) == 'C')
 					return existing(dm.getCanonicalPath());
