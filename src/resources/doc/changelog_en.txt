@@ -109,7 +109,15 @@ New
   genre, description only where the profile has none; can be undone like
   other changes of many profiles); then, if wished, "Fetch covers" for these
   profiles. The welcome wizard has a page of its own for it, "Check the
-  titles", between the import and the game information.
+  titles", between the import and the game information; the page of the game
+  information says what of it is done already. A profile that has a cover
+  already is not "nothing found" but "cover there". Boxes, state and title
+  have tooltips; applying shows a progress bar.
+- Fetch covers for profiles without pictures: TheGamesDB is the source at
+  first (then the one chosen here the last time). A note says that the
+  databases answer only so many questions at a time (IGDB the fewest) and to
+  do it again with many profiles; profiles that have a cover by then are left
+  out. Boxes and findings have tooltips, saving shows a progress bar.
 - Presets (context menu of the profiles and profile dialog): each group has
   a heading ("System and speed", "Picture (DOSBox Staging ...)", "Own
   presets"). "Picture" names the newest DOSBox Staging set up in DBGL that
@@ -260,7 +268,11 @@ Changed
   Studio" or "MinGW") in front, with a sentence below on what it is good for
   (Visual Studio is what the DOSBox-X project recommends for Windows; MinGW
   calculates with floating-point numbers more exactly and supports
-  networking over "slirp").
+  networking over "slirp"). The MinGW builds are now called
+  "dosbox-x-mingw64-...-portable.zip" (no "win" in the name) and so were not
+  offered, only Visual Studio twice (64 and 32 bits); now they come right
+  after the recommended build, the variants for old computers ("lowend")
+  last.
 - A new installation opens the main window maximized.
 - Importing games (folder, GOG/Steam, LaunchBox, eXoDOS, ScummVM): the
   newest DOSBox Staging entered is chosen as DOSBox version at first (before:

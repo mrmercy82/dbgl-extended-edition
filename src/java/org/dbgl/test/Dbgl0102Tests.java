@@ -2144,6 +2144,16 @@ public class Dbgl0102Tests {
 			new String[] {"dosbox-x-vsbuild-win32-20261001153012.zip", "w"}, new String[] {"dosbox-x-macosx-x86_64-20261001153012.zip", "o"});
 		assertEquals("v", org.dbgl.util.DosboxInstaller.chooseAsset(x, true, false, false)[1]);
 		assertNull(org.dbgl.util.DosboxInstaller.chooseAsset(x, false, true, false));
+		// TEST32: the names of DOSBox-X 2026.08.31: MinGW without "win" in the name, offered after the Visual Studio build of 64 bits
+		List<String[]> x2 = List.of(new String[] {"dosbox-x-mingw32-2026.08.31-portable.zip", "m32"}, new String[] {"dosbox-x-mingw32_lowend-2026.08.31-portable.zip", "low"},
+			new String[] {"dosbox-x-mingw32_lowend9x-2026.08.31-portable.zip", "9x"}, new String[] {"dosbox-x-mingw64-2026.08.31-portable.zip", "m64"},
+			new String[] {"dosbox-x-vsbuild-arm64-2026.08.31-portable.zip", "arm"}, new String[] {"dosbox-x-vsbuild-win32-2026.08.31-portable.zip", "v32"},
+			new String[] {"dosbox-x-vsbuild-win64-2026.08.31-portable.zip", "v64"}, new String[] {"dosbox-x-macosx-x86_64-2026.08.31.zip", "mac"});
+		List<String> order = org.dbgl.util.DosboxInstaller.candidates(x2, true, false, false).stream().map(a -> a[1]).toList();
+		assertEquals(List.of("v64", "m64"), order.subList(0, 2));
+		assertTrue(order.indexOf("m32") < order.indexOf("low"));
+		assertFalse(order.contains("arm") || order.contains("mac"));
+		assertEquals("mingw", org.dbgl.util.DosboxInstaller.buildKind("dosbox-x-mingw64-2026.08.31-portable.zip"));
 		assertEquals("dosbox-staging-0.83.0", org.dbgl.util.DosboxInstaller.folderName("DOSBox Staging", "0.83.0"));
 
 		// unpacking a zip and finding the executable in a sub folder

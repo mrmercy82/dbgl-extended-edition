@@ -195,6 +195,7 @@ public final class WelcomeWizard {
 
 		// page 4: game information from the internet: which database, how, and that a precise title helps
 		Composite pOnline = page(stack, 1);
+		wrap(pOnline, text.get("dialog.welcome.p5.mobyfirst"), 1); // TEST32: what "Complete profiles" (the page before) took already
 		wrap(pOnline, text.get("dialog.welcome.p5.text"), 1);
 		wrap(pOnline, text.get("dialog.welcome.p5.howto"), 1);
 		bullets(pOnline, 1, text.get("dialog.welcome.p5.single"), text.get("dialog.welcome.p5.multi"));

@@ -111,21 +111,24 @@ public final class DosboxInstaller {
 		boolean archive = name.endsWith(".zip") || name.endsWith(".tar.xz") || name.endsWith(".tar.gz") || name.endsWith(".tar.bz2");
 		if (!archive || name.contains("source") || name.contains("src") || name.contains("debug") || name.contains("pdb") || name.contains("symbols") || name.contains("installer"))
 			return 0;
-		boolean forWindows = name.contains("win");
+		// TEST32: the MinGW builds of DOSBox-X are called "dosbox-x-mingw64-2026.08.31-portable.zip" (no "win" in the name)
+		boolean forWindows = name.contains("win") || name.contains("mingw");
 		boolean forLinux = name.contains("linux");
 		if ((windows && !forWindows) || (linux && !forLinux) || (!windows && !linux))
 			return 0;
 		boolean nameArm = name.contains("arm64") || name.contains("aarch64");
-		boolean name64 = name.contains("x86_64") || name.contains("x64") || name.contains("win64") || name.contains("amd64");
+		boolean name64 = name.contains("x86_64") || name.contains("x64") || name.contains("win64") || name.contains("amd64") || name.contains("mingw64");
 		if (arm != nameArm)
 			return 0;
 		int score = 10;
 		if (name64 || nameArm)
 			score += 5;
-		if (name.contains("win32") || name.contains("x86-") || name.contains("i686"))
+		if (name.contains("win32") || name.contains("x86-") || name.contains("i686") || name.contains("mingw32"))
 			score -= 6; // 32-bit builds only when there is nothing else
 		if (name.contains("vsbuild")) // DOSBox-X: the Visual Studio build is the recommended one for Windows
 			score += 3;
+		if (name.contains("lowend")) // DOSBox-X: for old computers (lowend, lowend9x for Windows 9x)
+			score -= 4;
 		if (name.contains("sdl1"))
 			score -= 2;
 		if (name.endsWith(".zip"))

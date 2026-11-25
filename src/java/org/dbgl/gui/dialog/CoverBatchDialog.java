@@ -93,10 +93,19 @@ public class CoverBatchDialog extends SizeControlledButtonDialog<Integer> {
 		GridData infoData = new GridData(SWT.FILL, SWT.BEGINNING, true, false, 3, 1);
 		infoData.widthHint = 640;
 		info.setLayoutData(infoData);
+		// TEST32: the databases answer only so many questions at a time (IGDB the fewest): with many profiles, again
+		Label repeat = new Label(contents_, SWT.WRAP);
+		repeat.setText(text_.get("dialog.coverbatch.repeat", new Object[] {MAX_PROFILES}));
+		GridData repeatData = new GridData(SWT.FILL, SWT.BEGINNING, true, false, 3, 1);
+		repeatData.widthHint = 640;
+		repeat.setLayoutData(repeatData);
 
 		new Label(contents_, SWT.NONE).setText(text_.get("dialog.coverbatch.source"));
 		engine_ = new Combo(contents_, SWT.READ_ONLY);
-		String current = SettingsService.getInstance().getValue("gui", "searchengine");
+		// TEST32: TheGamesDB at first (no key of one's own, many covers of DOS games), then what was chosen here the last time
+		String current = SettingsService.getInstance().getValue("gui", "coverbatchengine");
+		if (StringUtils.isBlank(current))
+			current = "thegamesdb";
 		for (WebSearchEngine e: engines_) {
 			engine_.add(e.getName());
 			if (e.getSimpleName().equals(current))
@@ -143,6 +152,15 @@ public class CoverBatchDialog extends SizeControlledButtonDialog<Integer> {
 				((TableItem)e.item).setChecked(false);
 			updateSummary();
 		});
+		org.dbgl.gui.controls.TableTips.install(table_, (row, column) -> {
+			if ((row >= found_.size()))
+				return null;
+			if (column == -1)
+				return text_.get(found_.get(row).data() != null ? "dialog.coverbatch.tip.check": "dialog.coverbatch.tip.nocheck");
+			if (column == 2)
+				return text_.get(found_.get(row).data() == null ? "dialog.coverbatch.tip.none": found_.get(row).exact() ? "dialog.coverbatch.tip.exact": "dialog.coverbatch.tip.similar");
+			return null;
+		});
 		summary_ = new Label(contents_, SWT.NONE);
 		summary_.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 3, 1));
 		shell_.addDisposeListener(e -> thumbs_.forEach(Image::dispose));
@@ -164,6 +182,7 @@ public class CoverBatchDialog extends SizeControlledButtonDialog<Integer> {
 	private void search() {
 		WebSearchEngine engine = engines_.get(Math.max(0, engine_.getSelectionIndex()));
 		String engineName = engine.getSimpleName();
+		SettingsService.getInstance().setValue("gui", "coverbatchengine", engineName);
 		// a source with a key of its own (SteamGridDB, MobyGames): not without it
 		String key = SettingsService.getInstance().getValue(engineName, "api_key");
 		if ((key != null) && StringUtils.isBlank(key) && !"thegamesdb".equals(engineName)) {
@@ -265,29 +284,56 @@ public class CoverBatchDialog extends SizeControlledButtonDialog<Integer> {
 		summary_.setText(text_.get("dialog.coverbatch.summary", new Object[] {found_.size(), withCover, ticked}));
 	}
 
+	/** the ticked covers saved, with a progress bar (TEST32); the files are written by the user interface, one by one */
 	private void save() {
-		int saved = 0;
+		List<Found> chosen = new ArrayList<>();
+		for (int i = 0; i < found_.size(); i++)
+			if (table_.getItem(i).getChecked() && (found_.get(i).data() != null))
+				chosen.add(found_.get(i));
+		AtomicInteger progress = new AtomicInteger();
+		AtomicInteger saved = new AtomicInteger();
 		StringBuilder failed = new StringBuilder();
-		for (int i = 0; i < found_.size(); i++) {
-			Found f = found_.get(i);
-			if (!table_.getItem(i).getChecked() || (f.data() == null))
-				continue;
-			File dir = f.profile().getCanonicalCaptures();
-			String description = FilesUtils.toSafeFilenameForWebImages(f.image().getDescription());
-			File file = new File(dir, text_.get("dialog.profile.mobygames.coverartfilename", new Object[] {0, description}) + ".jpg");
-			try {
-				java.nio.file.Files.createDirectories(dir.toPath());
-				if (!FilesUtils.isExistingFile(file)) {
-					ImageService.save(shell_.getDisplay(), f.data(), file.getPath());
-					saved++;
+		org.eclipse.swt.widgets.Display display = shell_.getDisplay();
+		try {
+			BusyTask.run(shell_, text_.get("dialog.coverbatch.saving"), progress, chosen.size(), () -> {
+				for (Found f: chosen) {
+					if (Thread.currentThread().isInterrupted())
+						break;
+					File dir = f.profile().getCanonicalCaptures();
+					String description = FilesUtils.toSafeFilenameForWebImages(f.image().getDescription());
+					File file = new File(dir, text_.get("dialog.profile.mobygames.coverartfilename", new Object[] {0, description}) + ".jpg");
+					try {
+						java.nio.file.Files.createDirectories(dir.toPath());
+						if (!FilesUtils.isExistingFile(file)) {
+							SWTException[] fault = {null};
+							display.syncExec(() -> {
+								try {
+									ImageService.save(display, f.data(), file.getPath());
+								} catch (SWTException e) {
+									fault[0] = e;
+								}
+							});
+							if (fault[0] != null)
+								throw fault[0];
+							saved.incrementAndGet();
+						}
+					} catch (java.io.IOException | SWTException e) {
+						synchronized (failed) {
+							failed.append(file.getPath()).append(": ").append(e.getMessage()).append('\n');
+						}
+					}
+					progress.incrementAndGet();
 				}
-			} catch (java.io.IOException | SWTException e) {
-				failed.append(file.getPath()).append(": ").append(e.getMessage()).append('\n');
-			}
+				return null;
+			});
+		} catch (BusyTask.Cancelled e) {
+			// the covers saved before stay
+		} catch (Exception e) {
+			Mess_.on(shell_).exception(e).warning();
 		}
 		if (failed.length() > 0)
 			Mess_.on(shell_).key("general.error.savefile", failed.toString().trim()).warning();
-		result_ = saved;
+		result_ = saved.get();
 		shell_.close();
 	}
 }

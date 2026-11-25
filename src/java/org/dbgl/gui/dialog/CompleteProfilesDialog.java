@@ -64,6 +64,7 @@ public class CompleteProfilesDialog extends SizeControlledButtonDialog<CompleteP
 
 	private final List<Profile> profiles_;
 	private final Assessment[] assessed_;
+	private final boolean[] hasCover_; // TEST32: the profile has a picture already
 	private final String[] titles_; // the title as typed in by hand
 	private Table table_;
 	private Label status_;
@@ -74,6 +75,15 @@ public class CompleteProfilesDialog extends SizeControlledButtonDialog<CompleteP
 		super(parent, "completeprofilesdialog");
 		profiles_ = profiles;
 		assessed_ = new Assessment[profiles.size()];
+		hasCover_ = new boolean[profiles.size()];
+		for (int i = 0; i < profiles.size(); i++) {
+			try {
+				File captures = profiles.get(i).getCanonicalCaptures();
+				hasCover_[i] = (captures != null) && (org.dbgl.util.FilesUtils.listPictureFiles(captures.listFiles()).length > 0);
+			} catch (RuntimeException e) {
+				hasCover_[i] = false; // no folder for its pictures (yet)
+			}
+		}
 		titles_ = new String[profiles.size()];
 	}
 
@@ -111,6 +121,16 @@ public class CompleteProfilesDialog extends SizeControlledButtonDialog<CompleteP
 			item.setText(COL_STATE, text_.get("dialog.complete.state.checking"));
 		}
 		editTitles();
+		// TEST32: what the box and the state of a row mean, under the mouse
+		org.dbgl.gui.controls.TableTips.install(table_, (row, column) -> {
+			if (column == -1)
+				return text_.get("dialog.complete.tip.check");
+			if ((column == COL_STATE) && (assessed_[row] != null))
+				return text_.get("dialog.complete.tip." + stateKey(row));
+			if ((column == COL_TITLE) || (column == COL_PROPOSAL))
+				return text_.get("dialog.complete.tip.title");
+			return null;
+		});
 
 		Button withProposal = new Button(contents_, SWT.PUSH);
 		withProposal.setText(text_.get("dialog.complete.tickproposals"));
@@ -131,6 +151,7 @@ public class CompleteProfilesDialog extends SizeControlledButtonDialog<CompleteP
 		covers_ = new Button(contents_, SWT.CHECK);
 		covers_.setText(text_.get("dialog.complete.covers"));
 		covers_.setSelection(true);
+		covers_.setToolTipText(text_.get("dialog.complete.covers.tooltip"));
 		covers_.setLayoutData(new GridData(SWT.BEGINNING, SWT.CENTER, false, false, 3, 1));
 
 		createGoCancelButtons("dialog.complete.apply", new SelectionAdapter() {
@@ -176,14 +197,25 @@ public class CompleteProfilesDialog extends SizeControlledButtonDialog<CompleteP
 			if (table_.isDisposed())
 				return;
 			TableItem item = table_.getItem(i);
-			item.setText(COL_STATE, text_.get("dialog.complete.state." + a.state().name().toLowerCase()));
+			item.setText(COL_STATE, text_.get("dialog.complete.state." + stateKey(i)));
 			item.setText(COL_PROPOSAL, a.proposal() == null ? "": a.proposal().getTitle());
 			item.setText(COL_SOURCE, a.source() != null ? a.source(): a.proposal() != null ? "MobyGames": "");
 			item.setText(COL_YEAR, a.proposal() == null ? StringUtils.defaultString(p.getYear()): StringUtils.defaultString(a.proposal().getYear()));
-			item.setBackground(COL_STATE, color(a.state()));
+			item.setBackground(COL_STATE, color(hasCover_[i] && (a.state() == State.NONE) ? State.DONE: a.state()));
 			if (a.state() == State.FOUND)
 				item.setChecked(true); // exactly its title: the details can be taken at once
 		});
+	}
+
+	/**
+	 * TEST32: the state as told: a profile with a cover already and nothing found for its title is not "nothing found" (its title
+	 * was right enough for the cover), but "cover there"
+	 */
+	private String stateKey(int i) {
+		Assessment a = assessed_[i];
+		if ((a != null) && (a.state() == State.NONE) && hasCover_[i])
+			return "cover";
+		return a == null ? "checking": a.state().name().toLowerCase();
 	}
 
 	private Color color(State s) {
@@ -197,9 +229,9 @@ public class CompleteProfilesDialog extends SizeControlledButtonDialog<CompleteP
 
 	private String summary() {
 		int[] n = new int[State.values().length];
-		for (Assessment a: assessed_)
-			if (a != null)
-				n[a.state().ordinal()]++;
+		for (int i = 0; i < assessed_.length; i++)
+			if (assessed_[i] != null)
+				n[(hasCover_[i] && (assessed_[i].state() == State.NONE) ? State.DONE: assessed_[i].state()).ordinal()]++;
 		return text_.get("dialog.complete.summary", new Object[] {n[State.DONE.ordinal()] + n[State.FOUND.ordinal()], n[State.LIKELY.ordinal()], n[State.NONE.ordinal()]});
 	}
 
@@ -251,45 +283,49 @@ public class CompleteProfilesDialog extends SizeControlledButtonDialog<CompleteP
 		});
 	}
 
-	/** the ticked profiles: the title typed in or proposed, and the details of the game where the profile has none */
+	/**
+	 * the ticked profiles: the title typed in or proposed, and the details of the game where the profile has none; in the
+	 * background with a progress bar (TEST32: the details are looked up one by one). The number saved, or null if cancelled.
+	 */
 	private int apply() {
-		List<Profile> changed = new ArrayList<>();
+		List<Integer> chosen = new ArrayList<>();
 		for (int i = 0; i < profiles_.size(); i++) {
-			TableItem item = table_.getItem(i);
-			if (!item.getChecked())
+			if (!table_.getItem(i).getChecked())
 				continue;
 			Profile p = profiles_.get(i);
 			Assessment a = assessed_[i];
-			boolean byHand = titles_[i] != null;
-			if ((a != null) && (a.proposal() != null) && (a.state() != State.DONE)) {
-				changed.add(p);
-			} else if (byHand && !titles_[i].equals(p.getTitle())) {
-				changed.add(p);
-			}
+			if (((a != null) && (a.proposal() != null) && (a.state() != State.DONE)) || ((titles_[i] != null) && !titles_[i].equals(p.getTitle())))
+				chosen.add(i);
 		}
-		if (changed.isEmpty())
+		if (chosen.isEmpty())
 			return 0;
-		org.dbgl.util.BulkUndo.remember(text_.get("dialog.complete.title"), changed);
-		int count = 0;
-		ProfileRepository repo = new ProfileRepository();
-		for (int i = 0; i < profiles_.size(); i++) {
-			Profile p = profiles_.get(i);
-			if (!changed.contains(p))
-				continue;
-			Assessment a = assessed_[i];
-			if ((a != null) && (a.proposal() != null) && (a.state() != State.DONE))
-				ProfileCompletion.apply(p, ProfileCompletion.detailed(a.proposal()));
-			else
-				p.setTitle(titles_[i]);
-			try {
-				repo.updateKeepingConfigurationFile(p);
-				count++;
-			} catch (SQLException e) {
-				Mess_.on(shell_).exception(e).warning();
-				break;
-			}
+		org.dbgl.util.BulkUndo.remember(text_.get("dialog.complete.title"), chosen.stream().map(profiles_::get).toList());
+		java.util.concurrent.atomic.AtomicInteger progress = new java.util.concurrent.atomic.AtomicInteger();
+		try {
+			return org.dbgl.gui.controls.BusyTask.run(shell_, text_.get("dialog.complete.saving"), progress, chosen.size(), () -> {
+				int count = 0;
+				ProfileRepository repo = new ProfileRepository();
+				for (int i: chosen) {
+					if (Thread.currentThread().isInterrupted())
+						break; // what is saved stays saved
+					Profile p = profiles_.get(i);
+					Assessment a = assessed_[i];
+					if ((a != null) && (a.proposal() != null) && (a.state() != State.DONE))
+						ProfileCompletion.apply(p, ProfileCompletion.detailed(a.proposal()));
+					else
+						p.setTitle(titles_[i]);
+					repo.updateKeepingConfigurationFile(p);
+					count++;
+					progress.incrementAndGet();
+				}
+				return count;
+			});
+		} catch (org.dbgl.gui.controls.BusyTask.Cancelled e) {
+			return progress.get(); // the profiles saved before stay saved
+		} catch (Exception e) {
+			Mess_.on(shell_).exception(e).warning();
+			return progress.get();
 		}
-		return count;
 	}
 
 	private static File gameDir(Profile p) {
