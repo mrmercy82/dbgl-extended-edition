@@ -75,7 +75,11 @@ New
   a fault there is reported, the games recognized stay. Long lines in text
   files are skipped for the title (they could hold the search up for
   minutes), the same search term is asked only once. The DBConf button is
-  called "Take the DOSBox configuration from DBConf" and has a tooltip.
+  called "Take the DOSBox configuration from DBConf" and has a tooltip. The
+  log at the end begins with that of the search (with the report on the
+  learned games), so that it is saved with it. A game recognized in the
+  chosen folder itself (loose files there) gets a note and is not ticked:
+  its profile would have the whole folder as its drive.
 - "Manage learned games..." (menu Profiles and context menu under Tools):
   all games learned from profiles, with a search. Change the details, choose
   the start or setup program anew (name and checksum are taken from the file

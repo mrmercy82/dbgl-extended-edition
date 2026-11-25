@@ -353,6 +353,7 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 							games_.add(gameDirEntry);
 					}
 					games_ = nestedOnce(games_); // TEST26: the same start program in a folder and one below it: one game, the upper one
+					games_ = markRoot(games_, dir_); // TEST27: a game found in the chosen folder itself (loose files there): told, not ticked
 					// alpha 53 (TEST24): one import from a folder: also the game folders not recognized by their files (as "Games without
 					// profile from folder" had them), the title from their text files or CD images if the database of MobyGames has it,
 					// else from the name of the folder
@@ -454,6 +455,26 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 			GameDirEntry with = new GameDirEntry(g.dir_, g.getOptMain(), g.getOptSetup(), g.executables_, g.webProfile_, g.score_, g.explanation_ + "; " + String.join("; ", n));
 			with.params_ = g.params_;
 			result.set(i, with);
+		}
+		return result;
+	}
+
+	/**
+	 * TEST27: a game recognized in the chosen folder itself: most likely loose files there (its profile would have the whole
+	 * folder as its drive). It gets a note and is not ticked (see populate).
+	 */
+	public static List<GameDirEntry> markRoot(List<GameDirEntry> games, File root) {
+		File r = canonical(root);
+		List<GameDirEntry> result = new ArrayList<>();
+		for (GameDirEntry g: games) {
+			if (!canonical(g.dir_).equals(r)) {
+				result.add(g);
+				continue;
+			}
+			GameDirEntry with = new GameDirEntry(g.dir_, g.getOptMain(), g.getOptSetup(), g.executables_, g.webProfile_, g.score_,
+					g.explanation_ + "; " + org.dbgl.service.TextService.getInstance().get("dialog.importdir.rootfolder"));
+			with.params_ = g.params_;
+			result.add(with);
 		}
 		return result;
 	}
@@ -781,6 +802,8 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 				profile_.setValue("sdl", "mapperfile", settings_.getValue("profile", "uniquemapperfile"));
 			updateProfileByControls();
 			List<GameDirEntry> games = IntStream.range(0, games_.size()).filter(x -> table_.getItem(x).getChecked()).mapToObj(x -> games_.get(x)).toList();
+			// TEST27: what the search found (also what became of the learned games) at the top of the log, to be saved with it
+			log_.setText(scanInfo_.getText().strip() + log_.getLineDelimiter() + "----" + log_.getLineDelimiter());
 			job_ = new ImportDirThread(log_, progressBar_, status_, games, profile_, consultConf_.getSelection());
 		} else if (step == 4) {
 			if (job_.isEverythingOk()) {
@@ -799,7 +822,8 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 	private void populate(Table table) {
 		for (GameDirEntry game: games_) {
 			TableItem newItemTableItem = new TableItem(table, SWT.NONE);
-			newItemTableItem.setChecked(game.getOptMain().isPresent() && existingProfiles_.stream().noneMatch(x -> game.dir_.equals(x.getCombinedConfiguration().getAutoexec().getCanonicalGameDir())));
+			newItemTableItem.setChecked(game.getOptMain().isPresent() && !canonical(game.dir_).equals(canonical(dir_))
+					&& existingProfiles_.stream().noneMatch(x -> game.dir_.equals(x.getCombinedConfiguration().getAutoexec().getCanonicalGameDir())));
 			newItemTableItem.setText(1, game.dir_.getPath());
 			newItemTableItem.setText(2, game.webProfile_.getTitle());
 			newItemTableItem.setText(3, game.getOptMain().isPresent() ? relative(game.dir_, game.getMain()) + (game.executables_.size() > 1 ? ' ' + TRIANGLE_DOWN: StringUtils.EMPTY): TRIANGLE_DOWN);

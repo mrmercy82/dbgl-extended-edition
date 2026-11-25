@@ -80,6 +80,11 @@ Neu
   werden für die Titelsuche übersprungen (sie konnten die Suche minutenlang
   aufhalten), gleiche Suchbegriffe nur einmal abgefragt. Der Knopf für DBConf
   heißt „DOSBox-Konfiguration aus DBConf übernehmen“ und hat einen Tooltip.
+  Das Protokoll am Ende beginnt mit dem der Suche (samt Bericht über die
+  gemerkten Spiele), damit es mitgespeichert wird. Ein Spiel, das im
+  gewählten Ordner selbst erkannt wird (lose Dateien dort), bekommt einen
+  Hinweis und ist nicht angehakt: sein Profil hätte den ganzen Ordner als
+  Laufwerk.
 - „Gemerkte Spiele verwalten...“ (Menü Profile und Kontextmenü unter
   Werkzeuge): alle aus Profilen gemerkten Spiele, mit Suche. Angaben ändern,
   Start- oder Setup-Programm neu wählen (Name und Prüfsumme kommen aus der

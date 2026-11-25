@@ -4144,6 +4144,11 @@ public class Dbgl0102Tests {
 		assertEquals(g, once.get(0).dir_);
 		assertTrue(once.get(0).explanation_.startsWith("x; "));
 		assertTrue(once.get(0).explanation_.contains("COPY"));
+		// TEST27: a game recognized in the chosen folder itself gets a note
+		List<org.dbgl.model.repository.GameFilesRepository.GameDirEntry> marked = org.dbgl.gui.dialog.wizard.ImportDirDialog.markRoot(List.of(upper,
+			new org.dbgl.model.repository.GameFilesRepository.GameDirEntry(dir, java.util.Optional.empty(), java.util.Optional.empty(), List.of(), web, 35, "r")), dir);
+		assertEquals("x", marked.get(0).explanation_);
+		assertTrue(marked.get(1).explanation_.startsWith("r; "));
 		org.apache.commons.io.FileUtils.deleteDirectory(dir);
 	}
 
