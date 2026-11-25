@@ -235,6 +235,9 @@ New
   already filled in.
 
 Changed
+- Dark mode on Windows: ticked boxes in lists (such as in the import of
+  games) are now accent blue with a light tick like DBGL's other check
+  boxes; before, they were white with a black tick.
 - DBConf (DOSBox configurations collected from other DBGL users) now comes
   from a database that comes with DBGL (db/dbconf.*) instead of
   share.dbgl.org; DBGL no longer asks the internet for it. Taken over from

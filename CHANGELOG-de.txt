@@ -253,6 +253,9 @@ Neu
   auf einmal übernehmen, die bekannten schon ausgefüllt.
 
 Geändert
+- Dunkelmodus unter Windows: angehakte Kästchen in Listen (etwa beim Import
+  von Spielen) sind jetzt akzentblau mit hellem Haken wie die übrigen
+  Kästchen von DBGL; vorher waren sie weiß mit schwarzem Haken.
 - DBConf (gesammelte DOSBox-Konfigurationen anderer DBGL-Nutzer) kommt jetzt
   aus einer Datenbank, die DBGL mitbringt (db\dbconf.*), statt von
   share.dbgl.org; DBGL fragt dafür nicht mehr im Internet nach. Übernommen

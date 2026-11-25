@@ -136,7 +136,18 @@ final class WinSubclass {
 			org.eclipse.swt.graphics.RGB bg = c.getBackground().getRGB();
 			for (int index: table ? new int[] {0, 2, 4, 6}: new int[] {1, 3}) {
 				boolean greyed = table && (index >= 4);
-				long bitmap = w.box(cx[0], cy[0], colorRef(bg), greyed ? 0x00606060: 0x009A9A9A, colorRef(DarkTheme.fieldBackground.getRGB()));
+				long bitmap = w.box(cx[0], cy[0], colorRef(bg), greyed ? 0x00606060: 0x009A9A9A, colorRef(DarkTheme.fieldBackground.getRGB()), -1);
+				if (bitmap != 0) {
+					replace.invoke(null, list, index, bitmap, 0L);
+					w.deleteObject_.invoke(null, bitmap);
+				}
+			}
+			// TEST34: the ticked boxes too (they were white with a black tick): the accent colour with a light tick, as the check
+			// boxes of DBGL elsewhere in the dark mode; greyed ones in grey
+			for (int index: table ? new int[] {1, 5}: new int[] {2}) {
+				boolean greyed = table && (index >= 4);
+				int fill = greyed ? 0x00505050: colorRef(DarkTheme.accentBackground.getRGB());
+				long bitmap = w.box(cx[0], cy[0], colorRef(bg), fill, fill, greyed ? 0x00A0A0A0: colorRef(DarkTheme.checkForeground.getRGB()));
 				if (bitmap != 0) {
 					replace.invoke(null, list, index, bitmap, 0L);
 					w.deleteObject_.invoke(null, bitmap);
@@ -172,8 +183,11 @@ final class WinSubclass {
 		return (rgb.blue << 16) | (rgb.green << 8) | rgb.red;
 	}
 
-	/** a bitmap with an empty box in its middle (the caller deletes it), 0 if it cannot be made */
-	private long box(int width, int height, int background, int border, int inner) throws ReflectiveOperationException {
+	/**
+	 * a bitmap with a box in its middle (the caller deletes it), 0 if it cannot be made
+	 * @param tick the colour of a tick in it, or -1 for an empty box
+	 */
+	private long box(int width, int height, int background, int border, int inner, int tick) throws ReflectiveOperationException {
 		Method getDC = os_.getMethod("GetDC", long.class), createDC = os_.getMethod("CreateCompatibleDC", long.class);
 		Method createBitmap = os_.getMethod("CreateCompatibleBitmap", long.class, int.class, int.class), select = os_.getMethod("SelectObject", long.class, long.class);
 		Method deleteDC = os_.getMethod("DeleteDC", long.class), setRect = os_.getMethod("SetRect", rect_, int.class, int.class, int.class, int.class);
@@ -191,6 +205,15 @@ final class WinSubclass {
 				long brush = (Long)createBrush_.invoke(null, r[4]);
 				fillRect_.invoke(null, dc, rect, brush);
 				deleteObject_.invoke(null, brush);
+			}
+			if (tick >= 0) {
+				// the tick as a line in three points (PS_SOLID), as DarkTheme draws it on its own check boxes
+				long pen = (Long)os_.getMethod("CreatePen", int.class, int.class, int.class).invoke(null, 0, Math.max(2, size / 7), tick);
+				long oldPen = (Long)select.invoke(null, dc, pen);
+				int[] pts = {x + size * 3 / 13, y + size * 7 / 13, x + size * 5 / 13, y + size * 9 / 13, x + size * 10 / 13, y + size * 4 / 13};
+				os_.getMethod("Polyline", long.class, int[].class, int.class).invoke(null, dc, pts, 3);
+				select.invoke(null, dc, oldPen);
+				deleteObject_.invoke(null, pen);
 			}
 			select.invoke(null, dc, old);
 		}
