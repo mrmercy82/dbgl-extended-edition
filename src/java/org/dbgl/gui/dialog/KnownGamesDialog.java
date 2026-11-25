@@ -201,6 +201,7 @@ public class KnownGamesDialog extends SizeControlledButtonDialog<Boolean> {
 			dlg.setText(text.get("dialog.knowngames.edit.title"));
 			BaseDialog.inheritWindowImage(dlg, parent_);
 			dlg.setLayout(new GridLayout(3, false));
+			org.dbgl.gui.controls.DarkTheme.window(dlg); // TEST35: the window dark too, not only its fields
 			Text title = field(dlg, text.get("dialog.complete.column.title"), entry_.title());
 			Text developer = field(dlg, text.get("dialog.knowngames.column.developer"), entry_.developer());
 			Text publisher = field(dlg, text.get("dialog.importdir.column.publisher"), entry_.publisher());
