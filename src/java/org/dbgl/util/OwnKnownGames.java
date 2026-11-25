@@ -239,6 +239,49 @@ public final class OwnKnownGames {
 		return found;
 	}
 
+	/**
+	 * alpha 53 (TEST24): the start program there by name but with another checksum (changed by the game, e.g. its settings kept
+	 * in it, or patched), and the setup program there with the same name and checksum: most likely the same game. Else null
+	 */
+	public static Entry matchBySetup(List<Entry> entries, Map<String, String> md5ByName) {
+		Map<String, String> upper = new LinkedHashMap<>();
+		md5ByName.forEach((n, m) -> upper.put(n.toUpperCase(Locale.ROOT), m));
+		Entry found = null;
+		for (Entry e: entries) {
+			KnownFile m = e.main(), s = e.setupFile();
+			if ((m != null) && (s != null) && upper.containsKey(m.name().toUpperCase(Locale.ROOT)) && s.md5().equals(upper.get(s.name().toUpperCase(Locale.ROOT))))
+				found = e;
+		}
+		return found;
+	}
+
+	/** alpha 53 (TEST24): what became of the learned games in a search: recognized, start program there but changed, not there */
+	public record Report(int learned, List<String> recognized, List<String> changed, List<String> missing) {
+	}
+
+	/**
+	 * @param md5sByName all files found in the search: name (any case) to the checksums with that name
+	 * @param recognizedTitles the titles of the learned games the search recognized
+	 */
+	public static Report report(List<Entry> entries, Map<String, Set<String>> md5sByName, Set<String> recognizedTitles) {
+		Map<String, Set<String>> upper = new LinkedHashMap<>();
+		md5sByName.forEach((n, m) -> upper.computeIfAbsent(n.toUpperCase(Locale.ROOT), k -> new TreeSet<>()).addAll(m));
+		List<String> recognized = new ArrayList<>(), changed = new ArrayList<>(), missing = new ArrayList<>();
+		Set<String> seen = new java.util.HashSet<>();
+		for (Entry e: entries) {
+			if (!seen.add(e.title() + "|" + e.key()))
+				continue;
+			KnownFile m = e.main();
+			if (recognizedTitles.contains(e.title()))
+				recognized.add(e.title());
+			else if (upper.containsKey(m.name().toUpperCase(Locale.ROOT)))
+				changed.add(e.title() + " (" + m.name() + ")");
+			else
+				missing.add(e.title() + " (" + m.name() + ")");
+		}
+		return new Report(entries.size(), recognized, changed, missing);
+	}
+
 	public static String md5(File f) throws IOException, java.security.NoSuchAlgorithmException {
 		return HexFormat.of().formatHex(FilesUtils.md5(f));
 	}

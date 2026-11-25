@@ -351,8 +351,15 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 					}
 					Collections.sort(games_);
 
+					// alpha 53 (TEST24): what became of the learned games, to see why one was not recognized
+					String ownReport = ownReport(own, fileMd5s, games_);
+
 					display_.syncExec(() -> {
 						scanInfo_.append(text_.get("dialog.importdir.notice.foundgames", new Object[] {games_.size()}).concat(scanInfo_.getLineDelimiter()));
+						if (ownReport != null) {
+							scanInfo_.append(ownReport.concat(scanInfo_.getLineDelimiter()));
+							Mess_.on(shell_).txt(ownReport).display();
+						}
 						progress_.setVisible(false);
 						((GridData)progress_.getLayoutData()).exclude = true;
 						finished_.setVisible(true);
@@ -371,6 +378,30 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 		}.start();
 	}
 
+	/** alpha 53 (TEST24): of the learned games, how many were recognized, and which not and why; null if all or none learned */
+	static String ownReport(List<org.dbgl.util.OwnKnownGames.Entry> own, List<ImmutablePair<File, byte[]>> files, List<GameDirEntry> found) {
+		if (own.isEmpty())
+			return null;
+		Map<String, java.util.Set<String>> md5s = new java.util.HashMap<>();
+		for (ImmutablePair<File, byte[]> f: files)
+			md5s.computeIfAbsent(f.getKey().getName(), k -> new java.util.TreeSet<>()).add(java.util.HexFormat.of().formatHex(f.getValue()));
+		java.util.Set<String> titles = found.stream().map(g -> g.webProfile_.getTitle()).collect(Collectors.toSet());
+		org.dbgl.util.OwnKnownGames.Report r = org.dbgl.util.OwnKnownGames.report(own, md5s, titles);
+		if (r.changed().isEmpty() && r.missing().isEmpty())
+			return null;
+		var text = org.dbgl.service.TextService.getInstance();
+		StringBuilder sb = new StringBuilder(text.get("dialog.importdir.ownreport", new Object[] {r.learned(), r.recognized().size(), r.changed().size(), r.missing().size()}));
+		if (!r.changed().isEmpty())
+			sb.append("\n\n").append(text.get("dialog.importdir.ownreport.changed")).append("\n  ").append(shortList(r.changed()));
+		if (!r.missing().isEmpty())
+			sb.append("\n\n").append(text.get("dialog.importdir.ownreport.missing")).append("\n  ").append(shortList(r.missing()));
+		return sb.toString();
+	}
+
+	private static String shortList(List<String> items) {
+		return String.join("\n  ", items.subList(0, Math.min(25, items.size()))) + (items.size() > 25 ? "\n  ... (+" + (items.size() - 25) + ")": "");
+	}
+
 	/**
 	 * alpha 53: a folder whose start program is among the games learned from profiles: the details from there, the start program
 	 * and (if it is there with the same checksum) the setup program; scored as the database of DBGL would (35 and 15)
@@ -381,7 +412,9 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 		Map<String, String> md5s = new java.util.LinkedHashMap<>();
 		for (ImmutablePair<File, byte[]> file: files)
 			md5s.put(file.getKey().getName(), java.util.HexFormat.of().formatHex(file.getValue()));
-		org.dbgl.util.OwnKnownGames.Entry entry = org.dbgl.util.OwnKnownGames.match(own, md5s);
+		org.dbgl.util.OwnKnownGames.Entry strict = org.dbgl.util.OwnKnownGames.match(own, md5s);
+		// alpha 53 (TEST24): the start program changed since it was learned, the setup program the same: still that game
+		org.dbgl.util.OwnKnownGames.Entry entry = strict != null ? strict: org.dbgl.util.OwnKnownGames.matchBySetup(own, md5s);
 		if (entry == null)
 			return null;
 		List<File> exes = FilesUtils.listExecutablesInDirRecursive(dir);
@@ -402,6 +435,9 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 		web.setGenre(entry.genre());
 		web.setUrl(StringUtils.EMPTY);
 		web.setNotes(StringUtils.EMPTY);
+		if (strict == null) // recognized by the setup program alone, the start program another one than learned
+			return new GameDirEntry(dir, main, setup, exes, web, 30, setup.get().getName() + " (15), " + main.get().getName() + " (15) - " + source + ", "
+					+ org.dbgl.service.TextService.getInstance().get("dialog.importdir.ownchanged"));
 		String explanation = main.get().getName() + " (35)" + (setup.isPresent() ? ", " + setup.get().getName() + " (15)": StringUtils.EMPTY) + " - "
 				+ source;
 		return new GameDirEntry(dir, main, setup, exes, web, setup.isPresent() ? 50: 35, explanation);

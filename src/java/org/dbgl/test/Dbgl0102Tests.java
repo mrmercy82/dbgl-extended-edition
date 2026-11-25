@@ -3613,6 +3613,18 @@ public class Dbgl0102Tests {
 		assertEquals("Ishar: Legend of the Fortress", org.dbgl.util.OwnKnownGames.match(read, java.util.Map.of("ishar.exe", md5, "README.TXT", other)).title());
 		assertNull(org.dbgl.util.OwnKnownGames.match(read, java.util.Map.of("ISHAR.EXE", other)));
 		assertNull(org.dbgl.util.OwnKnownGames.match(read, java.util.Map.of("INSTALL.EXE", other))); // the setup program alone is not enough
+		// TEST24: the start program changed (another checksum), the setup program the same: still the game; the setup alone is not
+		String changed = "00000000000000000000000000000000";
+		assertEquals("Ishar: Legend of the Fortress", org.dbgl.util.OwnKnownGames.matchBySetup(read, java.util.Map.of("ISHAR.EXE", changed, "install.exe", other)).title());
+		assertNull(org.dbgl.util.OwnKnownGames.matchBySetup(read, java.util.Map.of("INSTALL.EXE", other)));
+		assertNull(org.dbgl.util.OwnKnownGames.matchBySetup(read, java.util.Map.of("ISHAR.EXE", changed, "INSTALL.EXE", changed)));
+		// what became of the learned games in a search
+		java.util.List<org.dbgl.util.OwnKnownGames.Entry> two = new java.util.ArrayList<>(read);
+		two.add(new org.dbgl.util.OwnKnownGames.Entry("Gone", "", "", "", "", java.util.List.of(new org.dbgl.util.OwnKnownGames.KnownFile("GONE.EXE", md5, false))));
+		org.dbgl.util.OwnKnownGames.Report report = org.dbgl.util.OwnKnownGames.report(two, java.util.Map.of("ishar.exe", java.util.Set.of(changed)), java.util.Set.of());
+		assertEquals(java.util.List.of("Ishar: Legend of the Fortress (ISHAR.EXE)"), report.changed());
+		assertEquals(java.util.List.of("Gone (GONE.EXE)"), report.missing());
+		assertEquals(java.util.List.of("Gone"), org.dbgl.util.OwnKnownGames.report(two, java.util.Map.of(), java.util.Set.of("Gone")).recognized());
 		// what is no valid entry is left out: no title, a path as name, a bad checksum
 		Files.writeString(f.toPath(), "{\"games\":[{\"title\":\"\",\"files\":[{\"name\":\"A.EXE\",\"md5\":\"" + md5 + "\"}]},"
 				+ "{\"title\":\"B\",\"files\":[{\"name\":\"..\\\\B.EXE\",\"md5\":\"" + md5 + "\"}]},{\"title\":\"C\",\"files\":[{\"name\":\"C.EXE\",\"md5\":\"xyz\"}]},"
@@ -3665,7 +3677,9 @@ public class Dbgl0102Tests {
 		assertEquals(50, e.score_);
 		Files.write(new File(game, "ISHAR.EXE").toPath(), program(true)); // another version of the program: not recognized
 		files.set(0, new org.apache.commons.lang3.tuple.ImmutablePair<>(new File(game, "ISHAR.EXE"), org.dbgl.util.FilesUtils.md5(new File(game, "ISHAR.EXE"))));
-		assertNull(org.dbgl.gui.dialog.wizard.ImportDirDialog.ownGameDirEntry(game, files, read, "own"));
+		// TEST24: the setup program still the same: recognized, with a lower score; without the setup program not
+		assertEquals(30, org.dbgl.gui.dialog.wizard.ImportDirDialog.ownGameDirEntry(game, files, read, "own").score_);
+		assertNull(org.dbgl.gui.dialog.wizard.ImportDirDialog.ownGameDirEntry(game, files.subList(0, 1), read, "own"));
 		// the import from a folder: a whole game folder, the start program in a folder below; an unknown folder is not in the result
 		File collection = new File(dir, "collection");
 		File copy = new File(collection, "Ishar 1/BIN");
