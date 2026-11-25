@@ -6,6 +6,14 @@ Based on DBGL 0.100 beta 17 by Ronald Blankendaal (https://dbgl.org), source cod
 
 0.101 alpha 53 (in progress)
 ----------------------------
+By Ronald Blankendaal
+- Taken over from DBGL 0.100 beta 18: the DBConf database, which Ronald
+  Blankendaal made and allowed the Extended Edition to ship (db/dbconf.*,
+  instead of share.dbgl.org), and cutting values that are too long when
+  saving ("remax"). Details under "Changed" and "Fixed".
+- The import from a folder is his import of known games with his database of
+  known games; the additions of this version build on it.
+
 New
 - Windows 3.x: for profiles that start Windows (WIN.COM), "Check..." now
   looks into its SYSTEM.INI and WIN.INI (reading only):

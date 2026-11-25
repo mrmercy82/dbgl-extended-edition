@@ -6,6 +6,15 @@ Grundlage: DBGL 0.100 beta 17 von Ronald Blankendaal (https://dbgl.org), Quellco
 
 0.101 alpha 53 (in Arbeit)
 --------------------------
+Von Ronald Blankendaal
+- Aus DBGL 0.100 beta 18 übernommen: die DBConf-Datenbank, die Ronald
+  Blankendaal erstellt und für die Extended Edition freigegeben hat
+  (db\dbconf.*, statt share.dbgl.org), und das Kürzen zu langer Werte beim
+  Speichern („remax“). Einzelheiten unter „Geändert“ und „Fehler behoben“.
+- Der Import aus einem Ordner ist sein Import bekannter Spiele mit seiner
+  Datenbank bekannter Spiele; die Erweiterungen dieser Version bauen darauf
+  auf.
+
 Neu
 - Windows 3.x: Bei Profilen, die Windows starten (WIN.COM), sieht „Prüfen...“
   jetzt in dessen SYSTEM.INI und WIN.INI nach (nur lesend):
