@@ -217,6 +217,7 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 		addColumn("dialog.importdir.column.publisher", 5, sortListener);
 		addColumn("dialog.importdir.column.year", 6, sortListener);
 		addColumn("dialog.importdir.column.score", 7, sortListener);
+		addColumn("dialog.importdir.column.notes", 8, sortListener); // TEST29: what to know about the entry, before ticking it
 
 		Chain.on(gamesGroup).but(b -> b.text().key("button.all").listen(new SelectionAdapter() {
 			@Override
@@ -346,9 +347,13 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 					games_ = new ArrayList<>();
 					for (Map.Entry<File, List<ImmutablePair<File, byte[]>>> dirFile: fileMd5s.stream().collect(Collectors.groupingBy(x -> x.getKey().getParentFile())).entrySet()) {
 						// alpha 53: a game learned from a profile first (its details were checked by the user), then the database of DBGL
-						GameDirEntry gameDirEntry = ownGameDirEntry(dirFile.getKey(), dirFile.getValue(), own, text_.get("dialog.importdir.ownrecognition"));
-						if (gameDirEntry == null)
-							gameDirEntry = constructGameDirEntry(dirFile.getKey(), dirFile.getValue(), games);
+						// TEST29: each learned game in a folder (Wing Commander II and its Special Operations 1 and 2, all in one folder)
+						List<GameDirEntry> learned = ownGameDirEntries(dirFile.getKey(), dirFile.getValue(), own, text_.get("dialog.importdir.ownrecognition"));
+						if (!learned.isEmpty()) {
+							games_.addAll(learned);
+							continue;
+						}
+						GameDirEntry gameDirEntry = constructGameDirEntry(dirFile.getKey(), dirFile.getValue(), games);
 						if (gameDirEntry != null)
 							games_.add(gameDirEntry);
 					}
@@ -453,10 +458,7 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 			List<String> n = notes.get(g);
 			if (n == null)
 				continue;
-			GameDirEntry with = new GameDirEntry(g.dir_, g.getOptMain(), g.getOptSetup(), g.executables_, g.webProfile_, g.score_, g.explanation_ + "; " + String.join("; ", n));
-			with.params_ = g.params_;
-			with.untick_ = g.untick_;
-			result.set(i, with);
+			g.notes_.addAll(n);
 		}
 		return result;
 	}
@@ -473,11 +475,9 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 				result.add(g);
 				continue;
 			}
-			GameDirEntry with = new GameDirEntry(g.dir_, g.getOptMain(), g.getOptSetup(), g.executables_, g.webProfile_, g.score_,
-					g.explanation_ + "; " + org.dbgl.service.TextService.getInstance().get("dialog.importdir.rootfolder"));
-			with.params_ = g.params_;
-			with.untick_ = true;
-			result.add(with);
+			g.notes_.add(org.dbgl.service.TextService.getInstance().get("dialog.importdir.rootfolder"));
+			g.untick_ = true;
+			result.add(g);
 		}
 		return result;
 	}
@@ -493,7 +493,6 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 		Map<String, List<GameDirEntry>> byTitle = new java.util.LinkedHashMap<>();
 		for (GameDirEntry g: games)
 			byTitle.computeIfAbsent(org.dbgl.util.searchengine.WebSearchEngine.comparable(g.webProfile_.getTitle()), k -> new ArrayList<>()).add(g);
-		Map<GameDirEntry, GameDirEntry> replaced = new java.util.HashMap<>();
 		for (Map.Entry<String, List<GameDirEntry>> e: byTitle.entrySet()) {
 			List<GameDirEntry> same = e.getValue();
 			if (e.getKey().isEmpty() || (same.size() < 2))
@@ -503,13 +502,11 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 			for (GameDirEntry g: same) {
 				List<String> others = same.stream().filter(o -> o != g).map(o -> shortPath(r, o.dir_)).toList();
 				String note = text.get("dialog.importdir.sametitle", new Object[] {String.join(", ", others)});
-				GameDirEntry with = new GameDirEntry(g.dir_, g.getOptMain(), g.getOptSetup(), g.executables_, g.webProfile_, g.score_, g.explanation_ + "; " + note);
-				with.params_ = g.params_;
-				with.untick_ = g.untick_ || (g != keep);
-				replaced.put(g, with);
+				g.notes_.add(note);
+				g.untick_ |= (g != keep);
 			}
 		}
-		return games.stream().map(g -> replaced.getOrDefault(g, g)).collect(Collectors.toCollection(ArrayList::new));
+		return new ArrayList<>(games);
 	}
 
 	private static String shortPath(java.nio.file.Path root, File dir) {
@@ -568,10 +565,11 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 				score = 10;
 				explanation = text.get("dialog.importdir.fromtext", new Object[] {t.source()});
 			}
-			if ((g.main() != null) && org.dbgl.util.DuplicateProfiles.startsWindows(g.main().getName()))
-				explanation += ", " + text.get("dialog.importdir.windowsgame", new Object[] {StringUtils.defaultIfBlank(g.params(), "-")});
 			GameDirEntry entry = new GameDirEntry(g.dir(), Optional.ofNullable(g.main()), Optional.ofNullable(g.setup()), new ArrayList<>(g.programs()), web, score, explanation);
 			entry.params_ = g.params();
+			entry.notes_.add(explanation); // TEST29: where the title comes from, in the list as well
+			if ((g.main() != null) && org.dbgl.util.DuplicateProfiles.startsWindows(g.main().getName()))
+				entry.notes_.add(text.get("dialog.importdir.windowsgame", new Object[] {StringUtils.defaultIfBlank(g.params(), "-")}));
 			result.add(entry);
 		}
 		return result;
@@ -615,6 +613,32 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 
 	private static String shortList(List<String> items) {
 		return String.join("\n  ", items.subList(0, Math.min(25, items.size()))) + (items.size() > 25 ? "\n  ... (+" + (items.size() - 25) + ")": "");
+	}
+
+	/**
+	 * TEST29: all games learned from profiles in a folder, one entry each (several programs of a folder learned as games of their
+	 * own, e.g. Wing Commander II and its two Special Operations): by checksum of their start program; if none, as
+	 * ownGameDirEntry by the setup program
+	 */
+	public static List<GameDirEntry> ownGameDirEntries(File dir, List<ImmutablePair<File, byte[]>> files, List<org.dbgl.util.OwnKnownGames.Entry> own, String source) {
+		List<GameDirEntry> result = new ArrayList<>();
+		Map<String, String> md5s = new java.util.LinkedHashMap<>();
+		for (ImmutablePair<File, byte[]> file: files)
+			md5s.put(file.getKey().getName().toUpperCase(java.util.Locale.ROOT), java.util.HexFormat.of().formatHex(file.getValue()));
+		java.util.Set<String> mains = new java.util.HashSet<>();
+		for (org.dbgl.util.OwnKnownGames.Entry e: org.dbgl.util.OwnKnownGames.matchAll(own, md5s)) {
+			if (!mains.add(e.main().name().toUpperCase(java.util.Locale.ROOT)))
+				continue; // the same program learned twice (two profiles): once
+			GameDirEntry g = ownGameDirEntry(dir, files, List.of(e), source);
+			if (g != null)
+				result.add(g);
+		}
+		if (result.isEmpty()) {
+			GameDirEntry g = ownGameDirEntry(dir, files, own, source);
+			if (g != null)
+				result.add(g);
+		}
+		return result;
 	}
 
 	/**
@@ -870,6 +894,7 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 			newItemTableItem.setText(5, StringUtils.defaultString(game.webProfile_.getPublisherName()));
 			newItemTableItem.setText(6, game.webProfile_.getYear());
 			newItemTableItem.setText(7, Integer.toString(game.score_));
+			newItemTableItem.setText(8, String.join("; ", game.notes_));
 			newItemTableItem.setData(game.explanation_);
 		}
 	}

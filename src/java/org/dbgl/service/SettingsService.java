@@ -296,6 +296,7 @@ public class SettingsService {
 		settings_.setValue("gui", "importdir_column_6width", "240");
 		settings_.setValue("gui", "importdir_column_7width", "60");
 		settings_.setValue("gui", "importdir_column_8width", "105");
+		settings_.setValue("gui", "importdir_column_9width", "420"); // TEST29: the notes
 
 		settings_.setValue("gui", "log_width", "860");
 		settings_.setValue("gui", "log_height", "540");

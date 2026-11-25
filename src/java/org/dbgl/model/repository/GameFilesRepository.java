@@ -131,6 +131,8 @@ public class GameFilesRepository {
 		public String params_ = "";
 		/** EE TEST28: not ticked at first in the import (the same title found more than once, a game in the chosen folder itself) */
 		public boolean untick_;
+		/** EE TEST29: notes shown in a column of the import (the same title elsewhere, a copy below, Windows in the folder ...) */
+		public final List<String> notes_ = new ArrayList<>();
 
 		public GameDirEntry(File dir, Optional<File> main, Optional<File> setup, List<File> executables, WebProfile webProfile, int score, String explanation) {
 			super();

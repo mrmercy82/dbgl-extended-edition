@@ -3617,6 +3617,12 @@ public class Dbgl0102Tests {
 		String changed = "00000000000000000000000000000000";
 		assertEquals("Ishar: Legend of the Fortress", org.dbgl.util.OwnKnownGames.matchBySetup(read, java.util.Map.of("ISHAR.EXE", changed, "install.exe", other)).title());
 		assertNull(org.dbgl.util.OwnKnownGames.matchBySetup(read, java.util.Map.of("INSTALL.EXE", other)));
+		// TEST29: several learned games in one folder: all of them
+		java.util.List<org.dbgl.util.OwnKnownGames.Entry> wc = java.util.List.of(new org.dbgl.util.OwnKnownGames.Entry("WC2", "", "", "", "", java.util.List.of(new org.dbgl.util.OwnKnownGames.KnownFile("WC2.EXE", md5, false))),
+			new org.dbgl.util.OwnKnownGames.Entry("SO1", "", "", "", "", java.util.List.of(new org.dbgl.util.OwnKnownGames.KnownFile("SO1.EXE", other, false))));
+		assertEquals(2, org.dbgl.util.OwnKnownGames.matchAll(wc, java.util.Map.of("WC2.EXE", md5, "so1.exe", other)).size());
+		assertEquals(java.util.List.of("WC2"), org.dbgl.util.OwnKnownGames.report(wc, java.util.Map.of("WC2.EXE", java.util.Set.of(md5), "SO1.EXE", java.util.Set.of(other)), java.util.Set.of("WC2")).recognized().subList(0, 1));
+		assertTrue(org.dbgl.util.OwnKnownGames.report(wc, java.util.Map.of("WC2.EXE", java.util.Set.of(md5), "SO1.EXE", java.util.Set.of(other)), java.util.Set.of("WC2")).changed().isEmpty());
 		assertNull(org.dbgl.util.OwnKnownGames.matchBySetup(read, java.util.Map.of("ISHAR.EXE", changed, "INSTALL.EXE", changed)));
 		// what became of the learned games in a search
 		java.util.List<org.dbgl.util.OwnKnownGames.Entry> two = new java.util.ArrayList<>(read);
@@ -4142,13 +4148,13 @@ public class Dbgl0102Tests {
 		List<org.dbgl.model.repository.GameFilesRepository.GameDirEntry> once = org.dbgl.gui.dialog.wizard.ImportDirDialog.nestedOnce(List.of(lower, upper));
 		assertEquals(1, once.size());
 		assertEquals(g, once.get(0).dir_);
-		assertTrue(once.get(0).explanation_.startsWith("x; "));
-		assertTrue(once.get(0).explanation_.contains("COPY"));
+		assertEquals("x", once.get(0).explanation_); // TEST29: the notes in a list of their own (a column of the import)
+		assertTrue(once.get(0).notes_.get(0).contains("COPY"));
 		// TEST27: a game recognized in the chosen folder itself gets a note
 		List<org.dbgl.model.repository.GameFilesRepository.GameDirEntry> marked = org.dbgl.gui.dialog.wizard.ImportDirDialog.markRoot(List.of(upper,
 			new org.dbgl.model.repository.GameFilesRepository.GameDirEntry(dir, java.util.Optional.empty(), java.util.Optional.empty(), List.of(), web, 35, "r")), dir);
 		assertEquals("x", marked.get(0).explanation_);
-		assertTrue(marked.get(1).explanation_.startsWith("r; "));
+		assertTrue(marked.get(1).untick_ && !marked.get(1).notes_.isEmpty());
 		// TEST28: the same title in several folders: one ticked (higher score, then the shorter path), the others told and not ticked
 		File copy = new File(dir, "Game - Kopie");
 		org.dbgl.model.repository.GameFilesRepository.GameDirEntry other = new org.dbgl.model.repository.GameFilesRepository.GameDirEntry(copy,
@@ -4156,7 +4162,7 @@ public class Dbgl0102Tests {
 		List<org.dbgl.model.repository.GameFilesRepository.GameDirEntry> titled = org.dbgl.gui.dialog.wizard.ImportDirDialog.sameTitles(List.of(other, upper), dir);
 		assertTrue(titled.get(0).untick_);
 		assertFalse(titled.get(1).untick_);
-		assertTrue(titled.get(0).explanation_.contains("Game") && titled.get(1).explanation_.contains("Game - Kopie"));
+		assertTrue(String.join(" ", titled.get(1).notes_).contains("Game - Kopie"));
 		org.apache.commons.io.FileUtils.deleteDirectory(dir);
 	}
 

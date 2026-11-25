@@ -83,7 +83,10 @@ New
   found in several folders (copies, an installer folder next to the game),
   each gets "same title also in ..."; only one stays ticked (the one with the
   highest score, then the shortest path, so "PRINCE" before "PRINCE -
-  Kopie").
+  Kopie"). These notes are in a column "Notes" of the list to tick (for
+  folders not recognized also where the title comes from). Several learned
+  games in one folder (such as Wing Commander II with Special Operations 1
+  and 2) are each recognized; before, the folder got only one of them.
 - "Manage learned games..." (menu Profiles and context menu under Tools):
   all games learned from profiles, with a search. Change the details, choose
   the start or setup program anew (name and checksum are taken from the file

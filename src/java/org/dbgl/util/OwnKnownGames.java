@@ -239,6 +239,19 @@ public final class OwnKnownGames {
 		return found;
 	}
 
+	/** TEST29: all entries whose start program is among these files (name in any case, same checksum), the last learned first */
+	public static List<Entry> matchAll(List<Entry> entries, Map<String, String> md5ByName) {
+		Map<String, String> upper = new LinkedHashMap<>();
+		md5ByName.forEach((n, m) -> upper.put(n.toUpperCase(Locale.ROOT), m));
+		List<Entry> found = new ArrayList<>();
+		for (Entry e: entries) {
+			KnownFile m = e.main();
+			if (m != null && m.md5().equals(upper.get(m.name().toUpperCase(Locale.ROOT))))
+				found.add(0, e);
+		}
+		return found;
+	}
+
 	/**
 	 * alpha 53 (TEST24): the start program there by name but with another checksum (changed by the game, e.g. its settings kept
 	 * in it, or patched), and the setup program there with the same name and checksum: most likely the same game. Else null
@@ -274,8 +287,10 @@ public final class OwnKnownGames {
 			KnownFile m = e.main();
 			if (recognizedTitles.contains(e.title()))
 				recognized.add(e.title());
-			else if (upper.containsKey(m.name().toUpperCase(Locale.ROOT)))
+			else if (upper.containsKey(m.name().toUpperCase(Locale.ROOT)) && !upper.get(m.name().toUpperCase(Locale.ROOT)).contains(m.md5()))
 				changed.add(e.title() + " (" + m.name() + ")");
+			else if (upper.containsKey(m.name().toUpperCase(Locale.ROOT)))
+				recognized.add(e.title()); // TEST29: there with its checksum (taken under another title, or in a folder told otherwise)
 			else
 				missing.add(e.title() + " (" + m.name() + ")");
 		}
