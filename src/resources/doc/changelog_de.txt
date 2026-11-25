@@ -90,7 +90,9 @@ Neu
   in einem Ordner nur mit diesem Spiel (nicht der Ordner einer Sammlung, die
   sein Programm mitbringt), dann der, dessen Ordnername wie der Titel
   beginnt („PRINCE“ für Prince of Persia), dann der mit dem kürzesten Pfad.
-  Wurden alle gemerkten Spiele erkannt, sagt das Protokoll auch das. Diese
+  Wurden alle gemerkten Spiele erkannt, sagt das Protokoll auch das. Im
+  Protokoll stehen Profil-IDs ab 1000 ohne Tausendertrennzeichen („ID:1000“
+  statt „ID:1,000“). Diese
   Hinweise stehen in der Liste zum Ankreuzen in einer eigenen Spalte
   „Hinweise“ (bei nicht erkannten Ordnern auch, woher der Titel kommt).
   Mehrere gemerkte Spiele in einem Ordner (etwa Wing Commander II mit

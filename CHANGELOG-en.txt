@@ -85,7 +85,9 @@ New
   highest score, then the one in a folder with this game alone (not the
   folder of a collection that brings its program along), then the one whose
   folder name begins like the title ("PRINCE" for Prince of Persia), then the
-  shortest path. If all learned games were recognized, the log says so too. These notes are in a column "Notes" of the list to tick (for
+  shortest path. If all learned games were recognized, the log says so too.
+  In the log, profile IDs from 1000 on have no thousands separator
+  ("ID:1000", not "ID:1,000"). These notes are in a column "Notes" of the list to tick (for
   folders not recognized also where the title comes from). Several learned
   games in one folder (such as Wing Commander II with Special Operations 1
   and 2) are each recognized; before, the folder got only one of them.
