@@ -2154,6 +2154,17 @@ public class Dbgl0102Tests {
 		assertTrue(order.indexOf("m32") < order.indexOf("low"));
 		assertFalse(order.contains("arm") || order.contains("mac"));
 		assertEquals("mingw", org.dbgl.util.DosboxInstaller.buildKind("dosbox-x-mingw64-2026.08.31-portable.zip"));
+		// TEST33: the name proposed for the folder: by build, and a free one when it is there with files
+		org.dbgl.util.DosboxUpdateChecker.Release rx = new org.dbgl.util.DosboxUpdateChecker.Release("DOSBox-X", "2026.08.31", "u", List.of());
+		assertEquals("dosbox-x-2026.08.31", org.dbgl.gui.controls.DosboxDownload.defaultFolderName(rx, "dosbox-x-vsbuild-win64-2026.08.31-portable.zip"));
+		assertEquals("dosbox-x-2026.08.31-mingw", org.dbgl.gui.controls.DosboxDownload.defaultFolderName(rx, "dosbox-x-mingw64-2026.08.31-portable.zip"));
+		assertEquals("dosbox-x-2026.08.31-mingw-lowend-32bit", org.dbgl.gui.controls.DosboxDownload.defaultFolderName(rx, "dosbox-x-mingw32_lowend-2026.08.31-portable.zip"));
+		File base = Files.createTempDirectory("dbgl-dlname").toFile();
+		assertEquals("dosbox-x-2026.08.31", org.dbgl.gui.controls.DosboxDownload.freeFolderName(base, "dosbox-x-2026.08.31"));
+		new File(base, "dosbox-x-2026.08.31").mkdirs();
+		Files.writeString(new File(base, "dosbox-x-2026.08.31/dosbox-x.exe").toPath(), "x");
+		assertEquals("dosbox-x-2026.08.31-2", org.dbgl.gui.controls.DosboxDownload.freeFolderName(base, "dosbox-x-2026.08.31"));
+		org.apache.commons.io.FileUtils.deleteDirectory(base);
 		assertEquals("dosbox-staging-0.83.0", org.dbgl.util.DosboxInstaller.folderName("DOSBox Staging", "0.83.0"));
 
 		// unpacking a zip and finding the executable in a sub folder

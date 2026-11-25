@@ -127,7 +127,10 @@ Neu
   die Datenbanken nur begrenzt viele Anfragen auf einmal beantworten (IGDB am
   wenigsten) und man den Vorgang bei vielen Profilen wiederholt; Profile, die
   dann ein Cover haben, fallen weg. Kästchen und Fundstellen haben Tooltips,
-  das Speichern zeigt einen Fortschrittsbalken.
+  das Speichern zeigt einen Fortschrittsbalken. Ob ein Profil schon ein Bild
+  hat, prüft DBGL jetzt im Ordner selbst: Profile mit einem inzwischen
+  gespeicherten Cover kamen sonst wieder in die Liste, grau mit „nicht
+  gefunden“.
 - Voreinstellungen (Kontextmenü der Profile und Profildialog): jede Gruppe
   hat eine Überschrift („System und Geschwindigkeit“, „Bild (DOSBox Staging
   ...)“, „Eigene Voreinstellungen“). Bei „Bild“ steht die neueste in DBGL
@@ -292,7 +295,11 @@ Geändert
   MinGW-Builds heißen inzwischen „dosbox-x-mingw64-...-portable.zip“ (ohne
   „win“ im Namen) und wurden deshalb nicht angeboten, nur zweimal Visual
   Studio (64 und 32 Bit); jetzt stehen sie gleich nach dem empfohlenen Build,
-  die Varianten für alte Rechner („lowend“) zuletzt.
+  die Varianten für alte Rechner („lowend“) zuletzt. Neu ist ein Feld
+  „Ordnername“: vorbelegt nach Build („dosbox-x-2026.08.31-mingw“ für
+  MinGW), damit zwei Builds einer Version nicht im selben Ordner landen;
+  gibt es den Ordner schon mit Dateien, schlägt DBGL einen freien Namen vor
+  („...-2“) und sagt das dazu. Der Name lässt sich ändern.
 - Eine neue Installation öffnet das Hauptfenster maximiert.
 - Import von Spielen (Ordner, GOG/Steam, LaunchBox, eXoDOS, ScummVM): als
   DOSBox-Version ist das neueste eingetragene DOSBox Staging vorgewählt

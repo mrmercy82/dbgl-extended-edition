@@ -261,12 +261,23 @@ public class CoverBatchDialog extends SizeControlledButtonDialog<Integer> {
 						+ (f.exact() ? "": "  " + text_.get("dialog.coverbatch.similar")));
 				item.setChecked(f.exact());
 			} else {
-				item.setText(2, f.error() != null ? text_.get("dialog.coverbatch.error", new Object[] {f.error()})
+				item.setText(2, hasPicture(f.profile()) ? text_.get("dialog.complete.state.cover") // TEST33: not "not found"
+						: f.error() != null ? text_.get("dialog.coverbatch.error", new Object[] {f.error()})
 						: f.game() != null ? text_.get("dialog.coverbatch.nocover", new Object[] {f.game().getTitle()}): text_.get("dialog.coverbatch.notfound"));
 				item.setForeground(org.dbgl.gui.controls.DarkTheme.textColor(shell_.getDisplay(), SWT.COLOR_DARK_GRAY));
 			}
 		}
 		updateSummary();
+	}
+
+	/** TEST33: the profile has a picture in its folder already */
+	private static boolean hasPicture(Profile p) {
+		try {
+			File dir = p.getCanonicalCaptures();
+			return (dir != null) && (FilesUtils.listPictureFiles(dir.listFiles()).length > 0);
+		} catch (RuntimeException e) {
+			return false;
+		}
 	}
 
 	/** the image as large as fits into THUMB x THUMB, keeping its shape */

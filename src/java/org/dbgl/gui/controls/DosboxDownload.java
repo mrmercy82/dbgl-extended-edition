@@ -83,6 +83,36 @@ public final class DosboxDownload {
 	}
 
 	/**
+	 * TEST33: the name proposed for the folder of a build: the release, and the kind of build when it is not the recommended one
+	 * ("dosbox-x-2026.08.31-mingw"), so that two builds of a release do not end up in one folder
+	 */
+	public static String defaultFolderName(Release r, String asset) {
+		String name = DosboxInstaller.folderName(r.family(), r.version());
+		String a = asset == null ? "": asset.toLowerCase(java.util.Locale.ROOT);
+		if (a.contains("mingw"))
+			name += "-mingw";
+		if (a.contains("lowend9x"))
+			name += "-lowend9x";
+		else if (a.contains("lowend"))
+			name += "-lowend";
+		if (a.contains("win32") || a.contains("mingw32") || a.contains("i686"))
+			name += "-32bit";
+		if (a.contains("sdl1"))
+			name += "-sdl1";
+		return name;
+	}
+
+	/** TEST33: a name not taken in the folder (with files): the name itself, else with "-2", "-3", ... */
+	public static String freeFolderName(File base, String name) {
+		if (!DosboxInstaller.hasContent(new File(base, name)))
+			return name;
+		for (int n = 2; n < 100; n++)
+			if (!DosboxInstaller.hasContent(new File(base, name + "-" + n)))
+				return name + "-" + n;
+		return name;
+	}
+
+	/**
 	 * @param present true for a release that is set up in DBGL already (this version or a newer one)
 	 * @param baseDir the folder proposed (DBGL's folder for DOSBox)
 	 * @return what was chosen to download, null if the window was closed (or the download page was opened)
@@ -151,6 +181,14 @@ public final class DosboxDownload {
 		Button browse = new Button(dlg, SWT.PUSH);
 		browse.setText(text.get("button.browse"));
 
+		// TEST33: the name of the folder, to be changed (e.g. when there is a folder of that name already)
+		Label nameLabel = new Label(dlg, SWT.NONE);
+		nameLabel.setText(text.get("dialog.dosboxdownload.foldername"));
+		Text name = new Text(dlg, SWT.BORDER);
+		name.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 2, 1));
+		name.setToolTipText(text.get("dialog.dosboxdownload.foldername.tooltip"));
+		boolean[] nameByHand = {false}, settingName = {false};
+
 		Label target = new Label(dlg, SWT.WRAP);
 		GridData targetData = new GridData(SWT.FILL, SWT.BEGINNING, true, false, 3, 1);
 		targetData.widthHint = 760;
@@ -178,13 +216,31 @@ public final class DosboxDownload {
 
 		Runnable showTarget = () -> {
 			int sel = table.getSelectionIndex();
-			boolean can = (sel >= 0) && !candidates.get(sel).isEmpty() && !dir.getText().isBlank();
-			target.setText(can ? text.get("dialog.dosboxdownload.target", new Object[] {targetDir(dir.getText().strip(), releases.get(sel)).getPath()}): "");
+			boolean can = (sel >= 0) && !candidates.get(sel).isEmpty() && !dir.getText().isBlank() && !name.getText().isBlank();
+			String said = "";
+			if (can) {
+				File t = new File(dir.getText().strip(), name.getText().strip());
+				said = text.get("dialog.dosboxdownload.target", new Object[] {t.getPath()});
+				String wanted = defaultFolderName(releases.get(sel), candidates.get(sel).get(Math.max(0, build.getSelectionIndex()))[0]);
+				if (DosboxInstaller.hasContent(t))
+					said += "\n" + text.get("dialog.dosboxdownload.exists");
+				else if (!name.getText().strip().equals(wanted) && !nameByHand[0])
+					said += "\n" + text.get("dialog.dosboxdownload.taken", new Object[] {wanted});
+			}
+			target.setText(said);
 			download.setEnabled(can);
 			download.redraw();
 			page.setEnabled(sel >= 0);
 			page.redraw();
 			dlg.layout(true, true);
+		};
+		Runnable proposeName = () -> { // a free name for the release and build chosen, unless typed in by hand
+			int sel = table.getSelectionIndex();
+			if (nameByHand[0] || (sel < 0) || candidates.get(sel).isEmpty())
+				return;
+			settingName[0] = true;
+			name.setText(freeFolderName(new File(dir.getText().strip()), defaultFolderName(releases.get(sel), candidates.get(sel).get(Math.max(0, build.getSelectionIndex()))[0])));
+			settingName[0] = false;
 		};
 		Runnable showHint = () -> {
 			int sel = table.getSelectionIndex(), b = build.getSelectionIndex();
@@ -202,14 +258,27 @@ public final class DosboxDownload {
 			}
 			build.setEnabled(build.getItemCount() > 1);
 			showHint.run();
+			proposeName.run();
 			showTarget.run();
 		};
-		table.addListener(SWT.Selection, e -> showBuilds.run());
+		table.addListener(SWT.Selection, e -> {
+			nameByHand[0] = false; // another release: its own name
+			showBuilds.run();
+		});
 		build.addListener(SWT.Selection, e -> {
 			showHint.run();
-			dlg.layout(true, true);
+			proposeName.run();
+			showTarget.run();
 		});
-		dir.addListener(SWT.Modify, e -> showTarget.run());
+		dir.addListener(SWT.Modify, e -> {
+			proposeName.run();
+			showTarget.run();
+		});
+		name.addListener(SWT.Modify, e -> {
+			if (!settingName[0])
+				nameByHand[0] = true;
+			showTarget.run();
+		});
 		browse.addListener(SWT.Selection, e -> {
 			DirectoryDialog dd = new DirectoryDialog(dlg);
 			dd.setText(text.get("dialog.dosboxdownload.title"));
@@ -224,7 +293,9 @@ public final class DosboxDownload {
 			if ((sel < 0) || candidates.get(sel).isEmpty() || dir.getText().isBlank())
 				return;
 			Release r = releases.get(sel);
-			result[0] = new Choice(r, candidates.get(sel).get(Math.max(0, build.getSelectionIndex())), targetDir(dir.getText().strip(), r));
+			if (name.getText().isBlank())
+				return;
+			result[0] = new Choice(r, candidates.get(sel).get(Math.max(0, build.getSelectionIndex())), new File(dir.getText().strip(), name.getText().strip()));
 			dlg.close();
 		});
 		page.addListener(SWT.Selection, e -> {

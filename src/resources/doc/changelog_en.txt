@@ -117,7 +117,10 @@ New
   first (then the one chosen here the last time). A note says that the
   databases answer only so many questions at a time (IGDB the fewest) and to
   do it again with many profiles; profiles that have a cover by then are left
-  out. Boxes and findings have tooltips, saving shows a progress bar.
+  out. Boxes and findings have tooltips, saving shows a progress bar. Whether
+  a profile has a picture already DBGL now checks in the folder itself:
+  profiles with a cover saved since came into the list again otherwise, grey
+  with "not found".
 - Presets (context menu of the profiles and profile dialog): each group has
   a heading ("System and speed", "Picture (DOSBox Staging ...)", "Own
   presets"). "Picture" names the newest DOSBox Staging set up in DBGL that
@@ -272,7 +275,10 @@ Changed
   "dosbox-x-mingw64-...-portable.zip" (no "win" in the name) and so were not
   offered, only Visual Studio twice (64 and 32 bits); now they come right
   after the recommended build, the variants for old computers ("lowend")
-  last.
+  last. New is a field "Folder name": filled in by build
+  ("dosbox-x-2026.08.31-mingw" for MinGW), so that two builds of a version do
+  not end up in one folder; if the folder is there with files already, DBGL
+  proposes a free name ("...-2") and says so. The name can be changed.
 - A new installation opens the main window maximized.
 - Importing games (folder, GOG/Steam, LaunchBox, eXoDOS, ScummVM): the
   newest DOSBox Staging entered is chosen as DOSBox version at first (before:

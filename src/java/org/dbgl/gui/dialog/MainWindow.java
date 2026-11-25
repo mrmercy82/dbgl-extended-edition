@@ -5757,8 +5757,10 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 	private void doCoverBatch(int[] indices) {
 		List<Profile> without = new ArrayList<>();
 		for (int i: indices) {
-			ThumbInfo info = thumbInfoOf(i);
-			if ((info == null) || (info.getAllThumbs().length == 0))
+			// TEST33: the pictures as they are now in the folder, not as the list remembered them (a cover saved since, e.g. by
+			// the last round, made the profile come again, greyed out with "not found")
+			ThumbInfo info = new ThumbInfo(profilesList_.get(i).getCapturesString());
+			if (info.getAllThumbs().length == 0)
 				without.add(profilesList_.get(i));
 		}
 		if (without.isEmpty()) {
