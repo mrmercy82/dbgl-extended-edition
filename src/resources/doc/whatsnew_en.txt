@@ -24,6 +24,28 @@ IMPORTANT: JAVA 21 IS NEEDED
   brings Java 21 along (from 0.101 alpha 52 on).
 
 
+NEWEST IN 0.101 ALPHA 53
+------------------------
+  - One import from a folder instead of two: known games are recognized by
+    their files (also games learned from your own profiles), every further
+    game folder with a DOS program is added, with titles from its text
+    files. All imports are in the submenu "Import".
+  - "Complete profiles...": titles, details and covers in one go, with a
+    traffic light per profile; also as a page of the welcome wizard.
+  - "Manage learned games...": view, change and forget the games learned
+    from profiles.
+  - Check: Windows 3.x and 95/98 in a profile (what Windows starts, sound
+    driver, S3 driver, missing programs); "Programs of Windows 3.x as
+    profiles...".
+  - Check: what DOSBox wrote at the last start, notes from DBConf and from
+    eXoDOS for comparison, export for the developer.
+  - Statistics with new sections and a year in review; a welcome wizard at
+    the first start.
+  - Taken over from DBGL 0.100 beta 18 by Ronald Blankendaal: the DBConf
+    database that comes with DBGL (made by him and allowed for the Extended
+    Edition) and cutting values that are too long when saving.
+
+
 NEWEST IN 0.101 ALPHA 52
 ------------------------
   - Saved games: the backups are in a folder of their own

@@ -26,6 +26,29 @@ WICHTIG: JAVA 21 IST NÖTIG
   Windows bringt Java 21 mit (ab 0.101 alpha 52).
 
 
+DAS NEUESTE IN 0.101 ALPHA 53
+-----------------------------
+  - Ein Import aus einem Ordner statt zwei: bekannte Spiele werden an ihren
+    Dateien erkannt (auch aus eigenen Profilen gemerkte), alle weiteren
+    Spielordner mit einem DOS-Programm kommen dazu, mit Titeln aus ihren
+    Textdateien. Alle Importe stehen im Untermenü "Importieren".
+  - "Profile vervollständigen...": Titel, Angaben und Cover in einem
+    Durchgang, mit Ampel je Profil; auch als Seite im
+    Einrichtungsassistenten.
+  - "Gemerkte Spiele verwalten...": aus Profilen gemerkte Spiele ansehen,
+    ändern und vergessen.
+  - Prüfen: Windows 3.x und 95/98 im Profil (was Windows startet,
+    Soundtreiber, S3-Treiber, fehlende Programme); "Programme aus
+    Windows 3.x als Profile...".
+  - Prüfen: die Ausgabe von DOSBox beim letzten Start, Hinweise aus DBConf
+    und eXoDOS zum Vergleich, Export für den Entwickler.
+  - Statistik mit neuen Abschnitten und Jahresrückblick;
+    Einrichtungsassistent beim ersten Start.
+  - Von Ronald Blankendaal aus DBGL 0.100 beta 18 übernommen: die
+    mitgelieferte DBConf-Datenbank (von ihm erstellt und für die Extended
+    Edition freigegeben) und das Kürzen zu langer Werte beim Speichern.
+
+
 DAS NEUESTE IN 0.101 ALPHA 52
 -----------------------------
   - Savegames: Die Sicherungen liegen in einem eigenen Ordner
