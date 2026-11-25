@@ -2800,6 +2800,13 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			}
 		}).build();
 		MenuItem_.on(profilesMenu).build(); // alpha 50: the covers between two lines
+		// alpha 53 (TEST24): title, details and covers in this order, for the profiles chosen
+		MenuItem_.on(profilesMenu).key("dialog.main.menu.complete").image(ImageService.IMG_EDIT).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				doCompleteProfiles(false);
+			}
+		}).build();
 		MenuItem_.on(profilesMenu).key("dialog.main.menu.coverbatch").image(ImageService.IMG_GLOBE).listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
@@ -3273,6 +3280,12 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			}
 		}).build();
 		MenuItem_.on(tools).build();
+		MenuItem_.on(tools).key("dialog.main.menu.complete").image(ImageService.IMG_EDIT).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				doCompleteProfiles(false);
+			}
+		}).build();
 		MenuItem_.on(tools).key("dialog.main.menu.coverbatch").image(ImageService.IMG_GLOBE).listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
@@ -3817,6 +3830,11 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			@Override
 			public void fetchCovers() {
 				doCoverBatch();
+			}
+
+			@Override
+			public void completeProfiles() {
+				doCompleteProfiles(true);
 			}
 
 		});
@@ -5687,9 +5705,43 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 
 	/** link manuals, walkthroughs, maps and soundtracks found in the game folders of the selected profiles (see ExtrasDialog) */
 	/** covers for the selected profiles (or, with one or none selected, all in the list) that have no image yet */
+	/**
+	 * alpha 53 (TEST24): "Complete profiles": title, details of the game and covers, in this order, for the selected profiles (one
+	 * or more), or all in the list when none or all is asked for (the welcome wizard)
+	 */
+	private void doCompleteProfiles(boolean all) {
+		int[] indices = !all && (profileTable_.getSelectionCount() > 0) ? profileTable_.getSelectionIndices()
+				: java.util.stream.IntStream.range(0, profilesList_.size()).toArray();
+		if (indices.length == 0)
+			return;
+		List<Profile> chosen = new ArrayList<>();
+		for (int i: indices)
+			chosen.add(profilesList_.get(i));
+		List<Profile> loaded = new ProfileLoader(shell_, chosen).open();
+		if (loaded == null)
+			return;
+		CompleteProfilesDialog.Result r = new CompleteProfilesDialog(shell_, loaded).open();
+		if (r == null)
+			return;
+		if (r.changed() > 0) {
+			updateProfilesList(getSelectedProfileIds());
+			displayProfileInformation(false);
+		}
+		if (r.covers()) {
+			java.util.Set<Integer> ids = new HashSet<>();
+			loaded.forEach(p -> ids.add(p.getId()));
+			int[] now = java.util.stream.IntStream.range(0, profilesList_.size()).filter(i -> ids.contains(profilesList_.get(i).getId())).toArray();
+			doCoverBatch(now);
+		} else if (r.changed() > 0)
+			Mess_.on(shell_).key("dialog.complete.done", new Object[] {r.changed()}).display();
+	}
+
 	private void doCoverBatch() {
 		boolean selection = profileTable_.getSelectionCount() > 1;
-		int[] indices = selection ? profileTable_.getSelectionIndices(): java.util.stream.IntStream.range(0, profilesList_.size()).toArray();
+		doCoverBatch(selection ? profileTable_.getSelectionIndices(): java.util.stream.IntStream.range(0, profilesList_.size()).toArray());
+	}
+
+	private void doCoverBatch(int[] indices) {
 		List<Profile> without = new ArrayList<>();
 		for (int i: indices) {
 			ThumbInfo info = thumbInfoOf(i);

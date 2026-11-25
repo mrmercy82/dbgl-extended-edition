@@ -357,7 +357,7 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 					for (DosboxVersion db: new DosboxVersionRepository().listAll())
 						dosboxDirs.add(db.getCanonicalPath());
 					int recognized = games_.size();
-					List<GameDirEntry> extra = unrecognizedFolders(dir_, games_, existingProfiles_, dosboxDirs, titleLookup());
+					List<GameDirEntry> extra = unrecognizedFolders(dir_, games_, existingProfiles_, dosboxDirs, org.dbgl.util.ProfileCompletion.databaseLookup());
 					games_.addAll(extra);
 					long fromText = extra.stream().filter(g -> g.score_ > 0).count();
 					display_.asyncExec(() -> scanInfo_.append(text_.get("dialog.importdir.notice.foldersfound", new Object[] {extra.size(), fromText, recognized}).concat(
@@ -439,22 +439,6 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 		} catch (IOException e) {
 			return f.getAbsoluteFile();
 		}
-	}
-
-	/** the games of the database of MobyGames that comes with DBGL for a title (its platform filter), or null without it */
-	static java.util.function.Function<String, List<org.dbgl.model.WebProfile>> titleLookup() {
-		int[] version = org.dbgl.service.MetropolisDatabaseService.getInstance().getVersion();
-		if ((version.length != 2) || ((version[0] == 0) && (version[1] == 0)))
-			return null;
-		var engine = MetropolisSearchEngine.getInstance();
-		String[] platforms = org.dbgl.service.SettingsService.getInstance().getValues(engine.getSimpleName(), "platform_filter");
-		return title -> {
-			try {
-				return engine.getEntries(title, platforms);
-			} catch (IOException e) {
-				return List.of();
-			}
-		};
 	}
 
 	/** alpha 53 (TEST24): of the learned games, how many were recognized, and which not and why; null if all or none learned */

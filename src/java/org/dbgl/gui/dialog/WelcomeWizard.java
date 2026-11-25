@@ -84,6 +84,9 @@ public final class WelcomeWizard {
 
 		/** Profiles > Covers for profiles without pictures */
 		void fetchCovers();
+
+		/** alpha 53 (TEST24): Profiles > Complete profiles, for all profiles */
+		void completeProfiles();
 	}
 
 	/** what came out of it: whether DBGL is to start again now (language or appearance changed), and whether the process must */
@@ -184,6 +187,12 @@ public final class WelcomeWizard {
 		gamesData.verticalIndent = 8;
 		games.setLayoutData(gamesData);
 
+		// alpha 53 (TEST24): the titles before the details and covers: both are searched by the title
+		Composite pTitles = page(stack, 1);
+		wrap(pTitles, text.get("dialog.welcome.titles.text"), 1);
+		bullets(pTitles, 1, text.get("dialog.welcome.titles.step1"), text.get("dialog.welcome.titles.step2"), text.get("dialog.welcome.titles.step3"));
+		wrap(pTitles, text.get("dialog.welcome.titles.note"), 1);
+
 		// page 4: game information from the internet: which database, how, and that a precise title helps
 		Composite pOnline = page(stack, 1);
 		wrap(pOnline, text.get("dialog.welcome.p5.text"), 1);
@@ -220,7 +229,12 @@ public final class WelcomeWizard {
 		covers.setText(text.get("dialog.welcome.p5.covers"));
 		covers.setToolTipText(text.get("dialog.welcome.p5.covers.tooltip"));
 		covers.setLayoutData(new GridData(SWT.BEGINNING, SWT.CENTER, true, false));
-		covers.addListener(SWT.Selection, e -> actions.fetchCovers());
+		covers.addListener(SWT.Selection, e -> {
+			if (covers.getData() == Boolean.TRUE)
+				actions.completeProfiles();
+			else
+				actions.fetchCovers();
+		});
 		Button back = new Button(row, SWT.PUSH);
 		back.setText(text.get("dialog.welcome.back"));
 		Button skip = new Button(row, SWT.PUSH);
@@ -228,10 +242,11 @@ public final class WelcomeWizard {
 		skip.setToolTipText(text.get("dialog.welcome.skip.tooltip"));
 		Button next = new Button(row, SWT.PUSH);
 		next.setText(text.get("dialog.welcome.next"));
-		SavegamesPanel.roomy(new Button[] {covers, back, skip, next}, text.get("dialog.welcome.finish"));
+		SavegamesPanel.roomy(new Button[] {covers, back, skip, next}, text.get("dialog.welcome.finish"), text.get("dialog.welcome.titles.button"));
 
-		Composite[] all = {p1, p2, p3, pOnline, pCovers, p4};
-		String[] titles = {text.get("dialog.welcome.p1.title"), text.get("dialog.welcome.p2.title"), text.get("dialog.welcome.p3.title"), text.get("dialog.welcome.p5.title"),
+		Composite[] all = {p1, p2, p3, pTitles, pOnline, pCovers, p4};
+		String[] titles = {text.get("dialog.welcome.p1.title"), text.get("dialog.welcome.p2.title"), text.get("dialog.welcome.p3.title"), text.get("dialog.welcome.titles.title"),
+				text.get("dialog.welcome.p5.title"),
 				text.get("dialog.welcome.p6.title"), text.get("dialog.welcome.p4.title")};
 		int[] at = {0};
 		boolean[] finished = {false};
@@ -265,7 +280,10 @@ public final class WelcomeWizard {
 			int n = actions.profileCount();
 			games.setText(text.get("dialog.welcome.p3.count", new Object[] {n}));
 			covers.setEnabled(n > 0);
-			covers.setVisible(all[at[0]] == pCovers);
+			covers.setVisible((all[at[0]] == pCovers) || (all[at[0]] == pTitles));
+			covers.setData(all[at[0]] == pTitles ? Boolean.TRUE: null); // on the page of the titles: complete the profiles
+			covers.setText(text.get(all[at[0]] == pTitles ? "dialog.welcome.titles.button": "dialog.welcome.p5.covers"));
+			covers.setToolTipText(text.get(all[at[0]] == pTitles ? "dialog.welcome.titles.button.tooltip": "dialog.welcome.p5.covers.tooltip"));
 			summary.setText(text.get("dialog.welcome.p4.dosbox", new Object[] {found.size()}) + "\n" + text.get("dialog.welcome.p4.games", new Object[] {n}));
 			restart.setVisible(pageOneChanged.getAsBoolean());
 			((GridData)restart.getLayoutData()).exclude = !pageOneChanged.getAsBoolean();

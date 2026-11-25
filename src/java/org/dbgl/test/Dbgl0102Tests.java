@@ -4107,6 +4107,38 @@ public class Dbgl0102Tests {
 	}
 
 	@Test
+	public void testProfileCompletion() {
+		// alpha 53 (TEST24): the traffic light of "Complete profiles", and what is taken into a profile
+		java.util.function.BiFunction<String, Integer, org.dbgl.model.WebProfile> w = (title, id) -> {
+			org.dbgl.model.WebProfile p = new org.dbgl.model.WebProfile();
+			p.setTitle(title);
+			p.setGameId(id);
+			return p;
+		};
+		java.util.function.Function<String, List<org.dbgl.model.WebProfile>> db = t -> t.toLowerCase().contains("monkey")
+				? List.of(w.apply("The Secret of Monkey Island", 1), w.apply("Monkey Island 2: LeChuck's Revenge", 2)): List.of();
+		assertEquals(org.dbgl.util.ProfileCompletion.State.DONE, org.dbgl.util.ProfileCompletion.assess("MI2", true, db, null).state());
+		org.dbgl.util.ProfileCompletion.Assessment found = org.dbgl.util.ProfileCompletion.assess("Secret of Monkey Island", false, db, null);
+		assertEquals(org.dbgl.util.ProfileCompletion.State.FOUND, found.state()); // "The" left out: still exactly that title
+		org.dbgl.util.ProfileCompletion.Assessment likely = org.dbgl.util.ProfileCompletion.assess("Monkey Island 2", false, db, null);
+		assertEquals(org.dbgl.util.ProfileCompletion.State.LIKELY, likely.state());
+		assertEquals("Monkey Island 2: LeChuck's Revenge", likely.proposal().getTitle());
+		assertEquals(org.dbgl.util.ProfileCompletion.State.NONE, org.dbgl.util.ProfileCompletion.assess("MI2", false, db, null).state());
+		assertEquals(org.dbgl.util.ProfileCompletion.State.NONE, org.dbgl.util.ProfileCompletion.assess("Monkey", false, null, null).state());
+		// taken: the title, the details only where the profile has none
+		org.dbgl.model.aggregate.Profile p = org.dbgl.model.factory.ProfileFactory.create((org.dbgl.model.aggregate.DosboxVersion)null, (org.dbgl.model.aggregate.Template)null);
+		p.setTitle("MI2");
+		p.setYear("1992");
+		org.dbgl.model.WebProfile game = w.apply("Monkey Island 2: LeChuck's Revenge", 2);
+		game.setYear("1991");
+		game.setDeveloperName("LucasArts");
+		org.dbgl.util.ProfileCompletion.apply(p, game);
+		assertEquals("Monkey Island 2: LeChuck's Revenge", p.getTitle());
+		assertEquals("1992", p.getYear());
+		assertEquals("LucasArts", p.getDeveloper());
+	}
+
+	@Test
 	public void testTextTitles() throws Exception {
 		// alpha 53 (TEST24): title candidates from the text files of a game folder
 		assertTrue(org.dbgl.util.TextTitles.fromText("\r\n   ********************\r\n   WING COMMANDER II\r\n   ********************\r\nPlease read this file.", false)

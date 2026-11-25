@@ -43,6 +43,43 @@ Neu
   die Programme im Programm-Manager bzw. Startmenü, welche Programme Windows
   von selbst startet (ein fehlendes wird weiter gemeldet) und wiederholt
   kurze Spielesitzungen. Sie fehlen dann in „Prüfen“ und an der Profilliste.
+- Ein Import aus einem Ordner statt zwei: Profile > Importieren > „Spiele
+  aus Ordner importieren...“ findet die bekannten Spiele an ihren Dateien
+  (Datenbank von DBGL und aus Profilen gemerkt, mit DBConf-Konfiguration
+  wie bisher) und dazu jeden weiteren Spielordner mit einem DOS-Programm,
+  den kein Profil nutzt (wie bisher „Spiele ohne Profil aus Ordner
+  importieren“), mit geratenem Startprogramm; der Ordner des Spiels wird
+  dann Laufwerk C:. Den Titel solcher Ordner sucht DBGL in ihren
+  Textdateien (FILE_ID.DIZ, README, READ.ME, *.TXT, *.NFO: Zeilen wie
+  „Welcome to ...“, „... Version 1.2“, „... (c) 1992“, eine Titelzeile in
+  Großbuchstaben) und in der Bezeichnung ihrer CD-Abbilder; übernommen wird
+  ein Titel nur, wenn die mitgelieferte MobyGames-Datenbank genau ein Spiel
+  dieses Namens hat, samt dessen Angaben (Score 10). Sonst bleibt der
+  Ordnername (Score 0). Alles nur lesend.
+- Menü Profile: alle Importe stehen im Untermenü „Importieren“: der Import
+  aus einem Ordner, dann GOG/Steam, eXoDOS, LaunchBox, ScummVM, D-Fend
+  Reloaded und DFendX, dann die Dateien von DBGL. Der Einrichtungsassistent
+  hat ebenfalls nur noch einen Knopf für den Import aus einem Ordner.
+- Import aus einem Ordner, gemerkte Spiele: Nach der Suche sagt DBGL, wie
+  viele der aus Profilen gemerkten Spiele erkannt wurden, bei welchen das
+  Startprogramm zwar da ist, aber eine andere Prüfsumme hat (vom Spiel
+  geändert oder eine andere Version), und welche über den Namen ihres
+  Startprogramms nicht gefunden wurden. Ein gemerktes Spiel, dessen
+  Startprogramm sich geändert hat, wird erkannt, wenn sein Setup-Programm
+  gleich geblieben ist (Score 30).
+- „Profile vervollständigen...“ (Menü Profile und Kontextmenü unter
+  Werkzeuge, für die markierten Profile): erst der Titel, dann die Angaben,
+  dann die Cover, weil Angaben und Cover nach dem Titel gesucht werden. Jedes
+  Profil wird in der mitgelieferten MobyGames-Datenbank gesucht, sonst in den
+  Textdateien seines Spielordners, und bekommt eine Ampel: grün gefunden
+  (oder schon Angaben), gelb ein Vorschlag zum Prüfen, rot nichts gefunden.
+  Titel lassen sich per Doppelklick ändern und werden sofort neu gesucht.
+  „Übernehmen“ trägt für die angehakten Profile Titel und Angaben ein
+  (Entwickler, Verlag, Jahr, Genre, Beschreibung nur, wo das Profil keine
+  hat; rückgängig zu machen wie andere Änderungen vieler Profile); danach auf
+  Wunsch „Cover holen“ für diese Profile. Der Einrichtungsassistent hat dafür
+  eine eigene Seite „Titel prüfen“ zwischen dem Import und den
+  Spielinformationen.
 - Voreinstellungen (Kontextmenü der Profile und Profildialog): jede Gruppe
   hat eine Überschrift („System und Geschwindigkeit“, „Bild (DOSBox Staging
   ...)“, „Eigene Voreinstellungen“). Bei „Bild“ steht die neueste in DBGL

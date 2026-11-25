@@ -42,6 +42,40 @@ New
   Program Manager or Start menu, the programs Windows starts by itself (a
   missing one is still reported) and repeatedly short sessions. They are
   then left out of "Check" and the profile list.
+- One import from a folder instead of two: Profiles > Import > "Import
+  games from folder..." finds the known games by their files (database of
+  DBGL and learned from profiles, with a DBConf configuration as before) and
+  also every other game folder with a DOS program that no profile uses (as
+  "Import games without profile from folder" did), with the start program
+  guessed; the folder of the game is then drive C:. The title of such folders
+  is looked for in their text files (FILE_ID.DIZ, README, READ.ME, *.TXT,
+  *.NFO: lines like "Welcome to ...", "... Version 1.2", "... (c) 1992", a
+  title line in capitals) and in the label of their CD images; a title is
+  only taken if the MobyGames database that comes with DBGL has exactly one
+  game of that name, with its details (score 10). Otherwise the folder name
+  stays (score 0). Everything is only read.
+- Menu Profiles: all imports are in the submenu "Import": the import from a
+  folder, then GOG/Steam, eXoDOS, LaunchBox, ScummVM, D-Fend Reloaded and
+  DFendX, then the files of DBGL. The welcome wizard also has only one button
+  for the import from a folder.
+- Import from a folder, learned games: after the search DBGL tells how many
+  of the games learned from profiles were recognized, for which the start
+  program is there but has another checksum (changed by the game or another
+  version), and which were not found by the name of their start program. A
+  learned game whose start program changed is recognized if its setup
+  program stayed the same (score 30).
+- "Complete profiles..." (menu Profiles and context menu under Tools, for the
+  selected profiles): first the title, then the details, then the covers,
+  because details and covers are searched by the title. Each profile is
+  looked up in the MobyGames database that comes with DBGL, else in the text
+  files of its game folder, and gets a traffic light: green found (or details
+  there), yellow a proposal to check, red nothing found. Titles can be
+  changed by double-clicking and are looked up again at once. "Apply" fills
+  in title and details for the ticked profiles (developer, publisher, year,
+  genre, description only where the profile has none; can be undone like
+  other changes of many profiles); then, if wished, "Fetch covers" for these
+  profiles. The welcome wizard has a page of its own for it, "Check the
+  titles", between the import and the game information.
 - Presets (context menu of the profiles and profile dialog): each group has
   a heading ("System and speed", "Picture (DOSBox Staging ...)", "Own
   presets"). "Picture" names the newest DOSBox Staging set up in DBGL that
