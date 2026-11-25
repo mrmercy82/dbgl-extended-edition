@@ -6,15 +6,6 @@ Grundlage: DBGL 0.100 beta 17 von Ronald Blankendaal (https://dbgl.org), Quellco
 
 0.101 alpha 53 (in Arbeit)
 --------------------------
-Von Ronald Blankendaal
-- Aus DBGL 0.100 beta 18 übernommen: die DBConf-Datenbank, die Ronald
-  Blankendaal erstellt und für die Extended Edition freigegeben hat
-  (db\dbconf.*, statt share.dbgl.org), und das Kürzen zu langer Werte beim
-  Speichern („remax“). Einzelheiten unter „Geändert“ und „Fehler behoben“.
-- Der Import aus einem Ordner ist sein Import bekannter Spiele mit seiner
-  Datenbank bekannter Spiele; die Erweiterungen dieser Version bauen darauf
-  auf.
-
 Neu
 - Windows 3.x: Bei Profilen, die Windows starten (WIN.COM), sieht „Prüfen...“
   jetzt in dessen SYSTEM.INI und WIN.INI nach (nur lesend):
@@ -52,60 +43,6 @@ Neu
   die Programme im Programm-Manager bzw. Startmenü, welche Programme Windows
   von selbst startet (ein fehlendes wird weiter gemeldet) und wiederholt
   kurze Spielesitzungen. Sie fehlen dann in „Prüfen“ und an der Profilliste.
-- Ein Import aus einem Ordner statt zwei: Profile > Importieren > „Spiele
-  aus Ordner importieren...“ findet die bekannten Spiele an ihren Dateien
-  (Datenbank von DBGL und aus Profilen gemerkt, mit DBConf-Konfiguration
-  wie bisher) und dazu jeden weiteren Spielordner mit einem DOS-Programm,
-  den kein Profil nutzt (wie bisher „Spiele ohne Profil aus Ordner
-  importieren“), mit geratenem Startprogramm; der Ordner des Spiels wird
-  dann Laufwerk C:. Den Titel solcher Ordner sucht DBGL in ihren
-  Textdateien (FILE_ID.DIZ, README, READ.ME, *.TXT, *.NFO: Zeilen wie
-  „Welcome to ...“, „... Version 1.2“, „... (c) 1992“, eine Titelzeile in
-  Großbuchstaben) und in der Bezeichnung ihrer CD-Abbilder; übernommen wird
-  ein Titel nur, wenn die mitgelieferte MobyGames-Datenbank genau ein Spiel
-  dieses Namens hat, samt dessen Angaben (Score 10). Sonst bleibt der
-  Ordnername (Score 0). Alles nur lesend.
-- Menü Profile: alle Importe stehen im Untermenü „Importieren“: der Import
-  aus einem Ordner, dann GOG/Steam, eXoDOS, LaunchBox, ScummVM, D-Fend
-  Reloaded und DFendX, dann die Dateien von DBGL. Der Einrichtungsassistent
-  hat ebenfalls nur noch einen Knopf für den Import aus einem Ordner.
-- Import aus einem Ordner, gemerkte Spiele: Nach der Suche sagt DBGL, wie
-  viele der aus Profilen gemerkten Spiele erkannt wurden, bei welchen das
-  Startprogramm zwar da ist, aber eine andere Prüfsumme hat (vom Spiel
-  geändert oder eine andere Version), und welche über den Namen ihres
-  Startprogramms nicht gefunden wurden. Ein gemerktes Spiel, dessen
-  Startprogramm sich geändert hat, wird erkannt, wenn sein Setup-Programm
-  gleich geblieben ist (Score 30).
-- Import aus einem Ordner, weitere Regeln: SMARTDRV.EXE, HIMEM, EMM386,
-  MSCDEX und andere DOS-Werkzeuge gelten nicht als Startprogramm. Liegt im
-  Spielordner ein Windows (WIN.COM mit SYSTEM.INI), startet das Profil
-  WIN.COM: startet Windows das Spiel selbst („run=“, „load=“, Shell), so
-  bleibt es dabei, sonst bekommt WIN.COM das eine Programm der
-  Programmgruppen außerhalb des Windows-Ordners mit. Dieselbe oder eine
-  gleichnamige Startdatei in einem Ordner und einem Unterordner ergibt ein
-  Spiel, das obere, mit Hinweis auf die andere. Die Suche nach weiteren
-  Spielordnern zeigt, welchen Ordner sie gerade ansieht; ein Fehler dabei
-  wird gemeldet, die erkannten Spiele bleiben. Lange Zeilen in Textdateien
-  werden für die Titelsuche übersprungen (sie konnten die Suche minutenlang
-  aufhalten), gleiche Suchbegriffe nur einmal abgefragt. Der Knopf für DBConf
-  heißt „DOSBox-Konfiguration aus DBConf übernehmen“ und hat einen Tooltip.
-  Das Protokoll am Ende beginnt mit dem der Suche (samt Bericht über die
-  gemerkten Spiele), damit es mitgespeichert wird. Ein Spiel, das im
-  gewählten Ordner selbst erkannt wird (lose Dateien dort), bekommt einen
-  Hinweis und ist nicht angehakt: sein Profil hätte den ganzen Ordner als
-  Laufwerk. Wird derselbe Titel in mehreren Ordnern gefunden (Kopien, ein
-  Installationsordner neben dem Spiel), steht bei jedem „gleicher Titel auch
-  in ...“; angehakt bleibt nur einer: der mit dem höchsten Score, dann der
-  in einem Ordner nur mit diesem Spiel (nicht der Ordner einer Sammlung, die
-  sein Programm mitbringt), dann der, dessen Ordnername wie der Titel
-  beginnt („PRINCE“ für Prince of Persia), dann der mit dem kürzesten Pfad.
-  Wurden alle gemerkten Spiele erkannt, sagt das Protokoll auch das. Im
-  Protokoll stehen Profil-IDs ab 1000 ohne Tausendertrennzeichen („ID:1000“
-  statt „ID:1,000“). Diese Hinweise stehen in der Liste zum Ankreuzen in einer eigenen Spalte
-  „Hinweise“ (bei nicht erkannten Ordnern auch, woher der Titel kommt).
-  Mehrere gemerkte Spiele in einem Ordner (etwa Wing Commander II mit
-  Special Operations 1 und 2) werden jedes für sich erkannt; vorher bekam der
-  Ordner nur eines davon.
 - „Gemerkte Spiele verwalten...“ (Menü Profile und Kontextmenü unter
   Werkzeuge): alle aus Profilen gemerkten Spiele, mit Suche. Angaben ändern,
   Start- oder Setup-Programm neu wählen (Name und Prüfsumme kommen aus der
@@ -252,6 +189,65 @@ Neu
   ihrer Spiele Prüfsummen hat), z. B. auf einem anderen PC oder nach einer
   Neuinstallation. Gespeichert wird in config\known-games.json, ohne Pfade;
   die mitgelieferte Datenbank bleibt unverändert.
+- Ein Import aus einem Ordner statt zwei: Profile > Importieren > „Spiele
+  aus Ordner importieren...“ findet die bekannten Spiele an ihren Dateien
+  (Datenbank von DBGL und aus Profilen gemerkt, mit DBConf-Konfiguration
+  wie bisher) und dazu jeden weiteren Spielordner mit einem DOS-Programm,
+  den kein Profil nutzt (wie bisher „Spiele ohne Profil aus Ordner
+  importieren“), mit geratenem Startprogramm; der Ordner des Spiels wird
+  dann Laufwerk C:. Den Titel solcher Ordner sucht DBGL in ihren
+  Textdateien (FILE_ID.DIZ, README, READ.ME, *.TXT, *.NFO: Zeilen wie
+  „Welcome to ...“, „... Version 1.2“, „... (c) 1992“, eine Titelzeile in
+  Großbuchstaben) und in der Bezeichnung ihrer CD-Abbilder; übernommen wird
+  ein Titel nur, wenn die mitgelieferte MobyGames-Datenbank genau ein Spiel
+  dieses Namens hat, samt dessen Angaben (Score 10). Sonst bleibt der
+  Ordnername (Score 0). Alles nur lesend.
+- Menü Profile: alle Importe stehen im Untermenü „Importieren“: der Import
+  aus einem Ordner, dann GOG/Steam, eXoDOS, LaunchBox, ScummVM, D-Fend
+  Reloaded und DFendX, dann die Dateien von DBGL. Der Einrichtungsassistent
+  hat ebenfalls nur noch einen Knopf für den Import aus einem Ordner.
+- Import aus einem Ordner, gemerkte Spiele: Nach der Suche sagt DBGL, wie
+  viele der aus Profilen gemerkten Spiele erkannt wurden, bei welchen das
+  Startprogramm zwar da ist, aber eine andere Prüfsumme hat (vom Spiel
+  geändert oder eine andere Version), und welche über den Namen ihres
+  Startprogramms nicht gefunden wurden. Ein gemerktes Spiel, dessen
+  Startprogramm sich geändert hat, wird erkannt, wenn sein Setup-Programm
+  gleich geblieben ist (Score 30).
+- Import aus einem Ordner, weitere Regeln: SMARTDRV.EXE, HIMEM, EMM386,
+  MSCDEX und andere DOS-Werkzeuge gelten nicht als Startprogramm. Liegt im
+  Spielordner ein Windows (WIN.COM mit SYSTEM.INI), startet das Profil
+  WIN.COM: startet Windows das Spiel selbst („run=“, „load=“, Shell), so
+  bleibt es dabei, sonst bekommt WIN.COM das eine Programm der
+  Programmgruppen außerhalb des Windows-Ordners mit. Dieselbe oder eine
+  gleichnamige Startdatei in einem Ordner und einem Unterordner ergibt ein
+  Spiel, das obere, mit Hinweis auf die andere. Die Suche nach weiteren
+  Spielordnern zeigt, welchen Ordner sie gerade ansieht; ein Fehler dabei
+  wird gemeldet, die erkannten Spiele bleiben. Lange Zeilen in Textdateien
+  werden für die Titelsuche übersprungen (sie konnten die Suche minutenlang
+  aufhalten), gleiche Suchbegriffe nur einmal abgefragt. Der Knopf für DBConf
+  heißt „DOSBox-Konfiguration aus DBConf übernehmen“ und hat einen Tooltip.
+  Das Protokoll am Ende beginnt mit dem der Suche (samt Bericht über die
+  gemerkten Spiele), damit es mitgespeichert wird. Ein Spiel, das im
+  gewählten Ordner selbst erkannt wird (lose Dateien dort), bekommt einen
+  Hinweis und ist nicht angehakt: sein Profil hätte den ganzen Ordner als
+  Laufwerk. Wird derselbe Titel in mehreren Ordnern gefunden (Kopien, ein
+  Installationsordner neben dem Spiel), steht bei jedem „gleicher Titel auch
+  in ...“; angehakt bleibt nur einer: der mit dem höchsten Score, dann der
+  in einem Ordner nur mit diesem Spiel (nicht der Ordner einer Sammlung, die
+  sein Programm mitbringt), dann der, dessen Ordnername wie der Titel
+  beginnt („PRINCE“ für Prince of Persia), dann der mit dem kürzesten Pfad.
+  Wurden alle gemerkten Spiele erkannt, sagt das Protokoll auch das. Im
+  Protokoll stehen Profil-IDs ab 1000 ohne Tausendertrennzeichen („ID:1000“
+  statt „ID:1,000“). Diese Hinweise stehen in der Liste zum Ankreuzen in einer eigenen Spalte
+  „Hinweise“ (bei nicht erkannten Ordnern auch, woher der Titel kommt).
+  Mehrere gemerkte Spiele in einem Ordner (etwa Wing Commander II mit
+  Special Operations 1 und 2) werden jedes für sich erkannt; vorher bekam der
+  Ordner nur eines davon.
+
+Von Ronald Blankendaal
+- Aus DBGL 0.100 beta 18 übernommen: die mitgelieferte DBConf-Datenbank (von
+  ihm erstellt und für die Extended Edition freigegeben) und das Kürzen zu
+  langer Werte beim Speichern („remax“).
 
 Geändert
 - Dunkelmodus unter Windows: angehakte Kästchen in Listen (etwa beim Import

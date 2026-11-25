@@ -6,14 +6,6 @@ Based on DBGL 0.100 beta 17 by Ronald Blankendaal (https://dbgl.org), source cod
 
 0.101 alpha 53 (in progress)
 ----------------------------
-By Ronald Blankendaal
-- Taken over from DBGL 0.100 beta 18: the DBConf database, which Ronald
-  Blankendaal made and allowed the Extended Edition to ship (db/dbconf.*,
-  instead of share.dbgl.org), and cutting values that are too long when
-  saving ("remax"). Details under "Changed" and "Fixed".
-- The import from a folder is his import of known games with his database of
-  known games; the additions of this version build on it.
-
 New
 - Windows 3.x: for profiles that start Windows (WIN.COM), "Check..." now
   looks into its SYSTEM.INI and WIN.INI (reading only):
@@ -50,55 +42,6 @@ New
   Program Manager or Start menu, the programs Windows starts by itself (a
   missing one is still reported) and repeatedly short sessions. They are
   then left out of "Check" and the profile list.
-- One import from a folder instead of two: Profiles > Import > "Import
-  games from folder..." finds the known games by their files (database of
-  DBGL and learned from profiles, with a DBConf configuration as before) and
-  also every other game folder with a DOS program that no profile uses (as
-  "Import games without profile from folder" did), with the start program
-  guessed; the folder of the game is then drive C:. The title of such folders
-  is looked for in their text files (FILE_ID.DIZ, README, READ.ME, *.TXT,
-  *.NFO: lines like "Welcome to ...", "... Version 1.2", "... (c) 1992", a
-  title line in capitals) and in the label of their CD images; a title is
-  only taken if the MobyGames database that comes with DBGL has exactly one
-  game of that name, with its details (score 10). Otherwise the folder name
-  stays (score 0). Everything is only read.
-- Menu Profiles: all imports are in the submenu "Import": the import from a
-  folder, then GOG/Steam, eXoDOS, LaunchBox, ScummVM, D-Fend Reloaded and
-  DFendX, then the files of DBGL. The welcome wizard also has only one button
-  for the import from a folder.
-- Import from a folder, learned games: after the search DBGL tells how many
-  of the games learned from profiles were recognized, for which the start
-  program is there but has another checksum (changed by the game or another
-  version), and which were not found by the name of their start program. A
-  learned game whose start program changed is recognized if its setup
-  program stayed the same (score 30).
-- Import from a folder, further rules: SMARTDRV.EXE, HIMEM, EMM386, MSCDEX
-  and other DOS tools do not count as start program. If the game folder has
-  a Windows in it (WIN.COM with SYSTEM.INI), the profile starts WIN.COM: if
-  Windows starts the game itself ("run=", "load=", shell), that is all, else
-  WIN.COM gets the one program of the program groups outside the folder of
-  Windows. The same start program, or one of the same name, in a folder and
-  a folder below it makes one game, the upper one, with a note on the other.
-  The search for further game folders shows which folder it is looking at;
-  a fault there is reported, the games recognized stay. Long lines in text
-  files are skipped for the title (they could hold the search up for
-  minutes), the same search term is asked only once. The DBConf button is
-  called "Take the DOSBox configuration from DBConf" and has a tooltip. The
-  log at the end begins with that of the search (with the report on the
-  learned games), so that it is saved with it. A game recognized in the
-  chosen folder itself (loose files there) gets a note and is not ticked:
-  its profile would have the whole folder as its drive. If the same title is
-  found in several folders (copies, an installer folder next to the game),
-  each gets "same title also in ..."; only one stays ticked: the one with the
-  highest score, then the one in a folder with this game alone (not the
-  folder of a collection that brings its program along), then the one whose
-  folder name begins like the title ("PRINCE" for Prince of Persia), then the
-  shortest path. If all learned games were recognized, the log says so too.
-  In the log, profile IDs from 1000 on have no thousands separator
-  ("ID:1000", not "ID:1,000"). These notes are in a column "Notes" of the list to tick (for
-  folders not recognized also where the title comes from). Several learned
-  games in one folder (such as Wing Commander II with Special Operations 1
-  and 2) are each recognized; before, the folder got only one of them.
 - "Manage learned games..." (menu Profiles and context menu under Tools):
   all games learned from profiles, with a search. Change the details, choose
   the start or setup program anew (name and checksum are taken from the file
@@ -234,6 +177,60 @@ New
   part of its games), e.g. on another PC or after a new installation. Kept
   in config\known-games.json, without paths; the database that comes with
   DBGL stays as it is.
+- One import from a folder instead of two: Profiles > Import > "Import
+  games from folder..." finds the known games by their files (database of
+  DBGL and learned from profiles, with a DBConf configuration as before) and
+  also every other game folder with a DOS program that no profile uses (as
+  "Import games without profile from folder" did), with the start program
+  guessed; the folder of the game is then drive C:. The title of such folders
+  is looked for in their text files (FILE_ID.DIZ, README, READ.ME, *.TXT,
+  *.NFO: lines like "Welcome to ...", "... Version 1.2", "... (c) 1992", a
+  title line in capitals) and in the label of their CD images; a title is
+  only taken if the MobyGames database that comes with DBGL has exactly one
+  game of that name, with its details (score 10). Otherwise the folder name
+  stays (score 0). Everything is only read.
+- Menu Profiles: all imports are in the submenu "Import": the import from a
+  folder, then GOG/Steam, eXoDOS, LaunchBox, ScummVM, D-Fend Reloaded and
+  DFendX, then the files of DBGL. The welcome wizard also has only one button
+  for the import from a folder.
+- Import from a folder, learned games: after the search DBGL tells how many
+  of the games learned from profiles were recognized, for which the start
+  program is there but has another checksum (changed by the game or another
+  version), and which were not found by the name of their start program. A
+  learned game whose start program changed is recognized if its setup
+  program stayed the same (score 30).
+- Import from a folder, further rules: SMARTDRV.EXE, HIMEM, EMM386, MSCDEX
+  and other DOS tools do not count as start program. If the game folder has
+  a Windows in it (WIN.COM with SYSTEM.INI), the profile starts WIN.COM: if
+  Windows starts the game itself ("run=", "load=", shell), that is all, else
+  WIN.COM gets the one program of the program groups outside the folder of
+  Windows. The same start program, or one of the same name, in a folder and
+  a folder below it makes one game, the upper one, with a note on the other.
+  The search for further game folders shows which folder it is looking at;
+  a fault there is reported, the games recognized stay. Long lines in text
+  files are skipped for the title (they could hold the search up for
+  minutes), the same search term is asked only once. The DBConf button is
+  called "Take the DOSBox configuration from DBConf" and has a tooltip. The
+  log at the end begins with that of the search (with the report on the
+  learned games), so that it is saved with it. A game recognized in the
+  chosen folder itself (loose files there) gets a note and is not ticked:
+  its profile would have the whole folder as its drive. If the same title is
+  found in several folders (copies, an installer folder next to the game),
+  each gets "same title also in ..."; only one stays ticked: the one with the
+  highest score, then the one in a folder with this game alone (not the
+  folder of a collection that brings its program along), then the one whose
+  folder name begins like the title ("PRINCE" for Prince of Persia), then the
+  shortest path. If all learned games were recognized, the log says so too.
+  In the log, profile IDs from 1000 on have no thousands separator
+  ("ID:1000", not "ID:1,000"). These notes are in a column "Notes" of the list to tick (for
+  folders not recognized also where the title comes from). Several learned
+  games in one folder (such as Wing Commander II with Special Operations 1
+  and 2) are each recognized; before, the folder got only one of them.
+
+By Ronald Blankendaal
+- Taken over from DBGL 0.100 beta 18: the DBConf database that comes with
+  DBGL (made by him and allowed for the Extended Edition) and cutting values
+  that are too long when saving ("remax").
 
 Changed
 - Dark mode on Windows: ticked boxes in lists (such as in the import of
