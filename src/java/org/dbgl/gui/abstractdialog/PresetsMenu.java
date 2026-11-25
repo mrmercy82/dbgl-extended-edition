@@ -46,12 +46,11 @@ public final class PresetsMenu {
 	/** the built-in presets, and below a separator the own ones */
 	public static void addPresetItems(Menu menu, Consumer<Preset> onApply) {
 		var text = TextService.getInstance();
+		header(menu, text.get("dialog.preset.group.system")); // alpha 53: each group with its heading (TEST23)
 		for (Preset preset: Presets.BUILT_IN) {
 			if (preset.key().equals(Presets.FIRST_PICTURE_PRESET)) { // alpha 48: the picture presets as a group of their own
 				new MenuItem(menu, SWT.SEPARATOR);
-				MenuItem header = new MenuItem(menu, SWT.PUSH);
-				header.setText(text.get("dialog.preset.group.picture").replace("&", "&&"));
-				header.setEnabled(false);
+				header(menu, text.get("dialog.preset.group.picture2", new Object[] {Presets.stagingVersionForPictures()}));
 			}
 			MenuItem item = new MenuItem(menu, SWT.PUSH);
 			item.setText(text.get(preset.key()).replace("&", "&&"));
@@ -60,12 +59,20 @@ public final class PresetsMenu {
 		List<Preset> own = Presets.listOwn();
 		if (!own.isEmpty()) {
 			new MenuItem(menu, SWT.SEPARATOR);
+			header(menu, text.get("dialog.preset.group.own"));
 			for (Preset preset: own) {
 				MenuItem item = new MenuItem(menu, SWT.PUSH);
 				item.setText(preset.key().replace("&", "&&"));
 				item.addListener(SWT.Selection, e -> onApply.accept(preset));
 			}
 		}
+	}
+
+	/** a heading in the menu: greyed out, not to be chosen */
+	private static void header(Menu menu, String title) {
+		MenuItem header = new MenuItem(menu, SWT.PUSH);
+		header.setText(title.replace("&", "&&"));
+		header.setEnabled(false);
 	}
 
 	/** edit an own preset in a small text dialog */

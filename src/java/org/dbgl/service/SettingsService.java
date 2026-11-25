@@ -485,6 +485,7 @@ public class SettingsService {
 		settings_.setValue("dosbox", "hidewin3missing", true); // alpha 53: notes "Check profiles" leaves out at first
 		settings_.setValue("dosbox", "hidewin3programs", true);
 		settings_.setValue("dosbox", "hideshortsessions", true);
+		settings_.setValue("dosbox", "hidewin3start", true);
 		settings_.setValue("checkprofiles", "dismissed", ""); // messages of "Check profiles" hidden for good: just these (keys, space separated)
 		settings_.setValue("checkprofiles", "dismissedkinds", ""); // ... and all of these kinds
 		settings_.setValue("checkprofiles", "previewfull", false); // the preview shows all of each file, not only what changes

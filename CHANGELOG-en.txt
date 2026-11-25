@@ -37,10 +37,17 @@ New
   (startup folder, "run="/"load=" of WIN.INI) and on the shortcuts that point
   to a missing program on C:. Profiles of their own per program are not
   offered here: DBGL would have to change the image for that.
-- Settings, DOSBox: three notes can be hidden, and they are hidden from the
+- Settings, DOSBox: four notes can be hidden, and they are hidden from the
   start: missing program items in Windows profiles, the programs in the
-  Program Manager or Start menu, and repeatedly short sessions. They are then
-  left out of "Check" and the profile list.
+  Program Manager or Start menu, the programs Windows starts by itself (a
+  missing one is still reported) and repeatedly short sessions. They are
+  then left out of "Check" and the profile list.
+- Presets (context menu of the profiles and profile dialog): each group has
+  a heading ("System and speed", "Picture (DOSBox Staging ...)", "Own
+  presets"). "Picture" names the newest DOSBox Staging set up in DBGL that
+  has them (else 0.83); the entries themselves no longer name the version.
+- Context menu of the DOSBox versions: "Remove with folder..." is now
+  "Remove DOSBox version with folder...".
 - Developers, publishers and genres: names from MobyGames with a no-break
   space ("Accolade, Inc." with U+00A0) made a second entry next to the same
   name with a normal space. DBGL now stores such spaces as normal ones and

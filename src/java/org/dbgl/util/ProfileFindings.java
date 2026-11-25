@@ -155,10 +155,11 @@ public final class ProfileFindings {
 
 	/**
 	 * alpha 53: the notes that can be switched off in the settings (DOSBox), each with its setting; off at first: program items
-	 * of Windows whose program is missing, the programs of the Program Manager or Start menu, sessions that are all short
+	 * of Windows whose program is missing, the programs of the Program Manager or Start menu, sessions that are all short, what
+	 * Windows starts by itself (TEST23)
 	 */
 	static final Map<String, String> HIDEABLE = Map.of("win3itemsgone", "hidewin3missing", "win9xgone", "hidewin3missing", "win3programs", "hidewin3programs",
-		"win9xprograms", "hidewin3programs", "shortsessions", "hideshortsessions");
+		"win9xprograms", "hidewin3programs", "shortsessions", "hideshortsessions", "win3start", "hidewin3start", "win9xstartup", "hidewin3start");
 
 	/** alpha 53: true if notes of this kind are not to be shown (as set in the settings) */
 	public static boolean hidden(String kind) {

@@ -86,6 +86,34 @@ public final class Presets {
 	private Presets() {
 	}
 
+	/** the picture presets need DOSBox Staging 0.83 at least (image adjustments, deinterlacing, dedithering) */
+	static final String PICTURE_MIN = "0.83";
+
+	/**
+	 * alpha 53: the version of DOSBox Staging named at the picture presets: the newest one set up in DBGL if it has them (e.g.
+	 * "0.83.1"), else the first one that has them
+	 */
+	public static String stagingVersionForPictures() {
+		try {
+			return newestStaging(new org.dbgl.model.repository.DosboxVersionRepository().listAll());
+		} catch (java.sql.SQLException | RuntimeException e) {
+			return PICTURE_MIN;
+		}
+	}
+
+	public static String newestStaging(List<org.dbgl.model.aggregate.DosboxVersion> versions) {
+		String best = null;
+		for (org.dbgl.model.aggregate.DosboxVersion db: versions) {
+			if (!StagingPrimaryConf.isStaging(db))
+				continue;
+			String release = ProfileChecks.releaseOf(db.getVersion());
+			if (release.matches("\\d+\\.\\d+(\\.\\d+)*") && (DosboxUpdateChecker.compareVersions(release, PICTURE_MIN) >= 0)
+					&& ((best == null) || (DosboxUpdateChecker.compareVersions(release, best) > 0)))
+				best = release;
+		}
+		return best != null ? best: PICTURE_MIN;
+	}
+
 	public static File dir() {
 		return new File(FileLocationService.getInstance().getProfilesDir().getParentFile(), "presets");
 	}

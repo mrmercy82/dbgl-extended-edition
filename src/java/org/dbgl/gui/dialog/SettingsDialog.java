@@ -144,6 +144,8 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 			.select(settings_.getBooleanValue("dosbox", "hidewin3missing"))).button();
 		Button hideWin3Programs = Chain.on(dosboxGroup).lbl(l -> l.key("dialog.settings.hidewin3programs")).but(b -> b.tooltip("dialog.settings.hidewin3programs.tooltip")
 			.select(settings_.getBooleanValue("dosbox", "hidewin3programs"))).button();
+		Button hideWin3Start = Chain.on(dosboxGroup).lbl(l -> l.key("dialog.settings.hidewin3start")).but(b -> b.tooltip("dialog.settings.hidewin3start.tooltip")
+			.select(settings_.getBooleanValue("dosbox", "hidewin3start"))).button();
 		Button hideShortSessions = Chain.on(dosboxGroup).lbl(l -> l.key("dialog.settings.hideshortsessions")).but(b -> b.tooltip("dialog.settings.hideshortsessions.tooltip")
 			.select(settings_.getBooleanValue("dosbox", "hideshortsessions"))).button();
 		Button ownSavestates = Chain.on(dosboxGroup).lbl(l -> l.key("dialog.settings.ownsavestates")).but(b -> b.tooltip("dialog.settings.ownsavestates.tooltip")
@@ -843,9 +845,11 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 				settings_.setBooleanValue("dosbox", "noprimaryconf", noPrimaryConf.getSelection());
 				boolean hidingChanged = (hideWin3Missing.getSelection() != settings_.getBooleanValue("dosbox", "hidewin3missing"))
 						|| (hideWin3Programs.getSelection() != settings_.getBooleanValue("dosbox", "hidewin3programs"))
+						|| (hideWin3Start.getSelection() != settings_.getBooleanValue("dosbox", "hidewin3start"))
 						|| (hideShortSessions.getSelection() != settings_.getBooleanValue("dosbox", "hideshortsessions"));
 				settings_.setBooleanValue("dosbox", "hidewin3missing", hideWin3Missing.getSelection());
 				settings_.setBooleanValue("dosbox", "hidewin3programs", hideWin3Programs.getSelection());
+				settings_.setBooleanValue("dosbox", "hidewin3start", hideWin3Start.getSelection());
 				settings_.setBooleanValue("dosbox", "hideshortsessions", hideShortSessions.getSelection());
 				if (hidingChanged)
 					org.dbgl.util.ProfileWarnings.forgetAll(); // the signs in the list without (or with) these notes

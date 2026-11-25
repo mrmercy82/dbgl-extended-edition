@@ -38,10 +38,18 @@ Neu
   startet (Autostart, „run=“/„load=“ der WIN.INI) und welche Verknüpfungen
   auf ein fehlendes Programm auf C: zeigen. Eigene Profile je Programm gibt
   es hier nicht: dafür müsste DBGL das Abbild ändern.
-- Einstellungen, DOSBox: drei Hinweise lassen sich ausblenden, und sie sind
+- Einstellungen, DOSBox: vier Hinweise lassen sich ausblenden, und sie sind
   von Anfang an ausgeblendet: fehlende Programmsymbole in Windows-Profilen,
-  die Programme im Programm-Manager bzw. Startmenü, und wiederholt kurze
-  Spielesitzungen. Sie fehlen dann in „Prüfen“ und an der Profilliste.
+  die Programme im Programm-Manager bzw. Startmenü, welche Programme Windows
+  von selbst startet (ein fehlendes wird weiter gemeldet) und wiederholt
+  kurze Spielesitzungen. Sie fehlen dann in „Prüfen“ und an der Profilliste.
+- Voreinstellungen (Kontextmenü der Profile und Profildialog): jede Gruppe
+  hat eine Überschrift („System und Geschwindigkeit“, „Bild (DOSBox Staging
+  ...)“, „Eigene Voreinstellungen“). Bei „Bild“ steht die neueste in DBGL
+  eingerichtete DOSBox-Staging-Version, die sie kann (sonst 0.83); die
+  einzelnen Einträge nennen die Version nicht mehr.
+- Kontextmenü der DOSBox-Versionen: „Samt Ordner entfernen...“ heißt jetzt
+  „DOSBox-Version samt Ordner entfernen...“.
 - Entwickler, Publisher und Genres: Namen aus MobyGames mit geschütztem
   Leerzeichen („Accolade, Inc.“ mit U+00A0) ergaben einen zweiten Eintrag
   neben dem gleichen Namen mit normalem Leerzeichen. DBGL speichert solche

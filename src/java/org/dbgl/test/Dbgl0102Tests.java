@@ -4093,6 +4093,18 @@ public class Dbgl0102Tests {
 	}
 
 	@Test
+	public void testPresetPictureVersion() {
+		// alpha 53: the heading of the picture presets names the newest DOSBox Staging set up that has them, else 0.83
+		java.util.function.BiFunction<String, String, org.dbgl.model.aggregate.DosboxVersion> v = (family, version) -> DosboxVersionFactory.create("t " + version, family, version, false,
+			false, false, null, "x", "", "", "x/dosbox.conf");
+		String staging = SettingsService.STAGING_DOSBOX_FAM.title_;
+		assertEquals("0.83", org.dbgl.util.Presets.newestStaging(List.of()));
+		assertEquals("0.83", org.dbgl.util.Presets.newestStaging(List.of(v.apply(staging, "0.82.2"))));
+		assertEquals("0.83.1", org.dbgl.util.Presets.newestStaging(List.of(v.apply(staging, "0.83.0"), v.apply(staging, "0.83.1"), v.apply(staging, "0.82.2"),
+			v.apply(SettingsService.DOSBOX_X_DOSBOX_FAM.title_, "2026.10.01"))));
+	}
+
+	@Test
 	public void testRunIssues() {
 		// alpha 53: lines as DOSBox-X 2026.10.01 writes them (EarthSiege II, TEST19)
 		List<org.dbgl.util.RunIssues.Issue> found = org.dbgl.util.RunIssues.scan(List.of("LOG: SETUP: mkdir_recursive failed: Permission denied",
