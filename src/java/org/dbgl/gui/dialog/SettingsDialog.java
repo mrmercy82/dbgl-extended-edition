@@ -106,6 +106,131 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 		result_ = false;
 	}
 
+	/** alpha 55 (Ctrl+K): a setting of this window: the titles of the tabs it is on, and the text of its label, box or group */
+	public record Place(List<String> tabs, String text) {
+	}
+
+	/** alpha 55: only built to see what the window holds (not shown; nothing counted in the background) */
+	private boolean indexOnly_;
+	/** alpha 55: the setting to show when the window opens, or null */
+	private Place focus_;
+
+	public SettingsDialog focus(Place place) {
+		focus_ = place;
+		return this;
+	}
+
+	/** alpha 55: all settings of the window, for the search of commands and settings; the window is built but not shown */
+	public static List<Place> places(Shell parent, String[] columnNames) {
+		SettingsDialog d = new SettingsDialog(parent, columnNames);
+		d.indexOnly_ = true;
+		d.shell_ = new Shell(parent, d.shellStyle_);
+		try {
+			d.onShellInit();
+			d.onShellCreated();
+			List<Place> result = new ArrayList<>();
+			java.util.Set<Place> seen = new java.util.HashSet<>();
+			d.walk(d.shell_, c -> {
+				Place p = placeOf(c);
+				if (p != null && seen.add(p))
+					result.add(p);
+				return false;
+			});
+			return result;
+		} finally {
+			d.shell_.dispose();
+		}
+	}
+
+	@Override
+	protected void onShellOpened() {
+		super.onShellOpened();
+		if (focus_ != null)
+			show(focus_);
+	}
+
+	/** alpha 55: the setting on its tab, scrolled to, marked for a moment, and the field next to it ready for input */
+	private void show(Place place) {
+		Control[] found = new Control[1];
+		walk(shell_, c -> {
+			if (place.equals(placeOf(c)))
+				found[0] = c;
+			return found[0] != null;
+		});
+		Control c = found[0];
+		if (c == null)
+			return;
+		for (Control child = c, p = c.getParent(); p != null; child = p, p = p.getParent()) {
+			if (p instanceof CTabFolder folder)
+				for (CTabItem item: folder.getItems())
+					if (item.getControl() == child)
+						folder.setSelection(item);
+			if (p instanceof org.eclipse.swt.custom.ScrolledComposite sc)
+				sc.showControl(c);
+		}
+		Control target = c;
+		if (c instanceof Label) {
+			Control[] siblings = c.getParent().getChildren();
+			for (int i = ArrayUtils.indexOf(siblings, c) + 1; i < siblings.length; i++)
+				if (!(siblings[i] instanceof Label) && siblings[i].isEnabled()) {
+					target = siblings[i];
+					break;
+				}
+		}
+		target.setFocus();
+		org.eclipse.swt.graphics.Color background = c.getBackground(), foreground = c.getForeground();
+		c.setBackground(display_.getSystemColor(SWT.COLOR_LIST_SELECTION));
+		c.setForeground(display_.getSystemColor(SWT.COLOR_LIST_SELECTION_TEXT));
+		display_.timerExec(2000, () -> {
+			if (!c.isDisposed()) {
+				c.setBackground(background);
+				c.setForeground(foreground);
+			}
+		});
+	}
+
+	/** goes through all controls, until the test says stop */
+	private boolean walk(Control c, java.util.function.Predicate<Control> stop) {
+		if (stop.test(c))
+			return true;
+		if (c instanceof Composite composite)
+			for (Control child: composite.getChildren())
+				if (walk(child, stop))
+					return true;
+		return false;
+	}
+
+	/** a label, check box, choice or group with a text, on a tab; else null */
+	static Place placeOf(Control c) {
+		String text = null;
+		if ((c instanceof Label l) && ((l.getStyle() & SWT.SEPARATOR) == 0))
+			text = l.getText();
+		else if ((c instanceof Button b) && ((b.getStyle() & (SWT.CHECK | SWT.RADIO)) != 0))
+			text = b.getText();
+		else if (c instanceof Group g)
+			text = g.getText();
+		text = placeText(text);
+		if (text == null)
+			return null;
+		java.util.LinkedList<String> tabs = new java.util.LinkedList<>();
+		for (Control child = c, p = c.getParent(); p != null; child = p, p = p.getParent())
+			if (p instanceof CTabFolder folder)
+				for (CTabItem item: folder.getItems())
+					if (item.getControl() == child)
+						tabs.addFirst(placeText(item.getText()));
+		return tabs.isEmpty() || tabs.contains(null) ? null: new Place(List.copyOf(tabs), text);
+	}
+
+	/** the text as shown, without the marks of the keys (&amp;) and the colon at the end; null for long hints and units */
+	public static String placeText(String text) {
+		if (text == null)
+			return null;
+		String t = text.replace("&&", "\0").replace("&", "").replace("\0", "&").replaceAll("\\s+", " ").strip();
+		if (t.endsWith(":"))
+			t = t.substring(0, t.length() - 1).strip();
+		return (t.length() < 3) || (t.length() > 80) || !t.matches(".*\\p{L}.*") ? null: t;
+	}
+
 	@Override
 	protected String getDialogTitle() {
 		return text_.get("dialog.settings.title");
@@ -214,7 +339,7 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 		// alpha 52: on request with the screenshots and the backups of the saved games; their size is counted in the background
 		Button backupCaptures = Chain.on(backupGroup).lbl(l -> l.key("dialog.settings.autobackup.captures")).but(b -> b.select(settings_.getBooleanValue("backup", "captures"))).button();
 		Button backupSavegames = Chain.on(backupGroup).lbl(l -> l.key("dialog.settings.autobackup.savegames")).but(b -> b.select(settings_.getBooleanValue("backup", "savegames"))).button();
-		Thread sizes = new Thread(() -> {
+		Thread sizes = indexOnly_ ? null: new Thread(() -> {
 			long[] size = org.dbgl.service.BackupService.capturesSizes();
 			if (!shell_.isDisposed())
 				shell_.getDisplay().asyncExec(() -> {
@@ -226,8 +351,10 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 					backupCaptures.getParent().layout(true);
 				});
 		}, "backup sizes");
-		sizes.setDaemon(true);
-		sizes.start();
+		if (sizes != null) {
+			sizes.setDaemon(true);
+			sizes.start();
+		}
 
 		// alpha 52: a second place for the backups, e.g. OneDrive or Dropbox (found on this computer, offered in the list)
 		Group secondGroup = Group_.on(generalComposite).layout(new GridLayout(3, false)).key("dialog.settings.secondplace").build();

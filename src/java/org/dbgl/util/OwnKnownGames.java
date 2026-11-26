@@ -88,11 +88,20 @@ public final class OwnKnownGames {
 
 	/** all entries; none when there is no file yet, or one that cannot be read (it is then left as it is) */
 	public static List<Entry> load(File f) {
-		List<Entry> result = new ArrayList<>();
 		if (f == null || !f.isFile())
-			return result;
+			return new ArrayList<>();
 		try {
-			JSONObject root = new JSONObject(Files.readString(f.toPath(), StandardCharsets.UTF_8));
+			return parse(Files.readString(f.toPath(), StandardCharsets.UTF_8));
+		} catch (IOException | RuntimeException e) {
+			return new ArrayList<>();
+		}
+	}
+
+	/** alpha 55: the entries of a text in the format of this file (own, from someone else, or the list of the community) */
+	public static List<Entry> parse(String json) {
+		List<Entry> result = new ArrayList<>();
+		try {
+			JSONObject root = new JSONObject(json);
 			JSONArray games = root.optJSONArray("games");
 			if (games == null)
 				return result;
@@ -118,14 +127,79 @@ public final class OwnKnownGames {
 				if (e.main() != null)
 					result.add(e);
 			}
-		} catch (IOException | RuntimeException e) {
+		} catch (RuntimeException e) {
 			// damaged: nothing learned is used, the file stays for a look by hand (learning writes a fresh one, the old one as .bak)
 			return new ArrayList<>();
 		}
 		return result;
 	}
 
+	/** alpha 55: the list of the community as last downloaded, next to the own file (config/known-games-community.json) */
+	public static final String COMMUNITY_FILE = "known-games-community.json";
+	/** alpha 55: where the list of the community is kept: in the repository of the Extended Edition, added to by its users */
+	public static final String COMMUNITY_URL = org.dbgl.constants.Constants.EDITION_URL.replace("https://github.com/", "https://raw.githubusercontent.com/")
+			+ "/main/community/known-games.json";
+	private static final int MAX_DOWNLOAD = 20 * 1024 * 1024;
+
+	public static File communityFile() {
+		return new File(file().getParentFile(), COMMUNITY_FILE);
+	}
+
+	/**
+	 * alpha 55: what the import from a folder knows: the games of the community first, then the own ones, so that an own one wins
+	 * (the last one that fits is taken)
+	 */
+	public static List<Entry> withCommunity(List<Entry> own, List<Entry> community) {
+		List<Entry> all = new ArrayList<>(community);
+		all.addAll(own);
+		return all;
+	}
+
+	/**
+	 * alpha 55: the entries of another list taken over into this one, those whose start program (name and checksum) is not there
+	 * yet; the ones there stay as they are. The number taken over
+	 */
+	public static int merge(List<Entry> into, List<Entry> more) {
+		Set<String> keys = new java.util.HashSet<>();
+		for (Entry e: into)
+			keys.add(e.key());
+		int added = 0;
+		for (Entry e: more)
+			if (into.size() < MAX_ENTRIES && keys.add(e.key())) {
+				into.add(e);
+				added++;
+			}
+		return added;
+	}
+
+	/**
+	 * alpha 55: the list of the community from GitHub, checked as an own file is (at most 20 MB, 100000 games, only names and
+	 * checksums), saved to the file given; the number of games in it
+	 */
+	public static int downloadCommunity(File target) throws IOException, InterruptedException {
+		java.net.http.HttpClient client = java.net.http.HttpClient.newBuilder().proxy(java.net.ProxySelector.getDefault()).connectTimeout(java.time.Duration.ofSeconds(10))
+				.followRedirects(java.net.http.HttpClient.Redirect.NORMAL).build();
+		java.net.http.HttpRequest request = java.net.http.HttpRequest.newBuilder(java.net.URI.create(COMMUNITY_URL)).timeout(java.time.Duration.ofSeconds(30))
+				.header("User-Agent", "DBGL").GET().build();
+		java.net.http.HttpResponse<java.io.InputStream> response = client.send(request, java.net.http.HttpResponse.BodyHandlers.ofInputStream());
+		byte[] body;
+		try (java.io.InputStream in = response.body()) {
+			if (response.statusCode() != 200)
+				throw new IOException(EditionUpdateChecker.httpProblem(response.statusCode()));
+			body = in.readNBytes(MAX_DOWNLOAD + 1);
+		}
+		if (body.length > MAX_DOWNLOAD)
+			throw new IOException("more than 20 MB");
+		List<Entry> entries = parse(new String(body, StandardCharsets.UTF_8));
+		if (entries.isEmpty() && !new String(body, StandardCharsets.UTF_8).contains("\"games\""))
+			throw new IOException("not a list of known games");
+		save(target, entries);
+		return entries.size();
+	}
+
 	public static void save(File f, List<Entry> entries) throws IOException {
+		if (f.getParentFile() == null)
+			f = f.getAbsoluteFile();
 		JSONArray games = new JSONArray();
 		for (Entry e: entries) {
 			JSONObject g = new JSONObject();

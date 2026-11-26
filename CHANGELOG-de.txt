@@ -76,6 +76,25 @@ Neu
   Neben der Konfigurationsdatei und der DOSBox-Version kommen auch Titel,
   Angaben, Notizen, Links, eigene Felder und Reihe zurück; die Vorschau und
   das Fenster von Rückgängig zeigen diese Änderungen mit.
+- Befehl oder Einstellung suchen (Strg+K, auf dem Mac Cmd+K, oder Hilfe >
+  „Befehl oder Einstellung suchen...“): ein Wort eintippen, und DBGL zeigt
+  alle passenden Befehle aus den Menüs (auch dem Kontextmenü eines Profils)
+  und alle Einstellungen, mit ihrem Ort und ihrer Tastenkombination. Groß-
+  und Kleinschreibung und Umlaute sind egal, mehrere Wörter grenzen ein.
+  Enter führt den Befehl aus; eine Einstellung öffnet die Einstellungen auf
+  ihrem Reiter, hebt sie kurz hervor und setzt den Cursor ins Feld daneben.
+  Was gerade nicht geht (etwa ohne markiertes Profil), steht grau dabei.
+- Gemerkte Spiele weitergeben und die Gemeinschaftsliste: In Profile >
+  „Gemerkte Spiele verwalten...“ speichert „Exportieren...“ die markierten
+  (oder alle) als Datei, „Übernehmen...“ holt die Spiele aus so einer Datei
+  dazu (schon bekannte bleiben, wie sie sind). „Gemeinschaftsliste laden“
+  lädt die gemeinsame Liste bekannter Spiele aus dem Repository der
+  Extended Edition (community/known-games.json); der Import aus einem Ordner
+  nutzt sie nach den eigenen gemerkten Spielen und sagt, woher ein Spiel
+  erkannt wurde. „Beitragen...“ speichert die markierten Spiele als Datei
+  und öffnet eine neue Meldung auf GitHub zum Anhängen. Die Dateien
+  enthalten nur Titel, Angaben sowie Namen und Prüfsummen der Programme,
+  keine Pfade.
 
 Geändert
 - Für die Entwicklung: tools/mkrelease.py baut alle Pakete eines Releases

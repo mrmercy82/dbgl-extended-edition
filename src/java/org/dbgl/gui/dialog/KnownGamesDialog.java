@@ -58,6 +58,7 @@ public class KnownGamesDialog extends SizeControlledButtonDialog<Boolean> {
 	private Table table_;
 	private Text filter_;
 	private Label info_;
+	private Label community_;
 	private boolean changed_;
 
 	public KnownGamesDialog(Shell parent) {
@@ -106,15 +107,41 @@ public class KnownGamesDialog extends SizeControlledButtonDialog<Boolean> {
 		}
 		table_.addListener(SWT.DefaultSelection, e -> edit());
 
-		Button edit = new Button(contents_, SWT.PUSH);
+		// alpha 55: the buttons in two rows of their own (the columns of the search above made gaps between them)
+		org.eclipse.swt.widgets.Composite row1 = new org.eclipse.swt.widgets.Composite(contents_, SWT.NONE);
+		row1.setLayout(rowLayout());
+		row1.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 4, 1));
+		org.eclipse.swt.widgets.Composite row2 = new org.eclipse.swt.widgets.Composite(contents_, SWT.NONE);
+		row2.setLayout(rowLayout());
+		row2.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 4, 1));
+		Button edit = new Button(row1, SWT.PUSH);
 		edit.setText(text_.get("dialog.knowngames.edit"));
 		edit.addListener(SWT.Selection, e -> edit());
-		Button forget = new Button(contents_, SWT.PUSH);
+		Button forget = new Button(row1, SWT.PUSH);
 		forget.setText(text_.get("dialog.knowngames.forget"));
 		forget.addListener(SWT.Selection, e -> forget());
+		// alpha 55: pass the list on, take one over, and the list of the community
+		Button export = new Button(row1, SWT.PUSH);
+		export.setText(text_.get("dialog.knowngames.export"));
+		export.setToolTipText(text_.get("dialog.knowngames.export.tooltip"));
+		export.addListener(SWT.Selection, e -> export(false));
+		Button take = new Button(row1, SWT.PUSH);
+		take.setText(text_.get("dialog.knowngames.import"));
+		take.setToolTipText(text_.get("dialog.knowngames.import.tooltip"));
+		take.addListener(SWT.Selection, e -> takeOver());
+		Button loadCommunity = new Button(row2, SWT.PUSH);
+		loadCommunity.setText(text_.get("dialog.knowngames.community.load"));
+		loadCommunity.setToolTipText(text_.get("dialog.knowngames.community.load.tooltip"));
+		loadCommunity.addListener(SWT.Selection, e -> loadCommunity());
+		Button contribute = new Button(row2, SWT.PUSH);
+		contribute.setText(text_.get("dialog.knowngames.contribute"));
+		contribute.setToolTipText(text_.get("dialog.knowngames.contribute.tooltip"));
+		contribute.addListener(SWT.Selection, e -> export(true));
+		community_ = new Label(row2, SWT.NONE);
 		Label where = new Label(contents_, SWT.NONE);
 		where.setText(file_.getPath());
-		where.setLayoutData(new GridData(SWT.END, SWT.CENTER, true, false, 2, 1));
+		where.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 4, 1));
+		showCommunity();
 
 		createOkButton(new SelectionAdapter() {
 			@Override
@@ -125,6 +152,15 @@ public class KnownGamesDialog extends SizeControlledButtonDialog<Boolean> {
 		});
 		okButton_.setText(text_.get("dialog.statuswindow.close"));
 		fill();
+	}
+
+	private static org.eclipse.swt.layout.RowLayout rowLayout() {
+		org.eclipse.swt.layout.RowLayout layout = new org.eclipse.swt.layout.RowLayout(SWT.HORIZONTAL);
+		layout.marginLeft = layout.marginRight = layout.marginTop = layout.marginBottom = 0;
+		layout.spacing = 6;
+		layout.center = true;
+		layout.wrap = true;
+		return layout;
 	}
 
 	private void fill() {
@@ -169,6 +205,85 @@ public class KnownGamesDialog extends SizeControlledButtonDialog<Boolean> {
 			return;
 		entries_.set(entries_.indexOf(before), after);
 		save();
+	}
+
+	/** alpha 55: the selected games (all, if none is selected) into a file; to contribute, GitHub is opened afterwards */
+	private void export(boolean contribute) {
+		int[] sel = table_.getSelectionIndices();
+		List<Entry> chosen = new ArrayList<>();
+		if (sel.length == 0)
+			chosen.addAll(entries_);
+		else
+			for (int i: sel)
+				chosen.add(shown_.get(i));
+		if (chosen.isEmpty())
+			return;
+		if (contribute && !Mess_.on(shell_).key("dialog.knowngames.contribute.info", new Object[] {chosen.size()}).confirm())
+			return;
+		FileDialog dialog = new FileDialog(shell_, SWT.SAVE);
+		dialog.setFilterNames(new String[] {"JSON (*.json)"});
+		dialog.setFilterExtensions(new String[] {"*.json"});
+		dialog.setFileName("known-games-" + chosen.size() + ".json");
+		dialog.setOverwrite(true);
+		String name = dialog.open();
+		if (name == null)
+			return;
+		File target = new File(name);
+		if (target.getAbsoluteFile().equals(file_.getAbsoluteFile()) || target.getAbsoluteFile().equals(OwnKnownGames.communityFile().getAbsoluteFile()))
+			return; // not over the own list or the one of the community
+		try {
+			OwnKnownGames.save(target, chosen);
+		} catch (IOException e) {
+			Mess_.on(shell_).exception(e).warning();
+			return;
+		}
+		if (contribute) {
+			String title = java.net.URLEncoder.encode("Known games: " + chosen.size() + " game(s) for the community list", java.nio.charset.StandardCharsets.UTF_8);
+			String body = java.net.URLEncoder.encode("Please add these games to community/known-games.json.\n\nThe file " + target.getName()
+					+ " is attached (drag it into this box). It holds only titles, details of the games, and names and checksums of their programs, no paths.",
+				java.nio.charset.StandardCharsets.UTF_8);
+			org.dbgl.util.SystemUtils.openForBrowsing(org.dbgl.constants.Constants.EDITION_URL + "/issues/new?title=" + title + "&body=" + body, shell_);
+			org.dbgl.util.SystemUtils.showInFolder(target, shell_);
+		} else {
+			Mess_.on(shell_).key("dialog.knowngames.exported", new Object[] {chosen.size(), target.getPath()}).display();
+		}
+	}
+
+	/** alpha 55: the games of another file of this kind taken over; those known already stay as they are */
+	private void takeOver() {
+		FileDialog dialog = new FileDialog(shell_, SWT.OPEN);
+		dialog.setFilterNames(new String[] {"JSON (*.json)"});
+		dialog.setFilterExtensions(new String[] {"*.json"});
+		String name = dialog.open();
+		if (name == null)
+			return;
+		File from = new File(name);
+		if (from.length() > 20L * 1024 * 1024)
+			return;
+		List<Entry> more = OwnKnownGames.load(from);
+		int before = more.size();
+		int added = OwnKnownGames.merge(entries_, more);
+		if (added > 0)
+			save();
+		Mess_.on(shell_).key("dialog.knowngames.imported", new Object[] {added, before - added}).display();
+	}
+
+	/** alpha 55: the list of the community from GitHub, kept next to the own one */
+	private void loadCommunity() {
+		try {
+			int n = org.dbgl.gui.controls.BusyTask.run(shell_, text_.get("dialog.knowngames.community.loading"), () -> OwnKnownGames.downloadCommunity(OwnKnownGames.communityFile()));
+			showCommunity();
+			Mess_.on(shell_).key("dialog.knowngames.community.loaded", new Object[] {n}).display();
+		} catch (org.dbgl.gui.controls.BusyTask.Cancelled e) {
+			// stopped
+		} catch (Exception e) {
+			Mess_.on(shell_).key("dialog.knowngames.community.failed", new Object[] {org.dbgl.util.EditionUpdateChecker.describe(e)}).warning();
+		}
+	}
+
+	private void showCommunity() {
+		File f = OwnKnownGames.communityFile();
+		community_.setText(f.isFile() ? text_.get("dialog.knowngames.community.info", new Object[] {OwnKnownGames.load(f).size()}): text_.get("dialog.knowngames.community.none"));
 	}
 
 	private void save() {

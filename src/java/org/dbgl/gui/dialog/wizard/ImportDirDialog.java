@@ -325,12 +325,19 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 
 					// alpha 53: also the games learned from profiles (config/known-games.json), after the database of DBGL
 					List<org.dbgl.util.OwnKnownGames.Entry> own = org.dbgl.util.OwnKnownGames.load(org.dbgl.util.OwnKnownGames.file());
+					// alpha 55: and those of the list of the community, if it was loaded (before the own ones: an own one wins)
+					List<org.dbgl.util.OwnKnownGames.Entry> community = org.dbgl.util.OwnKnownGames.load(org.dbgl.util.OwnKnownGames.communityFile());
+					List<org.dbgl.util.OwnKnownGames.Entry> known = org.dbgl.util.OwnKnownGames.withCommunity(own, community);
+					java.util.function.Function<org.dbgl.util.OwnKnownGames.Entry, String> sourceOf = sourceOf(community, text_.get("dialog.importdir.ownrecognition"),
+						text_.get("dialog.importdir.communityrecognition"));
 					List<String> knownFilenames = new ArrayList<>(repo.listAllFilenames());
-					knownFilenames.addAll(org.dbgl.util.OwnKnownGames.filenames(own));
+					knownFilenames.addAll(org.dbgl.util.OwnKnownGames.filenames(known));
 					// alpha 53: how many learned games there are, and from where (to see at once when none were found)
 					File ownFile = org.dbgl.util.OwnKnownGames.file();
 					display_.asyncExec(() -> scanInfo_.append(
 						text_.get("dialog.importdir.notice.ownknown", new Object[] {own.size(), ownFile.getPath()}).concat(scanInfo_.getLineDelimiter())));
+					if (!community.isEmpty())
+						display_.asyncExec(() -> scanInfo_.append(text_.get("dialog.importdir.notice.communityknown", new Object[] {community.size()}).concat(scanInfo_.getLineDelimiter())));
 					display_.asyncExec(() -> scanInfo_.append(text_.get("dialog.importdir.notice.scandirforknownfiles", new Object[] {dir_.getPath(), knownFilenames.size()}).concat("  ")));
 
 					List<ImmutablePair<File, byte[]>> fileMd5s = new ArrayList<>();
@@ -348,7 +355,7 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 					for (Map.Entry<File, List<ImmutablePair<File, byte[]>>> dirFile: fileMd5s.stream().collect(Collectors.groupingBy(x -> x.getKey().getParentFile())).entrySet()) {
 						// alpha 53: a game learned from a profile first (its details were checked by the user), then the database of DBGL
 						// TEST29: each learned game in a folder (Wing Commander II and its Special Operations 1 and 2, all in one folder)
-						List<GameDirEntry> learned = ownGameDirEntries(dirFile.getKey(), dirFile.getValue(), own, text_.get("dialog.importdir.ownrecognition"));
+						List<GameDirEntry> learned = ownGameDirEntries(dirFile.getKey(), dirFile.getValue(), known, sourceOf);
 						if (!learned.isEmpty()) {
 							games_.addAll(learned);
 							continue;
@@ -638,6 +645,19 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 	 * ownGameDirEntry by the setup program
 	 */
 	public static List<GameDirEntry> ownGameDirEntries(File dir, List<ImmutablePair<File, byte[]>> files, List<org.dbgl.util.OwnKnownGames.Entry> own, String source) {
+		return ownGameDirEntries(dir, files, own, e -> source);
+	}
+
+	/** alpha 55: where each game is known from: the own list or the list of the community (the same object, not only equal) */
+	public static java.util.function.Function<org.dbgl.util.OwnKnownGames.Entry, String> sourceOf(List<org.dbgl.util.OwnKnownGames.Entry> community, String ownSource,
+			String communitySource) {
+		java.util.Set<org.dbgl.util.OwnKnownGames.Entry> fromCommunity = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+		fromCommunity.addAll(community);
+		return e -> fromCommunity.contains(e) ? communitySource: ownSource;
+	}
+
+	public static List<GameDirEntry> ownGameDirEntries(File dir, List<ImmutablePair<File, byte[]>> files, List<org.dbgl.util.OwnKnownGames.Entry> own,
+			java.util.function.Function<org.dbgl.util.OwnKnownGames.Entry, String> source) {
 		List<GameDirEntry> result = new ArrayList<>();
 		Map<String, String> md5s = new java.util.LinkedHashMap<>();
 		for (ImmutablePair<File, byte[]> file: files)
@@ -663,6 +683,11 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 	 * and (if it is there with the same checksum) the setup program; scored as the database of DBGL would (35 and 15)
 	 */
 	public static GameDirEntry ownGameDirEntry(File dir, List<ImmutablePair<File, byte[]>> files, List<org.dbgl.util.OwnKnownGames.Entry> own, String source) {
+		return ownGameDirEntry(dir, files, own, e -> source);
+	}
+
+	public static GameDirEntry ownGameDirEntry(File dir, List<ImmutablePair<File, byte[]>> files, List<org.dbgl.util.OwnKnownGames.Entry> own,
+			java.util.function.Function<org.dbgl.util.OwnKnownGames.Entry, String> sourceOf) {
 		if (own.isEmpty())
 			return null;
 		Map<String, String> md5s = new java.util.LinkedHashMap<>();
@@ -673,6 +698,7 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 		org.dbgl.util.OwnKnownGames.Entry entry = strict != null ? strict: org.dbgl.util.OwnKnownGames.matchBySetup(own, md5s);
 		if (entry == null)
 			return null;
+		String source = sourceOf.apply(entry);
 		List<File> exes = FilesUtils.listExecutablesInDirRecursive(dir);
 		Optional<File> main = files.stream().map(ImmutablePair::getKey).filter(f -> f.getName().equalsIgnoreCase(entry.main().name())).findFirst();
 		if (main.isEmpty())
@@ -779,10 +805,18 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 	 * whose files cannot be read is left out as well.
 	 */
 	public static Map<File, GameDirEntry> recognize(List<File> gameDirs, String ownSource) {
-		return recognize(gameDirs, org.dbgl.util.OwnKnownGames.load(org.dbgl.util.OwnKnownGames.file()), true, ownSource);
+		// alpha 55: with the list of the community, if it was loaded
+		List<org.dbgl.util.OwnKnownGames.Entry> community = org.dbgl.util.OwnKnownGames.load(org.dbgl.util.OwnKnownGames.communityFile());
+		return recognize(gameDirs, org.dbgl.util.OwnKnownGames.withCommunity(org.dbgl.util.OwnKnownGames.load(org.dbgl.util.OwnKnownGames.file()), community), true,
+			sourceOf(community, ownSource, org.dbgl.service.TextService.getInstance().get("dialog.importdir.communityrecognition")));
 	}
 
 	public static Map<File, GameDirEntry> recognize(List<File> gameDirs, List<org.dbgl.util.OwnKnownGames.Entry> own, boolean database, String ownSource) {
+		return recognize(gameDirs, own, database, e -> ownSource);
+	}
+
+	public static Map<File, GameDirEntry> recognize(List<File> gameDirs, List<org.dbgl.util.OwnKnownGames.Entry> own, boolean database,
+			java.util.function.Function<org.dbgl.util.OwnKnownGames.Entry, String> ownSource) {
 		Map<File, GameDirEntry> result = new java.util.LinkedHashMap<>();
 		GameFilesRepository repo = new GameFilesRepository();
 		List<String> names = new ArrayList<>();

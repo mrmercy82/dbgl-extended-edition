@@ -6881,4 +6881,80 @@ public class Dbgl0102Tests {
 		assertEquals("one two\nthree\nfour five\nsix", w);
 		assertEquals("short", org.dbgl.gui.dialog.CheckProfilesDialog.wrapped("short", 100));
 	}
+
+	/** alpha 55 (Ctrl+K): words in any order, any case, without accents; the name starting with the word first */
+	@Test
+	public void testCommandSearch() {
+		Runnable r = () -> {};
+		java.util.List<org.dbgl.gui.dialog.CommandSearchDialog.Command> all = java.util.List.of(
+			new org.dbgl.gui.dialog.CommandSearchDialog.Command("Sicherungen verwalten", "Datei", "", r),
+			new org.dbgl.gui.dialog.CommandSearchDialog.Command("Automatische Sicherung", "Einstellungen › Allgemein", "", r),
+			new org.dbgl.gui.dialog.CommandSearchDialog.Command("Größe der Bildschirmfotos", "Einstellungen › Oberfläche", "", r),
+			new org.dbgl.gui.dialog.CommandSearchDialog.Command("Profil löschen", "Profile", "Strg+R", null),
+			new org.dbgl.gui.dialog.CommandSearchDialog.Command("Importieren", "Profile › Sicherung", "", r));
+		java.util.List<org.dbgl.gui.dialog.CommandSearchDialog.Command> found = org.dbgl.gui.dialog.CommandSearchDialog.find(all, "sich", 10);
+		assertEquals(3, found.size());
+		assertEquals("Sicherungen verwalten", found.get(0).name()); // the name starts with it
+		assertEquals("Automatische Sicherung", found.get(1).name()); // a word of the name
+		assertEquals("Importieren", found.get(2).name()); // only the place
+		assertEquals("Größe der Bildschirmfotos", org.dbgl.gui.dialog.CommandSearchDialog.find(all, "GROSSE bild", 10).get(0).name());
+		assertEquals("Größe der Bildschirmfotos", org.dbgl.gui.dialog.CommandSearchDialog.find(all, "grö", 10).get(0).name());
+		assertEquals(1, org.dbgl.gui.dialog.CommandSearchDialog.find(all, "oberflache", 10).size());
+		assertEquals(5, org.dbgl.gui.dialog.CommandSearchDialog.find(all, "", 10).size());
+		assertEquals(2, org.dbgl.gui.dialog.CommandSearchDialog.find(all, "", 2).size());
+		assertTrue(org.dbgl.gui.dialog.CommandSearchDialog.find(all, "xyz", 10).isEmpty());
+		// what can be done now before what cannot, with the same score
+		java.util.List<org.dbgl.gui.dialog.CommandSearchDialog.Command> two = java.util.List.of(
+			new org.dbgl.gui.dialog.CommandSearchDialog.Command("Profil löschen", "Profile", "", null),
+			new org.dbgl.gui.dialog.CommandSearchDialog.Command("Profil bearbeiten", "Profile", "", r));
+		assertEquals("Profil bearbeiten", org.dbgl.gui.dialog.CommandSearchDialog.find(two, "profil", 10).get(0).name());
+		// the texts of menus and settings as shown
+		assertEquals("Import & Export", org.dbgl.gui.dialog.SettingsDialog.placeText("&Import && Export"));
+		assertEquals("Thema", org.dbgl.gui.dialog.SettingsDialog.placeText(" Thema: "));
+		assertNull(org.dbgl.gui.dialog.SettingsDialog.placeText("px"));
+		assertNull(org.dbgl.gui.dialog.SettingsDialog.placeText("12345"));
+		assertNull(org.dbgl.gui.dialog.SettingsDialog.placeText("x".repeat(81)));
+		assertNull(org.dbgl.gui.dialog.SettingsDialog.placeText(null));
+	}
+
+	/** alpha 55: lists of known games of others taken over, the list of the community before the own one */
+	@Test
+	public void testKnownGamesCommunity() throws Exception {
+		String md5a = "0123456789abcdef0123456789abcdef", md5b = "fedcba9876543210fedcba9876543210";
+		java.util.List<org.dbgl.util.OwnKnownGames.Entry> own = new java.util.ArrayList<>(org.dbgl.util.OwnKnownGames.parse("{\"format\":1,\"games\":[{\"title\":\"Own\",\"files\":[{\"name\":\"GAME.EXE\",\"md5\":\"" + md5a + "\"}]}]}"));
+		assertEquals(1, own.size());
+		java.util.List<org.dbgl.util.OwnKnownGames.Entry> other = org.dbgl.util.OwnKnownGames.parse("{\"games\":[{\"title\":\"Other title\",\"files\":[{\"name\":\"game.exe\",\"md5\":\"" + md5a.toUpperCase()
+				+ "\"}]},{\"title\":\"New\",\"year\":\"1993\",\"files\":[{\"name\":\"NEW.EXE\",\"md5\":\"" + md5b + "\"},{\"name\":\"SETUP.EXE\",\"md5\":\"" + md5a + "\",\"setup\":true}]},"
+				+ "{\"title\":\"Bad\",\"files\":[{\"name\":\"../X.EXE\",\"md5\":\"" + md5b + "\"}]},{\"title\":\"\",\"files\":[]}]}");
+		assertEquals(2, other.size()); // the path and the game without a title are left out
+		assertEquals(1, org.dbgl.util.OwnKnownGames.merge(own, other)); // the same start program (any case) stays the own one
+		assertEquals(2, own.size());
+		assertEquals("Own", own.get(0).title());
+		assertEquals("1993", own.get(1).year());
+		assertEquals("SETUP.EXE", own.get(1).setupFile().name());
+		assertEquals(0, org.dbgl.util.OwnKnownGames.merge(own, other));
+		assertTrue(org.dbgl.util.OwnKnownGames.parse("not json").isEmpty());
+
+		// the import: an own game wins over the same one in the list of the community, and says where it is from
+		java.util.List<org.dbgl.util.OwnKnownGames.Entry> community = org.dbgl.util.OwnKnownGames.parse("{\"games\":[{\"title\":\"Community\",\"files\":[{\"name\":\"GAME.EXE\",\"md5\":\"" + md5a
+				+ "\"}]},{\"title\":\"Only there\",\"files\":[{\"name\":\"ONLY.EXE\",\"md5\":\"" + md5b + "\"}]}]}");
+		java.util.List<org.dbgl.util.OwnKnownGames.Entry> known = org.dbgl.util.OwnKnownGames.withCommunity(own.subList(0, 1), community);
+		assertEquals("Own", org.dbgl.util.OwnKnownGames.match(known, java.util.Map.of("GAME.EXE", md5a)).title());
+		java.util.function.Function<org.dbgl.util.OwnKnownGames.Entry, String> source = org.dbgl.gui.dialog.wizard.ImportDirDialog.sourceOf(community, "own", "community");
+		assertEquals("own", source.apply(org.dbgl.util.OwnKnownGames.match(known, java.util.Map.of("GAME.EXE", md5a))));
+		assertEquals("community", source.apply(org.dbgl.util.OwnKnownGames.match(known, java.util.Map.of("ONLY.EXE", md5b))));
+
+		// saved and read again as it was (also the file of the repository)
+		File dir = java.nio.file.Files.createTempDirectory("dbgl-community").toFile();
+		try {
+			File f = new File(dir, "export.json");
+			org.dbgl.util.OwnKnownGames.save(f, own);
+			assertEquals(own, org.dbgl.util.OwnKnownGames.load(f));
+			File repoList = new File("community/known-games.json");
+			if (repoList.isFile())
+				assertTrue(new org.json.JSONObject(java.nio.file.Files.readString(repoList.toPath())).has("games"));
+		} finally {
+			org.apache.commons.io.FileUtils.deleteDirectory(dir);
+		}
+	}
 }

@@ -68,6 +68,23 @@ New
   and the DOSBox version it brings back title, details, notes, links, own
   fields and series; the preview and the window of the undo show these
   changes too.
+- Find a command or setting (Ctrl+K, on the Mac Cmd+K, or Help > "Find
+  command or setting..."): type a word, and DBGL shows all fitting commands
+  of the menus (also the context menu of a profile) and all settings, with
+  where they are and their keys. Case and accents do not matter, more words
+  narrow it down. Enter runs the command; a setting opens the settings on
+  its tab, marks it for a moment and puts the cursor into the field next to
+  it. What cannot be done just now (e.g. with no profile selected) is shown
+  in gray.
+- Passing on learned games, and the community list: in Profiles > "Manage
+  learned games...", "Export..." saves the selected ones (or all) as a file,
+  "Take over..." adds the games of such a file (games already known stay as
+  they are). "Load community list" loads the shared list of known games
+  from the repository of the Extended Edition (community/known-games.json);
+  the import from a folder uses it after your own learned games and says
+  where a game was recognized from. "Contribute..." saves the selected games
+  as a file and opens a new issue on GitHub to attach it to. The files hold
+  only titles, details, and names and checksums of the programs, no paths.
 
 Changed
 - For development: tools/mkrelease.py builds all packages of a release

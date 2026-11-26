@@ -2965,6 +2965,15 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		// the update check first, then what is new since DBGL 0.100 beta 17 and the full changelog, above 'About' (on macOS
 		// 'About' is in the application menu)
 		Menu helpMenu = createMenu(appMenuBar, "dialog.main.menu.help");
+		// alpha 55: a command or a setting found by a word of it (Ctrl+K, as in many programs)
+		MenuItem_.on(helpMenu).txt(text_.get("dialog.main.menu.commandsearch") + (SystemUtils.IS_OSX ? "\tCmd+K": "\tCtrl+K"))
+				.image(ImageService.IMG_ZOOM).accel(SWT.MOD1 | 'K').listen(new SelectionAdapter() {
+					@Override
+					public void widgetSelected(SelectionEvent event) {
+						doCommandSearch();
+					}
+				}).build();
+		MenuItem_.on(helpMenu).build();
 		MenuItem_.on(helpMenu).key("dialog.main.menu.editionupdate").image(ImageService.IMG_REFRESH).listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
@@ -6596,8 +6605,52 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		return dbv;
 	}
 
+	/** alpha 55: the settings, built once a session (and again in another language) */
+	private List<SettingsDialog.Place> settingsPlaces_;
+	private String settingsPlacesLanguage_;
+
+	/** alpha 55 (Ctrl+K): all commands of the menus and all settings, found by a word of them */
+	private void doCommandSearch() {
+		Runnable chosen = new CommandSearchDialog(shell_, searchableCommands()).open();
+		if (chosen != null)
+			display_.asyncExec(() -> {
+				if (!shell_.isDisposed())
+					chosen.run();
+			});
+	}
+
+	private List<CommandSearchDialog.Command> searchableCommands() {
+		List<CommandSearchDialog.Command> commands = new ArrayList<>();
+		java.util.Set<String> seen = new java.util.HashSet<>();
+		Menu bar = shell_.getMenuBar() != null ? shell_.getMenuBar(): display_.getMenuBar();
+		if (bar != null)
+			for (MenuItem top: bar.getItems())
+				if (top.getMenu() != null && SettingsDialog.placeText(top.getText()) != null)
+					CommandSearchDialog.collect(top.getMenu(), SettingsDialog.placeText(top.getText()), commands, seen);
+		if (display_.getSystemMenu() != null)
+			CommandSearchDialog.collect(display_.getSystemMenu(), "DBGL", commands, seen);
+		if (profileTable_.getControl().getMenu() != null)
+			CommandSearchDialog.collect(profileTable_.getControl().getMenu(), text_.get("dialog.commandsearch.context"), commands, seen);
+		commands.removeIf(c -> c.name().equals(SettingsDialog.placeText(text_.get("dialog.main.menu.commandsearch"))));
+		String language = settings_.getValue("locale", "language") + "_" + settings_.getValue("locale", "country");
+		if (settingsPlaces_ == null || !language.equals(settingsPlacesLanguage_)) {
+			try {
+				settingsPlaces_ = SettingsDialog.places(shell_, columnNames_);
+				settingsPlacesLanguage_ = language;
+			} catch (RuntimeException e) {
+				settingsPlaces_ = List.of(); // the commands alone
+			}
+		}
+		commands.addAll(CommandSearchDialog.settings(settingsPlaces_, SettingsDialog.placeText(text_.get("dialog.settings.title")), this::doOpenSettingsDialog));
+		return commands;
+	}
+
 	private void doOpenSettingsDialog() {
-		if (Boolean.TRUE.equals(new SettingsDialog(shell_, columnNames_).open())) {
+		doOpenSettingsDialog(null);
+	}
+
+	private void doOpenSettingsDialog(SettingsDialog.Place place) {
+		if (Boolean.TRUE.equals(new SettingsDialog(shell_, columnNames_).focus(place).open())) {
 			result_ = true;
 			shell_.close();
 			return;
@@ -6747,6 +6800,12 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		// alpha 53: the learned games and completing profiles (opening them only reads the local databases; not the cover search,
 		// which asks the cover database on the internet as soon as it opens)
 		steps.add(new org.dbgl.gui.controls.WindowTour.Step("known-games", none, () -> new KnownGamesDialog(shell_).open()));
+		// alpha 55: the search of commands and settings, with a word typed, and the settings opened at one found
+		steps.add(new org.dbgl.gui.controls.WindowTour.Step("command-search", none, () -> new CommandSearchDialog(shell_, searchableCommands()).query(StringUtils.left(SettingsDialog.placeText(text_.get("dialog.settings.theme")), 4)).open()));
+		steps.add(new org.dbgl.gui.controls.WindowTour.Step("settings-at-setting", none, () -> {
+			List<SettingsDialog.Place> places = SettingsDialog.places(shell_, columnNames_);
+			new SettingsDialog(shell_, columnNames_).focus(places.isEmpty() ? null: places.get(places.size() / 2)).open();
+		}));
 		if (!profilesList_.isEmpty()) {
 			steps.add(new org.dbgl.gui.controls.WindowTour.Step("complete-profiles", none, () -> {
 				List<Profile> loaded = new ArrayList<>(profilesList_);
