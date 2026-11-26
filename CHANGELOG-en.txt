@@ -70,9 +70,8 @@ Changed
   (update, source, Windows with and without Java, Linux, macOS, SHA256SUMS)
   from a commit; from the release commit of alpha 53 it gives the same files
   as the published packages.
-- Check: long messages are wrapped in the list (up to three lines) instead
-  of cut off; the whole message is still shown below. On Windows all lines
-  of a list have the same height, so then all get a bit higher.
+- Check: long messages show in full and wrapped as a tooltip when the mouse
+  is over their line; the whole message is still shown below.
 - USB stick: the ZIP is first proposed in the folder export instead of the
   data folder itself.
 

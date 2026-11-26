@@ -198,37 +198,15 @@ public class CheckProfilesDialog extends SizeControlledButtonDialog<Boolean> {
 			if (rest > 200)
 				problem.setWidth(rest);
 		});
-		// alpha 54: the messages wrapped instead of cut off at the column (up to MESSAGE_LINES lines; the box below has all of it).
-		// Windows gives all lines of a tree the same height, so a long message makes every line higher.
-		tree_.addListener(SWT.MeasureItem, e -> {
-			if ((e.index == 0) && (((TreeItem)e.item).getData() instanceof Finding)) {
-				TreeItem item = (TreeItem)e.item;
-				org.eclipse.swt.graphics.TextLayout layout = messageLayout(item, e.gc);
-				e.height = Math.max(e.height, Math.min(layout.getBounds().height, layout.getLineCount() > 0 ? layout.getLineBounds(Math.min(layout.getLineCount(), MESSAGE_LINES) - 1).y
-						+ layout.getLineBounds(Math.min(layout.getLineCount(), MESSAGE_LINES) - 1).height: 0) + 4);
-				layout.dispose();
-			}
+		// alpha 54 (TEST5, as asked): a message in one line as before; with the mouse over it the whole of it as a tooltip, wrapped
+		// (the box below still has it too)
+		tree_.addListener(SWT.MouseMove, e -> {
+			TreeItem item = tree_.getItem(new org.eclipse.swt.graphics.Point(e.x, e.y));
+			String tip = (item != null) && (item.getData() instanceof Finding) ? wrapped(item.getText(0), 100): null;
+			if (!java.util.Objects.equals(tip, tree_.getToolTipText()))
+				tree_.setToolTipText(tip);
 		});
-		tree_.addListener(SWT.EraseItem, e -> {
-			if ((e.index == 0) && (((TreeItem)e.item).getData() instanceof Finding))
-				e.detail &= ~SWT.FOREGROUND; // text and box drawn below
-		});
-		tree_.addListener(SWT.PaintItem, e -> {
-			if ((e.index != 0) || !(((TreeItem)e.item).getData() instanceof Finding))
-				return;
-			TreeItem item = (TreeItem)e.item;
-			org.eclipse.swt.graphics.Image box = item.getImage(0);
-			org.eclipse.swt.graphics.Rectangle img = item.getImageBounds(0);
-			if (box != null)
-				e.gc.drawImage(box, img.x, img.y + (img.height - box.getBounds().height) / 2);
-			org.eclipse.swt.graphics.TextLayout layout = messageLayout(item, e.gc);
-			org.eclipse.swt.graphics.Rectangle cell = item.getBounds(0);
-			org.eclipse.swt.graphics.Rectangle text = item.getTextBounds(0);
-			e.gc.setClipping(cell);
-			layout.draw(e.gc, text.x + 2, cell.y + 2);
-			layout.dispose();
-		});
-		problem.addListener(SWT.Resize, e -> tree_.redraw());
+		tree_.addListener(SWT.MouseExit, e -> tree_.setToolTipText(null));
 		tree_.addListener(SWT.Selection, e -> showDetails());
 		// the box: a click on it, or the space key for the selected lines
 		tree_.addListener(SWT.MouseDown, e -> {
@@ -628,16 +606,22 @@ public class CheckProfilesDialog extends SizeControlledButtonDialog<Boolean> {
 		node.setFont(gameFont_);
 	}
 
-	static final int MESSAGE_LINES = 3;
-
-	/** the message of a line, wrapped to the width of its column */
-	private org.eclipse.swt.graphics.TextLayout messageLayout(TreeItem item, org.eclipse.swt.graphics.GC gc) {
-		org.eclipse.swt.graphics.TextLayout layout = new org.eclipse.swt.graphics.TextLayout(tree_.getDisplay());
-		layout.setFont(tree_.getFont());
-		layout.setText(item.getText(0));
-		org.eclipse.swt.graphics.Rectangle cell = item.getBounds(0), text = item.getTextBounds(0);
-		layout.setWidth(Math.max(80, cell.x + cell.width - (text.x + 2) - 8));
-		return layout;
+	/** a text broken into lines of at most about width characters, at spaces */
+	public static String wrapped(String text, int width) {
+		StringBuilder out = new StringBuilder();
+		int line = 0;
+		for (String word: text.split(" ")) {
+			if ((line > 0) && (line + 1 + word.length() > width)) {
+				out.append('\n');
+				line = 0;
+			} else if (line > 0) {
+				out.append(' ');
+				line++;
+			}
+			out.append(word);
+			line += word.length();
+		}
+		return out.toString();
 	}
 
 	private static String oneLine(String s) {

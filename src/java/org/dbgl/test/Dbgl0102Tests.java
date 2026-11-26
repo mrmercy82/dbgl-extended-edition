@@ -6873,4 +6873,12 @@ public class Dbgl0102Tests {
 			org.apache.commons.io.FileUtils.deleteQuietly(to);
 		}
 	}
+
+	/** alpha 54 (TEST5): the tooltip of a message in "Check" wrapped at spaces */
+	@Test
+	public void testCheckMessageWrapped() {
+		String w = org.dbgl.gui.dialog.CheckProfilesDialog.wrapped("one two three four five six", 9);
+		assertEquals("one two\nthree\nfour five\nsix", w);
+		assertEquals("short", org.dbgl.gui.dialog.CheckProfilesDialog.wrapped("short", 100));
+	}
 }

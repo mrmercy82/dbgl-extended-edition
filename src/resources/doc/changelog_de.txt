@@ -79,10 +79,8 @@ Geändert
   (Update, Quellcode, Windows mit und ohne Java, Linux, macOS, SHA256SUMS)
   aus einem Commit; aus dem Release-Commit von alpha 53 ergibt es dieselben
   Dateien wie die veröffentlichten Pakete.
-- Prüfen: Lange Meldungen werden in der Liste umgebrochen (bis zu drei
-  Zeilen) statt abgeschnitten; unten steht weiter die ganze Meldung. Unter
-  Windows haben alle Zeilen einer Liste dieselbe Höhe, dann werden alle
-  etwas höher.
+- Prüfen: Lange Meldungen erscheinen ganz und umbrochen als Tooltip, wenn
+  die Maus über ihrer Zeile steht; unten steht weiter die ganze Meldung.
 - USB-Stick: Das ZIP wird zuerst im Ordner export vorgeschlagen statt
   direkt im Datenordner.
 
