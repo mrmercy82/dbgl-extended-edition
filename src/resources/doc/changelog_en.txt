@@ -23,7 +23,10 @@ New
   zipstart\changes\<profile id> in DBGL's data folder, both ways with the
   same layout (C_DRIVE), so switching the DOSBox version keeps the saved
   games. It is in the full backup, the backups of saved games use it, and
-  the profile itself is never changed. 7z archives start with DOSBox-X only;
+  the profile itself is never changed. The USB stick assistant takes it
+  along (a "Write" folder of the mount becomes the profile's own folder on
+  the stick), and the way back brings the saved games to where they were.
+  7z archives start with DOSBox-X only;
   "Check" says so for other versions. The fields "Zip" and "Write" in the
   mount dialog have tooltips.
 

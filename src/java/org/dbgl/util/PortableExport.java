@@ -108,7 +108,7 @@ public final class PortableExport {
 	}
 
 	static final String ROOT = "DBGL/";
-	static final Set<String> DATA_DIRS_CHOSEN = Set.of("db", "profiles", "captures", "dosroot", "export", "savegames");
+	static final Set<String> DATA_DIRS_CHOSEN = Set.of("db", "profiles", "captures", "dosroot", "export", "savegames", ZipStart.DIR);
 
 	private final Options options_;
 	private final Progress progress_;
@@ -185,6 +185,11 @@ public final class PortableExport {
 		Map<Integer, Profile> migrated = new LinkedHashMap<>();
 		List<Transferred> transferred = new ArrayList<>();
 		for (Profile p: profiles) {
+			// alpha 54: a game in a ZIP: where what it wrote (ZipStart) is kept here, per drive, before the paths are changed
+			Map<Character, File> zipWritten = new LinkedHashMap<>();
+			for (Mount m: p.getConfiguration().getAutoexec().getMountingpoints())
+				if (ZipStart.isArchiveMount(m))
+					zipWritten.put(Character.toUpperCase(m.getDrive()), ZipStart.driveDir(ZipStart.changesDir(m, p.getId()), m.getDrive()));
 			for (Need n: needs.get(p.getId()))
 				if (!n.dir() && n.files().isEmpty())
 					notes_.add(p.getTitle() + ": " + n.path().getPath());
@@ -194,6 +199,19 @@ public final class PortableExport {
 				for (String spelling: spellings(p, moved.getKey()))
 					p.migrate(new FileLocation(spelling, FileLocationService.standard()), new FileLocation(moved.getValue(), FileLocationService.getInstance().dosrootRelative()));
 			relativeMounts(p);
+			// it goes along into the profile's own folder on the stick, also when it is kept in a folder of the mount here (that
+			// folder would not exist on the stick), and comes back to where it was
+			for (Map.Entry<Character, File> w: zipWritten.entrySet()) {
+				String onStick = ZipStart.DIR + "/changes/" + p.getId() + "/" + w.getValue().getName();
+				if (w.getValue().isDirectory())
+					addPath(w.getValue(), ROOT + onStick);
+				returnPaths_.put(onStick, w.getValue());
+			}
+			for (Mount m: p.getConfiguration().getAutoexec().getMountingpoints())
+				if ((m instanceof org.dbgl.model.conf.mount.PhysFsMount pm) && ZipStart.isArchiveMount(m) && (pm.getWrite() != null)) {
+					pm.setWrite(null);
+					m.rememberOriginal(null);
+				}
 			transferred.add(new Transferred(p.getTitle(), p.getId(), sizeOf(needs.get(p.getId())) + sizeOfQuietly(p.getCanonicalCaptures()) + sizeOfQuietly(SavegameBackup.dir(p))));
 			File conf = p.getConfigurationCanonicalFile();
 			generated_.put(ROOT + zipPathInData(conf, "profiles"), p.configurationBytesToSave());

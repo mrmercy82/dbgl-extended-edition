@@ -26,6 +26,9 @@ Neu
   demselben Aufbau (C_DRIVE), sodass ein Wechsel der DOSBox-Version die
   Spielstände behält. Er ist in der vollständigen Sicherung, die
   Savegame-Sicherungen nutzen ihn, und das Profil selbst wird nie geändert.
+  Der USB-Stick-Assistent nimmt ihn mit (ein „Schreiben“-Ordner des Mounts
+  wird auf dem Stick zum eigenen Ordner des Profils), und der Rückweg bringt
+  die Spielstände dorthin zurück, wo sie vorher lagen.
   7z-Archive startet nur DOSBox-X; „Prüfen“ meldet das bei anderen
   Versionen. Die Felder „Zip-Datei“ und „Schreiben“ im Mount-Dialog haben
   Tooltips.
