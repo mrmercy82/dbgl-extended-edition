@@ -188,6 +188,8 @@ public final class PortableExport {
 		for (Profile p: profiles) {
 			// alpha 54: a game in a ZIP: where what it wrote (ZipStart) is kept here, per drive, before the paths are changed
 			Map<Character, File> zipWritten = new LinkedHashMap<>();
+			// TEST4: the links as they are here (migrating them below makes them absolute paths of this computer)
+			org.dbgl.model.Link[] linksHere = p.getLinks() == null ? null: java.util.Arrays.stream(p.getLinks()).map(l -> l == null ? null: new org.dbgl.model.Link(l.getTitle(), l.getDestination())).toArray(org.dbgl.model.Link[]::new);
 			for (Mount m: p.getConfiguration().getAutoexec().getMountingpoints())
 				if (ZipStart.isArchiveMount(m))
 					zipWritten.put(Character.toUpperCase(m.getDrive()), ZipStart.driveDir(ZipStart.changesDir(m, p.getId()), m.getDrive()));
@@ -213,7 +215,7 @@ public final class PortableExport {
 					pm.setWrite(null);
 					m.rememberOriginal(null);
 				}
-			long extras = takeExtras(p);
+			long extras = takeExtras(p, linksHere);
 			transferred.add(new Transferred(p.getTitle(), p.getId(), sizeOf(needs.get(p.getId())) + sizeOfQuietly(p.getCanonicalCaptures()) + sizeOfQuietly(SavegameBackup.dir(p)) + extras));
 			File conf = p.getConfigurationCanonicalFile();
 			generated_.put(ROOT + zipPathInData(conf, "profiles"), p.configurationBytesToSave());
@@ -294,21 +296,36 @@ public final class PortableExport {
 
 	/**
 	 * alpha 54 (TEST3): what a profile uses besides its games goes on the stick too: the files and folders its settings name
-	 * (MT-32 and Sound Canvas ROMs, SoundFonts, shaders) and the local files of its links (manuals, maps, ...). Taken where they
-	 * are on the stick already (in a game folder that goes along), else into DBGL-extras of the DOSroot; the settings then name
+	 * (MT-32 and Sound Canvas ROMs, SoundFonts, shaders; also those of the configuration of its DOSBox version) and the local
+	 * files of its links (manuals, maps, ...). Taken where they are on the stick already (in a game folder that goes along), else
+	 * into DBGL-extras of the DOSroot; the settings then name
 	 * them relative to the DOSroot (any drive letter), the links relative to DBGL. A plain name DOSBox looks for in its own
 	 * folders stays as it is.
 	 *
 	 * @return the bytes added
 	 */
-	private long takeExtras(Profile p) throws IOException {
+	private long takeExtras(Profile p, org.dbgl.model.Link[] linksHere) throws IOException {
 		long bytes = 0;
 		org.dbgl.model.conf.Configuration conf = p.getConfiguration();
-		for (String section: conf.getSectionNames()) {
-			for (String item: conf.getItemNames(section)) {
+		// TEST4: also what the configuration of the DOSBox version names (e.g. [midi] mt32.romdir of DOSBox-X): the profile on
+		// the stick gets it with the path there, the configuration of the DOSBox version itself stays as it is
+		List<String[]> settings = new ArrayList<>();
+		for (String section: conf.getSectionNames())
+			for (String item: conf.getItemNames(section))
+				settings.add(new String[] {section, item, conf.getValue(section, item)});
+		DosboxVersion version = p.getDosboxVersion();
+		org.dbgl.model.conf.Configuration versionConf = version == null ? null: version.getConfiguration();
+		if (versionConf != null)
+			for (String section: versionConf.getSectionNames())
+				for (String item: versionConf.getItemNames(section))
+					if (StringUtils.isBlank(conf.getValue(section, item)))
+						settings.add(new String[] {section, item, versionConf.getValue(section, item)});
+		for (String[] setting: settings) {
+			{
+				String section = setting[0], item = setting[1];
 				if (!RESOURCE_SETTINGS.contains(item.toLowerCase(Locale.ROOT)))
 					continue;
-				String raw = StringUtils.defaultString(conf.getValue(section, item)).trim();
+				String raw = StringUtils.defaultString(setting[2]).trim();
 				java.util.regex.Matcher volume = java.util.regex.Pattern.compile("^(.*?)(\\s+\\d{1,3})?$").matcher(raw); // Staging: "soundfont = name.sf2 50"
 				String path = volume.matches() ? StringUtils.strip(volume.group(1), "\""): raw, rest = volume.matches() && volume.group(2) != null ? volume.group(2): "";
 				if (path.isEmpty() || (!path.contains("/") && !path.contains("\\")))
@@ -316,30 +333,23 @@ public final class PortableExport {
 				File f = resolve(path, p);
 				if (f == null)
 					continue;
-				// in the data (not in a part taken only for the chosen profiles): goes along anyway, the DOSroot is DBGL/dosroot there
-				String onStick = inside(data_, f) && !isChosenData(data_, f) ? "../" + relative(data_, f): placeExtra(f);
+				String onStick = placeExtra(f); // TEST4: not assumed to come with the data (its folders can be left out, game folders are)
 				bytes += onStick.startsWith(EXTRAS) ? sizeOfQuietly(f): 0;
 				conf.setValue(section, item, onStick.replace('/', path.contains("\\") ? '\\': '/') + rest);
 			}
 		}
 		org.dbgl.model.Link[] links = p.getLinks();
 		boolean linksChanged = false;
-		for (int i = 0; (links != null) && (i < links.length); i++) {
-			String d = links[i] == null ? null: links[i].getDestination();
+		for (int i = 0; (links != null) && (linksHere != null) && (i < links.length) && (i < linksHere.length); i++) {
+			String d = linksHere[i] == null ? null: linksHere[i].getDestination();
 			if (StringUtils.isBlank(d) || d.contains("://"))
 				continue;
 			File f = new FileLocation(d, FileLocationService.getInstance().dataRelative()).getCanonicalFile();
 			if ((f == null) || !f.exists())
 				continue;
-			String inData;
-			if (inside(data_, f) && !isChosenData(data_, f)) { // in the data, which goes along (the DOSroot only with the games chosen)
-				inData = relative(data_, f);
-			} else {
-				String onStick = placeExtra(f);
-				bytes += onStick.startsWith(EXTRAS) ? sizeOfQuietly(f): 0;
-				inData = "dosroot/" + onStick;
-			}
-			links[i] = new org.dbgl.model.Link(links[i].getTitle(), inData); // DBGL's links are relative to its data
+			String onStick = placeExtra(f); // TEST4: where it goes along with a game, else into DBGL-extras (see above)
+			bytes += onStick.startsWith(EXTRAS) ? sizeOfQuietly(f): 0;
+			links[i] = new org.dbgl.model.Link(linksHere[i].getTitle(), "dosroot/" + onStick); // DBGL's links are relative to its data
 			linksChanged = true;
 		}
 		if (linksChanged)

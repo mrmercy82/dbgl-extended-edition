@@ -55,11 +55,42 @@ public final class BulkUndo {
 	private BulkUndo() {
 	}
 
-	static File dir() {
+	/** TEST4: how many changes are remembered, the oldest goes (Windows keeps about as many steps back) */
+	public static final int STEPS = 5;
+
+	/** where the changes are kept, each in a folder of its own (numbered, the highest the newest) */
+	static File root() {
 		return new File(new File(FileLocationService.getInstance().getProfilesDir(), "history"), "bulk");
 	}
 
-	/** remember the current state of the profiles, before they are changed; replaces the previously remembered change */
+	/** the folders of the remembered changes, oldest first; a change kept before alpha 54 (files right in the folder) becomes the first */
+	static List<File> steps() {
+		File root = root();
+		if (new File(root, META).isFile()) {
+			File first = new File(root, "0001");
+			if (first.mkdirs()) {
+				File[] files = root.listFiles(File::isFile);
+				if (files != null)
+					for (File f: files)
+						f.renameTo(new File(first, f.getName()));
+			}
+		}
+		File[] dirs = root.listFiles(f -> f.isDirectory() && f.getName().matches("\\d{4}"));
+		return dirs == null ? List.of(): java.util.Arrays.stream(dirs).sorted(java.util.Comparator.comparing(File::getName)).toList();
+	}
+
+	/** the folder of the last remembered change (one that does not exist when there is none) */
+	static File dir() {
+		List<File> steps = steps();
+		return steps.isEmpty() ? new File(root(), "0000"): steps.get(steps.size() - 1);
+	}
+
+	/** how many changes can be undone one after the other */
+	public static int count() {
+		return (int)steps().stream().filter(d -> new File(d, META).isFile()).count();
+	}
+
+	/** remember the current state of the profiles, before they are changed; the changes before stay (up to STEPS) */
 	public static void remember(String label, Collection<Profile> profiles) {
 		remember(label, profiles == null ? null: new java.util.ArrayList<>(profiles), null);
 	}
@@ -72,10 +103,23 @@ public final class BulkUndo {
 	public static void remember(String label, java.util.List<Profile> profiles, java.util.List<Profile> originals) {
 		if ((profiles == null) || profiles.isEmpty())
 			return; // alpha 54 (TEST3): also a single profile (before: only several, a single one had only its history)
-		File dir = dir();
+		File dir;
 		try {
-			clear();
+			// TEST4: a new step; beyond STEPS the oldest are forgotten
+			List<File> steps = steps();
+			int next = steps.isEmpty() ? 1: Integer.parseInt(steps.get(steps.size() - 1).getName()) + 1;
+			if (next > 9999) { // numbered anew from 1, in the same order
+				for (int i = 0; i < steps.size(); i++)
+					steps.get(i).renameTo(new File(root(), String.format("%04d", i + 1)));
+				steps = steps();
+				next = steps.size() + 1;
+			}
+			dir = new File(root(), String.format("%04d", next));
+			if (dir.exists())
+				org.apache.commons.io.FileUtils.deleteDirectory(dir);
 			Files.createDirectories(dir.toPath());
+			for (int i = 0; i <= steps.size() - STEPS; i++)
+				org.apache.commons.io.FileUtils.deleteQuietly(steps.get(i));
 			StringBuilder meta = new StringBuilder(label.replaceAll("[\\r\\n]", " ")).append('\n').append(new SimpleDateFormat(STAMP).format(new Date())).append('\n');
 			for (int i = 0; i < profiles.size(); i++) {
 				Profile p = profiles.get(i);
@@ -341,7 +385,7 @@ public final class BulkUndo {
 	}
 
 	/** alpha 54: what a profile has in the database besides its configuration file (title, details, notes, links, ...) */
-	static java.util.Properties fieldsOf(Profile p) {
+	public static java.util.Properties fieldsOf(Profile p) {
 		java.util.Properties f = new java.util.Properties();
 		java.util.function.BiConsumer<String, String> put = (k, v) -> f.setProperty(k, v == null ? "": v);
 		put.accept("title", p.getTitle());
@@ -446,11 +490,16 @@ public final class BulkUndo {
 			}
 	}
 
+	/** forget the last remembered change (when it is undone); the one before is then the last */
 	public static void clear() {
-		File[] files = dir().listFiles();
-		if (files != null)
-			for (File f: files)
-				f.delete();
+		org.apache.commons.io.FileUtils.deleteQuietly(dir());
+		changed();
+	}
+
+	/** forget all remembered changes */
+	public static void clearAll() {
+		for (File d: steps())
+			org.apache.commons.io.FileUtils.deleteQuietly(d);
 		changed();
 	}
 }

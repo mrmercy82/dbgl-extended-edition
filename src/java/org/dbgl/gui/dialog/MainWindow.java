@@ -680,7 +680,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		tbRight_ = toolBarRight;
 		tbButton(toolBar, "dialog.main.addprofile", ImageService.IMG_TB_NEW, addProfAdapter);
 		tbButton(toolBar, "dialog.main.editprofile", ImageService.IMG_TB_EDIT, editProfAdapter);
-		// undo the last change of several profiles at once; its tooltip says which one it is
+		// undo the last change of profiles (TEST4: one step after the other, up to BulkUndo.STEPS); its tooltip says which one it is
 		ToolItem undoItem = tbButton(toolBar, "dialog.main.undobulk", ImageService.IMG_TB_UNDO, new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
@@ -702,8 +702,10 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		});
 		undoItem.getParent().addListener(SWT.MouseEnter, e -> {
 			org.dbgl.util.BulkUndo.Info last = org.dbgl.util.BulkUndo.last();
+			int more = org.dbgl.util.BulkUndo.count() - 1; // TEST4: up to BulkUndo.STEPS steps back
 			undoItem.setToolTipText(last == null ? text_.get("dialog.main.undobulk.none"): text_.get("dialog.main.undobulk.tooltip", new Object[] {last.label(),
-				java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT).format(last.when()), last.profiles()}));
+				java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT).format(last.when()), last.profiles()})
+					+ (more > 0 ? "\n" + text_.get("dialog.main.undobulk.more", new Object[] {more}): ""));
 		});
 		tbButton(toolBar, "dialog.main.removeprofile", ImageService.IMG_TB_DELETE, removeProfAdapter);
 		// groups of buttons, all with the same space between them

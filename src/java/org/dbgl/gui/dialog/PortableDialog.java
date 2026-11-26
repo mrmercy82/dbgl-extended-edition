@@ -469,6 +469,9 @@ public final class PortableDialog {
 					running[0] = false;
 					if (result instanceof PortableExport.Result r) {
 						new ShortcutsDialog(dlg, text.get("dialog.portable.title"), report(text, r, target), ImageService.IMG_USB).open();
+						// TEST4: then to the ZIP file in its folder, if wanted
+						if (target.isFile() && Mess_.on(dlg).key("dialog.portable.showzip", new Object[] {target.getName()}).confirm())
+							org.dbgl.util.SystemUtils.showInFolder(target, dlg);
 						dlg.close();
 					} else {
 						if (result instanceof Exception ex)

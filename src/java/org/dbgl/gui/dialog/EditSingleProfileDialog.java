@@ -893,7 +893,11 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 					result_ = org.dbgl.gui.controls.BusyTask.runToEnd(shell_, text_.get("dialog.profile.saving"), () -> {
 						if (editing_) {
 							// alpha 54 (TEST3): the undo button also for one profile edited here (the file on disk is still the old one)
-							org.dbgl.util.BulkUndo.remember(text_.get("dialog.bulkundo.edit", new Object[] {original_.getTitle()}), java.util.List.of(profile_), java.util.List.of(original_));
+							// (TEST4: only when something changed, so that OK without a change takes no step back)
+							boolean sameVersion = (original_.getDosboxVersion() == null ? -1: original_.getDosboxVersion().getId()) == (profile_.getDosboxVersion() == null ? -1: profile_.getDosboxVersion().getId());
+							if (!sameVersion || !org.dbgl.util.BulkUndo.fieldsOf(original_).equals(org.dbgl.util.BulkUndo.fieldsOf(profile_))
+									|| !java.util.Arrays.equals(org.dbgl.util.ProfileHistory.read(original_), profile_.configurationBytesToSave()))
+								org.dbgl.util.BulkUndo.remember(text_.get("dialog.bulkundo.edit", new Object[] {original_.getTitle()}), java.util.List.of(profile_), java.util.List.of(original_));
 							new ProfileRepository().update(profile_);
 							if (switchMemory_ != null)
 								org.dbgl.util.SwitchMemory.save(profile_.getId(), switchMemory_);

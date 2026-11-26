@@ -52,15 +52,18 @@ New
   (OneDrive, Dropbox) works as well: the automatic backup is written under
   another name first and then renamed, so that no half file is uploaded.
 - USB stick: what a profile needs besides its games goes along: MT-32 and
-  Sound Canvas ROMs, SoundFonts and shaders of its settings and the files of
-  its links (manuals, maps). What goes along with a game folder or the data
+  Sound Canvas ROMs, SoundFonts and shaders of its settings (also of the
+  configuration of its DOSBox version, e.g. [midi] mt32.romdir of DOSBox-X)
+  and the files of its links (manuals, maps). What goes along with a game
   folder anyway is not copied twice, the rest goes to DBGL-extras in the DOS
   folder of the stick; on the stick settings and links point there,
-  whatever the drive letter.
-- Undo now also works when only one profile was changed (also in the profile
-  dialog), and besides the configuration file and the DOSBox version it
-  brings back title, details, notes, links, own fields and series; the
-  preview shows these changes too.
+  whatever the drive letter. When the stick is made, DBGL offers to open the
+  folder with the ZIP file.
+- Undo: up to five steps back, one after the other (the tooltip says how
+  many are left); also when only one profile was changed (also in the profile
+  dialog, there only when something changed). Besides the configuration file
+  and the DOSBox version it brings back title, details, notes, links, own
+  fields and series; the preview shows these changes too.
 
 Changed
 - For development: tools/mkrelease.py builds all packages of a release

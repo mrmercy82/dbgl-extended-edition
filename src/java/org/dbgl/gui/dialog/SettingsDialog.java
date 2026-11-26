@@ -255,6 +255,7 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 		hintData.widthHint = 700;
 		secondHint.setLayoutData(hintData);
 		secondHint.setText(text_.get(clouds.isEmpty() ? "dialog.settings.secondplace.hint.none": "dialog.settings.secondplace.hint", new Object[] {String.join(", ", clouds.keySet())}));
+		alignFirstColumns(backupGroup, secondGroup); // TEST4: the settings of both groups in one column
 
 		Group sendToGroup = Group_.on(generalComposite).layout(new GridLayout(2, false)).key("dialog.settings.sendto").build();
 		Button portEnabled = Chain.on(sendToGroup).lbl(l -> l.key("dialog.settings.enableport")).but(b -> b.select(settings_.getBooleanValue("communication", "port_enabled"))).button();
@@ -1209,9 +1210,9 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 		for (Composite group: groups) {
 			int columns = ((GridLayout)group.getLayout()).numColumns, col = 0;
 			for (org.eclipse.swt.widgets.Control c: group.getChildren()) {
-				if (col == 0 && c instanceof org.eclipse.swt.widgets.Label label)
-					labels.add(label);
 				int span = (c.getLayoutData() instanceof GridData gd) ? gd.horizontalSpan: 1;
+				if (col == 0 && span == 1 && c instanceof org.eclipse.swt.widgets.Label label) // not a hint over the whole width
+					labels.add(label);
 				col = (col + span) % columns;
 			}
 		}
