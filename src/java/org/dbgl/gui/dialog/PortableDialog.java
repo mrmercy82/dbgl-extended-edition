@@ -192,7 +192,8 @@ public final class PortableDialog {
 		Text zip = new Text(dlg, SWT.BORDER);
 		// alpha 48: with date and time, so that an earlier one stays
 		String stamp = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd-HHmm", java.util.Locale.ROOT));
-		zip.setText(new File(org.dbgl.service.FileLocationService.getInstance().getDataDir(), "DBGL-portable-" + stamp + ".zip").getAbsolutePath());
+		org.dbgl.service.FileLocationService.getInstance().getExportDir().mkdirs();
+		zip.setText(new File(org.dbgl.service.FileLocationService.getInstance().getExportDir(), "DBGL-portable-" + stamp + ".zip").getAbsolutePath()); // alpha 54: in export, not at the top of the data
 		zip.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
 		Button browse = new Button(dlg, SWT.PUSH);
 		browse.setText(text.get("button.browse"));

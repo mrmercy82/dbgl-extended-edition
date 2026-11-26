@@ -316,7 +316,7 @@ public final class EditionUpdater {
 		progress.set(940);
 
 		// backups: what DBGL keeps about the games, and the program files that will be replaced (to go back)
-		File backupDir = org.dbgl.service.BackupService.defaultAutoBackupDir();
+		File backupDir = org.dbgl.service.BackupService.backupDir();
 		Files.createDirectories(backupDir.toPath());
 		String stamp = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm"));
 		String from = fromVersion.replaceAll("[^0-9A-Za-z.]+", "");
@@ -450,7 +450,7 @@ public final class EditionUpdater {
 		File kept = null;
 		if ((archive != null) && archive.isFile()) {
 			if (keepArchive) {
-				File backupDir = org.dbgl.service.BackupService.defaultAutoBackupDir();
+				File backupDir = org.dbgl.service.BackupService.backupDir();
 				Files.createDirectories(backupDir.toPath());
 				kept = new File(backupDir, archive.getName());
 				Files.move(archive.toPath(), kept.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);

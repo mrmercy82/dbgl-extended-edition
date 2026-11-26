@@ -24,6 +24,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.sql.SQLException;
+import java.util.List;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -101,6 +102,49 @@ public final class BackupService {
 	}
 
 	/**
+	 * alpha 54 (TEST3): the folder of DBGL's backups (automatic ones, before an update, of saved games packed, of the way back
+	 * from a stick, made in the window of the backups): the one chosen in the settings ([backup] dir), else "backups" in the
+	 * data folder
+	 */
+	public static File backupDir() {
+		String dir = SettingsService.getInstance().getValue("backup", "dir");
+		return (dir == null) || dir.isBlank() ? defaultAutoBackupDir(): new File(dir.trim());
+	}
+
+	/** the backups DBGL made in a folder (to move them along when another folder is chosen): those the window of the backups shows, and which are locked */
+	public static List<File> ownBackupsIn(File dir) {
+		File[] files = dir.listFiles(f -> (org.dbgl.util.BackupCatalog.kindOf(f.getName()) != null) || f.getName().equals(org.dbgl.util.BackupCatalog.LOCKED));
+		return files == null ? List.of(): java.util.Arrays.stream(files).sorted().toList();
+	}
+
+	/**
+	 * Move DBGL's backups from one folder to another (across drives: copied, then deleted); a file of the same name there
+	 * stays and the one here too.
+	 *
+	 * @return how many were moved
+	 */
+	public static int moveBackups(File from, File to) throws IOException {
+		Files.createDirectories(to.toPath());
+		int moved = 0;
+		for (File f: ownBackupsIn(from)) {
+			File target = new File(to, f.getName());
+			if (target.exists())
+				continue;
+			try {
+				Files.move(f.toPath(), target.toPath(), java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+			} catch (IOException e) { // another drive
+				if (f.isDirectory())
+					FileUtils.copyDirectory(f, target, true);
+				else
+					FileUtils.copyFile(f, target, true);
+				FileUtils.forceDelete(f);
+			}
+			moved++;
+		}
+		return moved;
+	}
+
+	/**
 	 * @param mode never, daily or weekly
 	 * @param last the date of the last automatic backup (yyyy-MM-dd), or empty
 	 */
@@ -126,7 +170,14 @@ public final class BackupService {
 	public static File autoBackup(File dir, int keep, boolean captures, boolean savegames) throws IOException, SQLException {
 		dir.mkdirs();
 		File zip = new File(dir, "dbgl-backup-" + java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")) + ".zip");
-		backup(zip, captures, savegames);
+		// alpha 54: written under another name first, then renamed: OneDrive and the like do not take a half written file
+		File part = new File(dir, zip.getName() + ".part");
+		try {
+			backup(part, captures, savegames);
+			Files.move(part.toPath(), zip.toPath(), StandardCopyOption.REPLACE_EXISTING);
+		} finally {
+			Files.deleteIfExists(part.toPath());
+		}
 		File[] all = dir.listFiles((d, n) -> n.startsWith("dbgl-backup-") && n.endsWith(".zip"));
 		if (all != null) {
 			java.util.Arrays.sort(all, java.util.Comparator.comparing(File::getName).reversed());

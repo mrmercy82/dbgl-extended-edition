@@ -122,7 +122,7 @@ public class DeleteProfilesDialog extends SizeControlledTabbedDialog<List<Profil
 			return false;
 		try {
 			java.io.File zip = org.dbgl.gui.controls.BusyTask.runToEnd(shell_, text_.get("dialog.deleteprofiles.savegames.packing"),
-				() -> org.dbgl.util.SavegameBackup.packBeforeDelete(with.profiles(), org.dbgl.service.BackupService.defaultAutoBackupDir()));
+				() -> org.dbgl.util.SavegameBackup.packBeforeDelete(with.profiles(), org.dbgl.service.BackupService.backupDir()));
 			if (zip != null)
 				Mess_.on(shell_).key("dialog.deleteprofiles.savegames.packed", new Object[] {zip.getPath()}).display();
 			return true;

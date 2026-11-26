@@ -48,6 +48,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.dbgl.model.FileLocation;
 import org.dbgl.model.aggregate.DosboxVersion;
 import org.dbgl.model.aggregate.Profile;
@@ -212,7 +213,8 @@ public final class PortableExport {
 					pm.setWrite(null);
 					m.rememberOriginal(null);
 				}
-			transferred.add(new Transferred(p.getTitle(), p.getId(), sizeOf(needs.get(p.getId())) + sizeOfQuietly(p.getCanonicalCaptures()) + sizeOfQuietly(SavegameBackup.dir(p))));
+			long extras = takeExtras(p);
+			transferred.add(new Transferred(p.getTitle(), p.getId(), sizeOf(needs.get(p.getId())) + sizeOfQuietly(p.getCanonicalCaptures()) + sizeOfQuietly(SavegameBackup.dir(p)) + extras));
 			File conf = p.getConfigurationCanonicalFile();
 			generated_.put(ROOT + zipPathInData(conf, "profiles"), p.configurationBytesToSave());
 			File captures = p.getCanonicalCaptures();
@@ -280,6 +282,117 @@ public final class PortableExport {
 	public static StickReturn.Stats statsOf(Profile p) {
 		java.util.Date last = p.getStats().getLastRun();
 		return new StickReturn.Stats(p.getStats().getRuns(), p.getProfileStats().getPlayTime(), last == null ? 0: last.getTime());
+	}
+
+	/** alpha 54 (TEST3): settings of a profile that name a file or folder DOSBox reads (sound ROMs, SoundFonts, shaders) */
+	static final Set<String> RESOURCE_SETTINGS = Set.of("soundfont", "fluid.soundfont", "soundfont_dir", "romdir", "mt32.romdir", "glshader", "shader");
+
+	/** where the files a profile needs besides its games go on the stick, below its DOSroot (DOSBox runs in the DOSroot) */
+	static final String EXTRAS = "DBGL-extras";
+
+	private final Map<File, String> extras_ = new java.util.HashMap<>(); // file or folder here -> path below the DOSroot of the stick
+
+	/**
+	 * alpha 54 (TEST3): what a profile uses besides its games goes on the stick too: the files and folders its settings name
+	 * (MT-32 and Sound Canvas ROMs, SoundFonts, shaders) and the local files of its links (manuals, maps, ...). Taken where they
+	 * are on the stick already (in a game folder that goes along), else into DBGL-extras of the DOSroot; the settings then name
+	 * them relative to the DOSroot (any drive letter), the links relative to DBGL. A plain name DOSBox looks for in its own
+	 * folders stays as it is.
+	 *
+	 * @return the bytes added
+	 */
+	private long takeExtras(Profile p) throws IOException {
+		long bytes = 0;
+		org.dbgl.model.conf.Configuration conf = p.getConfiguration();
+		for (String section: conf.getSectionNames()) {
+			for (String item: conf.getItemNames(section)) {
+				if (!RESOURCE_SETTINGS.contains(item.toLowerCase(Locale.ROOT)))
+					continue;
+				String raw = StringUtils.defaultString(conf.getValue(section, item)).trim();
+				java.util.regex.Matcher volume = java.util.regex.Pattern.compile("^(.*?)(\\s+\\d{1,3})?$").matcher(raw); // Staging: "soundfont = name.sf2 50"
+				String path = volume.matches() ? StringUtils.strip(volume.group(1), "\""): raw, rest = volume.matches() && volume.group(2) != null ? volume.group(2): "";
+				if (path.isEmpty() || (!path.contains("/") && !path.contains("\\")))
+					continue;
+				File f = resolve(path, p);
+				if (f == null)
+					continue;
+				// in the data (not in a part taken only for the chosen profiles): goes along anyway, the DOSroot is DBGL/dosroot there
+				String onStick = inside(data_, f) && !isChosenData(data_, f) ? "../" + relative(data_, f): placeExtra(f);
+				bytes += onStick.startsWith(EXTRAS) ? sizeOfQuietly(f): 0;
+				conf.setValue(section, item, onStick.replace('/', path.contains("\\") ? '\\': '/') + rest);
+			}
+		}
+		org.dbgl.model.Link[] links = p.getLinks();
+		boolean linksChanged = false;
+		for (int i = 0; (links != null) && (i < links.length); i++) {
+			String d = links[i] == null ? null: links[i].getDestination();
+			if (StringUtils.isBlank(d) || d.contains("://"))
+				continue;
+			File f = new FileLocation(d, FileLocationService.getInstance().dataRelative()).getCanonicalFile();
+			if ((f == null) || !f.exists())
+				continue;
+			String inData;
+			if (inside(data_, f) && !isChosenData(data_, f)) { // in the data, which goes along (the DOSroot only with the games chosen)
+				inData = relative(data_, f);
+			} else {
+				String onStick = placeExtra(f);
+				bytes += onStick.startsWith(EXTRAS) ? sizeOfQuietly(f): 0;
+				inData = "dosroot/" + onStick;
+			}
+			links[i] = new org.dbgl.model.Link(links[i].getTitle(), inData); // DBGL's links are relative to its data
+			linksChanged = true;
+		}
+		if (linksChanged)
+			p.setLinks(links);
+		return bytes;
+	}
+
+	/** a setting's path here: as written, else relative to the DOSroot (where DOSBox runs) or the folder of the DOSBox program */
+	private File resolve(String path, Profile p) {
+		File f = new File(path.replace('\\', File.separatorChar).replace('/', File.separatorChar));
+		List<File> candidates = new ArrayList<>();
+		candidates.add(f.isAbsolute() ? f: new File(dosroot_, f.getPath()));
+		DosboxVersion v = p.getDosboxVersion();
+		if (!f.isAbsolute() && (v != null) && (v.getCanonicalExecutable() != null) && (v.getCanonicalExecutable().getParentFile() != null))
+			candidates.add(new File(v.getCanonicalExecutable().getParentFile(), f.getPath()));
+		for (File c: candidates)
+			if (c.exists())
+				try {
+					return c.getCanonicalFile();
+				} catch (IOException e) {
+					return c.getAbsoluteFile();
+				}
+		return null;
+	}
+
+	/** where a file or folder is below the DOSroot of the stick: where it goes along anyway, else in DBGL-extras */
+	private String placeExtra(File f) throws IOException {
+		String known = extras_.get(f);
+		if (known != null)
+			return known;
+		String prefix = ROOT + "dosroot/";
+		for (Map.Entry<String, File> e: entries_.entrySet()) {
+			if (!e.getKey().startsWith(prefix))
+				continue;
+			if (e.getValue().equals(f)) {
+				known = e.getKey().substring(prefix.length());
+			} else if (f.isDirectory() && inside(f, e.getValue())) {
+				String rel = relative(f, e.getValue());
+				if (e.getKey().endsWith("/" + rel))
+					known = e.getKey().substring(prefix.length(), e.getKey().length() - rel.length() - 1);
+			}
+			if (known != null) {
+				extras_.put(f, known);
+				return known;
+			}
+		}
+		String parent = f.getParentFile() == null ? "files": f.getParentFile().getName();
+		String place = EXTRAS + "/" + (parent.isEmpty() ? "files": parent) + "/" + f.getName();
+		for (int i = 2; extras_.containsValue(place); i++)
+			place = EXTRAS + "/" + parent + "-" + i + "/" + f.getName();
+		addPath(f, prefix + place);
+		extras_.put(f, place);
+		return place;
 	}
 
 	/** absolute mount paths into the DOSroot become relative, so the stick works with any drive letter */

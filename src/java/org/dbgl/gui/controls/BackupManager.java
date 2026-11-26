@@ -317,7 +317,7 @@ public final class BackupManager {
 			table.setFocus();
 		});
 		create.addListener(SWT.Selection, e -> {
-			File dir = new File(org.dbgl.service.FileLocationService.getInstance().getDataDir(), org.dbgl.util.VersionBackup.DIR);
+			File dir = org.dbgl.service.BackupService.backupDir(); // alpha 54: the folder chosen in the settings
 			dir.mkdirs();
 			org.eclipse.swt.widgets.FileDialog fd = new org.eclipse.swt.widgets.FileDialog(dlg, SWT.SAVE);
 			fd.setFilterExtensions(new String[] {"*.zip", "*.*"});

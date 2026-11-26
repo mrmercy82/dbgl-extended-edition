@@ -48,17 +48,48 @@ Neu
   Archiv wird erst daneben geschrieben und dann an seine Stelle gesetzt,
   danach ist der Ordner mit dem Geschriebenen leer. Nicht, während das Spiel
   läuft.
+- Einstellungen > Allgemein > Automatische Sicherung: „Ordner der
+  Sicherungen“ – alle Sicherungen von DBGL (automatische, vor einem Update,
+  von Spielständen, vom Rückweg vom USB-Stick, die im Fenster der
+  Sicherungen gemachten) kommen dorthin. Beim Wechsel bietet DBGL an, die
+  bisherigen Sicherungen mitzunehmen (nur die von DBGL, eine schon
+  vorhandene gleichnamige Datei bleibt unangetastet); das Fenster der
+  Sicherungen zeigt den neuen Ordner und weiter den alten. Ein Cloud-Ordner
+  (OneDrive, Dropbox) geht auch: Die automatische Sicherung wird erst unter
+  anderem Namen geschrieben und dann umbenannt, damit keine halbe Datei
+  hochgeladen wird.
+- USB-Stick: Was ein Profil außer seinen Spielen braucht, kommt mit:
+  MT-32- und Sound-Canvas-ROMs, SoundFonts und Shader aus seinen
+  Einstellungen sowie die Dateien seiner Links (Handbücher, Karten). Was
+  schon mit einem Spielordner oder dem Datenordner mitgeht, wird nicht
+  doppelt kopiert, der Rest landet in DBGL-extras im DOS-Ordner des Sticks;
+  Einstellungen und Links zeigen auf dem Stick dorthin, unabhängig vom
+  Laufwerksbuchstaben.
+- Rückgängig geht jetzt auch, wenn nur ein Profil geändert wurde (auch im
+  Profildialog), und nimmt neben der Konfigurationsdatei und der
+  DOSBox-Version auch Titel, Angaben, Notizen, Links, eigene Felder und
+  Reihe zurück; die Vorschau zeigt diese Änderungen mit.
 
 Geändert
 - Für die Entwicklung: tools/mkrelease.py baut alle Pakete eines Releases
   (Update, Quellcode, Windows mit und ohne Java, Linux, macOS, SHA256SUMS)
   aus einem Commit; aus dem Release-Commit von alpha 53 ergibt es dieselben
   Dateien wie die veröffentlichten Pakete.
+- Prüfen: Lange Meldungen werden in der Liste umgebrochen (bis zu drei
+  Zeilen) statt abgeschnitten; unten steht weiter die ganze Meldung. Unter
+  Windows haben alle Zeilen einer Liste dieselbe Höhe, dann werden alle
+  etwas höher.
+- USB-Stick: Das ZIP wird zuerst im Ordner export vorgeschlagen statt
+  direkt im Datenordner.
 
 Fehler behoben
 - Statistik als Webseite, Dunkelmodus: Im Kalender der Spieltage waren die
   nicht gespielten Tage hellgrau und stachen heraus. Der Kalender hat jetzt
   eigene dunkle Farben; hell und gedruckt bleibt er wie bisher.
+- Nach einem von Hand behobenen Problem (z. B. ein Programm wieder an seinen
+  Platz kopiert) blieb das Warnzeichen in der Profilliste, obwohl „Prüfen“
+  nichts mehr fand. Nach „Prüfen“ werden die Warnzeichen jetzt neu
+  bestimmt.
 
 
 0.101 alpha 53 (2026-11-25)

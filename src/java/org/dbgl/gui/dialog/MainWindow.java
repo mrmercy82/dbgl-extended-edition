@@ -433,7 +433,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			return;
 		try {
 			org.dbgl.gui.controls.BusyTask.runToEnd(shell_, text_.get("dialog.savegames.moving"), () -> {
-				org.dbgl.util.SavegameBackup.packEarlierPlaces(profilesList_, BackupService.defaultAutoBackupDir());
+				org.dbgl.util.SavegameBackup.packEarlierPlaces(profilesList_, BackupService.backupDir());
 				int failed = 0;
 				for (Profile p: todo)
 					failed += org.dbgl.util.SavegameBackup.moveToNewPlace(p).failed();
@@ -451,8 +451,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		String today = java.time.LocalDate.now().toString();
 		if (!BackupService.isAutoBackupDue(settings_.getValue("backup", "auto"), settings_.getValue("backup", "last"), java.time.LocalDate.now()))
 			return;
-		String dirSetting = settings_.getValue("backup", "dir");
-		File dir = StringUtils.isBlank(dirSetting) ? BackupService.defaultAutoBackupDir(): new File(dirSetting);
+		File dir = BackupService.backupDir();
 		try {
 			settings_.setValue("backup", "last", today);
 			File zip = BackupService.autoBackup(dir, settings_.getIntValue("backup", "keep"), settings_.getBooleanValue("backup", "captures"), settings_.getBooleanValue("backup", "savegames"));
@@ -1332,7 +1331,11 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 	}
 
 	private void doCheckProfiles() {
-		if (Boolean.TRUE.equals(new CheckProfilesDialog(shell_).open())) {
+		Boolean changed = new CheckProfilesDialog(shell_).open();
+		// alpha 54: what was put right by hand outside DBGL (a program copied back, a folder made) does not change the profile, so
+		// the warning signs are found anew: the check just done is the newer word
+		org.dbgl.util.ProfileWarnings.forgetAll();
+		if (Boolean.TRUE.equals(changed)) {
 			updateProfilesList(getSelectedProfileIds());
 			displayProfileInformation(false);
 		} else {
@@ -1634,7 +1637,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 	 * no profile uses removed, and similar ones offered to be merged by hand
 	 */
 	private void doDatabaseCleanup(Shell parent) {
-		File backupDir = org.dbgl.service.BackupService.defaultAutoBackupDir();
+		File backupDir = org.dbgl.service.BackupService.backupDir();
 		Boolean backup = new DatabaseCleanupDialog(parent, backupDir).open();
 		if (backup == null)
 			return;
@@ -1875,7 +1878,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			return;
 		boolean keep = org.dbgl.gui.controls.Choice.ask(shell_, text_.get("dialog.main.menu.editionupdate").replace("&", "").replace("...", ""),
 			text_.get("dialog.main.editionupdate.keeparchive", new Object[] {Constants.EDITION_NAME, org.dbgl.util.EditionUpdateChecker.readable(Constants.PROGRAM_VERSION),
-				archive.getName(), (archive.length() + 512 * 1024) / (1024 * 1024), org.dbgl.service.BackupService.defaultAutoBackupDir().getPath()}),
+				archive.getName(), (archive.length() + 512 * 1024) / (1024 * 1024), org.dbgl.service.BackupService.backupDir().getPath()}),
 			SWT.ICON_QUESTION, text_.get("dialog.main.editionupdate.keep"), text_.get("dialog.main.editionupdate.delete")) == 0;
 		try {
 			org.dbgl.util.EditionUpdater.cleanUp(archive, keep);
@@ -2081,7 +2084,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		// asked once more, with the numbers, before anything is changed
 		if (!Mess_.on(shell_).key("dialog.stickreturn.confirm", new Object[] {plan.files().size(), plan.stats().size()}).confirm())
 			return;
-		File backup = new File(new File(dataDir, org.dbgl.util.VersionBackup.DIR), "stick-return-" + java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")));
+		File backup = new File(org.dbgl.service.BackupService.backupDir(), "stick-return-" + java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")));
 		List<File> failed;
 		List<Integer> taken = new ArrayList<>();
 		shell_.setCursor(display_.getSystemCursor(SWT.CURSOR_WAIT));
@@ -3383,7 +3386,10 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			public void widgetSelected(SelectionEvent event) {
 				if (profileTable_.getSelectionIndex() == -1)
 					return;
-				if (Boolean.TRUE.equals(new CheckProfilesDialog(shell_, getSelectedProfiles()).open())) {
+				List<Profile> checked = getSelectedProfiles();
+				Boolean changed = new CheckProfilesDialog(shell_, checked).open();
+				checked.forEach(p -> org.dbgl.util.ProfileWarnings.forget(p.getId())); // alpha 54: as above
+				if (Boolean.TRUE.equals(changed)) {
 					updateProfilesList(getSelectedProfileIds());
 					displayProfileInformation(false);
 				} else {

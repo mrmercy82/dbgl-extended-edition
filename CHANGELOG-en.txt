@@ -43,17 +43,43 @@ New
   archive in zipstart\backups\<profile id>; the new archive is written beside
   it and then put in its place, after that the folder of what was written is
   empty. Not while the game runs.
+- Settings > General > Automatic backup: "Folder of the backups" – all of
+  DBGL's backups (automatic ones, before an update, of saved games, of the
+  way back from a USB stick, those made in the window of the backups) go
+  there. When it changes, DBGL offers to take the backups so far along (only
+  DBGL's, a file of the same name already there is not touched); the window
+  of the backups shows the new folder and the old one too. A cloud folder
+  (OneDrive, Dropbox) works as well: the automatic backup is written under
+  another name first and then renamed, so that no half file is uploaded.
+- USB stick: what a profile needs besides its games goes along: MT-32 and
+  Sound Canvas ROMs, SoundFonts and shaders of its settings and the files of
+  its links (manuals, maps). What goes along with a game folder or the data
+  folder anyway is not copied twice, the rest goes to DBGL-extras in the DOS
+  folder of the stick; on the stick settings and links point there,
+  whatever the drive letter.
+- Undo now also works when only one profile was changed (also in the profile
+  dialog), and besides the configuration file and the DOSBox version it
+  brings back title, details, notes, links, own fields and series; the
+  preview shows these changes too.
 
 Changed
 - For development: tools/mkrelease.py builds all packages of a release
   (update, source, Windows with and without Java, Linux, macOS, SHA256SUMS)
   from a commit; from the release commit of alpha 53 it gives the same files
   as the published packages.
+- Check: long messages are wrapped in the list (up to three lines) instead
+  of cut off; the whole message is still shown below. On Windows all lines
+  of a list have the same height, so then all get a bit higher.
+- USB stick: the ZIP is first proposed in the folder export instead of the
+  data folder itself.
 
 Fixed
 - Statistics as a web page, dark mode: in the calendar of the days played
   the days not played were light grey and stood out. The calendar has dark
   colours of its own now; light and printed it stays as it was.
+- After a problem put right by hand (e.g. a program copied back to its
+  place) the warning sign stayed in the profile list although "Check" found
+  nothing any more. After "Check" the warning signs are found anew now.
 
 
 0.101 alpha 53 (2026-11-25)

@@ -196,6 +196,7 @@ public final class BackupCatalog {
 	public static List<File> folders() {
 		Set<File> result = new LinkedHashSet<>();
 		List<File> candidates = new ArrayList<>();
+		candidates.add(BackupService.backupDir()); // alpha 54: the folder chosen in the settings (else the one of the data)
 		candidates.add(BackupService.defaultAutoBackupDir());
 		candidates.add(new File(FileLocationService.getInstance().getDataDir(), VersionBackup.DIR));
 		if (deletedSavegamesDir().isDirectory()) // alpha 52: the kept backups of saved games of deleted profiles

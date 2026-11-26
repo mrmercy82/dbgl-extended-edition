@@ -6846,4 +6846,31 @@ public class Dbgl0102Tests {
 					org.apache.commons.io.FileUtils.deleteQuietly(f);
 		}
 	}
+
+	/** alpha 54: another folder for the backups: DBGL's own backups move along, other files and a name already there stay */
+	@Test
+	public void testMoveBackups() throws Exception {
+		File from = Files.createTempDirectory("backups-from").toFile(), to = Files.createTempDirectory("backups-to").toFile();
+		try {
+			for (String n: new String[] {"dbgl-backup-20261101-120000.zip", "dbgl-backup-before-update-x.zip", "before-0.101alpha53-from-0.101alpha52-20261125-100000.zip", "locked.txt",
+					"stick-return-20261120-101010", "notes.txt", "photo.jpg", "dbgl-backup-2026-11-02.zip"})
+				if (n.startsWith("stick-return-")) {
+					new File(from, n).mkdirs();
+					Files.writeString(new File(from, n + "/x.dat").toPath(), "x");
+				} else {
+					Files.writeString(new File(from, n).toPath(), n);
+				}
+			Files.writeString(new File(to, "dbgl-backup-2026-11-02.zip").toPath(), "there already");
+			List<File> own = org.dbgl.service.BackupService.ownBackupsIn(from);
+			assertEquals(own.toString(), 6, own.size());
+			assertEquals(5, org.dbgl.service.BackupService.moveBackups(from, to));
+			assertTrue(new File(to, "dbgl-backup-20261101-120000.zip").isFile() && new File(to, "locked.txt").isFile() && new File(to, "stick-return-20261120-101010/x.dat").isFile());
+			assertEquals("there already", Files.readString(new File(to, "dbgl-backup-2026-11-02.zip").toPath()));
+			assertTrue(new File(from, "dbgl-backup-2026-11-02.zip").isFile() && new File(from, "notes.txt").isFile() && new File(from, "photo.jpg").isFile());
+			assertFalse(new File(from, "locked.txt").exists());
+		} finally {
+			org.apache.commons.io.FileUtils.deleteQuietly(from);
+			org.apache.commons.io.FileUtils.deleteQuietly(to);
+		}
+	}
 }

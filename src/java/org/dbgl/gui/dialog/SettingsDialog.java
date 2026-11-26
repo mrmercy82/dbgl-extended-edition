@@ -189,6 +189,28 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 		Combo autoBackup = Chain.on(backupGroup).lbl(l -> l.key("dialog.settings.autobackup.when")).cmb(c -> c.items(new String[] {text_.get("dialog.settings.autobackup.never"),
 			text_.get("dialog.settings.autobackup.daily"), text_.get("dialog.settings.autobackup.weekly")}).select(Math.max(0, Arrays.asList(backupModes).indexOf(settings_.getValue("backup", "auto"))))).combo();
 		Spinner backupKeep = Chain.on(backupGroup).lbl(l -> l.key("dialog.settings.autobackup.keep")).spn(s -> s.min(1).max(50).select(settings_.getIntValue("backup", "keep"))).spinner();
+		// alpha 54 (TEST3): the folder of all of DBGL's backups (empty: backups in the data folder)
+		new Label(backupGroup, SWT.NONE).setText(text_.get("dialog.settings.autobackup.dir"));
+		org.eclipse.swt.widgets.Composite backupDirRow = new org.eclipse.swt.widgets.Composite(backupGroup, SWT.NONE);
+		GridLayout backupDirLayout = new GridLayout(2, false);
+		backupDirLayout.marginWidth = backupDirLayout.marginHeight = 0;
+		backupDirRow.setLayout(backupDirLayout);
+		Text backupDir = new Text(backupDirRow, SWT.BORDER);
+		String backupDirBefore = org.dbgl.service.BackupService.backupDir().getAbsolutePath();
+		backupDir.setText(backupDirBefore);
+		backupDir.setToolTipText(text_.get("dialog.settings.autobackup.dir.tooltip", new Object[] {org.dbgl.service.BackupService.defaultAutoBackupDir().getPath()}));
+		GridData backupDirData = new GridData(SWT.FILL, SWT.CENTER, false, false);
+		backupDirData.widthHint = 420;
+		backupDir.setLayoutData(backupDirData);
+		Button backupDirBrowse = new Button(backupDirRow, SWT.PUSH);
+		backupDirBrowse.setText("...");
+		backupDirBrowse.addListener(SWT.Selection, e -> {
+			org.eclipse.swt.widgets.DirectoryDialog dd = new org.eclipse.swt.widgets.DirectoryDialog(shell_);
+			dd.setFilterPath(backupDir.getText());
+			String chosen = dd.open();
+			if (chosen != null)
+				backupDir.setText(chosen);
+		});
 		// alpha 52: on request with the screenshots and the backups of the saved games; their size is counted in the background
 		Button backupCaptures = Chain.on(backupGroup).lbl(l -> l.key("dialog.settings.autobackup.captures")).but(b -> b.select(settings_.getBooleanValue("backup", "captures"))).button();
 		Button backupSavegames = Chain.on(backupGroup).lbl(l -> l.key("dialog.settings.autobackup.savegames")).but(b -> b.select(settings_.getBooleanValue("backup", "savegames"))).button();
@@ -881,6 +903,7 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 					settings_.setValue("gui", "searchengine", engines.get(defaultEngine.getSelectionIndex()).getSimpleName());
 				settings_.setValue("backup", "auto", backupModes[Math.max(0, autoBackup.getSelectionIndex())]);
 				settings_.setIntValue("backup", "keep", backupKeep.getSelection());
+				setBackupDir(backupDirBefore, backupDir.getText().trim());
 				settings_.setBooleanValue("backup", "captures", backupCaptures.getSelection());
 				settings_.setBooleanValue("backup", "savegames", backupSavegames.getSelection());
 				settings_.setValue(org.dbgl.util.SecondBackupPlace.SECTION, org.dbgl.util.SecondBackupPlace.PLACE, secondPlace.getText().trim());
@@ -1244,6 +1267,37 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 	 * Switch the option "all DOSBox settings in each profile": say clearly what it costs, and offer to bring the existing
 	 * profiles in line now (fill them up, or take out again what equals the DOSBox configuration).
 	 */
+	/**
+	 * alpha 54 (TEST3): another folder for the backups: set (the data folder's own: empty again), and the backups of the folder
+	 * so far moved along if wanted
+	 */
+	private void setBackupDir(String before, String chosen) {
+		java.io.File now = chosen.isEmpty() ? org.dbgl.service.BackupService.defaultAutoBackupDir(): new java.io.File(chosen);
+		java.io.File was = new java.io.File(before);
+		boolean same;
+		try {
+			same = now.getCanonicalFile().equals(was.getCanonicalFile());
+		} catch (java.io.IOException e) {
+			same = now.getAbsoluteFile().equals(was.getAbsoluteFile());
+		}
+		if (same)
+			return;
+		settings_.setValue("backup", "dir", now.getAbsoluteFile().equals(org.dbgl.service.BackupService.defaultAutoBackupDir().getAbsoluteFile()) ? "": now.getPath());
+		java.util.List<java.io.File> there = was.isDirectory() ? org.dbgl.service.BackupService.ownBackupsIn(was): java.util.List.of();
+		if (there.isEmpty())
+			return;
+		long bytes = there.stream().mapToLong(f -> f.isDirectory() ? org.apache.commons.io.FileUtils.sizeOfDirectory(f): f.length()).sum();
+		if (!Mess_.on(shell_).key("dialog.settings.autobackup.move", new Object[] {there.size(), org.apache.commons.io.FileUtils.byteCountToDisplaySize(bytes), was.getPath(), now.getPath()}).confirm())
+			return;
+		try {
+			int moved = org.dbgl.gui.controls.BusyTask.runToEnd(shell_, text_.get("dialog.settings.autobackup.moving"), () -> org.dbgl.service.BackupService.moveBackups(was, now));
+			if (moved < there.size())
+				Mess_.on(shell_).key("dialog.settings.autobackup.moved", new Object[] {moved, there.size() - moved, was.getPath()}).display();
+		} catch (Exception e) {
+			Mess_.on(shell_).exception(e).warning();
+		}
+	}
+
 	private void changeAllSettings(boolean on) {
 		int profiles = 0;
 		try {

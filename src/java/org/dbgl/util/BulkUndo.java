@@ -70,8 +70,8 @@ public final class BulkUndo {
 	 * the change itself: a profile that cannot be read is just not remembered.
 	 */
 	public static void remember(String label, java.util.List<Profile> profiles, java.util.List<Profile> originals) {
-		if ((profiles == null) || profiles.size() < 2)
-			return; // a single profile has its own history
+		if ((profiles == null) || profiles.isEmpty())
+			return; // alpha 54 (TEST3): also a single profile (before: only several, a single one had only its history)
 		File dir = dir();
 		try {
 			clear();
@@ -84,6 +84,7 @@ public final class BulkUndo {
 					continue;
 				Profile versionOf = (originals != null) && (i < originals.size()) ? originals.get(i): p;
 				Files.write(new File(dir, p.getId() + ".conf").toPath(), content);
+				writeFields(new File(dir, p.getId() + ".fields"), versionOf); // alpha 54: title, notes etc. as well
 				meta.append(p.getId()).append('=').append(versionOf.getDosboxVersion() == null ? -1: versionOf.getDosboxVersion().getId()).append('\n');
 			}
 			Files.writeString(new File(dir, META).toPath(), meta.toString(), StandardCharsets.UTF_8);
@@ -193,12 +194,24 @@ public final class BulkUndo {
 			DosboxVersion dbv = BaseRepository.findById(dbversions, entries.get(p.getId()));
 			byte[] now = ProfileHistory.read(p), then = Files.readAllBytes(saved.toPath());
 			boolean sameVersion = (dbv == null) || ((p.getDosboxVersion() != null) && (p.getDosboxVersion().getId() == dbv.getId()));
-			if (java.util.Arrays.equals(now, then) && sameVersion) { // not changed (or changed back): nothing to write
+			java.util.Properties remembered = readFields(new File(dir(), p.getId() + ".fields"));
+			if (java.util.Arrays.equals(now, then) && sameVersion && ((remembered == null) || remembered.equals(fieldsOf(p)))) { // not changed (or changed back)
+				restored.add(p.getId());
+				continue;
+			}
+			java.util.Properties fields = readFields(new File(dir(), p.getId() + ".fields"));
+			boolean sameFields = (fields == null) || fields.equals(fieldsOf(p));
+			if (java.util.Arrays.equals(now, then) && sameVersion && !sameFields) { // only the database fields changed back
+				applyFields(p, fields);
+				repo.updateKeepingConfigurationFile(p);
+				ProfileWarnings.forget(p.getId());
 				restored.add(p.getId());
 				continue;
 			}
 			if (dbv != null)
 				p.setDosboxVersion(dbv);
+			if (fields != null)
+				applyFields(p, fields);
 			// byte for byte as it was (saving the profile would write it again in DBGL's own way); the state before the undo
 			// is kept in the history of the profile, so the undo can be undone there
 			Files.write(p.getConfigurationCanonicalFile().toPath(), then);
@@ -212,8 +225,10 @@ public final class BulkUndo {
 		if (kept.isEmpty()) {
 			clear();
 		} else { // the others stay: their files and their lines in change.txt
-			for (Integer id: entries.keySet())
+			for (Integer id: entries.keySet()) {
 				Files.deleteIfExists(new File(dir(), id + ".conf").toPath());
+				Files.deleteIfExists(new File(dir(), id + ".fields").toPath());
+			}
 			StringBuilder m = new StringBuilder(meta[0]).append('\n').append(meta[1]).append('\n');
 			kept.forEach((id, v) -> m.append(id).append('=').append(v).append('\n'));
 			Files.writeString(new File(dir(), META).toPath(), m.toString(), StandardCharsets.UTF_8);
@@ -244,6 +259,12 @@ public final class BulkUndo {
 				DosboxVersion before = BaseRepository.findById(dbversions, entries.get(p.getId()));
 				if ((before != null) && (p.getDosboxVersion() != null) && (before.getId() != p.getDosboxVersion().getId()))
 					changes.add("DOSBox: " + p.getDosboxVersion().getTitle() + " -> " + before.getTitle());
+				java.util.Properties thenFields = readFields(new File(dir(), p.getId() + ".fields")), nowFields = fieldsOf(p);
+				if (thenFields != null) // alpha 54: title, details, notes, links, ... ("notes" as their length)
+					for (String k: new java.util.TreeSet<>(thenFields.stringPropertyNames()))
+						if (!thenFields.getProperty(k).equals(nowFields.getProperty(k, "")))
+							changes.add(k.equals("notes") ? "notes: " + nowFields.getProperty(k, "").length() + " -> " + thenFields.getProperty(k).length()
+									: k + ": " + org.apache.commons.lang3.StringUtils.abbreviate(nowFields.getProperty(k, ""), 40) + " -> " + org.apache.commons.lang3.StringUtils.abbreviate(thenFields.getProperty(k), 40));
 				Map<String, String> now = settingsOf(current), then = settingsOf(saved);
 				// a setting the profile does not have itself: the value of its DOSBox version counts (shown as such)
 				Map<String, String> nowDefaults = defaultsOf(p.getDosboxVersion(), defaults);
@@ -317,6 +338,112 @@ public final class BulkUndo {
 		if (autoexec.length() > 0)
 			result.put("[autoexec]", autoexec.toString().lines().count() + "|" + autoexec.toString().hashCode());
 		return result;
+	}
+
+	/** alpha 54: what a profile has in the database besides its configuration file (title, details, notes, links, ...) */
+	static java.util.Properties fieldsOf(Profile p) {
+		java.util.Properties f = new java.util.Properties();
+		java.util.function.BiConsumer<String, String> put = (k, v) -> f.setProperty(k, v == null ? "": v);
+		put.accept("title", p.getTitle());
+		put.accept("developer", p.getDeveloper());
+		put.accept("publisher", p.getPublisher());
+		put.accept("genre", p.getGenre());
+		put.accept("year", p.getYear());
+		put.accept("status", p.getStatus());
+		put.accept("favorite", p.getFavorite());
+		put.accept("notes", p.getNotes());
+		put.accept("setup", p.getSetupString());
+		put.accept("setupparams", p.getSetupParams());
+		String[] alt = p.getAltExeStrings(), altParams = p.getAltExeParams();
+		for (int i = 0; i < alt.length; i++) {
+			put.accept("alt" + i, alt[i]);
+			put.accept("altparams" + i, (altParams != null) && (i < altParams.length) ? altParams[i]: "");
+		}
+		org.dbgl.model.Link[] links = p.getLinks();
+		for (int i = 0; (links != null) && (i < links.length); i++) {
+			put.accept("link" + i, links[i] == null ? "": links[i].getDestination());
+			put.accept("linktitle" + i, links[i] == null ? "": links[i].getTitle());
+		}
+		String[] custom = p.getCustomStrings();
+		for (int i = 0; (custom != null) && (i < custom.length); i++)
+			put.accept("custom" + i, custom[i]);
+		int[] ints = p.getCustomInts();
+		for (int i = 0; (ints != null) && (i < ints.length); i++)
+			put.accept("customint" + i, String.valueOf(ints[i]));
+		put.accept("series", p.getSeries());
+		put.accept("seriespart", String.valueOf(p.getSeriesPart()));
+		return f;
+	}
+
+	static void writeFields(File file, Profile p) throws IOException {
+		try (java.io.Writer w = Files.newBufferedWriter(file.toPath(), StandardCharsets.UTF_8)) {
+			fieldsOf(p).store(w, null);
+		}
+	}
+
+	static java.util.Properties readFields(File file) {
+		if (!file.isFile())
+			return null; // remembered before alpha 54: only the configuration file
+		java.util.Properties f = new java.util.Properties();
+		try (java.io.Reader r = Files.newBufferedReader(file.toPath(), StandardCharsets.UTF_8)) {
+			f.load(r);
+			return f;
+		} catch (IOException e) {
+			return null;
+		}
+	}
+
+	static void applyFields(Profile p, java.util.Properties f) {
+		p.setTitle(f.getProperty("title", p.getTitle()));
+		p.setDeveloper(f.getProperty("developer", p.getDeveloper()));
+		p.setPublisher(f.getProperty("publisher", p.getPublisher()));
+		p.setGenre(f.getProperty("genre", p.getGenre()));
+		p.setYear(f.getProperty("year", p.getYear()));
+		p.setStatus(f.getProperty("status", p.getStatus()));
+		if (f.containsKey("favorite"))
+			p.setFavorite(Boolean.valueOf(f.getProperty("favorite")));
+		p.setNotes(f.getProperty("notes", p.getNotes()));
+		p.setSetupFileLocation(f.getProperty("setup", p.getSetupString()));
+		p.setSetupParams(f.getProperty("setupparams", p.getSetupParams()));
+		String[] alt = p.getAltExeStrings().clone(), altParams = p.getAltExeParams() == null ? new String[alt.length]: p.getAltExeParams().clone();
+		for (int i = 0; i < alt.length; i++) {
+			alt[i] = f.getProperty("alt" + i, alt[i]);
+			if (i < altParams.length)
+				altParams[i] = f.getProperty("altparams" + i, altParams[i]);
+		}
+		p.setAltExeFileLocations(alt);
+		p.setAltExeParams(altParams);
+		org.dbgl.model.Link[] links = p.getLinks();
+		if (links != null) {
+			org.dbgl.model.Link[] back = new org.dbgl.model.Link[links.length];
+			for (int i = 0; i < links.length; i++)
+				back[i] = f.containsKey("link" + i) ? new org.dbgl.model.Link(f.getProperty("linktitle" + i, ""), f.getProperty("link" + i, "")): links[i];
+			p.setLinks(back);
+		}
+		String[] custom = p.getCustomStrings();
+		if (custom != null) {
+			String[] back = custom.clone();
+			for (int i = 0; i < back.length; i++)
+				back[i] = f.getProperty("custom" + i, back[i]);
+			p.setCustomStrings(back);
+		}
+		int[] ints = p.getCustomInts();
+		if (ints != null) {
+			int[] back = ints.clone();
+			for (int i = 0; i < back.length; i++)
+				try {
+					back[i] = Integer.parseInt(f.getProperty("customint" + i, String.valueOf(back[i])));
+				} catch (NumberFormatException e) {
+					// as it is
+				}
+			p.setCustomInts(back);
+		}
+		if (f.containsKey("series"))
+			try {
+				p.setSeries(f.getProperty("series"), Integer.parseInt(f.getProperty("seriespart", "0")));
+			} catch (NumberFormatException e) {
+				p.setSeries(f.getProperty("series"), 0);
+			}
 	}
 
 	public static void clear() {

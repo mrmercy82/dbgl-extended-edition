@@ -88,6 +88,7 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 	/** settings lost by switching the DOSBox version here, written when the profile is saved (see SwitchMemory) */
 	private java.util.Properties switchMemory_;
 	private final String sendTo_;
+	private final Profile original_; // alpha 54: the state before editing, for the undo button
 	private final boolean editing_;
 	private final boolean focusOnTitle_;
 	// [autoexec] and DOSBox version as read when the dialog opens: to tell whether [autoexec] stays as written (alpha 47)
@@ -97,6 +98,7 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 	public EditSingleProfileDialog(Shell parent, Profile prof, String sendTo, boolean focusOnTitle) {
 		super(parent);
 		profile_ = prof == null ? prof: ProfileFactory.create(prof);
+		original_ = prof;
 		sendTo_ = sendTo;
 		focusOnTitle_ = focusOnTitle;
 
@@ -890,6 +892,8 @@ public class EditSingleProfileDialog extends EditProfileDialog<Profile> {
 					// (without Cancel: half saved is worse than waiting)
 					result_ = org.dbgl.gui.controls.BusyTask.runToEnd(shell_, text_.get("dialog.profile.saving"), () -> {
 						if (editing_) {
+							// alpha 54 (TEST3): the undo button also for one profile edited here (the file on disk is still the old one)
+							org.dbgl.util.BulkUndo.remember(text_.get("dialog.bulkundo.edit", new Object[] {original_.getTitle()}), java.util.List.of(profile_), java.util.List.of(original_));
 							new ProfileRepository().update(profile_);
 							if (switchMemory_ != null)
 								org.dbgl.util.SwitchMemory.save(profile_.getId(), switchMemory_);

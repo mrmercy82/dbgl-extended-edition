@@ -128,7 +128,7 @@ public final class UpdateBackupQuestion {
 		folderLabel.setText(t.get("dialog.updatebackup.folder"));
 		Text folder = new Text(dlg, SWT.BORDER);
 		String dirSetting = settings.getValue(FullBackup.SECTION, "backupdir");
-		folder.setText(org.apache.commons.lang3.StringUtils.isBlank(dirSetting) ? BackupService.defaultAutoBackupDir().getPath(): dirSetting);
+		folder.setText(org.apache.commons.lang3.StringUtils.isBlank(dirSetting) ? BackupService.backupDir().getPath(): dirSetting);
 		folder.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
 		Button change = new Button(dlg, SWT.PUSH);
 		change.setText(t.get("dialog.updatebackup.change"));

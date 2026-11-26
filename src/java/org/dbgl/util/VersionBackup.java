@@ -114,7 +114,7 @@ public final class VersionBackup {
 
 	static File backup(File dbDir, String last) throws IOException {
 		FileLocationService fls = FileLocationService.getInstance();
-		File dir = new File(fls.getDataDir(), DIR);
+		File dir = org.dbgl.service.BackupService.backupDir(); // alpha 54: the folder chosen in the settings (else data\backups)
 		Files.createDirectories(dir.toPath());
 		String from = (last == null || last.isEmpty()) ? fromDatabase(dbDir): last.replaceAll("[^A-Za-z0-9.\\-]", "_");
 		File zip = new File(dir, "before-" + Constants.PROGRAM_VERSION.replaceAll("[^A-Za-z0-9.\\-]", "_") + "-from-" + from + "-" + new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date()) + ".zip");
