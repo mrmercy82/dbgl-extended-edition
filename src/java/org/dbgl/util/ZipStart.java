@@ -237,7 +237,7 @@ public final class ZipStart {
 		}
 		File written = driveDir(changes, drive);
 		if (written.isDirectory())
-			org.apache.commons.io.FileUtils.copyDirectory(written, work, true);
+			org.apache.commons.io.FileUtils.copyDirectory(written, work, f -> !isOverlayNote(f.getName()), true);
 		File marker = new File(work.getParentFile(), work.getName() + ".txt"); // what the folder is, in case DBGL ends first
 		Files.writeString(marker.toPath(), changes.getPath() + "\n" + Character.toUpperCase(drive) + "\n");
 		return new Unpacked(Character.toUpperCase(drive), archive, work, changes, snapshot(work));
@@ -319,5 +319,100 @@ public final class ZipStart {
 					log.println("ZIP: " + work + ": " + e);
 			}
 		}
+	}
+
+	/** alpha 54, asked for in TEST2: what a game wrote, to be put into its ZIP: the archive, the folder and its files */
+	public record WriteBack(File archive, File written, List<String> files, long bytes) {
+	}
+
+	/** for each ZIP of the profile with files written by the game, what would go into it */
+	public static List<WriteBack> pendingWriteBacks(TemplateProfileBase p, int profileId) throws IOException {
+		List<WriteBack> result = new ArrayList<>();
+		for (Mount m: p.getConfiguration().getAutoexec().getMountingpoints()) {
+			if (!isArchiveMount(m) || !archiveOf(m).getName().toLowerCase(Locale.ROOT).endsWith(".zip"))
+				continue;
+			File written = driveDir(changesDir(m, profileId), m.getDrive());
+			if (!written.isDirectory())
+				continue;
+			Map<String, long[]> files = snapshot(written);
+			files.keySet().removeIf(ZipStart::isOverlayNote);
+			if (!files.isEmpty())
+				result.add(new WriteBack(archiveOf(m), written, files.keySet().stream().sorted(String.CASE_INSENSITIVE_ORDER).toList(),
+						files.values().stream().mapToLong(v -> v[0]).sum()));
+		}
+		return result;
+	}
+
+	/** DOSBox-X's own notes in an overlay (".DBOVERLAY_..." for deleted files), not files of the game */
+	static boolean isOverlayNote(String path) {
+		return StringUtils.substringAfterLast("/" + path.replace('\\', '/'), "/").toUpperCase(Locale.ROOT).startsWith(".DBOVERLAY");
+	}
+
+	/** where DBGL keeps the copy of an archive made before writing into it */
+	public static File backupDir(int profileId) {
+		return new File(new File(new File(FileLocationService.getInstance().getDataDir(), DIR), "backups"), String.valueOf(profileId));
+	}
+
+	/** whether a start of the profile is running now (its unpacked work folder is there) */
+	public static boolean isRunning(int profileId) {
+		File[] markers = workRoot().listFiles((d, n) -> n.startsWith(profileId + "-") && n.endsWith(".txt"));
+		return (markers != null) && (markers.length > 0);
+	}
+
+	/**
+	 * Put what the game wrote into its ZIP: first a copy of the archive into {@link #backupDir(int)}, then a new archive
+	 * (written beside it, then put in its place) with the written files instead of those of the same name (not case
+	 * sensitive, as in DOS) and the new ones added, then the folder of the written files is emptied.
+	 *
+	 * @return the copy of the archive as it was
+	 */
+	public static File writeBack(WriteBack w, int profileId) throws IOException {
+		File backup = new File(backupDir(profileId), StringUtils.substringBeforeLast(w.archive().getName(), ".") + "-"
+				+ new java.text.SimpleDateFormat("yyyyMMdd-HHmmss").format(new java.util.Date()) + ".zip");
+		Files.createDirectories(backup.getParentFile().toPath());
+		Files.copy(w.archive().toPath(), backup.toPath(), StandardCopyOption.COPY_ATTRIBUTES);
+		Map<String, File> written = new java.util.LinkedHashMap<>();
+		for (String rel: w.files())
+			written.put(rel.toUpperCase(Locale.ROOT), new File(w.written(), rel));
+		File tmp = new File(w.archive().getParentFile(), "." + w.archive().getName() + ".dbgl-new");
+		try (ZipFile in = new ZipFile(w.archive()); java.util.zip.ZipOutputStream out = new java.util.zip.ZipOutputStream(new java.io.FileOutputStream(tmp))) {
+			for (Enumeration<? extends ZipEntry> e = in.entries(); e.hasMoreElements();) {
+				ZipEntry entry = e.nextElement();
+				File replacement = entry.isDirectory() ? null: written.remove(entry.getName().replace('\\', '/').toUpperCase(Locale.ROOT));
+				ZipEntry copy = new ZipEntry(entry.getName());
+				if (replacement != null) {
+					copy.setTime(replacement.lastModified());
+					out.putNextEntry(copy);
+					Files.copy(replacement.toPath(), out);
+				} else {
+					copy.setTime(entry.getTime());
+					if (entry.getComment() != null)
+						copy.setComment(entry.getComment());
+					out.putNextEntry(copy);
+					if (!entry.isDirectory())
+						try (InputStream data = in.getInputStream(entry)) {
+							data.transferTo(out);
+						}
+				}
+				out.closeEntry();
+			}
+			for (Map.Entry<String, File> added: written.entrySet()) { // new files, with the name as the game wrote it
+				ZipEntry entry = new ZipEntry(w.written().toPath().relativize(added.getValue().toPath()).toString().replace('\\', '/'));
+				entry.setTime(added.getValue().lastModified());
+				out.putNextEntry(entry);
+				Files.copy(added.getValue().toPath(), out);
+				out.closeEntry();
+			}
+		} catch (IOException | RuntimeException e) {
+			Files.deleteIfExists(tmp.toPath());
+			throw e;
+		}
+		try {
+			Files.move(tmp.toPath(), w.archive().toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+		} catch (java.nio.file.AtomicMoveNotSupportedException e) {
+			Files.move(tmp.toPath(), w.archive().toPath(), StandardCopyOption.REPLACE_EXISTING);
+		}
+		org.apache.commons.io.FileUtils.deleteDirectory(w.written());
+		return backup;
 	}
 }

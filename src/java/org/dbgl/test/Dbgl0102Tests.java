@@ -6789,6 +6789,26 @@ public class Dbgl0102Tests {
 			assertEquals("mount C \"" + zip.getPath() + ":\\\"", m.get(0).toString(false));
 			assertEquals("mount C \"" + changes.getPath() + "\" -t overlay", m.get(1).toString(false));
 
+			// TEST2: what the game wrote into its ZIP (DOSBox-X's own notes not), a copy of the archive kept first
+			Files.writeString(new File(drive, ".DBOVERLAY_DEL_OLD.TXT").toPath(), "");
+			byte[] original = Files.readAllBytes(zip.toPath());
+			List<org.dbgl.util.ZipStart.WriteBack> wb = org.dbgl.util.ZipStart.pendingWriteBacks(profile.apply(zip), id);
+			assertEquals(1, wb.size());
+			assertEquals(List.of("DATA/LEVEL.DAT", "SAVE.DAT", "SAVE2.DAT"), wb.get(0).files());
+			assertFalse(org.dbgl.util.ZipStart.isRunning(id));
+			File backup = org.dbgl.util.ZipStart.writeBack(wb.get(0), id);
+			org.junit.Assert.assertArrayEquals(original, Files.readAllBytes(backup.toPath()));
+			assertFalse(drive.exists());
+			try (java.util.zip.ZipFile z = new java.util.zip.ZipFile(zip)) {
+				assertEquals("MZ", new String(z.getInputStream(z.getEntry("GAME.EXE")).readAllBytes(), StandardCharsets.US_ASCII));
+				assertEquals("level 2 reached", new String(z.getInputStream(z.getEntry("DATA/LEVEL.DAT")).readAllBytes(), StandardCharsets.US_ASCII));
+				assertEquals("saved", new String(z.getInputStream(z.getEntry("SAVE.DAT")).readAllBytes(), StandardCharsets.US_ASCII));
+				assertNotNull(z.getEntry("SAVE2.DAT"));
+				assertNull(z.getEntry(".DBOVERLAY_DEL_OLD.TXT"));
+			}
+			assertTrue(org.dbgl.util.ZipStart.pendingWriteBacks(profile.apply(zip), id).isEmpty());
+			org.apache.commons.io.FileUtils.deleteQuietly(org.dbgl.util.ZipStart.backupDir(id));
+
 			// a new profile for the ZIP: its most likely program, the archive as drive C (as the profile dialog makes it)
 			assertEquals("GAME.EXE", org.dbgl.util.ZipStart.mainIn(zip));
 			assertFalse(org.dbgl.util.ZipStart.isDbglExport(zip));

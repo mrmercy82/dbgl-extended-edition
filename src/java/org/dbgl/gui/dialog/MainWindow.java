@@ -3292,6 +3292,14 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			}
 		}).build();
 		MenuItem_.on(tools).build();
+		// alpha 54 (TEST2): what games started from a ZIP wrote, into their ZIP; between lines, above the Windows 3.x programs
+		MenuItem_.on(tools).key("dialog.main.profile.zipwriteback").image(ImageService.IMG_BACKUPS).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				doZipWriteBack();
+			}
+		}).build();
+		MenuItem_.on(tools).build();
 		// alpha 53: the programs in the groups of the Program Manager of a Windows 3.x as profiles of their own (TEST22: in the tools, between lines)
 		MenuItem_.on(tools).key("dialog.main.profile.win3programs").image(ImageService.IMG_DUPLICATE).listen(new SelectionAdapter() {
 			@Override
@@ -5228,6 +5236,8 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				updateWithAddedProfile(profile);
 		} else if (FilesUtils.isArchive(filename) && (fileNames.length == 1) && !org.dbgl.util.ZipStart.isDbglExport(new File(filename)) && addGameFromZip(new File(filename))) {
 			// alpha 54: one ZIP of a game (not an export of DBGL): a profile that starts it from the archive
+		} else if ((fileNames.length > 1) && Stream.of(fileNames).allMatch(f -> FilesUtils.isZipFile(f) && !org.dbgl.util.ZipStart.isDbglExport(new File(f)))) {
+			addGamesFromZips(Stream.of(fileNames).map(File::new).toList()); // TEST2: several ZIPs of games at once
 		} else if (FilesUtils.isArchive(filename)) {
 			if (Stream.of(fileNames).allMatch(FilesUtils::isArchive)) {
 				Boolean updateCustomFields = new ImportDialog(shell_, dbversionsList_, new File(filename), fileNames).open();
@@ -5252,13 +5262,80 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 	private void doAddGameFromZip() {
 		if (requireDefaultDBVersion() == null)
 			return;
-		org.eclipse.swt.widgets.FileDialog dialog = new org.eclipse.swt.widgets.FileDialog(shell_, SWT.OPEN);
+		org.eclipse.swt.widgets.FileDialog dialog = new org.eclipse.swt.widgets.FileDialog(shell_, SWT.OPEN | SWT.MULTI); // TEST2: several at once
 		dialog.setFilterPath(FileLocationService.getInstance().getDosroot().getPath());
 		dialog.setFilterNames(new String[] {"ZIP (.zip)", FilesUtils.ALL_FILTER});
 		dialog.setFilterExtensions(new String[] {"*.zip;*.ZIP", FilesUtils.ALL_FILTER});
 		String file = dialog.open();
-		if ((file != null) && !addGameFromZip(new File(file)))
+		if (file == null)
+			return;
+		List<File> zips = Stream.of(dialog.getFileNames()).map(n -> new File(dialog.getFilterPath(), n)).toList();
+		if (zips.size() > 1)
+			addGamesFromZips(zips);
+		else if (!addGameFromZip(new File(file)))
 			Mess_.on(shell_).key("dialog.main.zip.noprogram", new Object[] {new File(file).getName()}).warning();
+	}
+
+	/**
+	 * alpha 54 (TEST2): several ZIPs of games at once: a profile each, without the profile dialog, as for one (the archive as
+	 * drive C, its most likely start file, the default template and DOSBox version), the title from the name of the ZIP
+	 */
+	private void addGamesFromZips(List<File> zips) {
+		DosboxVersion dbversion = requireDefaultDBVersion();
+		if (dbversion == null)
+			return;
+		java.util.Map<File, String> mains = new java.util.LinkedHashMap<>();
+		List<String> without = new ArrayList<>();
+		for (File zip: zips) {
+			try {
+				String main = FilesUtils.isZipFile(zip.getName()) && !org.dbgl.util.ZipStart.isDbglExport(zip) ? org.dbgl.util.ZipStart.mainIn(zip): null;
+				if (main != null)
+					mains.put(zip, main);
+				else
+					without.add(zip.getName());
+			} catch (IOException e) {
+				without.add(zip.getName() + " (" + e.getMessage() + ")");
+			}
+		}
+		if (mains.isEmpty()) {
+			Mess_.on(shell_).key("dialog.main.zip.noprogram", new Object[] {String.join(", ", without)}).warning();
+			return;
+		}
+		StringBuilder list = new StringBuilder();
+		mains.forEach((zip, main) -> list.append(org.dbgl.util.UnlinkedGames.titleOf(new File(StringUtils.substringBeforeLast(zip.getName(), ".")))).append(" ← ").append(zip.getName())
+				.append(" (").append(main).append(")\n"));
+		if (!without.isEmpty())
+			list.append('\n').append(text_.get("dialog.main.zip.skipped", new Object[] {String.join(", ", without)}));
+		if (!Mess_.on(shell_).key("dialog.main.zip.confirmmany", new Object[] {mains.size(), list.toString().trim(), dbversion.getTitle()}).confirm())
+			return;
+		Template template = BaseRepository.findDefault(templatesList_);
+		List<Profile> added = new ArrayList<>();
+		StringBuilder failed = new StringBuilder();
+		try {
+			if (template != null)
+				template.resetAndLoadConfiguration();
+			for (java.util.Map.Entry<File, String> e: mains.entrySet()) {
+				try {
+					dbversion.resetAndLoadConfiguration();
+					Profile p = org.dbgl.model.factory.ProfileFactory.create(dbversion, template);
+					p.setTitle(org.dbgl.util.UnlinkedGames.titleOf(new File(StringUtils.substringBeforeLast(e.getKey().getName(), "."))));
+					String main = e.getKey().getPath() + File.separator + e.getValue();
+					p.addRequiredMount(false, main, false);
+					p.setAutoexecSettings(main, StringUtils.EMPTY);
+					added.add(new ProfileRepository().add(p));
+				} catch (Exception ex) {
+					failed.append(e.getKey().getName()).append(": ").append(ex.getMessage()).append('\n');
+				}
+			}
+		} catch (IOException ex) {
+			Mess_.on(shell_).exception(ex).warning();
+		}
+		if (!added.isEmpty())
+			updateProfilesList(added.stream().map(Profile::getId).collect(Collectors.toSet()));
+		if (failed.length() > 0)
+			Mess_.on(shell_).txt(failed.toString().trim()).warning();
+		if (!added.isEmpty())
+			Mess_.on(shell_).key("dialog.main.zip.addedmany", new Object[] {added.size()}).display();
 	}
 
 	/**
@@ -6342,6 +6419,64 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				Mess_.on(shell_).exception(e).warning();
 			}
 		}
+	}
+
+	/**
+	 * Alpha 54: what the selected games started from a ZIP wrote (ZipStart), into their ZIP; a copy of each archive is kept
+	 * first, then the folder of the written files is emptied
+	 */
+	private void doZipWriteBack() {
+		List<Profile> selected = getSelectedProfiles();
+		if (selected.isEmpty())
+			return;
+		List<java.util.Map.Entry<Profile, org.dbgl.util.ZipStart.WriteBack>> pending = new ArrayList<>();
+		try {
+			for (Profile p: selected) {
+				p.resetAndLoadConfiguration();
+				for (org.dbgl.util.ZipStart.WriteBack w: org.dbgl.util.ZipStart.pendingWriteBacks(p, p.getId()))
+					pending.add(java.util.Map.entry(p, w));
+			}
+		} catch (IOException e) {
+			Mess_.on(shell_).exception(e).warning();
+			return;
+		}
+		if (pending.isEmpty()) {
+			Mess_.on(shell_).key("dialog.zipwriteback.none").display();
+			return;
+		}
+		List<String> running = pending.stream().map(java.util.Map.Entry::getKey).filter(p -> org.dbgl.util.ZipStart.isRunning(p.getId())).map(Profile::getTitle).distinct().toList();
+		if (!running.isEmpty()) {
+			Mess_.on(shell_).key("dialog.zipwriteback.running", new Object[] {String.join(", ", running)}).warning();
+			return;
+		}
+		StringBuilder list = new StringBuilder();
+		for (java.util.Map.Entry<Profile, org.dbgl.util.ZipStart.WriteBack> e: pending)
+			list.append(text_.get("dialog.zipwriteback.line", new Object[] {e.getKey().getTitle(), e.getValue().archive().getName(), e.getValue().files().size(),
+					org.apache.commons.io.FileUtils.byteCountToDisplaySize(e.getValue().bytes()), String.join(", ", e.getValue().files().stream().limit(8).toList())
+							+ (e.getValue().files().size() > 8 ? ", ...": "")})).append('\n');
+		File backups = org.dbgl.util.ZipStart.backupDir(0).getParentFile();
+		if (!Mess_.on(shell_).key("dialog.zipwriteback.confirm", new Object[] {list.toString().trim(), backups.getPath()}).confirm())
+			return;
+		int files = 0, archives = 0;
+		StringBuilder failed = new StringBuilder();
+		shell_.setCursor(display_.getSystemCursor(SWT.CURSOR_WAIT));
+		try {
+			for (java.util.Map.Entry<Profile, org.dbgl.util.ZipStart.WriteBack> e: pending) {
+				try {
+					org.dbgl.util.ZipStart.writeBack(e.getValue(), e.getKey().getId());
+					files += e.getValue().files().size();
+					archives++;
+				} catch (IOException ex) {
+					failed.append(e.getValue().archive().getName()).append(": ").append(ex.getMessage()).append('\n');
+				}
+			}
+		} finally {
+			shell_.setCursor(null);
+		}
+		if (failed.length() > 0)
+			Mess_.on(shell_).txt(failed.toString().trim()).warning();
+		if (archives > 0)
+			Mess_.on(shell_).key("dialog.zipwriteback.done", new Object[] {files, archives, backups.getPath()}).display();
 	}
 
 	/**

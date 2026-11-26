@@ -32,6 +32,22 @@ Neu
   7z-Archive startet nur DOSBox-X; „Prüfen“ meldet das bei anderen
   Versionen. Die Felder „Zip-Datei“ und „Schreiben“ im Mount-Dialog haben
   Tooltips.
+- Mehrere ZIPs auf einmal: Im Dateidialog von „Spiel aus einer ZIP-Datei...“
+  lassen sich mehrere wählen (oder mehrere auf DBGL ziehen); DBGL zeigt die
+  Liste mit Titel (aus dem Dateinamen) und Startprogramm und legt nach
+  Rückfrage alle Profile ohne Profildialog an, mit der Standardvorlage und
+  der Standard-DOSBox-Version. ZIPs ohne DOS-Programm werden genannt und
+  ausgelassen. Titel, Angaben und Cover holt danach „Profile
+  vervollständigen...“.
+- Kontextmenü > Werkzeuge > „Spielstände ins ZIP übernehmen...“ (zwischen
+  Trennlinien, über „Programme aus Windows 3.x als Profile...“): legt, was
+  die Spiele der markierten Profile geschrieben haben, in ihr ZIP – an die
+  Stelle gleichnamiger Dateien (Groß-/Kleinschreibung egal wie in DOS), neue
+  kommen dazu. Vorher zeigt DBGL je Archiv die Dateien und ihre Größe und
+  legt eine Kopie des Archivs in zipstart\backups\<Profil-ID> ab; das neue
+  Archiv wird erst daneben geschrieben und dann an seine Stelle gesetzt,
+  danach ist der Ordner mit dem Geschriebenen leer. Nicht, während das Spiel
+  läuft.
 
 Geändert
 - Für die Entwicklung: tools/mkrelease.py baut alle Pakete eines Releases

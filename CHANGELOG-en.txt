@@ -29,6 +29,20 @@ New
   7z archives start with DOSBox-X only;
   "Check" says so for other versions. The fields "Zip" and "Write" in the
   mount dialog have tooltips.
+- Several ZIPs at once: the file dialog of "Game from a ZIP file..." takes
+  several (or drop several on DBGL); DBGL shows the list with title (from the
+  file name) and start program and, when confirmed, creates all profiles
+  without the profile dialog, with the default template and DOSBox version.
+  ZIPs without a DOS program are named and left out. Titles, details and
+  covers then come with "Complete profiles...".
+- Context menu > Tools > "Put saved games into the ZIP..." (between lines,
+  above "Programs of Windows 3.x as profiles..."): puts what the games of the
+  selected profiles wrote into their ZIP, in place of files of the same name
+  (upper or lower case does not matter, as in DOS), new ones added. First
+  DBGL shows the files and their size per archive and keeps a copy of the
+  archive in zipstart\backups\<profile id>; the new archive is written beside
+  it and then put in its place, after that the folder of what was written is
+  empty. Not while the game runs.
 
 Changed
 - For development: tools/mkrelease.py builds all packages of a release
