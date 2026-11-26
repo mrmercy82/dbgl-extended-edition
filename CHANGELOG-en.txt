@@ -57,13 +57,17 @@ New
   and the files of its links (manuals, maps). What goes along with a game
   folder anyway is not copied twice, the rest goes to DBGL-extras in the DOS
   folder of the stick; on the stick settings and links point there,
-  whatever the drive letter. When the stick is made, DBGL offers to open the
+  whatever the drive letter. With no folder set for the ROMs of an MT-32 or
+  Sound Canvas, DBGL takes along the ROMs DOSBox finds in its own places
+  (DOSBox-X e.g. in the DOS folder, Staging in mt32-roms) and sets that
+  folder on the stick. When the stick is made, DBGL offers to open the
   folder with the ZIP file.
 - Undo: up to five steps back, one after the other (the tooltip says how
   many are left); also when only one profile was changed (also in the profile
   dialog, there only when something changed). Besides the configuration file
   and the DOSBox version it brings back title, details, notes, links, own
-  fields and series; the preview shows these changes too.
+  fields and series; the preview and the window of the undo show these
+  changes too.
 
 Changed
 - For development: tools/mkrelease.py builds all packages of a release

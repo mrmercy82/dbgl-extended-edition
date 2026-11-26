@@ -73,6 +73,20 @@ public class BulkUndoDialog extends SizeControlledButtonDialog<Set<Integer>> {
 		dbversions_ = dbversions;
 	}
 
+	/** the name of a remembered field as the profile list or dialog shows it */
+	private String fieldName(String key) {
+		java.util.regex.Matcher m = java.util.regex.Pattern.compile("([a-z]+?)(\\d*)").matcher(key);
+		String base = m.matches() ? m.group(1): key;
+		int n = m.matches() && !m.group(2).isEmpty() ? Integer.parseInt(m.group(2)) + 1: 0;
+		return switch (base) {
+			case "title", "developer", "publisher", "genre", "year", "status", "favorite", "setup", "series" -> text_.get("dialog.main.profiles.column." + base);
+			case "notes" -> text_.get("dialog.profile.notes");
+			case "link" -> text_.get("dialog.profile.link", new Object[] {n});
+			case "alt" -> text_.get("dialog.profile.altexe", new Object[] {n});
+			default -> key;
+		};
+	}
+
 	@Override
 	protected String getDialogTitle() {
 		return text_.get("dialog.bulkundo.title");
@@ -89,6 +103,15 @@ public class BulkUndoDialog extends SizeControlledButtonDialog<Set<Integer>> {
 				diff.addAll(0, v);
 				full.addAll(0, v);
 			}
+			// TEST5: the fields of the database too (the title, year, ... edited in the profile dialog), first
+			List<DiffLine> fields = new ArrayList<>();
+			for (String[] f: BulkUndo.fieldChanges(c.profile())) {
+				String name = fieldName(f[0]);
+				fields.add(new DiffLine('-', name + " = " + org.apache.commons.lang3.StringUtils.abbreviate(f[1].replaceAll("[\\r\\n]+", " "), 120)));
+				fields.add(new DiffLine('+', name + " = " + org.apache.commons.lang3.StringUtils.abbreviate(f[2].replaceAll("[\\r\\n]+", " "), 120)));
+			}
+			diff.addAll(0, fields);
+			full.addAll(0, fields);
 			entries_.add(new Entry(c, diff, full));
 			take_.put(c.profile().getId(), !diff.isEmpty());
 		}

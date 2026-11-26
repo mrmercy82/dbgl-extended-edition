@@ -287,7 +287,7 @@ public final class PortableExport {
 	}
 
 	/** alpha 54 (TEST3): settings of a profile that name a file or folder DOSBox reads (sound ROMs, SoundFonts, shaders) */
-	static final Set<String> RESOURCE_SETTINGS = Set.of("soundfont", "fluid.soundfont", "soundfont_dir", "romdir", "mt32.romdir", "glshader", "shader");
+	static final Set<String> RESOURCE_SETTINGS = Set.of("soundfont", "fluid.soundfont", "soundfont_dir", "romdir", "mt32.romdir", "soundcanvas_rom_dir", "glshader", "shader");
 
 	/** where the files a profile needs besides its games go on the stick, below its DOSroot (DOSBox runs in the DOSroot) */
 	static final String EXTRAS = "DBGL-extras";
@@ -338,6 +338,7 @@ public final class PortableExport {
 				conf.setValue(section, item, onStick.replace('/', path.contains("\\") ? '\\': '/') + rest);
 			}
 		}
+		bytes += takeDefaultRoms(p);
 		org.dbgl.model.Link[] links = p.getLinks();
 		boolean linksChanged = false;
 		for (int i = 0; (links != null) && (linksHere != null) && (i < links.length) && (i < linksHere.length); i++) {
@@ -354,6 +355,61 @@ public final class PortableExport {
 		}
 		if (linksChanged)
 			p.setLinks(links);
+		return bytes;
+	}
+
+	/**
+	 * TEST5: an MT-32 or Sound Canvas chosen without a folder for its ROMs: DOSBox then looks in its own places (DOSBox-X e.g.
+	 * where it runs, the DOSroot; DOSBox Staging in mt32-roms of its folder for the user). The ROMs found there (as "Check"
+	 * finds them) go to the stick in DBGL-extras, and the profile there names that folder; only the ROM files, not what else
+	 * is in that folder.
+	 */
+	private long takeDefaultRoms(Profile p) throws IOException {
+		DosboxVersion v = p.getDosboxVersion();
+		if (v == null)
+			return 0;
+		String family = StringUtils.defaultString(v.getFamily());
+		boolean dosboxX = family.equalsIgnoreCase(SettingsService.DOSBOX_X_DOSBOX_FAM.title_), staging = family.equalsIgnoreCase(SettingsService.STAGING_DOSBOX_FAM.title_);
+		if (!dosboxX && !staging)
+			return 0;
+		org.dbgl.model.conf.Configuration conf = p.getConfiguration(), combined = p.getCombinedConfigurationForReading();
+		String device = StringUtils.trimToEmpty(combined.getValue("midi", "mididevice")).toLowerCase(Locale.ROOT);
+		long bytes = 0;
+		if (device.equals("mt32")) {
+			String[] setting = dosboxX ? new String[] {"midi", "mt32.romdir"}: new String[] {"mt32", "romdir"};
+			if (StringUtils.isBlank(combined.getValue(setting[0], setting[1]))) {
+				MidiRoms.Found roms = MidiRoms.mt32(v, combined, dosboxX);
+				if (roms.dir() != null)
+					bytes += takeRomFiles(roms.dir(), "mt32-roms", f -> MidiRoms.mt32Size(f.length()), conf, setting, v);
+			}
+		} else if (device.equals("soundcanvas") && staging && StringUtils.isBlank(combined.getValue("soundcanvas", "soundcanvas_rom_dir"))) {
+			MidiRoms.Found roms = MidiRoms.soundCanvas(v, combined);
+			if (roms.dir() != null)
+				bytes += takeRomFiles(roms.dir(), "soundcanvas-roms", f -> f.length() <= 4L * 1024 * 1024, conf, new String[] {"soundcanvas", "soundcanvas_rom_dir"}, v);
+		}
+		return bytes;
+	}
+
+	private long takeRomFiles(File dir, String name, java.util.function.Predicate<File> rom, org.dbgl.model.conf.Configuration conf, String[] setting, DosboxVersion v) throws IOException {
+		File canonical = dir.getCanonicalFile();
+		File dosboxDir = v.getCanonicalPath() == null ? null: v.getCanonicalPath().getCanonicalFile();
+		if ((dosboxDir != null) && (canonical.equals(dosboxDir) || inside(dosboxDir, canonical)))
+			return 0; // in the folder of the DOSBox version, which goes along: DOSBox finds them there on the stick too
+		String place = extras_.get(canonical);
+		long bytes = 0;
+		if (place == null) {
+			place = EXTRAS + "/" + name;
+			for (int i = 2; extras_.containsValue(place); i++)
+				place = EXTRAS + "/" + name + "-" + i;
+			File[] files = canonical.listFiles(f -> f.isFile() && rom.test(f));
+			if (files != null)
+				for (File f: files) {
+					addPath(f, ROOT + "dosroot/" + place + "/" + f.getName());
+					bytes += f.length();
+				}
+			extras_.put(canonical, place);
+		}
+		conf.setValue(setting[0], setting[1], place);
 		return bytes;
 	}
 

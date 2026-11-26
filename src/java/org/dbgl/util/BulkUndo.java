@@ -491,6 +491,22 @@ public final class BulkUndo {
 	}
 
 	/** forget the last remembered change (when it is undone); the one before is then the last */
+	/**
+	 * TEST5: what of the database fields (title, year, ...) the undo brings back for a profile of the last change: per field its
+	 * name (as remembered: "title", "year", "link0", ...), the value now and the value then; empty if nothing of them changed
+	 */
+	public static List<String[]> fieldChanges(Profile p) {
+		java.util.Properties then = readFields(new File(dir(), p.getId() + ".fields"));
+		if (then == null)
+			return List.of();
+		java.util.Properties now = fieldsOf(p);
+		List<String[]> result = new java.util.ArrayList<>();
+		for (String k: new java.util.TreeSet<>(then.stringPropertyNames()))
+			if (!then.getProperty(k).equals(now.getProperty(k, "")))
+				result.add(new String[] {k, now.getProperty(k, ""), then.getProperty(k)});
+		return result;
+	}
+
 	public static void clear() {
 		org.apache.commons.io.FileUtils.deleteQuietly(dir());
 		changed();

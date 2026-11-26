@@ -65,14 +65,17 @@ Neu
   (Handbücher, Karten). Was schon mit einem Spielordner mitgeht, wird nicht
   doppelt kopiert, der Rest landet in DBGL-extras im DOS-Ordner des Sticks;
   Einstellungen und Links zeigen auf dem Stick dorthin, unabhängig vom
-  Laufwerksbuchstaben. Nach dem Erstellen bietet DBGL an, den Ordner mit der
+  Laufwerksbuchstaben. Ist für MT-32 oder Sound Canvas kein ROM-Ordner
+  eingestellt, nimmt DBGL die ROMs mit, die DOSBox an seinen eigenen Stellen
+  findet (DOSBox-X z. B. im DOS-Ordner, Staging in mt32-roms), und trägt den
+  Ordner auf dem Stick ein. Nach dem Erstellen bietet DBGL an, den Ordner mit der
   ZIP-Datei zu öffnen.
 - Rückgängig: bis zu fünf Schritte zurück, einer nach dem anderen (der
   Tooltip sagt, wie viele noch gehen); auch wenn nur ein Profil geändert
   wurde (auch im Profildialog, dort nur, wenn sich etwas geändert hat).
   Neben der Konfigurationsdatei und der DOSBox-Version kommen auch Titel,
-  Angaben, Notizen, Links, eigene Felder und Reihe zurück; die Vorschau zeigt
-  diese Änderungen mit.
+  Angaben, Notizen, Links, eigene Felder und Reihe zurück; die Vorschau und
+  das Fenster von Rückgängig zeigen diese Änderungen mit.
 
 Geändert
 - Für die Entwicklung: tools/mkrelease.py baut alle Pakete eines Releases
