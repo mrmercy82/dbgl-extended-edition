@@ -98,8 +98,8 @@ public class KnownGamesDialog extends SizeControlledButtonDialog<Boolean> {
 		table_.setLayoutData(tableData);
 		String[] heads = {text_.get("dialog.complete.column.title"), text_.get("dialog.knowngames.column.developer"), text_.get("dialog.importdir.column.publisher"),
 				text_.get("dialog.importdir.column.year"), text_.get("dialog.knowngames.column.genre"), text_.get("dialog.importdir.column.main"),
-				text_.get("dialog.importdir.column.setup")};
-		int[] widths = {220, 120, 120, 50, 90, 120, 110};
+				text_.get("dialog.knowngames.column.md5"), text_.get("dialog.importdir.column.setup")}; // alpha 54 (TEST9): the checksum it is known by
+		int[] widths = {220, 120, 120, 50, 90, 120, 250, 110};
 		for (int i = 0; i < heads.length; i++) {
 			TableColumn c = new TableColumn(table_, SWT.NONE);
 			c.setText(heads[i]);
@@ -168,18 +168,23 @@ public class KnownGamesDialog extends SizeControlledButtonDialog<Boolean> {
 		shown_.clear();
 		table_.removeAll();
 		for (Entry e: entries_) {
-			String all = (e.title() + " " + e.developer() + " " + e.publisher() + " " + e.year() + " " + e.genre() + " " + name(e.main()) + " " + name(e.setupFile())).toLowerCase(Locale.ROOT);
+			String all = (e.title() + " " + e.developer() + " " + e.publisher() + " " + e.year() + " " + e.genre() + " " + name(e.main()) + " " + md5(e.main()) + " " + name(e.setupFile()))
+					.toLowerCase(Locale.ROOT);
 			if (!f.isEmpty() && !all.contains(f))
 				continue;
 			shown_.add(e);
 			TableItem item = new TableItem(table_, SWT.NONE);
-			item.setText(new String[] {e.title(), e.developer(), e.publisher(), e.year(), e.genre(), name(e.main()), name(e.setupFile())});
+			item.setText(new String[] {e.title(), e.developer(), e.publisher(), e.year(), e.genre(), name(e.main()), md5(e.main()), name(e.setupFile())});
 		}
 		info_.setText(text_.get("dialog.knowngames.info", new Object[] {entries_.size(), shown_.size()}));
 	}
 
 	private static String name(KnownFile f) {
 		return f == null ? "": f.name();
+	}
+
+	private static String md5(KnownFile f) {
+		return f == null ? "": f.md5();
 	}
 
 	private void forget() {
@@ -223,6 +228,9 @@ public class KnownGamesDialog extends SizeControlledButtonDialog<Boolean> {
 		FileDialog dialog = new FileDialog(shell_, SWT.SAVE);
 		dialog.setFilterNames(new String[] {"JSON (*.json)"});
 		dialog.setFilterExtensions(new String[] {"*.json"});
+		File exportDir = org.dbgl.service.FileLocationService.getInstance().getExportDir(); // alpha 54 (TEST9): as the USB stick
+		exportDir.mkdirs();
+		dialog.setFilterPath(exportDir.getAbsolutePath());
 		dialog.setFileName("known-games-" + chosen.size() + ".json");
 		dialog.setOverwrite(true);
 		String name = dialog.open();
@@ -245,7 +253,7 @@ public class KnownGamesDialog extends SizeControlledButtonDialog<Boolean> {
 			org.dbgl.util.SystemUtils.openForBrowsing(org.dbgl.constants.Constants.EDITION_URL + "/issues/new?title=" + title + "&body=" + body, shell_);
 			org.dbgl.util.SystemUtils.showInFolder(target, shell_);
 		} else {
-			Mess_.on(shell_).key("dialog.knowngames.exported", new Object[] {chosen.size(), target.getPath()}).display();
+			org.dbgl.util.SystemUtils.showInFolder(target, shell_); // alpha 54 (TEST9): the file marked in its folder
 		}
 	}
 
@@ -283,7 +291,9 @@ public class KnownGamesDialog extends SizeControlledButtonDialog<Boolean> {
 
 	private void showCommunity() {
 		File f = OwnKnownGames.communityFile();
-		community_.setText(f.isFile() ? text_.get("dialog.knowngames.community.info", new Object[] {OwnKnownGames.load(f).size()}): text_.get("dialog.knowngames.community.none"));
+		community_.setText(f.isFile() ? text_.get("dialog.knowngames.community.info", new Object[] {OwnKnownGames.load(f).size()}) + " – "
+				+ text_.get("dialog.knowngames.community.loadedat", new Object[] {new java.util.Date(f.lastModified())}): text_.get("dialog.knowngames.community.none"));
+		community_.getParent().layout(true);
 	}
 
 	private void save() {

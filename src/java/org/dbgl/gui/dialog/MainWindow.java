@@ -2784,22 +2784,6 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		}).build();
 		// the tools for all profiles, the statistics at the end
 		MenuItem_.on(profilesMenu).build();
-		// alpha 53: the selected profiles learned, so that Import known games recognizes these games by their files later; between
-		// lines of its own
-		MenuItem_.on(profilesMenu).key("dialog.main.menu.learnknown").image(ImageService.IMG_IMPORT).listen(new SelectionAdapter() {
-			@Override
-			public void widgetSelected(SelectionEvent event) {
-				doLearnKnownGames();
-			}
-		}).build();
-		// TEST26: what was learned, to change or forget
-		MenuItem_.on(profilesMenu).key("dialog.main.menu.knowngames").image(ImageService.IMG_EDIT).listen(new SelectionAdapter() {
-			@Override
-			public void widgetSelected(SelectionEvent event) {
-				new KnownGamesDialog(shell_).open();
-			}
-		}).build();
-		MenuItem_.on(profilesMenu).build();
 		// alpha 49: game series suggested from the titles
 		MenuItem_.on(profilesMenu).key("dialog.main.menu.series").image(ImageService.IMG_DUPLICATE).listen(new SelectionAdapter() {
 			@Override
@@ -2820,6 +2804,21 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			}
 		}).build();
 		MenuItem_.on(profilesMenu).build(); // alpha 50: the covers between two lines
+		// alpha 53: the selected profiles learned, so that Import known games recognizes these games by their files later;
+		// alpha 54 (TEST9): with what was learned right above Complete profiles, a line above the two
+		MenuItem_.on(profilesMenu).key("dialog.main.menu.learnknown").image(ImageService.IMG_IMPORT).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				doLearnKnownGames();
+			}
+		}).build();
+		// TEST26: what was learned, to change or forget
+		MenuItem_.on(profilesMenu).key("dialog.main.menu.knowngames").image(ImageService.IMG_EDIT).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				new KnownGamesDialog(shell_).open();
+			}
+		}).build();
 		// alpha 53 (TEST24): title, details and covers in this order, for the profiles chosen
 		MenuItem_.on(profilesMenu).key("dialog.main.menu.complete").image(ImageService.IMG_EDIT).listen(new SelectionAdapter() {
 			@Override
@@ -3276,20 +3275,6 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				doReplaceValues();
 			}
 		}).build();
-		// alpha 53: as in the menu Profiles, between lines of its own
-		MenuItem_.on(tools).build();
-		MenuItem_.on(tools).key("dialog.main.menu.learnknown").image(ImageService.IMG_IMPORT).listen(new SelectionAdapter() {
-			@Override
-			public void widgetSelected(SelectionEvent event) {
-				doLearnKnownGames();
-			}
-		}).build();
-		MenuItem_.on(tools).key("dialog.main.menu.knowngames").image(ImageService.IMG_EDIT).listen(new SelectionAdapter() {
-			@Override
-			public void widgetSelected(SelectionEvent event) {
-				new KnownGamesDialog(shell_).open();
-			}
-		}).build();
 		MenuItem_.on(tools).build();
 		MenuItem_.on(tools).key("dialog.main.profile.switchdosboxversion").image(ImageService.IMG_MIGRATE).listen(new SelectionAdapter() {
 			@Override
@@ -3323,6 +3308,19 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			}
 		}).build();
 		MenuItem_.on(tools).build();
+		// alpha 53: as in the menu Profiles; alpha 54 (TEST9): right above Complete profiles, a line above the two
+		MenuItem_.on(tools).key("dialog.main.menu.learnknown").image(ImageService.IMG_IMPORT).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				doLearnKnownGames();
+			}
+		}).build();
+		MenuItem_.on(tools).key("dialog.main.menu.knowngames").image(ImageService.IMG_EDIT).listen(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				new KnownGamesDialog(shell_).open();
+			}
+		}).build();
 		MenuItem_.on(tools).key("dialog.main.menu.complete").image(ImageService.IMG_EDIT).listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {

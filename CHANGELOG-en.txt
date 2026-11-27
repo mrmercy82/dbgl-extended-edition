@@ -85,6 +85,11 @@ New
   where a game was recognized from. "Contribute..." saves the selected games
   as a file and opens a new issue on GitHub to attach it to. The files hold
   only titles, details, and names and checksums of the programs, no paths.
+  The list also shows the MD5 checksum of the start program, an export goes
+  to the folder export by default and is marked there, and the community
+  list says when it was last loaded. The two menu entries for learned games
+  are now right above "Complete profiles..." (also in the context menu under
+  Tools).
 
 Changed
 - For development: tools/mkrelease.py builds all packages of a release

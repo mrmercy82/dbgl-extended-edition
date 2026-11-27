@@ -84,17 +84,21 @@ Neu
   Enter führt den Befehl aus; eine Einstellung öffnet die Einstellungen auf
   ihrem Reiter, hebt sie kurz hervor und setzt den Cursor ins Feld daneben.
   Was gerade nicht geht (etwa ohne markiertes Profil), steht grau dabei.
-- Gemerkte Spiele weitergeben und die Gemeinschaftsliste: In Profile >
+- Gemerkte Spiele weitergeben und die Community-Liste: In Profile >
   „Gemerkte Spiele verwalten...“ speichert „Exportieren...“ die markierten
   (oder alle) als Datei, „Übernehmen...“ holt die Spiele aus so einer Datei
-  dazu (schon bekannte bleiben, wie sie sind). „Gemeinschaftsliste laden“
+  dazu (schon bekannte bleiben, wie sie sind). „Community-Liste laden“
   lädt die gemeinsame Liste bekannter Spiele aus dem Repository der
   Extended Edition (community/known-games.json); der Import aus einem Ordner
   nutzt sie nach den eigenen gemerkten Spielen und sagt, woher ein Spiel
   erkannt wurde. „Beitragen...“ speichert die markierten Spiele als Datei
   und öffnet eine neue Meldung auf GitHub zum Anhängen. Die Dateien
   enthalten nur Titel, Angaben sowie Namen und Prüfsummen der Programme,
-  keine Pfade.
+  keine Pfade. Die Liste zeigt auch die MD5-Prüfsumme des Startprogramms,
+  ein Export landet standardmäßig im Ordner export und wird dort markiert,
+  und bei der Community-Liste steht, wann sie zuletzt geladen wurde. Die
+  beiden Menüpunkte zum Merken stehen jetzt direkt über „Profile
+  vervollständigen...“ (auch im Kontextmenü unter Werkzeuge).
 
 Geändert
 - Für die Entwicklung: tools/mkrelease.py baut alle Pakete eines Releases
