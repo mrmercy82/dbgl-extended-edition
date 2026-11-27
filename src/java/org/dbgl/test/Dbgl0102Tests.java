@@ -7002,27 +7002,29 @@ public class Dbgl0102Tests {
 	/** alpha 54 (TEST14): the table of scummvm --detect, old (3 columns) and new (4), also with a description too long */
 	@Test
 	public void testScummvmDetectParsed() {
+		File root = new File("games").getAbsoluteFile(); // as ScummVM prints it on this system (D:\\... on Windows)
+		String r = root.getPath() + File.separator;
 		String old = "GameID                         Description                                                Full path\n"
 				+ "------------------------------ ---------------------------------------------------------- ---------------------------------------------------------\n"
-				+ "monkey2                        Monkey Island 2: LeChuck's Revenge (DOS/English)           /games/MI2\n";
-		List<org.dbgl.util.Scummvm.Detected> a = org.dbgl.util.Scummvm.parseDetect(old, new File("/games"));
+				+ "monkey2                        Monkey Island 2: LeChuck's Revenge (DOS/English)           " + r + "MI2\n";
+		List<org.dbgl.util.Scummvm.Detected> a = org.dbgl.util.Scummvm.parseDetect(old, root);
 		assertEquals(1, a.size());
 		assertEquals("monkey2", a.get(0).id());
 		assertEquals("Monkey Island 2: LeChuck's Revenge (DOS/English)", a.get(0).description());
-		assertEquals(new File("/games/MI2"), a.get(0).path());
+		assertEquals(new File(root, "MI2"), a.get(0).path());
 		String desc = "A very long description of a game that is much longer than the column for it (DOS/English/CD)";
 		String neu = "EngineID       GameID          Description                                                Full Path\r\n"
 				+ "-------------- --------------- ---------------------------------------------------------- ---------------------------------------------------------\r\n"
-				+ "scumm          ft              Full Throttle (DOS/English)                                /games/Full Throttle\r\n"
-				+ "sky            sky             " + desc + " /games/BASS\r\n" + "\r\nsome other line\r\n";
-		List<org.dbgl.util.Scummvm.Detected> b = org.dbgl.util.Scummvm.parseDetect(neu, new File("/games"));
+				+ "scumm          ft              Full Throttle (DOS/English)                                " + r + "Full Throttle\r\n"
+				+ "sky            sky             " + desc + " " + r + "BASS\r\n" + "\r\nsome other line\r\n";
+		List<org.dbgl.util.Scummvm.Detected> b = org.dbgl.util.Scummvm.parseDetect(neu, root);
 		assertEquals(2, b.size());
 		assertEquals("scumm:ft", b.get(0).id());
-		assertEquals(new File("/games/Full Throttle"), b.get(0).path());
+		assertEquals(new File(root, "Full Throttle"), b.get(0).path());
 		assertEquals("sky:sky", b.get(1).id());
 		assertEquals(desc, b.get(1).description());
-		assertEquals(new File("/games/BASS"), b.get(1).path());
-		assertTrue(org.dbgl.util.Scummvm.parseDetect("No games found\n", new File("/games")).isEmpty());
+		assertEquals(new File(root, "BASS"), b.get(1).path());
+		assertTrue(org.dbgl.util.Scummvm.parseDetect("No games found\n", root).isEmpty());
 	}
 
 	/** alpha 54 (TEST14): detect and add with a stand-in for ScummVM (a script): the new target read from the scummvm.ini */
