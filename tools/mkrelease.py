@@ -20,6 +20,8 @@ Builds all packages of a release of DBGL Extended Edition from a commit of this 
 The texts update-readme.txt and LIESMICH-README.txt come from tools/release (@N@ = the number of the alpha).
 With --dosbox-svn-mac (alpha 55) the macOS packages also hold DOSBox SVN r4484 by Dominus (universal, signed, notarized), as
 DBGL.app/Contents/Resources/DOSBoxSVN.app unchanged, after tools/verify-macos-app.py found it to be exactly the signed app.
+--dosbox-svn-source (once per file: the snapshot of r4484, the source of SDL_sound 1.0) puts those archives next to the
+packages, as the GPL and LGPL ask for with the program; without them there is no macOS package with DOSBox SVN.
 Since alpha 53 (rebuilt then and checked against the update packages of alpha 52).
 """
 import argparse, glob, hashlib, io, os, shutil, subprocess, sys, tarfile, tempfile, time, zipfile
@@ -120,8 +122,9 @@ Reichardt, Developer ID 5PRK96AWD5) on 4 April 2025. It is here unchanged; DBGL 
 the package was made (tools/verify-macos-app.py). Thanks to Dominus.
 
 DOSBox is free software under the GNU General Public License, version 2 (Contents/Documents/COPYING in DOSBoxSVN.app).
-Its source: https://sourceforge.net/p/dosbox/code-0/4484/tree/dosbox/trunk/ (revision 4484); the libraries in
-Contents/Resources/lib_* (SDL, SDL_net, SDL_sound, libpng, zlib, Ogg, Vorbis, FLAC) are under their own free licenses.
+Its source: https://sourceforge.net/p/dosbox/code-0/4484/tree/dosbox/trunk/ (revision 4484), and as the source-* files with
+each release of DBGL Extended Edition that brings it (also the source of SDL_sound, which is under the GNU LGPL). The other
+libraries in Contents/Resources/lib_* (SDL, SDL_net, libpng, zlib, Ogg, Vorbis, FLAC) are under their own free licenses.
 """
 
 
@@ -158,11 +161,17 @@ def main():
     ap.add_argument('commit', nargs='?', default='HEAD')
     ap.add_argument('--jre', help='the Java 21 JRE for Windows as Eclipse Temurin publishes it (zip); without it there is no -windows.zip')
     ap.add_argument('--dosbox-svn-mac', help='DOSBoxSVN.app (folder or ZIP) for the macOS packages; checked against its signature first')
+    ap.add_argument('--dosbox-svn-source', action='append', default=[], help='source archive published with DOSBox SVN (r4484 snapshot, SDL_sound 1.0); once per file')
     ap.add_argument('--out', default=os.path.join(REPO, 'dist-release'), help='folder for the packages (emptied first)')
     a = ap.parse_args()
-    svn_mac = None
+    svn_mac, svn_sources = None, list(a.dosbox_svn_source)
     if a.dosbox_svn_mac:
+        if not a.dosbox_svn_source:
+            sys.exit('--dosbox-svn-mac needs --dosbox-svn-source: DOSBox (GPL) and SDL_sound (LGPL) go out only with their source')
         svn_mac = dosbox_svn_mac(a.dosbox_svn_mac)  # before anything is built: a wrong file stops it at once
+        for src in a.dosbox_svn_source:
+            if not zipfile.is_zipfile(src) and not tarfile.is_tarfile(src):
+                sys.exit('--dosbox-svn-source: not an archive: ' + src)
     W, OUT = tempfile.mkdtemp(prefix='dbgl-release-'), os.path.abspath(a.out)
     shutil.rmtree(OUT, ignore_errors=True); os.makedirs(W + '/tree'); os.makedirs(OUT)
     commit = git('rev-parse', a.commit).decode().strip()
@@ -284,6 +293,11 @@ def main():
             mac.add('DBGL.app/Contents/Resources/DOSBoxSVN-README.txt', data=SVN_MAC_README.encode())
             mac.links[mo + 'DOSBox-SVN'] = '../Resources/DOSBoxSVN.app/Contents/MacOS'
         mac.tar(OUT + '/%s-macos-%s.tar.gz' % (name, a), 'w:gz', 'dbgl%s/' % vf)
+
+    # the source of what the macOS packages bring of others (DOSBox SVN, SDL_sound), next to them
+    if svn_mac:
+        for src in svn_sources:
+            shutil.copyfile(src, OUT + '/source-' + os.path.basename(src))
 
     # 7. sums
     with open(OUT + '/SHA256SUMS.txt', 'w') as f:

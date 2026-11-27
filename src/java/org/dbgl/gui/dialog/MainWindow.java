@@ -6896,6 +6896,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			try {
 				DosboxVersion newDbversion = new DosboxVersionRepository().add(result.dosbox_);
 				updateDosboxVersionList(newDbversion);
+				createMissingDosboxConf(newDbversion);
 				Mess_.on(null).key("dialog.locatedosbox.notice.foundandadded").display();
 			} catch (SQLException e) {
 				Mess_.on(shell_).exception(e).warning();
@@ -6921,8 +6922,21 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		if (BaseRepository.findDefault(dbversionsList_) != null)
 			result.dosbox_.setDefault(false);
 		try {
-			updateDosboxVersionList(new DosboxVersionRepository().add(result.dosbox_));
+			DosboxVersion added = new DosboxVersionRepository().add(result.dosbox_);
+			updateDosboxVersionList(added);
+			createMissingDosboxConf(added);
 		} catch (SQLException e) {
+			Mess_.on(shell_).exception(e).warning();
+		}
+	}
+
+	/** alpha 55: a DOSBox found without its configuration file writes it now (DOSBox SVN of the Mac package, the first time) */
+	private void createMissingDosboxConf(DosboxVersion dbversion) {
+		if ((dbversion == null) || FilesUtils.isExistingFile(dbversion.getConfigurationCanonicalFile()))
+			return;
+		try {
+			ExecuteUtils.doCreateDosboxConf(dbversion);
+		} catch (IOException e) {
 			Mess_.on(shell_).exception(e).warning();
 		}
 	}

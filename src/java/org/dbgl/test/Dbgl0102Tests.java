@@ -6975,4 +6975,27 @@ public class Dbgl0102Tests {
 			assertFalse(org.dbgl.util.FilesUtils.areRelated(new File("/d/SPIELE/badmojo"), new File("/d/spiele/badmojo/WINDOWS/WIN.COM")));
 		}
 	}
+
+	/** alpha 55: DOSBox SVN of the macOS package found by itself, as family SVN with its configuration next to the folder */
+	@Test
+	public void testFindsSvnOfMacPackage() throws Exception {
+		File dir = java.nio.file.Files.createTempDirectory("dbgl-svnmac").toFile();
+		try {
+			org.dbgl.service.FileLocationService fls = org.dbgl.service.FileLocationService.getInstance();
+			assertNull(fls.svnMacIn(dir));
+			File exe = new File(new File(dir, "DOSBox-SVN"), "dosbox");
+			exe.getParentFile().mkdirs();
+			java.nio.file.Files.write(exe.toPath(), new byte[] {1});
+			org.dbgl.model.SearchResult r = fls.svnMacIn(dir);
+			assertEquals(org.dbgl.model.SearchResult.ResultType.COMPLETE, r.result_);
+			assertEquals("DOSBox SVN", r.dosbox_.getFamily());
+			assertEquals("r4494", r.dosbox_.getVersion());
+			assertEquals(exe.getCanonicalFile(), r.dosbox_.getCanonicalExe().getCanonicalFile());
+			assertEquals(new File(dir, "dosbox-SVN.conf").getCanonicalFile(), r.dosbox_.getConfigurationCanonicalFile().getCanonicalFile());
+			if (!org.dbgl.util.SystemUtils.IS_OSX)
+				assertNull(fls.findSvnMac());
+		} finally {
+			org.apache.commons.io.FileUtils.deleteDirectory(dir);
+		}
+	}
 }

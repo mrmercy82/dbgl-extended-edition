@@ -348,9 +348,48 @@ public class FileLocationService {
 	}
 
 	public SearchResult findDosbox() {
+		// alpha 55: on a Mac with Apple Silicon first the DOSBox SVN that comes with DBGL (universal, runs without Rosetta); the
+		// DOSBox 0.74-3 that comes with it too is only for Intel
+		SearchResult svn = findSvnMac();
+		if ((svn != null) && isAppleSilicon())
+			return svn;
 		List<String> allVersions = new ArrayList<>(SettingsService.SUPPORTED_DOSBOX_RELEASES);
 		Collections.reverse(allVersions);
-		return allVersions.stream().map(this::findDosbox).filter(x -> x.result_ != ResultType.NOTFOUND).findFirst().orElse(new SearchResult(ResultType.NOTFOUND, null));
+		SearchResult found = allVersions.stream().map(this::findDosbox).filter(x -> x.result_ != ResultType.NOTFOUND).findFirst().orElse(new SearchResult(ResultType.NOTFOUND, null));
+		return (found.result_ == ResultType.NOTFOUND) && (svn != null) ? svn: found;
+	}
+
+	/** alpha 55: DOSBox SVN for macOS as the packages of DBGL bring it: DOSBoxSVN.app of Dominus, reached through DOSBox-SVN */
+	public static final String SVN_MAC_DIR = "DOSBox-SVN";
+	public static final String SVN_MAC_EXE = "dosbox";
+	public static final String SVN_MAC_CONF = "dosbox-SVN.conf";
+
+	public static boolean isAppleSilicon() {
+		return SystemUtils.IS_OSX && "aarch64".equals(System.getProperty("os.arch"));
+	}
+
+	/**
+	 * alpha 55: that DOSBox SVN, or null when it is not there (not a Mac, or a package without it). Its configuration file is
+	 * next to the folder, not in the app: a file added to the signed app would break its seal. DOSBox writes it the first time
+	 * (the caller does that when it is missing)
+	 */
+	public SearchResult findSvnMac() {
+		return SystemUtils.IS_OSX ? svnMacIn(dosboxDir_): null;
+	}
+
+	/** the same for a folder of DOSBox versions given (for tests on any system) */
+	public SearchResult svnMacIn(File dosboxDir) {
+		if (dosboxDir == null)
+			return null;
+		File dir = new File(dosboxDir, SVN_MAC_DIR);
+		File exe = new File(dir, SVN_MAC_EXE);
+		if (!FilesUtils.isExistingFile(exe))
+			return null;
+		String last = SettingsService.SVN_DOSBOX_FAM.versions_.get(SettingsService.SVN_DOSBOX_FAM.versions_.size() - 1);
+		DosboxVersion db = DosboxVersionFactory.create("DOSBox SVN r4484", SettingsService.SVN_DOSBOX_FAM.title_, last, true, true, false, null,
+			new FileLocation(dir.getPath(), dosboxRelative()).getFile().getPath(), new FileLocation(exe.getPath(), dosboxRelative()).getFile().getPath(), StringUtils.EMPTY,
+			new FileLocation(new File(dosboxDir, SVN_MAC_CONF).getPath(), dosboxRelative()).getFile().getPath());
+		return new SearchResult(ResultType.COMPLETE, db);
 	}
 
 	private SearchResult findDosbox(String versionToSearch) {
