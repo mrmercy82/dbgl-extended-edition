@@ -194,14 +194,21 @@ public final class ScummvmDialog {
 			int column = i;
 			col.addListener(SWT.Selection, e -> sortBy(table, col, column)); // alpha 52: a click on the title sorts, a second one the other way
 		}
-		int index = 0;
-		for (Scummvm.Game g: games) {
+		// alpha 54 (TEST13): at first by the title, A to Z (as a click on its column would sort it)
+		List<Integer> order = new java.util.ArrayList<>();
+		for (int i = 0; i < games.size(); i++)
+			order.add(i);
+		order.sort((x, y) -> naturalCompare(games.get(x).title(), games.get(y).title()));
+		table.setSortColumn(table.getColumn(0));
+		table.setSortDirection(SWT.UP);
+		for (int index: order) {
+			Scummvm.Game g = games.get(index);
 			boolean isKnown = known.contains(g.target().toLowerCase(Locale.ROOT));
 			TableItem item = new TableItem(table, SWT.NONE);
 			String kind = String.join(" / ", java.util.stream.Stream.of(g.platform(), g.language()).filter(s -> !s.isBlank()).toList());
 			item.setText(new String[] {isKnown ? text.get("dialog.storeimport.known", new Object[] {g.title()}): g.title(), g.target(), kind, g.path() == null ? "": g.path().getPath()});
 			item.setChecked(!isKnown);
-			item.setData(index++); // its game, whatever the order
+			item.setData(index); // its game, whatever the order
 		}
 
 		Composite pick = new Composite(dlg, SWT.NONE);

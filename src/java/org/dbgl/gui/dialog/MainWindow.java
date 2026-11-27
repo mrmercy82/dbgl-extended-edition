@@ -2965,15 +2965,6 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		// the update check first, then what is new since DBGL 0.100 beta 17 and the full changelog, above 'About' (on macOS
 		// 'About' is in the application menu)
 		Menu helpMenu = createMenu(appMenuBar, "dialog.main.menu.help");
-		// alpha 55: a command or a setting found by a word of it (Ctrl+K, as in many programs)
-		MenuItem_.on(helpMenu).txt(text_.get("dialog.main.menu.commandsearch") + (SystemUtils.IS_OSX ? "\tCmd+K": "\tCtrl+K"))
-				.image(ImageService.IMG_ZOOM).accel(SWT.MOD1 | 'K').listen(new SelectionAdapter() {
-					@Override
-					public void widgetSelected(SelectionEvent event) {
-						doCommandSearch();
-					}
-				}).build();
-		MenuItem_.on(helpMenu).build();
 		MenuItem_.on(helpMenu).key("dialog.main.menu.editionupdate").image(ImageService.IMG_REFRESH).listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
@@ -2996,6 +2987,14 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			}
 		}).build();
 		MenuItem_.on(helpMenu).build();
+		// alpha 55: a command or a setting found by a word of it (Ctrl+K, as in many programs); alpha 54 (TEST13): above the keys, the line above both
+		MenuItem_.on(helpMenu).txt(text_.get("dialog.main.menu.commandsearch") + (SystemUtils.IS_OSX ? "\tCmd+K": "\tCtrl+K"))
+				.image(ImageService.IMG_ZOOM).accel(SWT.MOD1 | 'K').listen(new SelectionAdapter() {
+					@Override
+					public void widgetSelected(SelectionEvent event) {
+						doCommandSearch();
+					}
+				}).build();
 		// alpha 48: all keys at a glance (DBGL can be used without a mouse), between two lines
 		MenuItem_.on(helpMenu).key("dialog.main.menu.shortcuts").image(ImageService.IMG_KEYBOARD).accel(SWT.F1).listen(new SelectionAdapter() {
 			@Override
