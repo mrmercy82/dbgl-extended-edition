@@ -575,7 +575,7 @@ public class FilesUtils {
 		File remainder = new File(file.getName());
 		File parent = file.getParentFile();
 		while (parent != null) {
-			if (parent.equals(base) && parent.getPath().equals(base.getPath())) {
+			if (samePath(parent, base)) {
 				return remainder;
 			}
 			remainder = new File(parent.getName(), remainder.getPath());
@@ -593,11 +593,26 @@ public class FilesUtils {
 		return file;
 	}
 
+	/**
+	 * EE alpha 54: the same folder. Ronald's code compared the paths also letter by letter, so that on Windows "D:\SPIELE" (typed
+	 * into a mount) and "D:\Spiele" (as the file dialog gives it) were different folders, and a start file in the mounted folder
+	 * asked for a mount of its own. On Windows the case does not count (as for Windows itself and DOSBox there); elsewhere as before.
+	 */
+	public static boolean samePath(File a, File b) {
+		return samePath(a, b, SystemUtils.IS_WINDOWS);
+	}
+
+	static boolean samePath(File a, File b, boolean caseInsensitive) {
+		if (caseInsensitive)
+			return a.getPath().equalsIgnoreCase(b.getPath());
+		return a.equals(b) && a.getPath().equals(b.getPath());
+	}
+
 	public static boolean areRelated(File parent, File child) {
 		//System.out.print("areRelated: " + parent + ", " + child);
 		File remainder = child.getParentFile();
 		while (remainder != null) {
-			if (parent.equals(remainder) && parent.getPath().equals(remainder.getPath())) {
+			if (samePath(parent, remainder)) {
 				//System.out.println(" true");
 				return true;
 			}

@@ -6957,4 +6957,22 @@ public class Dbgl0102Tests {
 			org.apache.commons.io.FileUtils.deleteDirectory(dir);
 		}
 	}
+
+	/** alpha 54: on Windows "D:\SPIELE" and "D:\Spiele" are the same folder (a start file in a mounted folder needs no mount of its own) */
+	@Test
+	public void testSamePathIgnoresCaseOnWindows() throws Exception {
+		java.lang.reflect.Method m = org.dbgl.util.FilesUtils.class.getDeclaredMethod("samePath", File.class, File.class, boolean.class);
+		m.setAccessible(true);
+		assertTrue((Boolean)m.invoke(null, new File("/D/SPIELE/BADMOJO"), new File("/D/Spiele/BADMOJO"), true));
+		assertFalse((Boolean)m.invoke(null, new File("/D/SPIELE/BADMOJO"), new File("/D/Spiele/BADMOJO"), false));
+		assertTrue((Boolean)m.invoke(null, new File("/D/Spiele/BADMOJO"), new File("/D/Spiele/BADMOJO"), false));
+		assertFalse((Boolean)m.invoke(null, new File("/D/Spiele/BADMOJO"), new File("/D/Spiele/BADMOJ"), true));
+		if (org.dbgl.util.SystemUtils.IS_WINDOWS) {
+			assertTrue(org.dbgl.util.FilesUtils.areRelated(new File("D:\\SPIELE\\BADMOJO"), new File("D:\\Spiele\\BADMOJO\\WINDOWS\\WIN.COM")));
+			assertEquals(new File("WINDOWS\\WIN.COM"), org.dbgl.util.FilesUtils.makeRelativeTo(new File("D:\\SPIELE\\BADMOJO"), new File("D:\\Spiele\\BADMOJO\\WINDOWS\\WIN.COM")));
+		} else {
+			assertTrue(org.dbgl.util.FilesUtils.areRelated(new File("/d/spiele/badmojo"), new File("/d/spiele/badmojo/WINDOWS/WIN.COM")));
+			assertFalse(org.dbgl.util.FilesUtils.areRelated(new File("/d/SPIELE/badmojo"), new File("/d/spiele/badmojo/WINDOWS/WIN.COM")));
+		}
+	}
 }

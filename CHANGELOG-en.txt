@@ -97,6 +97,11 @@ Changed
   data folder itself.
 
 Fixed
+- Windows: a folder written differently in a mount than on the disk (e.g.
+  "D:\SPIELE" instead of "D:\Spiele") counted as another folder, so a
+  start file in it asked for a mount of its own instead of using the one
+  there. On Windows the case no longer counts, as for Windows and DOSBox
+  themselves.
 - Statistics as a web page, dark mode: in the calendar of the days played
   the days not played were light grey and stood out. The calendar has dark
   colours of its own now; light and printed it stays as it was.

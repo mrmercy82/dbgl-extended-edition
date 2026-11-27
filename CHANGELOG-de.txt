@@ -107,6 +107,11 @@ Geändert
   direkt im Datenordner.
 
 Fehler behoben
+- Windows: Ein Ordner, der im Mount anders geschrieben ist als auf der
+  Platte (z. B. „D:\SPIELE“ statt „D:\Spiele“), galt als anderer Ordner.
+  Eine Startdatei darin fragte deshalb nach einem eigenen Mount, statt den
+  vorhandenen zu nutzen. Groß- und Kleinschreibung zählen unter Windows
+  jetzt nicht mehr, wie bei Windows und DOSBox selbst.
 - Statistik als Webseite, Dunkelmodus: Im Kalender der Spieltage waren die
   nicht gespielten Tage hellgrau und stachen heraus. Der Kalender hat jetzt
   eigene dunkle Farben; hell und gedruckt bleibt er wie bisher.
