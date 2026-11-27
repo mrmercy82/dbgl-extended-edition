@@ -7,7 +7,7 @@
 """
 Builds all packages of a release of DBGL Extended Edition from a commit of this repository (Java 21 JDK, git and Python 3):
 
-  python3 tools/mkrelease.py [--jre OpenJDK21U-jre_x64_windows_hotspot_....zip] [--out DIR] [commit]
+  python3 tools/mkrelease.py [--jre OpenJDK21U-jre_x64_windows_hotspot_....zip] [--dosbox-svn-mac DOSBoxSVN.app.zip] [--out DIR] [commit]
 
   dbgl-<v>-update.zip                          launch.exe, lib, docs, plugins, db/dbconf.*, dbgl.jar, update-readme.txt
                                                (the one-click update finds it by this name, together with SHA256SUMS.txt)
@@ -18,6 +18,8 @@ Builds all packages of a release of DBGL Extended Edition from a commit of this 
   SHA256SUMS.txt
 
 The texts update-readme.txt and LIESMICH-README.txt come from tools/release (@N@ = the number of the alpha).
+With --dosbox-svn-mac (alpha 55) the macOS packages also hold DOSBox SVN r4484 by Dominus (universal, signed, notarized), as
+DBGL.app/Contents/Resources/DOSBoxSVN.app unchanged, after tools/verify-macos-app.py found it to be exactly the signed app.
 Since alpha 53 (rebuilt then and checked against the update packages of alpha 52).
 """
 import argparse, glob, hashlib, io, os, shutil, subprocess, sys, tarfile, tempfile, time, zipfile
@@ -113,13 +115,54 @@ def compile_tree(T, out):
     shutil.copytree(T + '/src/resources', out, dirs_exist_ok=True)
 
 
+SVN_MAC_README = """DOSBox SVN r4484 for macOS (universal: Intel and Apple Silicon), built, signed and notarized by Dominus (Dominik
+Reichardt, Developer ID 5PRK96AWD5) on 4 April 2025. It is here unchanged; DBGL Extended Edition checked its signature when
+the package was made (tools/verify-macos-app.py). Thanks to Dominus.
+
+DOSBox is free software under the GNU General Public License, version 2 (Contents/Documents/COPYING in DOSBoxSVN.app).
+Its source: https://sourceforge.net/p/dosbox/code-0/4484/tree/dosbox/trunk/ (revision 4484); the libraries in
+Contents/Resources/lib_* (SDL, SDL_net, SDL_sound, libpng, zlib, Ogg, Vorbis, FLAC) are under their own free licenses.
+"""
+
+
+def dosbox_svn_mac(path):
+    """the files of DOSBoxSVN.app (path -> (bytes, mode)), only if it is exactly the app Dominus signed"""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location('verify_macos_app', os.path.join(REPO, 'tools', 'verify-macos-app.py'))
+    v = importlib.util.module_from_spec(spec); spec.loader.exec_module(v)
+    work = tempfile.mkdtemp(prefix='dbgl-svnmac-')
+    try:
+        app = v.app_folder(path, work)
+        try:
+            notes, found, n = v.verify(app)
+        except (v.Bad, OSError, ValueError, KeyError) as e:
+            sys.exit('--dosbox-svn-mac: NOT the signed DOSBox SVN r4484: %s' % e)
+        for note in notes:
+            print('--dosbox-svn-mac:', note)
+        print('--dosbox-svn-mac: DOSBox SVN r4484 checked (%s; %d sealed files)' % (', '.join(sorted(found)), n))
+        files = {}
+        for root, ds, fs in os.walk(app):
+            ds.sort()
+            for f in sorted(fs):
+                full = os.path.join(root, f)
+                rel = os.path.relpath(full, app).replace(os.sep, '/')
+                files[rel] = (open(full, 'rb').read(), 0o755 if rel == 'Contents/MacOS/dosbox' else 0o644)
+        return files
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
 def main():
     global TS, TS_EPOCH, W, OUT
     ap = argparse.ArgumentParser(description='all packages of a release of DBGL Extended Edition')
     ap.add_argument('commit', nargs='?', default='HEAD')
     ap.add_argument('--jre', help='the Java 21 JRE for Windows as Eclipse Temurin publishes it (zip); without it there is no -windows.zip')
+    ap.add_argument('--dosbox-svn-mac', help='DOSBoxSVN.app (folder or ZIP) for the macOS packages; checked against its signature first')
     ap.add_argument('--out', default=os.path.join(REPO, 'dist-release'), help='folder for the packages (emptied first)')
     a = ap.parse_args()
+    svn_mac = None
+    if a.dosbox_svn_mac:
+        svn_mac = dosbox_svn_mac(a.dosbox_svn_mac)  # before anything is built: a wrong file stops it at once
     W, OUT = tempfile.mkdtemp(prefix='dbgl-release-'), os.path.abspath(a.out)
     shutil.rmtree(OUT, ignore_errors=True); os.makedirs(W + '/tree'); os.makedirs(OUT)
     commit = git('rev-parse', a.commit).decode().strip()
@@ -235,6 +278,11 @@ def main():
         p = 'DBGL.app/Contents/Resources/DOSBox.app/Contents/MacOS/DOSBox'; d, m = mac.files[p]; mac.files[p] = (d, 0o755)
         d, m = mac.files['DBGL.app/Contents/Info.plist']; mac.files['DBGL.app/Contents/Info.plist'] = (d.replace(b'@@version@@', v.encode()), m)
         mac.links[mo + 'DOSBox-0.74-3'] = '../Resources/DOSBox.app/Contents/MacOS'
+        if svn_mac:
+            for rel, (data, m) in svn_mac.items():
+                mac.files['DBGL.app/Contents/Resources/DOSBoxSVN.app/' + rel] = (data, m)
+            mac.add('DBGL.app/Contents/Resources/DOSBoxSVN-README.txt', data=SVN_MAC_README.encode())
+            mac.links[mo + 'DOSBox-SVN'] = '../Resources/DOSBoxSVN.app/Contents/MacOS'
         mac.tar(OUT + '/%s-macos-%s.tar.gz' % (name, a), 'w:gz', 'dbgl%s/' % vf)
 
     # 7. sums
