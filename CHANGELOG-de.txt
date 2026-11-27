@@ -101,6 +101,12 @@ Neu
   vervollständigen...“ (auch im Kontextmenü unter Werkzeuge).
 
 Geändert
+- ScummVM beim Import aus einem Ordner: Ist ScummVM in DBGL eingetragen,
+  lässt DBGL nach dem Import ScummVM selbst im Ordner suchen (es erkennt
+  seine Spiele an den Prüfsummen ihrer Dateien). Spiele ohne Profil bietet
+  es in einer Liste an; die markierten trägt es wie „Spiel hinzufügen“ in
+  ScummVM ein und legt je ein Profil an. Die Liste des ScummVM-Imports ist
+  zu Beginn nach Titel sortiert.
 - Für die Entwicklung: tools/mkrelease.py baut alle Pakete eines Releases
   (Update, Quellcode, Windows mit und ohne Java, Linux, macOS, SHA256SUMS)
   aus einem Commit; aus dem Release-Commit von alpha 53 ergibt es dieselben

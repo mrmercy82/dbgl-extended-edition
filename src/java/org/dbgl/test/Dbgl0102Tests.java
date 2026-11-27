@@ -6998,4 +6998,61 @@ public class Dbgl0102Tests {
 			org.apache.commons.io.FileUtils.deleteDirectory(dir);
 		}
 	}
+
+	/** alpha 54 (TEST14): the table of scummvm --detect, old (3 columns) and new (4), also with a description too long */
+	@Test
+	public void testScummvmDetectParsed() {
+		String old = "GameID                         Description                                                Full path\n"
+				+ "------------------------------ ---------------------------------------------------------- ---------------------------------------------------------\n"
+				+ "monkey2                        Monkey Island 2: LeChuck's Revenge (DOS/English)           /games/MI2\n";
+		List<org.dbgl.util.Scummvm.Detected> a = org.dbgl.util.Scummvm.parseDetect(old, new File("/games"));
+		assertEquals(1, a.size());
+		assertEquals("monkey2", a.get(0).id());
+		assertEquals("Monkey Island 2: LeChuck's Revenge (DOS/English)", a.get(0).description());
+		assertEquals(new File("/games/MI2"), a.get(0).path());
+		String desc = "A very long description of a game that is much longer than the column for it (DOS/English/CD)";
+		String neu = "EngineID       GameID          Description                                                Full Path\r\n"
+				+ "-------------- --------------- ---------------------------------------------------------- ---------------------------------------------------------\r\n"
+				+ "scumm          ft              Full Throttle (DOS/English)                                /games/Full Throttle\r\n"
+				+ "sky            sky             " + desc + " /games/BASS\r\n" + "\r\nsome other line\r\n";
+		List<org.dbgl.util.Scummvm.Detected> b = org.dbgl.util.Scummvm.parseDetect(neu, new File("/games"));
+		assertEquals(2, b.size());
+		assertEquals("scumm:ft", b.get(0).id());
+		assertEquals(new File("/games/Full Throttle"), b.get(0).path());
+		assertEquals("sky:sky", b.get(1).id());
+		assertEquals(desc, b.get(1).description());
+		assertEquals(new File("/games/BASS"), b.get(1).path());
+		assertTrue(org.dbgl.util.Scummvm.parseDetect("No games found\n", new File("/games")).isEmpty());
+	}
+
+	/** alpha 54 (TEST14): detect and add with a stand-in for ScummVM (a script): the new target read from the scummvm.ini */
+	@Test
+	public void testScummvmDetectAndAdd() throws Exception {
+		if (org.dbgl.util.SystemUtils.IS_WINDOWS)
+			return;
+		File dir = java.nio.file.Files.createTempDirectory("dbgl-scummvm").toFile();
+		try {
+			File games = new File(dir, "games/MI2");
+			games.mkdirs();
+			File exe = new File(dir, "scummvm");
+			java.nio.file.Files.writeString(exe.toPath(), "#!/bin/sh\n"
+					+ "case \"$*\" in\n"
+					+ "  *--detect*) printf 'GameID   Description              Full path\\n-------- ------------------------ ---------\\nmonkey2  Monkey Island 2 (DOS)    " + games.getPath() + "\\n';;\n"
+					+ "  *--add*) for a; do case \"$a\" in --config=*) c=\"${a#--config=}\";; esac; done; printf '[monkey2]\\ndescription=Monkey Island 2 (DOS)\\ngameid=monkey2\\npath=" + games.getPath() + "\\n' >> \"$c\";;\n"
+					+ "esac\n");
+			exe.setExecutable(true);
+			File ini = new File(dir, "scummvm.ini");
+			java.nio.file.Files.writeString(ini.toPath(), "[scummvm]\nversioninfo=2.9.0\n");
+			List<org.dbgl.util.Scummvm.Detected> found = org.dbgl.util.Scummvm.detect(exe, new File(dir, "games"));
+			assertEquals(1, found.size());
+			assertEquals("monkey2", found.get(0).id());
+			List<org.dbgl.util.Scummvm.Game> added = org.dbgl.util.Scummvm.add(exe, ini, found.get(0));
+			assertEquals(1, added.size());
+			assertEquals("monkey2", added.get(0).target());
+			assertEquals(games, added.get(0).path());
+			assertTrue(org.dbgl.util.Scummvm.add(exe, ini, found.get(0)).size() <= 1);
+		} finally {
+			org.apache.commons.io.FileUtils.deleteDirectory(dir);
+		}
+	}
 }

@@ -387,6 +387,113 @@ public final class Scummvm {
 		return args;
 	}
 
+	/** alpha 54: a game ScummVM found in a folder by itself (--detect): its id (engine:game), what ScummVM calls it, its folder */
+	public record Detected(String id, String description, File path) {
+	}
+
+	/** alpha 54: the scummvm.ini of a ScummVM version: next to the program for a portable one, else the one of the user */
+	public static File iniOf(DosboxVersion v) {
+		File ini = new File(v.getCanonicalExecutable().getParentFile(), "scummvm.ini");
+		return ini.isFile() ? ini: defaultIni();
+	}
+
+	/**
+	 * alpha 54: the games ScummVM finds in a folder and the folders below ({@code scummvm --detect --recursive}); nothing is
+	 * added to ScummVM by that. At most two minutes; what it found until then
+	 */
+	public static List<Detected> detect(File executable, File root) throws IOException {
+		return parseDetect(runScummvm(executable, List.of("--path=" + root.getAbsolutePath(), "--recursive", "--detect"), 120), root);
+	}
+
+	/**
+	 * alpha 54: one game found by --detect added to ScummVM ({@code scummvm --config=<ini> --path=<folder> --game=<id> --add}), as
+	 * ScummVM's own "Add game" does; the targets it got in that scummvm.ini (usually one)
+	 */
+	public static List<Game> add(File executable, File ini, Detected d) throws IOException {
+		java.util.Set<String> before = new java.util.HashSet<>();
+		if (ini.isFile())
+			for (Game g: readIni(ini))
+				before.add(g.target());
+		runScummvm(executable, List.of("--config=" + ini.getAbsolutePath(), "--path=" + d.path().getAbsolutePath(), "--game=" + d.id(), "--add"), 60);
+		List<Game> added = new ArrayList<>();
+		if (ini.isFile())
+			for (Game g: readIni(ini))
+				if (!before.contains(g.target()))
+					added.add(g);
+		return added;
+	}
+
+	private static String runScummvm(File executable, List<String> args, int seconds) throws IOException {
+		List<String> cmd = new ArrayList<>();
+		cmd.add(executable.getAbsolutePath());
+		cmd.addAll(args);
+		ProcessBuilder pb = new ProcessBuilder(cmd).redirectErrorStream(true);
+		pb.directory(executable.getAbsoluteFile().getParentFile());
+		Process proc = pb.start();
+		java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+		Thread reader = new Thread(() -> {
+			try (java.io.InputStream in = proc.getInputStream()) {
+				in.transferTo(out);
+			} catch (IOException e) {
+				// what was read
+			}
+		}, "scummvm output");
+		reader.setDaemon(true);
+		reader.start();
+		try {
+			if (!proc.waitFor(seconds, java.util.concurrent.TimeUnit.SECONDS))
+				proc.destroyForcibly();
+			reader.join(2000);
+		} catch (InterruptedException e) {
+			proc.destroyForcibly();
+			Thread.currentThread().interrupt();
+		}
+		synchronized (out) {
+			return decode(out.toByteArray());
+		}
+	}
+
+	/**
+	 * alpha 54: the table --detect prints: a line of titles, a line of dashes that gives the columns, then one line a game. Older
+	 * versions have three columns (GameID, Description, Full path), newer ones four (EngineID, GameID, Description, Full path)
+	 */
+	public static List<Detected> parseDetect(String output, File root) {
+		// a long description pushes the path to the right: the path is found by the folder searched (all are below it)
+		String rootText = root == null ? null: root.getAbsolutePath().replace('\\', '/').toLowerCase(Locale.ROOT);
+		List<Detected> result = new ArrayList<>();
+		String[] lines = output.split("\\r?\\n");
+		int[] starts = null;
+		for (String line: lines) {
+			if (starts == null) {
+				if (line.matches("-+( +-+){2,}\\s*")) {
+					java.util.regex.Matcher m = java.util.regex.Pattern.compile("-+").matcher(line);
+					List<Integer> s = new ArrayList<>();
+					while (m.find())
+						s.add(m.start());
+					starts = s.stream().mapToInt(Integer::intValue).toArray();
+				}
+				continue;
+			}
+			if (line.isBlank() || line.length() <= starts[starts.length - 1])
+				continue;
+			String[] cols = new String[starts.length];
+			for (int i = 0; i < starts.length; i++)
+				cols[i] = line.substring(starts[i], i + 1 < starts.length ? Math.min(line.length(), starts[i + 1]): line.length()).strip();
+			String id = starts.length >= 4 ? (cols[0].isEmpty() ? cols[1]: cols[0] + ":" + cols[1]): cols[0];
+			String description = cols[starts.length - 2];
+			String pathText = cols[starts.length - 1];
+			int descriptionStart = starts[starts.length - 2];
+			int at = rootText == null ? -1: line.replace('\\', '/').toLowerCase(Locale.ROOT).indexOf(rootText, descriptionStart);
+			if (at > descriptionStart) {
+				pathText = line.substring(at).strip();
+				description = line.substring(descriptionStart, at).strip();
+			}
+			if (!id.isEmpty() && !id.contains(" ") && !pathText.isEmpty())
+				result.add(new Detected(id, description, new File(pathText)));
+		}
+		return result;
+	}
+
 	/** alpha 52: the folder of it in the data of DBGL (settings.conf stays at the top: the official DBGL looks for it there) */
 	public static final String CONF_DIR = "config";
 

@@ -92,6 +92,12 @@ New
   Tools).
 
 Changed
+- ScummVM in the import from a folder: when ScummVM is entered in DBGL, DBGL
+  lets ScummVM look through the folder after the import (it recognizes its
+  games by the checksums of their files). Games without a profile are
+  offered in a list; the checked ones are added as "Add Game" in ScummVM
+  does, each with a profile. The list of the ScummVM import is sorted by
+  title at first.
 - For development: tools/mkrelease.py builds all packages of a release
   (update, source, Windows with and without Java, Linux, macOS, SHA256SUMS)
   from a commit; from the release commit of alpha 53 it gives the same files

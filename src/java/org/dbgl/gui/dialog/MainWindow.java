@@ -6749,6 +6749,11 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		if ((loadedProfiles != null) && (new ImportDirDialog(shell_, new File(dir), loadedProfiles).open() != null)) {
 			updateProfilesList(getSelectedProfileIds());
 			displayProfileInformation(false);
+			// alpha 54 (TEST14): then the games of ScummVM in that folder that have no profile yet (if a ScummVM is entered)
+			if (ScummvmDialog.importDetected(shell_, dbversionsList_, new File(dir), profilesList_) > 0) {
+				updateProfilesList(getSelectedProfileIds());
+				displayProfileInformation(false);
+			}
 		}
 	}
 

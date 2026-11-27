@@ -111,7 +111,7 @@ public final class ScummvmDialog {
 				return newVersion ? new Result(version, true, 0): null;
 			}
 			Set<String> known = knownTargets(versions, version);
-			boolean[] chosen = choose(shell, text, games, known, newVersion ? version.getCanonicalExecutable().getPath(): null, Scummvm.returnsToLauncher(ini));
+			boolean[] chosen = choose(shell, text, games, known, newVersion ? version.getCanonicalExecutable().getPath(): null, Scummvm.returnsToLauncher(ini), null);
 			if (chosen == null)
 				return newVersion ? new Result(version, true, 0): null;
 			int added = 0;
@@ -124,6 +124,86 @@ public final class ScummvmDialog {
 		} catch (IOException | java.sql.SQLException | RuntimeException e) {
 			Mess_.on(shell).exception(e).warning();
 			return newVersion ? new Result(version, true, 0): null;
+		}
+	}
+
+	/**
+	 * alpha 54 (TEST14): after the import from a folder, the games ScummVM recognizes there itself (it knows them by the
+	 * checksums of their files) and no profile has yet; the chosen ones are added to ScummVM as its "Add game" does, each with
+	 * a profile. Nothing without a ScummVM version in DBGL. The number of profiles added
+	 */
+	public static int importDetected(Shell shell, List<DosboxVersion> versions, File root, List<Profile> profiles) {
+		DosboxVersion version = versions.stream().filter(Scummvm::is).findFirst().orElse(null);
+		if (version == null)
+			return 0;
+		File exe = version.getCanonicalExecutable();
+		File ini = Scummvm.iniOf(version);
+		if ((exe == null) || !exe.isFile() || (ini == null))
+			return 0;
+		ITextService text = TextService.getInstance();
+		List<Scummvm.Detected> found;
+		try {
+			found = org.dbgl.gui.controls.BusyTask.run(shell, text.get("dialog.scummvmimport.detecting"), () -> Scummvm.detect(exe, root));
+		} catch (Exception e) {
+			return 0; // ScummVM could not look (or was stopped): the import as it was
+		}
+		found = notCovered(found, profiles);
+		if (found.isEmpty())
+			return 0;
+		List<Scummvm.Game> shown = found.stream().map(d -> new Scummvm.Game(d.id(), d.description(), d.description(), d.id(), d.path(), "", "")).toList();
+		boolean[] chosen = choose(shell, text, shown, Set.of(), null, Scummvm.returnsToLauncher(ini), text.get("dialog.scummvmimport.detected", new Object[] {found.size(), ini.getPath()}));
+		if (chosen == null)
+			return 0;
+		int added = 0;
+		for (int i = 0; i < found.size(); i++)
+			if (chosen[i])
+				try {
+					for (Scummvm.Game g: Scummvm.add(exe, ini, found.get(i))) {
+						new ProfileRepository().add(profileOf(g, ini, version));
+						added++;
+					}
+				} catch (IOException | java.sql.SQLException | RuntimeException e) {
+					Mess_.on(shell).exception(e).warning();
+				}
+		Mess_.on(shell).key("dialog.scummvmimport.detectedadded", new Object[] {added}).display();
+		return added;
+	}
+
+	/** the games found whose folder no profile has yet (as its drive C: or first folder, or with its start program in it) */
+	public static List<Scummvm.Detected> notCovered(List<Scummvm.Detected> found, List<Profile> profiles) {
+		Set<File> dirs = new HashSet<>();
+		List<java.nio.file.Path> mains = new ArrayList<>();
+		for (Profile p: profiles) {
+			boolean scummvm = Scummvm.is(p.getDosboxVersion());
+			File d = scummvm ? Scummvm.gameDirOf(p): org.dbgl.util.SavegameBackup.gameDir(p);
+			if (d != null)
+				dirs.add(canonical(d));
+			if (!scummvm) {
+				String main = p.getConfiguration().getAutoexec().getMain();
+				if (org.apache.commons.lang3.StringUtils.isNotBlank(main))
+					try {
+						mains.add(new org.dbgl.model.FileLocation(main, FileLocationService.getInstance().dosrootRelative()).getCanonicalFile().toPath());
+					} catch (RuntimeException e) {
+						// none
+					}
+			}
+		}
+		List<Scummvm.Detected> result = new ArrayList<>();
+		Set<String> seen = new HashSet<>();
+		for (Scummvm.Detected d: found) {
+			File c = canonical(d.path());
+			if (dirs.contains(c) || mains.stream().anyMatch(m -> m.startsWith(c.toPath())) || !seen.add(c.getPath() + "|" + d.id()))
+				continue;
+			result.add(d);
+		}
+		return result;
+	}
+
+	private static File canonical(File f) {
+		try {
+			return f.getCanonicalFile();
+		} catch (IOException e) {
+			return f.getAbsoluteFile();
 		}
 	}
 
@@ -159,7 +239,7 @@ public final class ScummvmDialog {
 		return p;
 	}
 
-	private static boolean[] choose(Shell parent, ITextService text, List<Scummvm.Game> games, Set<String> known, String newExe, boolean returnsToLauncher) {
+	private static boolean[] choose(Shell parent, ITextService text, List<Scummvm.Game> games, Set<String> known, String newExe, boolean returnsToLauncher, String infoOverride) {
 		Display display = parent.getDisplay();
 		Shell dlg = new Shell(parent, SWT.DIALOG_TRIM | SWT.RESIZE | SWT.APPLICATION_MODAL);
 		dlg.setText(text.get("dialog.scummvmimport.title"));
@@ -170,7 +250,7 @@ public final class ScummvmDialog {
 
 		int already = (int)games.stream().filter(g -> known.contains(g.target().toLowerCase(Locale.ROOT))).count();
 		Label info = new Label(dlg, SWT.WRAP);
-		String infoText = text.get("dialog.scummvmimport.info", new Object[] {games.size(), already});
+		String infoText = infoOverride != null ? infoOverride: text.get("dialog.scummvmimport.info", new Object[] {games.size(), already});
 		if (newExe != null)
 			infoText = text.get("dialog.scummvmimport.versionadded", new Object[] {newExe}) + "\n\n" + infoText;
 		if (returnsToLauncher) // alpha 52: ScummVM stays open after the game, and the play time goes on until it is closed
