@@ -2819,6 +2819,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				new KnownGamesDialog(shell_).open();
 			}
 		}).build();
+		MenuItem_.on(profilesMenu).build(); // alpha 54 (TEST15): a line between learned games and Complete profiles
 		// alpha 53 (TEST24): title, details and covers in this order, for the profiles chosen
 		MenuItem_.on(profilesMenu).key("dialog.main.menu.complete").image(ImageService.IMG_EDIT).listen(new SelectionAdapter() {
 			@Override
@@ -3320,6 +3321,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				new KnownGamesDialog(shell_).open();
 			}
 		}).build();
+		MenuItem_.on(tools).build(); // alpha 54 (TEST15): a line between learned games and Complete profiles
 		MenuItem_.on(tools).key("dialog.main.menu.complete").image(ImageService.IMG_EDIT).listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {

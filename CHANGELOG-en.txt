@@ -88,8 +88,8 @@ New
   The list also shows the MD5 checksum of the start program, an export goes
   to the folder export by default and is marked there, and the community
   list says when it was last loaded. The two menu entries for learned games
-  are now right above "Complete profiles..." (also in the context menu under
-  Tools).
+  are now above "Complete profiles...", set off by lines (also in the
+  context menu under Tools).
 
 Changed
 - ScummVM in the import from a folder: when ScummVM is entered in DBGL, DBGL

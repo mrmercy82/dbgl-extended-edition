@@ -97,8 +97,9 @@ Neu
   keine Pfade. Die Liste zeigt auch die MD5-Prüfsumme des Startprogramms,
   ein Export landet standardmäßig im Ordner export und wird dort markiert,
   und bei der Community-Liste steht, wann sie zuletzt geladen wurde. Die
-  beiden Menüpunkte zum Merken stehen jetzt direkt über „Profile
-  vervollständigen...“ (auch im Kontextmenü unter Werkzeuge).
+  beiden Menüpunkte zum Merken stehen jetzt über „Profile
+  vervollständigen...“, durch Linien abgesetzt (auch im Kontextmenü unter
+  Werkzeuge).
 
 Geändert
 - ScummVM beim Import aus einem Ordner: Ist ScummVM in DBGL eingetragen,
