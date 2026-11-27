@@ -184,6 +184,8 @@ public final class PortableExport {
 
 		// the profiles: their files (with the changed paths), screenshots
 		Map<Integer, Profile> migrated = new LinkedHashMap<>();
+		// alpha 54 (TEST15): per ScummVM on the stick (the folder it starts in there) the scummvm.ini here and its games there
+		Map<String, Object[]> scummvmInis = new LinkedHashMap<>();
 		List<Transferred> transferred = new ArrayList<>();
 		for (Profile p: profiles) {
 			// alpha 54: a game in a ZIP: where what it wrote (ZipStart) is kept here, per drive, before the paths are changed
@@ -215,6 +217,8 @@ public final class PortableExport {
 					pm.setWrite(null);
 					m.rememberOriginal(null);
 				}
+			if (Scummvm.is(p.getDosboxVersion()))
+				scummvmOnStick(p, roots, scummvmInis); // alpha 54 (TEST15): before its configuration is written
 			long extras = takeExtras(p, linksHere);
 			transferred.add(new Transferred(p.getTitle(), p.getId(), sizeOf(needs.get(p.getId())) + sizeOfQuietly(p.getCanonicalCaptures()) + sizeOfQuietly(SavegameBackup.dir(p)) + extras));
 			File conf = p.getConfigurationCanonicalFile();
@@ -233,6 +237,14 @@ public final class PortableExport {
 				addPath(mapper, ROOT + zipPathInData(mapper, "profiles"));
 			migrated.put(p.getId(), p);
 			check();
+		}
+
+		// alpha 54 (TEST15): a scummvm.ini of its own next to each ScummVM on the stick
+		for (Map.Entry<String, Object[]> e: scummvmInis.entrySet()) {
+			@SuppressWarnings("unchecked")
+			Map<String, String> paths = (Map<String, String>)e.getValue()[1];
+			generated_.put(ROOT + e.getKey() + "/" + "scummvm.ini", Scummvm.stickIni(Files.readString((java.nio.file.Path)e.getValue()[0], java.nio.charset.StandardCharsets.ISO_8859_1), paths)
+					.getBytes(java.nio.charset.StandardCharsets.ISO_8859_1));
 		}
 
 		// the DOSBox versions of these profiles: outside the folders of DBGL into "dosbox"
@@ -549,6 +561,15 @@ public final class PortableExport {
 	private List<Need> needs(Profile p) throws IOException {
 		p.resetAndLoadConfiguration();
 		List<Need> result = new ArrayList<>();
+		// alpha 54 (TEST15): a game of ScummVM has no mounts: its folder (from scummvm.ini) goes along
+		if (Scummvm.is(p.getDosboxVersion())) {
+			File dir = Scummvm.gameDirOf(p);
+			if (dir != null) {
+				File c = dir.getCanonicalFile();
+				result.add(new Need(inside(dosroot_, c) ? null: c, c, true, Set.of()));
+			}
+			return result;
+		}
 		for (Mount m: p.getNettoMountingPoints()) {
 			if (m instanceof DirMount dm) {
 				File f = dm.getCanonicalPath().getCanonicalFile();
@@ -859,6 +880,59 @@ public final class PortableExport {
 	}
 
 	/** a DOSBox version: where it is in the ZIP file, and its paths there (PATH, EXEFILE, CONFFILE) if they change */
+	/**
+	 * alpha 54 (TEST15): a game of ScummVM on the stick: its section of scummvm.ini goes into the scummvm.ini next to the
+	 * ScummVM that goes along (its folder relative to where that one starts), its saved games into "saves" there (and back),
+	 * and the profile names that scummvm.ini relative to the data of DBGL
+	 */
+	private void scummvmOnStick(Profile p, Map<File, String> roots, Map<String, Object[]> inis) throws IOException {
+		String target = Scummvm.targetOf(p);
+		File hostIni = Scummvm.configFile(p), game = Scummvm.gameDirOf(p);
+		String exeDir = zipDirOfExecutable(p.getDosboxVersion());
+		if ((target == null) || (hostIni == null) || !hostIni.isFile() || (game == null) || (exeDir == null)) {
+			notes_.add(p.getTitle() + ": ScummVM");
+			return;
+		}
+		String gameOnStick = zipPathOf(game.getCanonicalFile(), roots);
+		Object[] ini = inis.computeIfAbsent(exeDir, k -> new Object[] {hostIni.toPath(), new LinkedHashMap<String, String>()});
+		@SuppressWarnings("unchecked")
+		Map<String, String> paths = (Map<String, String>)ini[1];
+		paths.put(target, java.nio.file.Path.of(exeDir).relativize(java.nio.file.Path.of(gameOnStick)).toString());
+		File saves = Scummvm.saveDir(hostIni, target);
+		File[] own = saves.listFiles(f -> f.isFile() && f.getName().toLowerCase(Locale.ROOT).startsWith(target.toLowerCase(Locale.ROOT) + "."));
+		if (own != null)
+			for (File f: own) {
+				entries_.put(ROOT + exeDir + "/saves/" + f.getName(), f);
+				returnPaths_.put(exeDir + "/saves/" + f.getName(), f);
+			}
+		p.getConfiguration().setValue(Scummvm.SECTION, "config", exeDir + "/scummvm.ini");
+	}
+
+	/** where the folder a DOSBox version (or ScummVM) starts in is in the ZIP (below ROOT), as placeDosbox puts it; null if not */
+	private String zipDirOfExecutable(DosboxVersion v) throws IOException {
+		File dir = v.getCanonicalPath().getCanonicalFile(), exeDir = v.getCanonicalExecutable().getCanonicalFile().getParentFile();
+		if (inside(program_, exeDir) || program_.equals(exeDir))
+			return program_.equals(exeDir) ? ".": relative(program_, exeDir);
+		if (inside(data_, exeDir) || data_.equals(exeDir))
+			return data_.equals(exeDir) ? ".": relative(data_, exeDir);
+		File dosboxDir = FileLocationService.getInstance().getDosboxDir().getCanonicalFile();
+		if (!(inside(data_, dosboxDir) || inside(program_, dosboxDir) || data_.equals(dosboxDir) || program_.equals(dosboxDir)) || !dir.isDirectory())
+			return null; // it does not go along (see placeDosbox)
+		if (!dir.equals(exeDir) && !inside(dir, exeDir))
+			return null;
+		return "dosbox/" + dir.getName() + (dir.equals(exeDir) ? "": "/" + relative(dir, exeDir));
+	}
+
+	/** where a folder of a game is in the ZIP (below ROOT), as the loop over the needs puts it */
+	private String zipPathOf(File f, Map<File, String> roots) {
+		if (dosroot_.equals(f))
+			return "dosroot";
+		if (inside(dosroot_, f))
+			return "dosroot/" + relative(dosroot_, f);
+		File top = topRoot(roots, f);
+		return "dosroot/" + roots.get(top) + (top.equals(f) ? "": "/" + relative(top, f));
+	}
+
 	private void placeDosbox(DosboxVersion v, Map<Integer, String[]> versionPaths) throws IOException {
 		File dir = v.getCanonicalPath().getCanonicalFile();
 		if (inside(program_, dir) || inside(data_, dir)) {

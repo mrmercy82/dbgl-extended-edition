@@ -7057,4 +7057,30 @@ public class Dbgl0102Tests {
 			org.apache.commons.io.FileUtils.deleteDirectory(dir);
 		}
 	}
+
+	/** alpha 54 (TEST15): the scummvm.ini of a USB stick: no paths of this computer, saves next to it, the games relative */
+	@Test
+	public void testScummvmStickIni() throws Exception {
+		String host = "[scummvm]\nversioninfo=2.9.0\ngfx_mode=opengl\nsavepath=C:\\Users\\me\\Saves\nthemepath=/usr/share/scummvm\nfullscreen=true\n\n"
+				+ "[monkey2]\ndescription=Monkey Island 2 (DOS)\ngameid=monkey2\npath=D:\\Games\\MI2\nsavepath=D:\\MI2saves\nlanguage=de\n\n[other]\ngameid=sky\npath=/x\n";
+		String stick = org.dbgl.util.Scummvm.stickIni(host, java.util.Map.of("monkey2", "../../dosroot/MI2"));
+		assertTrue(stick.contains("[scummvm]\r\nversioninfo=2.9.0\r\ngfx_mode=opengl\r\nfullscreen=true\r\nsavepath=saves\r\n"));
+		assertTrue(stick.contains("[monkey2]\r\ndescription=Monkey Island 2 (DOS)\r\ngameid=monkey2\r\nlanguage=de\r\npath=../../dosroot/MI2\r\n"));
+		assertFalse(stick.contains("[other]"));
+		assertFalse(stick.contains("C:\\") || stick.contains("D:\\") || stick.contains("/usr/share"));
+		// what it reads back: the game with its folder on the stick
+		File dir = java.nio.file.Files.createTempDirectory("dbgl-scummvm-stick").toFile();
+		try {
+			File ini = new File(dir, "scummvm.ini");
+			java.nio.file.Files.writeString(ini.toPath(), stick);
+			List<org.dbgl.util.Scummvm.Game> games = org.dbgl.util.Scummvm.readIni(ini);
+			assertEquals(1, games.size());
+			assertEquals("monkey2", games.get(0).target());
+			java.nio.file.Files.writeString(ini.toPath(), host);
+			assertEquals(new File("D:\\MI2saves"), org.dbgl.util.Scummvm.saveDir(ini, "monkey2"));
+			assertEquals(new File("C:\\Users\\me\\Saves"), org.dbgl.util.Scummvm.saveDir(ini, "other"));
+		} finally {
+			org.apache.commons.io.FileUtils.deleteDirectory(dir);
+		}
+	}
 }

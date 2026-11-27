@@ -118,6 +118,16 @@ Geändert
   direkt im Datenordner.
 
 Fehler behoben
+- USB-Stick: Spiele von ScummVM kamen ohne ihren Ordner auf den Stick, und
+  ihr Platz zählte nicht mit. Jetzt geht der Ordner mit, daneben eine
+  eigene scummvm.ini für den ScummVM auf dem Stick (ohne Pfade dieses
+  Computers, Spielstände im Ordner saves daneben, zurück mit dem Rückweg),
+  und der Platz wird mitgezählt. Eine Größe, die DBGL nicht bestimmen
+  konnte (etwa bei ScummVM-Spielen von vor alpha 52), sucht es nach einem
+  Tag erneut, auch für die Statistik.
+- Einstellungen > Allgemein: Die Felder für den Ordner der Sicherungen und
+  den zweiten Sicherungsort enden rechts gleich. Ist ScummVM eingeschaltet,
+  heißt die Update-Suche „nach neuen DOSBox- und ScummVM-Versionen suchen“.
 - Windows: Ein Ordner, der im Mount anders geschrieben ist als auf der
   Platte (z. B. „D:\SPIELE“ statt „D:\Spiele“), galt als anderer Ordner.
   Eine Startdatei darin fragte deshalb nach einem eigenen Mount, statt den

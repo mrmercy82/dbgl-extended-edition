@@ -252,6 +252,8 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 		// then what DBGL looks for on the internet by itself, then the settings for DOSBox
 		Group updatesGroup = Group_.on(generalComposite).layout(new GridLayout(2, false)).key("dialog.settings.autoupdates").build();
 		Button checkForUpdates = Chain.on(updatesGroup).lbl(l -> l.key("dialog.settings.checkforupdates")).but(b -> b.tooltip("dialog.settings.checkforupdates.tooltip").select(settings_.getBooleanValue("dosbox", "checkforupdates"))).button();
+		// alpha 54 (TEST15): it says ScummVM too, when ScummVM is on (as the search does)
+		Label checkForUpdatesLabel = (Label)checkForUpdates.getParent().getChildren()[ArrayUtils.indexOf(checkForUpdates.getParent().getChildren(), checkForUpdates) - 1];
 		Button editionCheck = Chain.on(updatesGroup).lbl(l -> l.key("dialog.settings.edition.check2")).but(b -> b.tooltip("dialog.settings.edition.check.tooltip")
 				.select(settings_.getBooleanValue(org.dbgl.util.EditionUpdateChecker.SECTION, org.dbgl.util.EditionUpdateChecker.CHECK))).button();
 		Button editionPre = Chain.on(updatesGroup).lbl(l -> l.key("dialog.settings.edition.prereleases2")).but(b -> b.select(settings_.getBooleanValue(org.dbgl.util.EditionUpdateChecker.SECTION,
@@ -296,6 +298,12 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 				.select(settings_.getBooleanValue(org.dbgl.util.ExtrasFinder.SECTION, org.dbgl.util.ExtrasFinder.ON_ADD))).button();
 		Button scummvmWanted = Chain.on(editorGroup).lbl(l -> l.key("dialog.settings.scummvm")).but(b -> b.horSpan(2).tooltip("dialog.settings.scummvm.tooltip2")
 				.select(settings_.getBooleanValue("gui", org.dbgl.util.Scummvm.SETTING))).button();
+		Runnable updatesText = () -> {
+			checkForUpdatesLabel.setText(text_.get(scummvmWanted.getSelection() ? "dialog.settings.checkforupdates.scummvm": "dialog.settings.checkforupdates"));
+			checkForUpdatesLabel.getParent().layout(true);
+		};
+		updatesText.run();
+		scummvmWanted.addListener(SWT.Selection, e -> updatesText.run());
 		Button hideUnsupported = Chain.on(editorGroup).lbl(l -> l.key("dialog.settings.hideunsupportedsettings")).but(b -> b.horSpan(2).select(settings_.getBooleanValue("gui", "hideunsupportedsettings"))).button();
 		String[] expandModes = {"collapsed", "always", "changed"};
 		Combo extrasExpand = Chain.on(editorGroup).lbl(l -> l.key("dialog.settings.extrasexpand")).cmb(c -> c.horSpan(2).items(new String[] {text_.get("dialog.settings.extrasexpand.collapsed"),
@@ -320,11 +328,12 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 		GridLayout backupDirLayout = new GridLayout(2, false);
 		backupDirLayout.marginWidth = backupDirLayout.marginHeight = 0;
 		backupDirRow.setLayout(backupDirLayout);
+		backupDirRow.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false)); // alpha 54 (TEST15): to the right edge, as the second place
 		Text backupDir = new Text(backupDirRow, SWT.BORDER);
 		String backupDirBefore = org.dbgl.service.BackupService.backupDir().getAbsolutePath();
 		backupDir.setText(backupDirBefore);
 		backupDir.setToolTipText(text_.get("dialog.settings.autobackup.dir.tooltip", new Object[] {org.dbgl.service.BackupService.defaultAutoBackupDir().getPath()}));
-		GridData backupDirData = new GridData(SWT.FILL, SWT.CENTER, false, false);
+		GridData backupDirData = new GridData(SWT.FILL, SWT.CENTER, true, false);
 		backupDirData.widthHint = 420;
 		backupDir.setLayoutData(backupDirData);
 		Button backupDirBrowse = new Button(backupDirRow, SWT.PUSH);
@@ -358,11 +367,13 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 
 		// alpha 52: a second place for the backups, e.g. OneDrive or Dropbox (found on this computer, offered in the list)
 		Group secondGroup = Group_.on(generalComposite).layout(new GridLayout(3, false)).key("dialog.settings.secondplace").build();
+		backupGroup.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+		secondGroup.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
 		java.util.Map<String, java.io.File> clouds = org.dbgl.util.SecondBackupPlace.cloudFolders();
 		Combo secondPlace = Chain.on(secondGroup).lbl(l -> l.key("dialog.settings.secondplace.folder")).cmb(c -> c.editable().tooltip("dialog.settings.secondplace.folder.tooltip")
 			.items(clouds.values().stream().map(java.io.File::getPath).toArray(String[]::new))).combo();
 		secondPlace.setText(settings_.getValue(org.dbgl.util.SecondBackupPlace.SECTION, org.dbgl.util.SecondBackupPlace.PLACE));
-		GridData secondData = new GridData(SWT.FILL, SWT.CENTER, false, false);
+		GridData secondData = new GridData(SWT.FILL, SWT.CENTER, true, false); // alpha 54 (TEST15): both folders end at the right edge
 		secondData.widthHint = 420;
 		secondPlace.setLayoutData(secondData);
 		Button secondBrowse = new Button(secondGroup, SWT.PUSH);

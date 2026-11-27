@@ -1,21 +1,21 @@
-/*
- *  Copyright (C) 2026  mrmercy82 (DBGL Extended Edition, written with the help of AI)
- *  Part of a modified version of DBGL, Copyright (C) 2006-2025  Ronald Blankendaal
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
- */
+/*
+ *  Copyright (C) 2026  mrmercy82 (DBGL Extended Edition, written with the help of AI)
+ *  Part of a modified version of DBGL, Copyright (C) 2006-2025  Ronald Blankendaal
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ */
 package org.dbgl.util;
 
 import java.io.File;
@@ -321,17 +321,98 @@ public final class Scummvm {
 
 	/** alpha 52: the folder of the game of a profile of ScummVM (its path in scummvm.ini), or null if it is not known or not there */
 	public static File gameDirOf(Profile p) {
-		String target = targetOf(p), config = valueOf(p, "config");
-		if ((target == null) || StringUtils.isBlank(config))
+		String target = targetOf(p);
+		File config = configFile(p);
+		if ((target == null) || (config == null))
 			return null;
 		try {
-			for (Game g: readIni(new File(config.trim())))
+			for (Game g: readIni(config))
 				if (target.equals(g.target()))
 					return (g.path() != null) && g.path().isDirectory() ? g.path(): null;
 		} catch (IOException | RuntimeException e) {
 			// not known then
 		}
 		return null;
+	}
+
+	/**
+	 * alpha 54 (TEST15): the scummvm.ini of a profile; a relative path is one in the data of DBGL (as on a USB stick, where it is
+	 * next to the ScummVM that went along); null if it has none
+	 */
+	public static File configFile(Profile p) {
+		String config = valueOf(p, "config");
+		if (StringUtils.isBlank(config))
+			return null;
+		File f = new File(config.trim());
+		return f.isAbsolute() ? f: new File(org.dbgl.service.FileLocationService.getInstance().getDataDir(), config.trim());
+	}
+
+	/** alpha 54 (TEST15): where ScummVM keeps the saved games of a target: its savepath, the one of all, else the usual folder */
+	public static File saveDir(File ini, String target) {
+		String own = null, all = null;
+		try {
+			Map<String, Map<String, String>> sections = sections(decode(Files.readAllBytes(ini.toPath())));
+			own = sections.getOrDefault(target, Map.of()).get("savepath");
+			all = sections.getOrDefault("scummvm", Map.of()).get("savepath");
+		} catch (IOException | RuntimeException e) {
+			// the usual one
+		}
+		if (StringUtils.isNotBlank(own))
+			return new File(own.trim());
+		if (StringUtils.isNotBlank(all))
+			return new File(all.trim());
+		String home = System.getProperty("user.home");
+		if (SystemUtils.IS_WINDOWS)
+			return new File(System.getenv().getOrDefault("APPDATA", home), "ScummVM" + File.separator + "Saved games");
+		if (SystemUtils.IS_OSX)
+			return new File(home, "Documents/ScummVM Savegames");
+		String xdg = System.getenv("XDG_DATA_HOME");
+		return new File(StringUtils.isNotBlank(xdg) ? xdg: home + "/.local/share", "scummvm/saves");
+	}
+
+	/** the sections of a scummvm.ini with their keys (in lower case) and values, in their order */
+	static Map<String, Map<String, String>> sections(String ini) {
+		Map<String, Map<String, String>> result = new java.util.LinkedHashMap<>();
+		Map<String, String> current = null;
+		for (String line: ini.split("\\r?\\n")) {
+			String t = line.trim();
+			if (t.startsWith("[") && t.endsWith("]")) {
+				current = result.computeIfAbsent(t.substring(1, t.length() - 1).trim(), k -> new java.util.LinkedHashMap<>());
+			} else if ((current != null) && t.contains("=") && !t.startsWith("#") && !t.startsWith(";")) {
+				int eq = t.indexOf('=');
+				current.put(t.substring(0, eq).trim().toLowerCase(Locale.ROOT), t.substring(eq + 1).trim());
+			}
+		}
+		return result;
+	}
+
+	/**
+	 * alpha 54 (TEST15): the scummvm.ini for a USB stick: the settings of all games ([scummvm]) without paths of this computer, the
+	 * saved games in the folder "saves" next to it, and the games that go along with their folder on the stick (relative to the
+	 * folder ScummVM starts in there)
+	 */
+	public static String stickIni(String hostIni, Map<String, String> targetPaths) {
+		Map<String, Map<String, String>> sections = sections(hostIni);
+		StringBuilder sb = new StringBuilder();
+		sb.append("[scummvm]\r\n");
+		for (Map.Entry<String, String> e: sections.getOrDefault("scummvm", Map.of()).entrySet())
+			if (!e.getKey().equals("savepath") && !isHostPath(e.getValue()))
+				sb.append(e.getKey()).append('=').append(e.getValue()).append("\r\n");
+		sb.append("savepath=saves\r\n");
+		for (Map.Entry<String, String> t: targetPaths.entrySet()) {
+			sb.append("\r\n[").append(t.getKey()).append("]\r\n");
+			for (Map.Entry<String, String> e: sections.getOrDefault(t.getKey(), Map.of()).entrySet())
+				if (!e.getKey().equals("path") && !e.getKey().equals("savepath") && !isHostPath(e.getValue()))
+					sb.append(e.getKey()).append('=').append(e.getValue()).append("\r\n");
+			sb.append("path=").append(t.getValue()).append("\r\n");
+		}
+		return sb.toString();
+	}
+
+	/** a path of this computer (C:\\..., \\\\server\\..., /...): not taken to another one */
+	static boolean isHostPath(String value) {
+		String v = value == null ? "": value.trim();
+		return v.matches("(?i)[a-z]:[\\\\/].*") || v.startsWith("\\\\") || v.startsWith("/") || v.startsWith("~");
 	}
 
 	/** the target of a profile of ScummVM, or null */
@@ -375,9 +456,9 @@ public final class Scummvm {
 	/** what ScummVM is started with for the profile, after its executable: the file scummvm.ini, the parameters, the target */
 	public static List<String> arguments(Profile p, DosboxVersion v) {
 		List<String> args = new ArrayList<>();
-		String config = valueOf(p, "config");
-		if (StringUtils.isNotBlank(config) && new File(config.trim()).isFile())
-			args.add("--config=" + config.trim());
+		File config = configFile(p);
+		if ((config != null) && config.isFile())
+			args.add("--config=" + config.getAbsolutePath());
 		if (StringUtils.isNotBlank(v.getExecutableParameters()))
 			for (String s: StringUtils.split(v.getExecutableParameters(), ' '))
 				args.add(s);

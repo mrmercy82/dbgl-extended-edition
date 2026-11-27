@@ -255,7 +255,9 @@ public final class DiskUsage {
 		for (Profile profile: profiles) {
 			if (cancelled.getAsBoolean())
 				break;
-			if (CACHE.containsKey(profile.getId()))
+			Entry cached = CACHE.get(profile.getId());
+			// alpha 54 (TEST15): a size not known (no folder found, e.g. a game of ScummVM before alpha 52) is looked for again a day later
+			if ((cached != null) && ((cached.bytes() >= 0) || (System.currentTimeMillis() - cached.when() < 86_400_000L)))
 				continue;
 			String[] where = {"", ""};
 			try {

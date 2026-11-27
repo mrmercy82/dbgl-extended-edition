@@ -108,6 +108,16 @@ Changed
   data folder itself.
 
 Fixed
+- USB stick: games of ScummVM came onto the stick without their folder, and
+  their room was not counted. Now the folder goes along, with a scummvm.ini
+  of its own for the ScummVM on the stick (without paths of this computer,
+  saved games in the folder saves next to it, back with the way back), and
+  the room is counted. A size DBGL could not find (e.g. for ScummVM games
+  from before alpha 52) is looked for again a day later, also for the
+  statistics.
+- Settings > General: the fields for the folder of the backups and the
+  second place end at the same right edge. With ScummVM on, the update
+  check reads "Look for new DOSBox and ScummVM versions once a day".
 - Windows: a folder written differently in a mount than on the disk (e.g.
   "D:\SPIELE" instead of "D:\Spiele") counted as another folder, so a
   start file in it asked for a mount of its own instead of using the one
