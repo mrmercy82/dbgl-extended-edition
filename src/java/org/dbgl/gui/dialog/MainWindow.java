@@ -358,6 +358,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 
 		display_.asyncExec(this::moveSavegames); // alpha 52: before the automatic backup, so that it has them at their new place
 		display_.asyncExec(this::welcomeIfDue); // alpha 53
+		display_.asyncExec(this::offerSvnMacIfDue); // alpha 55
 		display_.asyncExec(this::autoBackupIfDue);
 		display_.asyncExec(this::cleanUpAfterEditionUpdate);
 		applyScreenshotRule(); // alpha 49: shown or hidden as the settings say for this view
@@ -6925,6 +6926,54 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			DosboxVersion added = new DosboxVersionRepository().add(result.dosbox_);
 			updateDosboxVersionList(added);
 			createMissingDosboxConf(added);
+			// alpha 55: on a Mac DOSBox SVN is the default, the DOSBox 0.74-3 of the package is entered too, as the other choice
+			if (SystemUtils.IS_OSX && SettingsService.SVN_DOSBOX_FAM.title_.equals(added.getFamily())) {
+				settings_.setBooleanValue("gui", "svnmacoffered", true);
+				SearchResult official = FileLocationService.getInstance().findOfficialDosbox();
+				if (official.result_ == ResultType.COMPLETE && dbversionsList_.stream().noneMatch(v -> official.dosbox_.getCanonicalPath().equals(v.getCanonicalPath()))) {
+					official.dosbox_.setDefault(false);
+					updateDosboxVersionList(new DosboxVersionRepository().add(official.dosbox_));
+				}
+			}
+		} catch (SQLException e) {
+			Mess_.on(shell_).exception(e).warning();
+		}
+	}
+
+	/**
+	 * alpha 55: a Mac package of DBGL with DOSBox SVN, not entered yet (an update of an installation with DOSBox 0.74-3): offered
+	 * once, with the reasons, as the default and for the profiles of 0.74-3, each step a choice; the profiles are switched by the
+	 * window that shows every change before
+	 */
+	private void offerSvnMacIfDue() {
+		if (shell_.isDisposed() || !SystemUtils.IS_OSX || settings_.getBooleanValue("gui", "svnmacoffered"))
+			return;
+		SearchResult svn = FileLocationService.getInstance().findSvnMac();
+		if (svn == null)
+			return;
+		File svnDir = svn.dosbox_.getCanonicalPath();
+		if (dbversionsList_.stream().anyMatch(v -> svnDir.equals(v.getCanonicalPath()))) {
+			settings_.setBooleanValue("gui", "svnmacoffered", true);
+			return;
+		}
+		settings_.setBooleanValue("gui", "svnmacoffered", true); // asked once; afterwards through Locate DOSBox
+		String locate = SettingsDialog.placeText(text_.get("dialog.main.menu.locatedosbox"));
+		if (!Mess_.on(shell_).key("dialog.main.svnmac.offer", new Object[] {locate}).confirm())
+			return;
+		DosboxVersion before = BaseRepository.findDefault(dbversionsList_);
+		try {
+			DosboxVersion added = new DosboxVersionRepository().add(svn.dosbox_);
+			updateDosboxVersionList(added);
+			createMissingDosboxConf(added);
+			if (before == null)
+				return;
+			long count = profilesList_.stream().filter(p -> p.getDosboxVersion() != null && p.getDosboxVersion().getId() == before.getId()).count();
+			if ((count > 0) && Mess_.on(shell_).key("dialog.main.svnmac.switch", new Object[] {count, before.getTitle(), SettingsDialog.placeText(text_.get("dialog.main.menu.undobulk")),
+				SettingsDialog.placeText(text_.get("dialog.main.menu.switchdosboxversion"))}).confirm()
+					&& Boolean.TRUE.equals(new SwitchDosboxVersionDialog(shell_).withTarget(added.getId()).open())) {
+				updateProfilesList(getSelectedProfileIds());
+				displayProfileInformation(false);
+			}
 		} catch (SQLException e) {
 			Mess_.on(shell_).exception(e).warning();
 		}

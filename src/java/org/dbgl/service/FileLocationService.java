@@ -348,15 +348,17 @@ public class FileLocationService {
 	}
 
 	public SearchResult findDosbox() {
-		// alpha 55: on a Mac with Apple Silicon first the DOSBox SVN that comes with DBGL (universal, runs without Rosetta); the
-		// DOSBox 0.74-3 that comes with it too is only for Intel
+		// alpha 55: on a Mac first the DOSBox SVN that comes with DBGL (universal: also on Apple Silicon without Rosetta, and
+		// without the crash of 0.74-3 in full screen on newer macOS); the DOSBox 0.74-3 that comes with it too stays a choice
 		SearchResult svn = findSvnMac();
-		if ((svn != null) && isAppleSilicon())
-			return svn;
+		return svn != null ? svn: findOfficialDosbox();
+	}
+
+	/** the official DOSBox (above all the 0.74-3 that comes with DBGL), as before alpha 55 */
+	public SearchResult findOfficialDosbox() {
 		List<String> allVersions = new ArrayList<>(SettingsService.SUPPORTED_DOSBOX_RELEASES);
 		Collections.reverse(allVersions);
-		SearchResult found = allVersions.stream().map(this::findDosbox).filter(x -> x.result_ != ResultType.NOTFOUND).findFirst().orElse(new SearchResult(ResultType.NOTFOUND, null));
-		return (found.result_ == ResultType.NOTFOUND) && (svn != null) ? svn: found;
+		return allVersions.stream().map(this::findDosbox).filter(x -> x.result_ != ResultType.NOTFOUND).findFirst().orElse(new SearchResult(ResultType.NOTFOUND, null));
 	}
 
 	/** alpha 55: DOSBox SVN for macOS as the packages of DBGL bring it: DOSBoxSVN.app of Dominus, reached through DOSBox-SVN */
