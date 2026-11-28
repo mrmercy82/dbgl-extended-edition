@@ -358,8 +358,12 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 
 		display_.asyncExec(this::moveSavegames); // alpha 52: before the automatic backup, so that it has them at their new place
 		display_.asyncExec(this::welcomeIfDue); // alpha 53
-		display_.asyncExec(this::offerSvnMacIfDue); // alpha 54
-		display_.asyncExec(this::tellVersionBackup); // alpha 54 (TEST18)
+		// alpha 54 (TEST21): one after the other in one go: as two, the question about DOSBox SVN was open while the notice about the
+		// backup came, and on a Mac (both as sheets of the main window) the notice was never shown
+		display_.asyncExec(() -> {
+			tellVersionBackup();
+			offerSvnMacIfDue();
+		});
 		display_.asyncExec(this::autoBackupIfDue);
 		display_.asyncExec(this::cleanUpAfterEditionUpdate);
 		applyScreenshotRule(); // alpha 49: shown or hidden as the settings say for this view
