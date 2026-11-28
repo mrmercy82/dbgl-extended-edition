@@ -11,3 +11,6 @@ build_ant/
 bin/
 # packages of tools/mkrelease.py
 /dist-release/
+# Python
+__pycache__/
+*.pyc

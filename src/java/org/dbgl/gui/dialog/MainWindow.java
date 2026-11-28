@@ -7027,16 +7027,18 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			return;
 		}
 		settings_.setBooleanValue("gui", "svnmacoffered", true); // asked once; afterwards through Locate DOSBox
+		// the offer is about leaving DOSBox 0.74-3 (made default, its profiles switched): only asked when 0.74-3 is the default; with
+		// another default (e.g. DOSBox Staging) neither the default nor the profiles of that version are touched
+		DosboxVersion before = BaseRepository.findDefault(dbversionsList_);
+		if ((before == null) || !SettingsService.OFFICIAL_DOSBOX_FAM.title_.equals(before.getFamily()) || !StringUtils.defaultString(before.getVersion()).startsWith("0.74"))
+			return;
 		String locate = SettingsDialog.placeText(text_.get("dialog.main.menu.locatedosbox"));
 		if (!Mess_.on(shell_).key("dialog.main.svnmac.offer", new Object[] {locate}).confirm())
 			return;
-		DosboxVersion before = BaseRepository.findDefault(dbversionsList_);
 		try {
 			DosboxVersion added = new DosboxVersionRepository().add(svn.dosbox_);
 			updateDosboxVersionList(added);
 			createMissingDosboxConf(added);
-			if (before == null)
-				return;
 			long count = profilesList_.stream().filter(p -> p.getDosboxVersion() != null && p.getDosboxVersion().getId() == before.getId()).count();
 			if ((count > 0) && Mess_.on(shell_).key("dialog.main.svnmac.switch", new Object[] {count, before.getTitle(), SettingsDialog.placeText(text_.get("dialog.main.menu.undobulk")),
 				SettingsDialog.placeText(text_.get("dialog.main.menu.switchdosboxversion"))}).confirm()
