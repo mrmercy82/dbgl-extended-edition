@@ -325,7 +325,7 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 
 					// alpha 53: also the games learned from profiles (config/known-games.json), after the database of DBGL
 					List<org.dbgl.util.OwnKnownGames.Entry> own = org.dbgl.util.OwnKnownGames.load(org.dbgl.util.OwnKnownGames.file());
-					// alpha 55: and those of the list of the community, if it was loaded (before the own ones: an own one wins)
+					// alpha 54: and those of the list of the community, if it was loaded (before the own ones: an own one wins)
 					List<org.dbgl.util.OwnKnownGames.Entry> community = org.dbgl.util.OwnKnownGames.load(org.dbgl.util.OwnKnownGames.communityFile());
 					List<org.dbgl.util.OwnKnownGames.Entry> known = org.dbgl.util.OwnKnownGames.withCommunity(own, community);
 					java.util.function.Function<org.dbgl.util.OwnKnownGames.Entry, String> sourceOf = sourceOf(community, text_.get("dialog.importdir.ownrecognition"),
@@ -648,7 +648,7 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 		return ownGameDirEntries(dir, files, own, e -> source);
 	}
 
-	/** alpha 55: where each game is known from: the own list or the list of the community (the same object, not only equal) */
+	/** alpha 54: where each game is known from: the own list or the list of the community (the same object, not only equal) */
 	public static java.util.function.Function<org.dbgl.util.OwnKnownGames.Entry, String> sourceOf(List<org.dbgl.util.OwnKnownGames.Entry> community, String ownSource,
 			String communitySource) {
 		java.util.Set<org.dbgl.util.OwnKnownGames.Entry> fromCommunity = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
@@ -805,7 +805,7 @@ public class ImportDirDialog extends JobWizardDialog<Object> {
 	 * whose files cannot be read is left out as well.
 	 */
 	public static Map<File, GameDirEntry> recognize(List<File> gameDirs, String ownSource) {
-		// alpha 55: with the list of the community, if it was loaded
+		// alpha 54: with the list of the community, if it was loaded
 		List<org.dbgl.util.OwnKnownGames.Entry> community = org.dbgl.util.OwnKnownGames.load(org.dbgl.util.OwnKnownGames.communityFile());
 		return recognize(gameDirs, org.dbgl.util.OwnKnownGames.withCommunity(org.dbgl.util.OwnKnownGames.load(org.dbgl.util.OwnKnownGames.file()), community), true,
 			sourceOf(community, ownSource, org.dbgl.service.TextService.getInstance().get("dialog.importdir.communityrecognition")));

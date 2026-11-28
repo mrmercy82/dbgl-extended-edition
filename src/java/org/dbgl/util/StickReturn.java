@@ -180,6 +180,11 @@ public final class StickReturn {
 	 * @param dosroot the DOSroot of this installation
 	 */
 	public static Plan plan(File stick, Map<Integer, String> here, File dataDir, File dosroot) throws IOException {
+		return plan(stick, here, dataDir, dosroot, () -> false);
+	}
+
+	/** alpha 54: as above; stop says when to give up (the comparing was cancelled), with an exception then */
+	public static Plan plan(File stick, Map<Integer, String> here, File dataDir, File dosroot, java.util.function.BooleanSupplier stop) throws IOException {
 		Properties manifest = load(new File(stick, MANIFEST));
 		String id = manifest.getProperty("id", "");
 		long created = Long.parseLong(StringUtils.defaultIfBlank(manifest.getProperty("created"), "0").trim());
@@ -220,12 +225,13 @@ public final class StickReturn {
 		}
 		List<FileAction> files = new ArrayList<>();
 		List<File> conflicts = new ArrayList<>();
+		java.util.Set<File> handled = new java.util.HashSet<>();
 		for (String key: sortedRoots(manifest)) {
 			String[] parts = StringUtils.splitPreserveAllTokens(manifest.getProperty(key), "|", 2);
 			if (parts.length < 2)
 				continue;
 			File from = new File(stick, parts[0].replace('/', File.separatorChar)), to = resolved(parts[1], dataDir, dosroot);
-			compare(from, to, created, files, conflicts);
+			compare(from, to, created, files, conflicts, handled, stop);
 		}
 		return new Plan(id, created, stats, files, conflicts, gone, seen, stateFile.isFile());
 	}
@@ -253,17 +259,21 @@ public final class StickReturn {
 		return keys;
 	}
 
-	private static void compare(File from, File to, long created, List<FileAction> files, List<File> conflicts) throws IOException {
+	private static void compare(File from, File to, long created, List<FileAction> files, List<File> conflicts, java.util.Set<File> handled, java.util.function.BooleanSupplier stop)
+			throws IOException {
+		if (stop.getAsBoolean())
+			throw new java.io.InterruptedIOException("cancelled");
 		if (from.isDirectory()) {
 			File[] children = from.listFiles();
 			if (children != null) {
 				Arrays.sort(children);
 				for (File child: children)
-					compare(child, new File(to, child.getName()), created, files, conflicts);
+					compare(child, new File(to, child.getName()), created, files, conflicts, handled, stop);
 			}
 			return;
 		}
-		if (!from.isFile() || files.stream().anyMatch(a -> a.to().equals(to)) || conflicts.contains(to))
+		// alpha 54: a set instead of looking through all files so far for each file (slow with the thousands of files of a large game)
+		if (!from.isFile() || !handled.add(to))
 			return; // a folder mapped twice (one inside another)
 		if (to.isDirectory()) {
 			conflicts.add(to);
@@ -285,11 +295,17 @@ public final class StickReturn {
 			return false;
 		if (Math.abs(a.lastModified() - b.lastModified()) <= SLACK)
 			return true;
-		try (InputStream x = new java.io.BufferedInputStream(Files.newInputStream(a.toPath()), 1 << 16); InputStream y = new java.io.BufferedInputStream(Files.newInputStream(b.toPath()), 1 << 16)) {
-			for (int c = x.read(); c != -1; c = x.read())
-				if (c != y.read())
+		// alpha 54: block by block (byte by byte took long for a game of a gigabyte)
+		try (InputStream x = Files.newInputStream(a.toPath()); InputStream y = Files.newInputStream(b.toPath())) {
+			int size = (int)Math.min(1 << 20, a.length() + 1);
+			byte[] bx = new byte[size], by = new byte[size];
+			while (true) {
+				int nx = x.readNBytes(bx, 0, bx.length), ny = y.readNBytes(by, 0, by.length);
+				if ((nx != ny) || (Arrays.mismatch(bx, 0, nx, by, 0, ny) >= 0))
 					return false;
-			return true;
+				if (nx < bx.length)
+					return true;
+			}
 		}
 	}
 

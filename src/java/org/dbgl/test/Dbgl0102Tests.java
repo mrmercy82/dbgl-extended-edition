@@ -3400,6 +3400,15 @@ public class Dbgl0102Tests {
 			Files.writeString(new File(stick, "savegames/7/20261101-100000.zip").toPath(), "here"); // the same: nothing to do
 			Files.writeString(new File(stick, "savegames/7/20261121-100000.zip").toPath(), "made on the stick");
 			Files.writeString(new File(stick, "captures/7/savegames/20261120-100000.zip").toPath(), "an earlier version on the stick");
+			// alpha 54: a large file with another time on the stick (as after unpacking): compared block by block, the same content
+			// is nothing to do
+			byte[] big = new byte[(3 << 20) + 17];
+			new java.util.Random(54).nextBytes(big);
+			File hereBig = new File(savegames, "big.dat"), thereBig = new File(stick, "savegames/7/big.dat");
+			Files.write(hereBig.toPath(), big);
+			Files.write(thereBig.toPath(), big);
+			hereBig.setLastModified(created - 3600000);
+			thereBig.setLastModified(created - 7200000);
 			org.dbgl.util.StickReturn.Plan plan = org.dbgl.util.StickReturn.plan(stick, java.util.Map.of(7, "Doom"), data, new File(data, "dosroot"));
 			java.util.Set<String> to = new java.util.TreeSet<>();
 			plan.files().forEach(f -> {
@@ -3408,6 +3417,13 @@ public class Dbgl0102Tests {
 			});
 			assertEquals(java.util.Set.of("captures/7/savegames/20261120-100000.zip", "savegames/7/20261121-100000.zip"), to);
 			assertTrue(plan.conflicts().isEmpty());
+			// the last byte different, neither side changed since the stick was made: not guessed at
+			big[big.length - 1]++;
+			Files.write(thereBig.toPath(), big);
+			thereBig.setLastModified(created - 7200000);
+			assertEquals(java.util.List.of(hereBig), org.dbgl.util.StickReturn.plan(stick, java.util.Map.of(7, "Doom"), data, new File(data, "dosroot")).conflicts());
+			// cancelled while comparing (the window of DBGL): stops with an exception
+			org.junit.Assert.assertThrows(java.io.InterruptedIOException.class, () -> org.dbgl.util.StickReturn.plan(stick, java.util.Map.of(7, "Doom"), data, new File(data, "dosroot"), () -> true));
 		} finally {
 			org.apache.commons.io.FileUtils.deleteQuietly(base);
 		}
@@ -6882,7 +6898,7 @@ public class Dbgl0102Tests {
 		assertEquals("short", org.dbgl.gui.dialog.CheckProfilesDialog.wrapped("short", 100));
 	}
 
-	/** alpha 55 (Ctrl+K): words in any order, any case, without accents; the name starting with the word first */
+	/** alpha 54 (Ctrl+K): words in any order, any case, without accents; the name starting with the word first */
 	@Test
 	public void testCommandSearch() {
 		Runnable r = () -> {};
@@ -6917,7 +6933,7 @@ public class Dbgl0102Tests {
 		assertNull(org.dbgl.gui.dialog.SettingsDialog.placeText(null));
 	}
 
-	/** alpha 55: lists of known games of others taken over, the list of the community before the own one */
+	/** alpha 54: lists of known games of others taken over, the list of the community before the own one */
 	@Test
 	public void testKnownGamesCommunity() throws Exception {
 		String md5a = "0123456789abcdef0123456789abcdef", md5b = "fedcba9876543210fedcba9876543210";
@@ -6976,7 +6992,7 @@ public class Dbgl0102Tests {
 		}
 	}
 
-	/** alpha 55: DOSBox SVN of the macOS package found by itself, as family SVN with its configuration next to the folder */
+	/** alpha 54: DOSBox SVN of the macOS package found by itself, as family SVN with its configuration next to the folder */
 	@Test
 	public void testFindsSvnOfMacPackage() throws Exception {
 		File dir = java.nio.file.Files.createTempDirectory("dbgl-svnmac").toFile();
@@ -7081,6 +7097,30 @@ public class Dbgl0102Tests {
 			assertEquals(new File("C:\\Users\\me\\Saves"), org.dbgl.util.Scummvm.saveDir(ini, "other"));
 		} finally {
 			org.apache.commons.io.FileUtils.deleteDirectory(dir);
+		}
+	}
+
+	/** alpha 54: on a Mac a profile of DOSBox 0.74-3 in full screen is told (0.74-3 closes there on newer macOS), not elsewhere */
+	@Test
+	public void testMacFullscreen0743() throws Exception {
+		File dir = Files.createTempDirectory("dbgl-mac0743").toFile();
+		try {
+			File conf = new File(dir, "dosbox-0.74-3.conf");
+			Files.writeString(conf.toPath(), "[sdl]\nfullscreen=false\noutput=surface\n");
+			org.dbgl.model.aggregate.DosboxVersion v = DosboxVersionFactory.create("DOSBox 0.74-3", SettingsService.OFFICIAL_DOSBOX_FAM.title_, "0.74-3", false, true, false, null, dir.getPath(), "",
+				"", conf.getPath());
+			v.loadConfigurationData(GenericTextService.getInstance(), Files.readString(conf.toPath(), StandardCharsets.UTF_8), conf);
+			org.dbgl.model.aggregate.Profile p = org.dbgl.model.factory.ProfileFactory.create(v, null);
+			assertFalse(org.dbgl.util.ProfileChecks.fullscreenCrashOnMac(p, true));
+			p.getConfiguration().setValue("sdl", "fullscreen", "true");
+			assertTrue(org.dbgl.util.ProfileChecks.fullscreenCrashOnMac(p, true));
+			assertFalse(org.dbgl.util.ProfileChecks.fullscreenCrashOnMac(p, false)); // Windows, Linux: no crash known
+			org.dbgl.model.aggregate.DosboxVersion svn = DosboxVersionFactory.create("DOSBox SVN", SettingsService.SVN_DOSBOX_FAM.title_, "r4494", false, true, false, null, dir.getPath(), "", "",
+				conf.getPath());
+			p.setDosboxVersion(svn);
+			assertFalse(org.dbgl.util.ProfileChecks.fullscreenCrashOnMac(p, true));
+		} finally {
+			org.apache.commons.io.FileUtils.deleteQuietly(dir);
 		}
 	}
 

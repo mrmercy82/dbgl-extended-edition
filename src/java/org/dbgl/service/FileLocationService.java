@@ -348,20 +348,20 @@ public class FileLocationService {
 	}
 
 	public SearchResult findDosbox() {
-		// alpha 55: on a Mac first the DOSBox SVN that comes with DBGL (universal: also on Apple Silicon without Rosetta, and
+		// alpha 54: on a Mac first the DOSBox SVN that comes with DBGL (universal: also on Apple Silicon without Rosetta, and
 		// without the crash of 0.74-3 in full screen on newer macOS); the DOSBox 0.74-3 that comes with it too stays a choice
 		SearchResult svn = findSvnMac();
 		return svn != null ? svn: findOfficialDosbox();
 	}
 
-	/** the official DOSBox (above all the 0.74-3 that comes with DBGL), as before alpha 55 */
+	/** the official DOSBox (above all the 0.74-3 that comes with DBGL), as before alpha 54 */
 	public SearchResult findOfficialDosbox() {
 		List<String> allVersions = new ArrayList<>(SettingsService.SUPPORTED_DOSBOX_RELEASES);
 		Collections.reverse(allVersions);
 		return allVersions.stream().map(this::findDosbox).filter(x -> x.result_ != ResultType.NOTFOUND).findFirst().orElse(new SearchResult(ResultType.NOTFOUND, null));
 	}
 
-	/** alpha 55: DOSBox SVN for macOS as the packages of DBGL bring it: DOSBoxSVN.app of Dominus, reached through DOSBox-SVN */
+	/** alpha 54: DOSBox SVN for macOS as the packages of DBGL bring it: DOSBoxSVN.app of Dominus, reached through DOSBox-SVN */
 	public static final String SVN_MAC_DIR = "DOSBox-SVN";
 	public static final String SVN_MAC_EXE = "dosbox";
 	public static final String SVN_MAC_CONF = "dosbox-SVN.conf";
@@ -371,7 +371,7 @@ public class FileLocationService {
 	}
 
 	/**
-	 * alpha 55: that DOSBox SVN, or null when it is not there (not a Mac, or a package without it). Its configuration file is
+	 * alpha 54: that DOSBox SVN, or null when it is not there (not a Mac, or a package without it). Its configuration file is
 	 * next to the folder, not in the app: a file added to the signed app would break its seal. DOSBox writes it the first time
 	 * (the caller does that when it is missing)
 	 */

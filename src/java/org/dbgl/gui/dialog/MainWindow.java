@@ -358,7 +358,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 
 		display_.asyncExec(this::moveSavegames); // alpha 52: before the automatic backup, so that it has them at their new place
 		display_.asyncExec(this::welcomeIfDue); // alpha 53
-		display_.asyncExec(this::offerSvnMacIfDue); // alpha 55
+		display_.asyncExec(this::offerSvnMacIfDue); // alpha 54
 		display_.asyncExec(this::tellVersionBackup); // alpha 54 (TEST18)
 		display_.asyncExec(this::autoBackupIfDue);
 		display_.asyncExec(this::cleanUpAfterEditionUpdate);
@@ -2068,8 +2068,18 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 					// its files are listed without a game then
 				}
 			}
-			plan = org.dbgl.util.StickReturn.plan(stick, here, dataDir, FileLocationService.getInstance().getDosroot());
-		} catch (IOException | SQLException | RuntimeException e) {
+			// alpha 54: comparing the files can take a while (a large game on a slow stick): in the background, with a window that
+			// says so and can cancel, instead of DBGL not reacting
+			File from = stick;
+			java.util.concurrent.atomic.AtomicBoolean stop = new java.util.concurrent.atomic.AtomicBoolean();
+			try {
+				plan = org.dbgl.gui.controls.BusyTask.run(shell_, text_.get("dialog.stickreturn.comparing"),
+					() -> org.dbgl.util.StickReturn.plan(from, here, dataDir, FileLocationService.getInstance().getDosroot(), stop::get));
+			} catch (org.dbgl.gui.controls.BusyTask.Cancelled e) {
+				stop.set(true);
+				return;
+			}
+		} catch (Exception e) {
 			Mess_.on(shell_).exception(e).warning();
 			return;
 		} finally {
@@ -3032,7 +3042,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			}
 		}).build();
 		MenuItem_.on(helpMenu).build();
-		// alpha 55: a command or a setting found by a word of it (Ctrl+K, as in many programs); alpha 54 (TEST13): above the keys, the line above both
+		// alpha 54: a command or a setting found by a word of it (Ctrl+K, as in many programs); alpha 54 (TEST13): above the keys, the line above both
 		MenuItem_.on(helpMenu).txt(text_.get("dialog.main.menu.commandsearch") + (SystemUtils.IS_OSX ? "\tCmd+K": "\tCtrl+K"))
 				.image(ImageService.IMG_ZOOM).accel(SWT.MOD1 | 'K').listen(new SelectionAdapter() {
 					@Override
@@ -6649,11 +6659,11 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		return dbv;
 	}
 
-	/** alpha 55: the settings, built once a session (and again in another language) */
+	/** alpha 54: the settings, built once a session (and again in another language) */
 	private List<SettingsDialog.Place> settingsPlaces_;
 	private String settingsPlacesLanguage_;
 
-	/** alpha 55 (Ctrl+K): all commands of the menus and all settings, found by a word of them */
+	/** alpha 54 (Ctrl+K): all commands of the menus and all settings, found by a word of them */
 	private void doCommandSearch() {
 		Runnable chosen = new CommandSearchDialog(shell_, searchableCommands()).open();
 		if (chosen != null)
@@ -6849,7 +6859,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		// alpha 53: the learned games and completing profiles (opening them only reads the local databases; not the cover search,
 		// which asks the cover database on the internet as soon as it opens)
 		steps.add(new org.dbgl.gui.controls.WindowTour.Step("known-games", none, () -> new KnownGamesDialog(shell_).open()));
-		// alpha 55: the search of commands and settings, with a word typed, and the settings opened at one found
+		// alpha 54: the search of commands and settings, with a word typed, and the settings opened at one found
 		steps.add(new org.dbgl.gui.controls.WindowTour.Step("command-search", none, () -> new CommandSearchDialog(shell_, searchableCommands()).query(StringUtils.left(SettingsDialog.placeText(text_.get("dialog.settings.theme")), 4)).open()));
 		steps.add(new org.dbgl.gui.controls.WindowTour.Step("settings-at-setting", none, () -> {
 			List<SettingsDialog.Place> places = SettingsDialog.places(shell_, columnNames_);
@@ -6974,7 +6984,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			DosboxVersion added = new DosboxVersionRepository().add(result.dosbox_);
 			updateDosboxVersionList(added);
 			createMissingDosboxConf(added);
-			// alpha 55: on a Mac DOSBox SVN is the default, the DOSBox 0.74-3 of the package is entered too, as the other choice
+			// alpha 54: on a Mac DOSBox SVN is the default, the DOSBox 0.74-3 of the package is entered too, as the other choice
 			if (SystemUtils.IS_OSX && SettingsService.SVN_DOSBOX_FAM.title_.equals(added.getFamily())) {
 				settings_.setBooleanValue("gui", "svnmacoffered", true);
 				SearchResult official = FileLocationService.getInstance().findOfficialDosbox();
@@ -7001,7 +7011,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 	}
 
 	/**
-	 * alpha 55: a Mac package of DBGL with DOSBox SVN, not entered yet (an update of an installation with DOSBox 0.74-3): offered
+	 * alpha 54: a Mac package of DBGL with DOSBox SVN, not entered yet (an update of an installation with DOSBox 0.74-3): offered
 	 * once, with the reasons, as the default and for the profiles of 0.74-3, each step a choice; the profiles are switched by the
 	 * window that shows every change before
 	 */
@@ -7039,7 +7049,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		}
 	}
 
-	/** alpha 55: a DOSBox found without its configuration file writes it now (DOSBox SVN of the Mac package, the first time) */
+	/** alpha 54: a DOSBox found without its configuration file writes it now (DOSBox SVN of the Mac package, the first time) */
 	private void createMissingDosboxConf(DosboxVersion dbversion) {
 		if ((dbversion == null) || FilesUtils.isExistingFile(dbversion.getConfigurationCanonicalFile()))
 			return;

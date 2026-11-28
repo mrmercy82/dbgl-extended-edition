@@ -40,12 +40,12 @@ Neu
   Versionen. Die Felder „Zip-Datei“ und „Schreiben“ im Mount-Dialog haben
   Tooltips.
 - Mehrere ZIPs auf einmal: Im Dateidialog von „Spiel(e) aus ZIP-Datei(en)
-  importieren...“ lassen sich mehrere wählen (oder mehrere auf DBGL
-  ziehen); DBGL zeigt die Liste mit Titel (aus dem Dateinamen) und Startprogramm und legt nach
-  Rückfrage alle Profile ohne Profildialog an, mit der Standardvorlage und
-  der Standard-DOSBox-Version. ZIPs ohne DOS-Programm werden genannt und
-  ausgelassen. Titel, Angaben und Cover holt danach „Profile
-  vervollständigen...“.
+  importieren...“ lassen sich mehrere wählen (oder mehrere auf DBGL ziehen);
+  DBGL zeigt die Liste mit Titel (aus dem Dateinamen) und Startprogramm und
+  legt nach Rückfrage alle Profile ohne Profildialog an, mit der
+  Standardvorlage und der Standard-DOSBox-Version. ZIPs ohne DOS-Programm
+  werden genannt und ausgelassen. Titel, Angaben und Cover holt danach
+  „Profile vervollständigen...“.
 - Kontextmenü > Werkzeuge > „Spielstände ins ZIP übernehmen...“ (zwischen
   Trennlinien, über „Programme aus Windows 3.x als Profile...“): legt, was
   die Spiele der markierten Profile geschrieben haben, in ihr ZIP – an die
@@ -132,6 +132,9 @@ Geändert
   die Maus über ihrer Zeile steht; unten steht weiter die ganze Meldung.
 - USB-Stick: Das ZIP wird zuerst im Ordner export vorgeschlagen statt
   direkt im Datenordner.
+- macOS: „Profile prüfen...“ weist bei Profilen, die mit DOSBox 0.74-3 im
+  Vollbild starten, darauf hin, dass sich 0.74-3 auf neuerem macOS beim
+  Wechsel ins Vollbild beendet, mit dem Weg zu DOSBox SVN.
 
 Fehler behoben
 - USB-Stick: Spiele von ScummVM kamen ohne ihren Ordner auf den Stick, und
@@ -142,9 +145,13 @@ Fehler behoben
   stehen beim Inhalt des Sticks einzeln da (auch ScummVM); mit kommt nur,
   was ein gewähltes Spiel braucht oder angehakt ist, statt des ganzen
   Ordners. Spiele, die im Ordner einer DOSBox oder von ScummVM liegen,
-  kommen dabei nicht mit, nur die der gewählten Profile. Eine Größe, die DBGL nicht bestimmen
-  konnte (etwa bei ScummVM-Spielen von vor alpha 52), sucht es nach einem
-  Tag erneut, auch für die Statistik.
+  kommen dabei nicht mit, nur die der gewählten Profile. Eine Größe, die
+  DBGL nicht bestimmen konnte (etwa bei ScummVM-Spielen von vor alpha 52),
+  sucht es nach einem Tag erneut, auch für die Statistik.
+- Rückweg vom USB-Stick: Bei einem großen Spiel auf dem Stick (etwa einem
+  ScummVM-Spiel mit 1 GB) reagierte DBGL beim Vergleichen eine Weile nicht.
+  Der Vergleich läuft jetzt im Hintergrund, in einem Fenster mit Abbrechen,
+  und liest die Dateien blockweise statt Byte für Byte.
 - Einstellungen > Allgemein: Die Felder für den Ordner der Sicherungen und
   den zweiten Sicherungsort enden rechts gleich. Ist ScummVM eingeschaltet,
   heißt die Update-Suche „nach neuen DOSBox- und ScummVM-Versionen suchen“.

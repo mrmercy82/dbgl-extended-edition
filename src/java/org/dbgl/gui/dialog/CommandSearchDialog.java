@@ -40,7 +40,7 @@ import org.eclipse.swt.widgets.Text;
 
 
 /**
- * Alpha 55 (Ctrl+K): finds a command of the menus or a setting by a word of it, and runs or shows it. The commands are taken
+ * Alpha 54 (Ctrl+K): finds a command of the menus or a setting by a word of it, and runs or shows it. The commands are taken
  * from the menus as they are (with what is on and off at the moment), the settings from the window of the settings. The result:
  * what to do once this window is closed, or null.
  */

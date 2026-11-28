@@ -106,13 +106,13 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 		result_ = false;
 	}
 
-	/** alpha 55 (Ctrl+K): a setting of this window: the titles of the tabs it is on, and the text of its label, box or group */
+	/** alpha 54 (Ctrl+K): a setting of this window: the titles of the tabs it is on, and the text of its label, box or group */
 	public record Place(List<String> tabs, String text) {
 	}
 
-	/** alpha 55: only built to see what the window holds (not shown; nothing counted in the background) */
+	/** alpha 54: only built to see what the window holds (not shown; nothing counted in the background) */
 	private boolean indexOnly_;
-	/** alpha 55: the setting to show when the window opens, or null */
+	/** alpha 54: the setting to show when the window opens, or null */
 	private Place focus_;
 
 	public SettingsDialog focus(Place place) {
@@ -120,7 +120,7 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 		return this;
 	}
 
-	/** alpha 55: all settings of the window, for the search of commands and settings; the window is built but not shown */
+	/** alpha 54: all settings of the window, for the search of commands and settings; the window is built but not shown */
 	public static List<Place> places(Shell parent, String[] columnNames) {
 		SettingsDialog d = new SettingsDialog(parent, columnNames);
 		d.indexOnly_ = true;
@@ -149,7 +149,7 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 			show(focus_);
 	}
 
-	/** alpha 55: the setting on its tab, scrolled to, marked for a moment, and the field next to it ready for input */
+	/** alpha 54: the setting on its tab, scrolled to, marked for a moment, and the field next to it ready for input */
 	private void show(Place place) {
 		Control[] found = new Control[1];
 		walk(shell_, c -> {

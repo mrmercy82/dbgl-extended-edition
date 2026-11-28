@@ -107,7 +107,7 @@ public class KnownGamesDialog extends SizeControlledButtonDialog<Boolean> {
 		}
 		table_.addListener(SWT.DefaultSelection, e -> edit());
 
-		// alpha 55: the buttons in two rows of their own (the columns of the search above made gaps between them)
+		// alpha 54: the buttons in two rows of their own (the columns of the search above made gaps between them)
 		org.eclipse.swt.widgets.Composite row1 = new org.eclipse.swt.widgets.Composite(contents_, SWT.NONE);
 		row1.setLayout(rowLayout());
 		row1.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 4, 1));
@@ -120,7 +120,7 @@ public class KnownGamesDialog extends SizeControlledButtonDialog<Boolean> {
 		Button forget = new Button(row1, SWT.PUSH);
 		forget.setText(text_.get("dialog.knowngames.forget"));
 		forget.addListener(SWT.Selection, e -> forget());
-		// alpha 55: pass the list on, take one over, and the list of the community
+		// alpha 54: pass the list on, take one over, and the list of the community
 		Button export = new Button(row1, SWT.PUSH);
 		export.setText(text_.get("dialog.knowngames.export"));
 		export.setToolTipText(text_.get("dialog.knowngames.export.tooltip"));
@@ -212,7 +212,7 @@ public class KnownGamesDialog extends SizeControlledButtonDialog<Boolean> {
 		save();
 	}
 
-	/** alpha 55: the selected games (all, if none is selected) into a file; to contribute, GitHub is opened afterwards */
+	/** alpha 54: the selected games (all, if none is selected) into a file; to contribute, GitHub is opened afterwards */
 	private void export(boolean contribute) {
 		int[] sel = table_.getSelectionIndices();
 		List<Entry> chosen = new ArrayList<>();
@@ -257,7 +257,7 @@ public class KnownGamesDialog extends SizeControlledButtonDialog<Boolean> {
 		}
 	}
 
-	/** alpha 55: the games of another file of this kind taken over; those known already stay as they are */
+	/** alpha 54: the games of another file of this kind taken over; those known already stay as they are */
 	private void takeOver() {
 		FileDialog dialog = new FileDialog(shell_, SWT.OPEN);
 		dialog.setFilterNames(new String[] {"JSON (*.json)"});
@@ -276,7 +276,7 @@ public class KnownGamesDialog extends SizeControlledButtonDialog<Boolean> {
 		Mess_.on(shell_).key("dialog.knowngames.imported", new Object[] {added, before - added}).display();
 	}
 
-	/** alpha 55: the list of the community from GitHub, kept next to the own one */
+	/** alpha 54: the list of the community from GitHub, kept next to the own one */
 	private void loadCommunity() {
 		try {
 			int n = org.dbgl.gui.controls.BusyTask.run(shell_, text_.get("dialog.knowngames.community.loading"), () -> OwnKnownGames.downloadCommunity(OwnKnownGames.communityFile()));

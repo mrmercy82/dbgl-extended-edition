@@ -16,9 +16,9 @@ New
   Mac for years.
 - Start games from a ZIP, with every DOSBox version: Profiles > Import >
   "Import game(s) from ZIP file(s)..." (or dropping a ZIP on DBGL that is not
-  an export of DBGL) opens a new profile with the archive as drive C: and its most
-  likely start program, as the profile dialog of Ronald Blankendaal's DBGL
-  could do already ("Mount Zip"). At the start:
+  an export of DBGL) opens a new profile with the archive as drive C: and its
+  most likely start program, as the profile dialog of Ronald Blankendaal's
+  DBGL could do already ("Mount Zip"). At the start:
   - DOSBox-X 0.84.1 and newer mounts the archive itself (read-only); what
     the game writes goes to a folder of its own through "mount -t overlay".
   - All others (DOSBox Staging, 0.74, SVN, ECE, older DOSBox-X): DBGL unpacks
@@ -38,10 +38,10 @@ New
   mount dialog have tooltips.
 - Several ZIPs at once: the file dialog of "Import game(s) from ZIP
   file(s)..." takes several (or drop several on DBGL); DBGL shows the list
-  with title (from the file name) and start program and, when confirmed, creates all profiles
-  without the profile dialog, with the default template and DOSBox version.
-  ZIPs without a DOS program are named and left out. Titles, details and
-  covers then come with "Complete profiles...".
+  with title (from the file name) and start program and, when confirmed,
+  creates all profiles without the profile dialog, with the default template
+  and DOSBox version. ZIPs without a DOS program are named and left out.
+  Titles, details and covers then come with "Complete profiles...".
 - Context menu > Tools > "Put saved games into the ZIP..." (between lines,
   above "Programs of Windows 3.x as profiles..."): puts what the games of the
   selected profiles wrote into their ZIP, in place of files of the same name
@@ -122,6 +122,9 @@ Changed
   is over their line; the whole message is still shown below.
 - USB stick: the ZIP is first proposed in the folder export instead of the
   data folder itself.
+- macOS: "Check profiles..." tells of profiles that start in full screen with
+  DOSBox 0.74-3 that 0.74-3 closes on newer macOS when it goes to full screen,
+  with the way to DOSBox SVN.
 
 Fixed
 - USB stick: games of ScummVM came onto the stick without their folder, and
@@ -132,9 +135,13 @@ Fixed
   one by one in the content of the stick (ScummVM too); only what a chosen
   game needs or what is ticked goes along, not the whole folder. Games kept
   in the folder of a DOSBox or of ScummVM do not come along with it, only
-  those of the chosen profiles. A size DBGL could not find (e.g. for ScummVM games
-  from before alpha 52) is looked for again a day later, also for the
-  statistics.
+  those of the chosen profiles. A size DBGL could not find (e.g. for
+  ScummVM games from before alpha 52) is looked for again a day later, also
+  for the statistics.
+- Way back from a USB stick: with a large game on the stick (e.g. a ScummVM
+  game of 1 GB) DBGL did not respond for a while when comparing. The
+  comparison now runs in the background, in a window with Cancel, and reads
+  the files block by block instead of byte by byte.
 - Settings > General: the fields for the folder of the backups and the
   second place end at the same right edge. With ScummVM on, the update
   check reads "Look for new DOSBox and ScummVM versions once a day".

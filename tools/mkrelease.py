@@ -18,7 +18,7 @@ Builds all packages of a release of DBGL Extended Edition from a commit of this 
   SHA256SUMS.txt
 
 The texts update-readme.txt and LIESMICH-README.txt come from tools/release (@N@ = the number of the alpha).
-With --dosbox-svn-mac (alpha 55) the macOS packages also hold DOSBox SVN r4484 by Dominus (universal, signed, notarized), as
+With --dosbox-svn-mac (alpha 54) the macOS packages also hold DOSBox SVN r4484 by Dominus (universal, signed, notarized), as
 DBGL.app/Contents/Resources/DOSBoxSVN.app unchanged, after tools/verify-macos-app.py found it to be exactly the signed app.
 --dosbox-svn-source (once per file: the snapshot of r4484, the source of SDL_sound 1.0) puts those archives next to the
 packages, as the GPL and LGPL ask for with the program; without them there is no macOS package with DOSBox SVN.

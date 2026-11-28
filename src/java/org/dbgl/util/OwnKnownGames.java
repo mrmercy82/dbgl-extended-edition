@@ -97,7 +97,7 @@ public final class OwnKnownGames {
 		}
 	}
 
-	/** alpha 55: the entries of a text in the format of this file (own, from someone else, or the list of the community) */
+	/** alpha 54: the entries of a text in the format of this file (own, from someone else, or the list of the community) */
 	public static List<Entry> parse(String json) {
 		List<Entry> result = new ArrayList<>();
 		try {
@@ -134,9 +134,9 @@ public final class OwnKnownGames {
 		return result;
 	}
 
-	/** alpha 55: the list of the community as last downloaded, next to the own file (config/known-games-community.json) */
+	/** alpha 54: the list of the community as last downloaded, next to the own file (config/known-games-community.json) */
 	public static final String COMMUNITY_FILE = "known-games-community.json";
-	/** alpha 55: where the list of the community is kept: in the repository of the Extended Edition, added to by its users */
+	/** alpha 54: where the list of the community is kept: in the repository of the Extended Edition, added to by its users */
 	public static final String COMMUNITY_URL = org.dbgl.constants.Constants.EDITION_URL.replace("https://github.com/", "https://raw.githubusercontent.com/")
 			+ "/main/community/known-games.json";
 	private static final int MAX_DOWNLOAD = 20 * 1024 * 1024;
@@ -146,7 +146,7 @@ public final class OwnKnownGames {
 	}
 
 	/**
-	 * alpha 55: what the import from a folder knows: the games of the community first, then the own ones, so that an own one wins
+	 * alpha 54: what the import from a folder knows: the games of the community first, then the own ones, so that an own one wins
 	 * (the last one that fits is taken)
 	 */
 	public static List<Entry> withCommunity(List<Entry> own, List<Entry> community) {
@@ -156,7 +156,7 @@ public final class OwnKnownGames {
 	}
 
 	/**
-	 * alpha 55: the entries of another list taken over into this one, those whose start program (name and checksum) is not there
+	 * alpha 54: the entries of another list taken over into this one, those whose start program (name and checksum) is not there
 	 * yet; the ones there stay as they are. The number taken over
 	 */
 	public static int merge(List<Entry> into, List<Entry> more) {
@@ -173,7 +173,7 @@ public final class OwnKnownGames {
 	}
 
 	/**
-	 * alpha 55: the list of the community from GitHub, checked as an own file is (at most 20 MB, 100000 games, only names and
+	 * alpha 54: the list of the community from GitHub, checked as an own file is (at most 20 MB, 100000 games, only names and
 	 * checksums), saved to the file given; the number of games in it
 	 */
 	public static int downloadCommunity(File target) throws IOException, InterruptedException {

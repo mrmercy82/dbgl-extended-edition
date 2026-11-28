@@ -555,6 +555,9 @@ public final class ProfileChecks {
 			for (Mount m: autoexec.getMountingpoints())
 				if (ZipStart.isArchiveMount(m) && !ZipStart.archiveOf(m).getName().toLowerCase(Locale.ROOT).endsWith(".zip"))
 					result.add(new Problem("zip7z", ZipStart.archiveOf(m).getName(), prof.getDosboxVersion().getTitle()));
+		// alpha 54: DOSBox 0.74-3 on a Mac closes when it goes to full screen on newer macOS; DOSBox SVN of the package does not
+		if (fullscreenCrashOnMac(prof, SystemUtils.IS_OS_MAC))
+			result.add(new Problem("macfullscreen0743", prof.getDosboxVersion().getTitle()));
 		// alpha 53: Windows 3.x started by own lines of the autoexec ("C:", "cd \\WINDOWS", "win"), as many profiles do it; the
 		// lines start in the folder of the program DBGL read from them ("cd \\WINDOWS" and SMARTDRV.EXE before "win")
 		if (win3 == null) {
@@ -1892,6 +1895,18 @@ public final class ProfileChecks {
 	 * captured (Ctrl+F10), since DOSBox-X by default passes it on only then (mouse_emulation=locked) and its "autolock" is off
 	 * by default. Not told when the mouse is passed on anyway (mouse_emulation always or integration).
 	 */
+	/**
+	 * alpha 54: a profile for DOSBox 0.74 (0.74-3) that starts in full screen, on a Mac: on newer macOS 0.74-3 closes when it goes
+	 * to full screen (on start or with Alt+Enter); DOSBox SVN, which comes with the Mac package, does not
+	 */
+	public static boolean fullscreenCrashOnMac(Profile prof, boolean mac) {
+		DosboxVersion db = prof.getDosboxVersion();
+		if (!mac || (db == null) || !org.dbgl.service.SettingsService.OFFICIAL_DOSBOX_FAM.title_.equals(db.getFamily()) || !StringUtils.defaultString(db.getVersion()).startsWith("0.74"))
+			return false;
+		String full = StringUtils.trimToEmpty(prof.getCombinedConfigurationForReading().getValue("sdl", "fullscreen")).toLowerCase(Locale.ROOT);
+		return full.equals("true") || full.equals("1") || full.equals("on");
+	}
+
 	public static boolean bootWithoutMouseCapture(Profile prof) {
 		DosboxVersion db = prof.getDosboxVersion();
 		if ((db == null) || !org.dbgl.service.SettingsService.DOSBOX_X_DOSBOX_FAM.title_.equals(db.getFamily()))
