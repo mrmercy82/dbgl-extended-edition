@@ -33,9 +33,8 @@ New
   the profile itself is never changed. The USB stick assistant takes it
   along (a "Write" folder of the mount becomes the profile's own folder on
   the stick), and the way back brings the saved games to where they were.
-  7z archives start with DOSBox-X only;
-  "Check" says so for other versions. The fields "Zip" and "Write" in the
-  mount dialog have tooltips.
+  7z archives start with DOSBox-X only; "Check" says so for other versions.
+  The fields "Zip" and "Write" in the mount dialog have tooltips.
 - Several ZIPs at once: the file dialog of "Import game(s) from ZIP
   file(s)..." takes several (or drop several on DBGL); DBGL shows the list
   with title (from the file name) and start program and, when confirmed,

@@ -76,8 +76,8 @@ Neu
   Laufwerksbuchstaben. Ist für MT-32 oder Sound Canvas kein ROM-Ordner
   eingestellt, nimmt DBGL die ROMs mit, die DOSBox an seinen eigenen Stellen
   findet (DOSBox-X z. B. im DOS-Ordner, Staging in mt32-roms), und trägt den
-  Ordner auf dem Stick ein. Nach dem Erstellen bietet DBGL an, den Ordner mit der
-  ZIP-Datei zu öffnen.
+  Ordner auf dem Stick ein. Nach dem Erstellen bietet DBGL an, den Ordner
+  mit der ZIP-Datei zu öffnen.
 - Rückgängig: bis zu fünf Schritte zurück, einer nach dem anderen (der
   Tooltip sagt, wie viele noch gehen); auch wenn nur ein Profil geändert
   wurde (auch im Profildialog, dort nur, wenn sich etwas geändert hat).

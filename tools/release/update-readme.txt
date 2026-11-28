@@ -12,7 +12,7 @@ https://github.com/mrmercy82/dbgl-extended-edition/releases
   Windows  ...-windows.zip               (Java included)
            ...-windows-without-java.zip  (for a Java 21 you have already)
   Linux    ...-linux.tar.xz
-  macOS    ...-macos-...tar.gz
+  macOS    ...-macos-...tar.gz       (with DOSBox SVN for macOS by Dominus)
 Unzip it into a folder of its own and start launch.exe (Windows), dbgl
 (Linux) or DBGL.app (macOS). Linux and macOS need Java 21:
 https://adoptium.net/temurin/releases/?version=21
@@ -50,7 +50,7 @@ https://github.com/mrmercy82/dbgl-extended-edition/releases
   Windows  ...-windows.zip               (mit Java)
            ...-windows-without-java.zip  (fuer ein vorhandenes Java 21)
   Linux    ...-linux.tar.xz
-  macOS    ...-macos-...tar.gz
+  macOS    ...-macos-...tar.gz       (mit DOSBox SVN fuer macOS von Dominus)
 In einen eigenen Ordner entpacken und launch.exe (Windows), dbgl (Linux)
 oder DBGL.app (macOS) starten. Linux und macOS brauchen Java 21:
 https://adoptium.net/temurin/releases/?version=21
