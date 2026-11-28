@@ -757,6 +757,21 @@ public final class PortableExport {
 					fileNames.add(c.getName());
 					continue;
 				}
+				// alpha 54 (TEST16): the folder of the DOSBox versions one by one (ScummVM, Staging, ...): those of the chosen profiles
+				// go along, the others only when ticked (before: all of them as one folder)
+				if (isDosboxFolder(c)) {
+					File[] versions = c.listFiles(f -> f.isDirectory() && !Files.isSymbolicLink(f.toPath()));
+					if (versions != null) {
+						java.util.Arrays.sort(versions, java.util.Comparator.comparing(f -> f.getName().toLowerCase(Locale.ROOT)));
+						for (File v: versions) {
+							if (!common.test(v))
+								continue;
+							long vsize = sizeOfFiles(v, common);
+							parts.add(new Part(v, c.getName() + "/" + v.getName() + "/", vsize, false, false)); // ticked and locked by the assistant while a chosen game uses it (neededBy)
+						}
+					}
+					continue;
+				}
 				long size = 0;
 				try (var walk = Files.walk(c.toPath())) {
 					for (Path p: (Iterable<Path>)walk::iterator)
@@ -774,9 +789,49 @@ public final class PortableExport {
 			if (!fileNames.isEmpty())
 				parts.add(0, new Part(null, String.join(", ", fileNames), files, true, true));
 		}
+		// alpha 54 (TEST16): a DOSBox version (or ScummVM) of the chosen profiles outside the folders of DBGL goes into "dosbox" on
+		// the stick (placeDosbox): shown as well, with its size
+		for (DosboxVersion v: versionsOf(options_.all() == null ? options_.profiles(): options_.all())) {
+			try {
+				File dir = v.getCanonicalPath().getCanonicalFile();
+				if (dir.isDirectory() && !inside(program_, dir) && !inside(data_, dir) && !program_.equals(dir) && !data_.equals(dir))
+					parts.add(new Part(dir, "dosbox/" + dir.getName() + "/", sizeOfQuietly(dir), false, false));
+			} catch (IOException | RuntimeException e) {
+				// without it
+			}
+		}
 		return parts;
 	}
 
+
+	private static boolean isDosboxFolder(File c) {
+		try {
+			return c.isDirectory() && c.getCanonicalFile().equals(FileLocationService.getInstance().getDosboxDir().getCanonicalFile());
+		} catch (IOException | RuntimeException e) {
+			return false;
+		}
+	}
+
+	private static long sizeOfFiles(File dir, java.util.function.Predicate<File> common) {
+		long size = 0;
+		try (var walk = Files.walk(dir.toPath())) {
+			for (Path p: (Iterable<Path>)walk::iterator)
+				if (Files.isRegularFile(p) && common.test(p.toFile()))
+					size += p.toFile().length();
+		} catch (IOException | RuntimeException e) {
+			// as far as it went
+		}
+		return size;
+	}
+
+	/** the DOSBox versions of the profiles, each once */
+	private static List<DosboxVersion> versionsOf(List<Profile> profiles) {
+		Map<Integer, DosboxVersion> result = new LinkedHashMap<>();
+		for (Profile p: profiles)
+			if (p.getDosboxVersion() != null)
+				result.putIfAbsent(p.getDosboxVersion().getId(), p.getDosboxVersion());
+		return new ArrayList<>(result.values());
+	}
 
 	/** the folders of the DOSBox versions of the profiles and their configurations */
 	static List<File> dosboxOf(List<Profile> profiles) {

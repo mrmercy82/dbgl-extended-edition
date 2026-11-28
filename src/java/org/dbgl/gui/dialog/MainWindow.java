@@ -2189,7 +2189,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 			if (scummvm != null) {
 				DosboxUpdateChecker.Release latest = DosboxUpdateChecker.latestScummvm();
 				if ((latest != null) && (DosboxUpdateChecker.compareVersions(latest.version(), scummvm) > 0)) {
-					newer.add(latest);
+					newer.add(DosboxUpdateChecker.withScummvmDownload(latest)); // alpha 54 (TEST16): on Windows to download and set up
 					installed.put(latest.family(), scummvm);
 				}
 			}
@@ -2206,7 +2206,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 					shown = (shown + ';' + id).replaceFirst("^;", "");
 					settings_.setValue("gui", "updatenoticeshown", shown);
 					String question = text_.get("dialog.main.confirm.dosboxupdate", new Object[] {r.family(), r.version(), installed.get(r.family())});
-					if (org.dbgl.util.Scummvm.FAMILY.equals(r.family())) { // installed with its own installer: only its page
+					if (org.dbgl.util.Scummvm.FAMILY.equals(r.family()) && r.assets().isEmpty()) { // installed with its own installer: only its page
 						if (Mess_.on(shell_).txt(question).confirm())
 							SystemUtils.openForBrowsing(r.url(), getParent());
 					} else
@@ -2221,8 +2221,15 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 	/** menu DOSBox -> download: the latest releases of DOSBox Staging and DOSBox-X */
 	private void doDownloadDosbox() {
 		shell_.setCursor(display_.getSystemCursor(SWT.CURSOR_WAIT));
+		boolean withScummvm = settings_.getBooleanValue("gui", org.dbgl.util.Scummvm.SETTING);
 		Thread fetcher = new Thread(() -> {
-			List<DosboxUpdateChecker.Release> releases = DosboxUpdateChecker.latestReleases();
+			List<DosboxUpdateChecker.Release> releases = new ArrayList<>(DosboxUpdateChecker.latestReleases());
+			// alpha 54 (TEST16): ScummVM too while it is on (on Windows its portable ZIP, elsewhere its page)
+			if (withScummvm) {
+				DosboxUpdateChecker.Release scummvm = DosboxUpdateChecker.withScummvmDownload(DosboxUpdateChecker.latestScummvm());
+				if (scummvm != null)
+					releases.add(scummvm);
+			}
 			// alpha 49: the windows open when the list has come, after the menu entry is done: they get its symbol all the same
 			display_.asyncExec(org.dbgl.gui.abstractdialog.BaseDialog.withWindowImage(ImageService.IMG_IMPORT, () -> {
 				if (shell_.isDisposed())
@@ -2392,6 +2399,10 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 					SystemUtils.openForBrowsing(targetDir.getPath(), getParent());
 					return;
 				}
+				if (org.dbgl.util.Scummvm.FAMILY.equals(r.family())) { // alpha 54 (TEST16)
+					enterDownloadedScummvm(r, executable);
+					return;
+				}
 				// the executable with its full path unless it has the default name (e.g. dosbox-x.exe), and the configuration file
 				// name DOSBox itself uses (dosbox-x.conf for DOSBox-X)
 				String exePath = executable.getName().equalsIgnoreCase(FileLocationService.DOSBOX_EXE_STRING) ? StringUtils.EMPTY: executable.getAbsolutePath();
@@ -2411,6 +2422,33 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		}, "DOSBox download");
 		worker.setDaemon(true);
 		worker.start();
+	}
+
+	/**
+	 * alpha 54 (TEST16): a ScummVM downloaded: the ScummVM entered so far now starts this one (its games and profiles stay, its
+	 * scummvm.ini is the one of the user as before), else it is entered new
+	 */
+	private void enterDownloadedScummvm(DosboxUpdateChecker.Release r, File executable) {
+		try {
+			DosboxVersion entered = dbversionsList_.stream().filter(org.dbgl.util.Scummvm::is).findFirst().orElse(null);
+			if (entered != null) {
+				if (!Mess_.on(shell_).key("dialog.main.confirm.scummvmdownloaded", new Object[] {r.version(), entered.getTitle()}).confirm())
+					return;
+				entered.setPath(executable.getParent());
+				entered.setExe(executable.getPath());
+				entered.setVersion(r.version());
+				new DosboxVersionRepository().update(entered);
+				updateDosboxVersionList(entered);
+			} else {
+				File conf = org.dbgl.util.Scummvm.versionConf(FileLocationService.getInstance().getDataDir());
+				DosboxVersion added = new DosboxVersionRepository().add(DosboxVersionFactory.create(org.dbgl.util.Scummvm.FAMILY, org.dbgl.util.Scummvm.FAMILY, r.version(), false, false, false,
+					null, executable.getParent(), executable.getPath(), "", conf.getPath()));
+				updateDosboxVersionList(added);
+			}
+			Mess_.on(shell_).key("dialog.main.notice.scummvmentered", new Object[] {r.version()}).display();
+		} catch (IOException | SQLException e) {
+			Mess_.on(shell_).exception(e).warning();
+		}
 	}
 
 	/** alpha 50: the window with the logs of the DOSBox output of the profiles and the diagnostic files of DBGL */
@@ -2861,12 +2899,17 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 				doLocateDosbox(true);
 			}
 		}).build();
-		MenuItem_.on(dbversionsMenu).key("dialog.main.menu.downloaddosbox").image(ImageService.IMG_IMPORT).listen(new SelectionAdapter() {
+		MenuItem downloadItem = MenuItem_.on(dbversionsMenu).key("dialog.main.menu.downloaddosbox").image(ImageService.IMG_IMPORT).listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
 				doDownloadDosbox();
 			}
 		}).build();
+		// alpha 54 (TEST16): "DOSBox/ScummVM herunterladen..." while ScummVM is on
+		dbversionsMenu.addListener(SWT.Show, e -> {
+			if (!downloadItem.isDisposed())
+				downloadItem.setText(text_.get(settings_.getBooleanValue("gui", org.dbgl.util.Scummvm.SETTING) ? "dialog.main.menu.downloaddosboxscummvm": "dialog.main.menu.downloaddosbox"));
+		});
 		MenuItem switchItem = MenuItem_.on(dbversionsMenu).key("dialog.main.menu.switchdosboxversion2").image(ImageService.IMG_MIGRATE).listen(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {

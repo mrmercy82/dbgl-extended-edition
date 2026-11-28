@@ -106,6 +106,41 @@ public final class DosboxUpdateChecker {
 		return null;
 	}
 
+	/**
+	 * alpha 54 (TEST16): the release with the file to download on Windows, the portable ZIP of the ScummVM project
+	 * (downloads.scummvm.org/frs/scummvm/&lt;version&gt;/scummvm-&lt;version&gt;-win32-x86_64.zip) with the SHA-256 it publishes next to
+	 * it (.sha256); elsewhere (installers, disk images, Flatpak) as it was: its page
+	 */
+	public static Release withScummvmDownload(Release r) {
+		if ((r == null) || !SystemUtils.IS_WINDOWS || System.getProperty("os.arch", "").toLowerCase(java.util.Locale.ROOT).contains("arm"))
+			return r;
+		String[] asset = scummvmWindowsAsset(r.version());
+		try {
+			HttpClient client = HttpClient.newBuilder().proxy(ProxySelector.getDefault()).connectTimeout(Duration.ofSeconds(10)).followRedirects(HttpClient.Redirect.NORMAL).build();
+			HttpResponse<String> response = client.send(HttpRequest.newBuilder(URI.create(asset[1] + ".sha256")).timeout(Duration.ofSeconds(15)).header("User-Agent", "DBGL").GET().build(),
+				HttpResponse.BodyHandlers.ofString());
+			String sum = response.statusCode() == 200 ? sha256Of(response.body()): null;
+			if (sum == null)
+				return r; // no checksum to check it with: only the page
+			return new Release(r.family(), r.version(), r.url(), List.<String[]>of(new String[] {asset[0], asset[1], "sha256:" + sum}));
+		} catch (Exception e) {
+			System.out.println("ScummVM download for Windows not found: " + e);
+			return r;
+		}
+	}
+
+	/** the name and address of the portable ZIP of ScummVM for 64-bit Windows */
+	public static String[] scummvmWindowsAsset(String version) {
+		String name = "scummvm-" + version + "-win32-x86_64.zip";
+		return new String[] {name, "https://downloads.scummvm.org/frs/scummvm/" + version + "/" + name};
+	}
+
+	/** the checksum in a .sha256 file ("<64 hex digits>  <name>"), in small letters; null if there is none */
+	public static String sha256Of(String text) {
+		Matcher m = Pattern.compile("(?i)\\b([0-9a-f]{64})\\b").matcher(text == null ? "": text);
+		return m.find() ? m.group(1).toLowerCase(java.util.Locale.ROOT): null;
+	}
+
 	public static Release newestScummvmTag(org.json.JSONArray tags) {
 		String best = null;
 		for (int i = 0; i < tags.length(); i++) {

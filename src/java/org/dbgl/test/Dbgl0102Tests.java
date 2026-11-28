@@ -7083,4 +7083,17 @@ public class Dbgl0102Tests {
 			org.apache.commons.io.FileUtils.deleteDirectory(dir);
 		}
 	}
+
+	/** alpha 54 (TEST16): the portable ZIP of ScummVM for Windows and the checksum next to it; a part per DOSBox version */
+	@Test
+	public void testScummvmDownloadAsset() {
+		String[] a = org.dbgl.util.DosboxUpdateChecker.scummvmWindowsAsset("2026.4.0");
+		assertEquals("scummvm-2026.4.0-win32-x86_64.zip", a[0]);
+		assertEquals("https://downloads.scummvm.org/frs/scummvm/2026.4.0/scummvm-2026.4.0-win32-x86_64.zip", a[1]);
+		assertEquals("fb60cfc0828ed86ef24a60c04b9390676493ab85892d81c56d1de90367d56736",
+			org.dbgl.util.DosboxUpdateChecker.sha256Of("FB60CFC0828ED86EF24A60C04B9390676493AB85892D81C56D1DE90367D56736  scummvm-2026.4.0-win32-x86_64.zip\n"));
+		assertNull(org.dbgl.util.DosboxUpdateChecker.sha256Of("<html>not found</html>"));
+		assertTrue(org.dbgl.util.DosboxInstaller.candidates(java.util.List.<String[]>of(a), true, false, false).size() == 1);
+		assertEquals(java.util.List.of("scummvm.exe", "scummvm"), org.dbgl.util.DosboxInstaller.executableNames(org.dbgl.util.Scummvm.FAMILY));
+	}
 }

@@ -97,7 +97,11 @@ Changed
   games by the checksums of their files). Games without a profile are
   offered in a list; the checked ones are added as "Add Game" in ScummVM
   does, each with a profile. The list of the ScummVM import is sorted by
-  title at first.
+  title at first. With ScummVM on, the menu entry reads "Download
+  DOSBox/ScummVM..." and offers ScummVM too: on Windows the portable ZIP of
+  scummvm.org (with its checksum), unpacked and entered by DBGL (a ScummVM
+  entered already starts the new one afterwards), elsewhere its download
+  page; the same in the daily update check.
 - For development: tools/mkrelease.py builds all packages of a release
   (update, source, Windows with and without Java, Linux, macOS, SHA256SUMS)
   from a commit; from the release commit of alpha 53 it gives the same files
@@ -112,7 +116,9 @@ Fixed
   their room was not counted. Now the folder goes along, with a scummvm.ini
   of its own for the ScummVM on the stick (without paths of this computer,
   saved games in the folder saves next to it, back with the way back), and
-  the room is counted. A size DBGL could not find (e.g. for ScummVM games
+  the room is counted. The DOSBox versions in the folder dosbox are listed
+  one by one in the content of the stick (ScummVM too); only what a chosen
+  game needs or what is ticked goes along, not the whole folder. A size DBGL could not find (e.g. for ScummVM games
   from before alpha 52) is looked for again a day later, also for the
   statistics.
 - Settings > General: the fields for the folder of the backups and the

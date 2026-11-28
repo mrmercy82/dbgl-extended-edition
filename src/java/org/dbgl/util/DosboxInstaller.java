@@ -264,6 +264,8 @@ public final class DosboxInstaller {
 
 	/** @return the executable names of a DOSBox family, e.g. dosbox-x.exe for DOSBox-X */
 	public static List<String> executableNames(String family) {
+		if (family.toLowerCase(Locale.ROOT).contains("scummvm")) // alpha 54 (TEST16): its portable ZIP for Windows
+			return List.of("scummvm.exe", "scummvm");
 		return family.toLowerCase(Locale.ROOT).contains("dosbox-x") ? List.of("dosbox-x.exe", "dosbox-x"): List.of("dosbox.exe", "dosbox");
 	}
 

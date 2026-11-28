@@ -160,14 +160,17 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 		Control c = found[0];
 		if (c == null)
 			return;
-		for (Control child = c, p = c.getParent(); p != null; child = p, p = p.getParent()) {
+		// alpha 54 (TEST16): first the tabs, outer to inner (a hidden tab does not scroll), then laid out, then scrolled
+		java.util.LinkedList<Runnable> tabs = new java.util.LinkedList<>();
+		for (Control child = c, p = c.getParent(); p != null; child = p, p = p.getParent())
 			if (p instanceof CTabFolder folder)
 				for (CTabItem item: folder.getItems())
 					if (item.getControl() == child)
-						folder.setSelection(item);
-			if (p instanceof org.eclipse.swt.custom.ScrolledComposite sc)
-				sc.showControl(c);
-		}
+						tabs.addFirst(() -> folder.setSelection(item));
+		tabs.forEach(Runnable::run);
+		shell_.layout(true, true);
+		display_.asyncExec(() -> scrollTo(c)); // after the size of a scrolled tab is set (that is done later, too)
+		display_.timerExec(150, () -> scrollTo(c));
 		Control target = c;
 		if (c instanceof Label) {
 			Control[] siblings = c.getParent().getChildren();
@@ -177,16 +180,36 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 					break;
 				}
 		}
-		target.setFocus();
-		org.eclipse.swt.graphics.Color background = c.getBackground(), foreground = c.getForeground();
-		c.setBackground(display_.getSystemColor(SWT.COLOR_LIST_SELECTION));
-		c.setForeground(display_.getSystemColor(SWT.COLOR_LIST_SELECTION_TEXT));
-		display_.timerExec(2000, () -> {
-			if (!c.isDisposed()) {
-				c.setBackground(background);
-				c.setForeground(foreground);
-			}
+		Control focus = target;
+		display_.timerExec(200, () -> {
+			if (!focus.isDisposed())
+				focus.setFocus();
 		});
+		// marked: it blinks three times, then stays marked for a moment
+		org.eclipse.swt.graphics.Color background = c.getBackground(), foreground = c.getForeground();
+		for (int i = 0; i < 7; i++) {
+			boolean on = (i % 2) == 0;
+			display_.timerExec(200 + i * 250, () -> mark(c, on, background, foreground));
+		}
+		display_.timerExec(200 + 7 * 250 + 1200, () -> mark(c, false, background, foreground));
+	}
+
+	private void mark(Control c, boolean on, org.eclipse.swt.graphics.Color background, org.eclipse.swt.graphics.Color foreground) {
+		if (c.isDisposed())
+			return;
+		c.setBackground(on ? display_.getSystemColor(SWT.COLOR_LIST_SELECTION): background);
+		c.setForeground(on ? display_.getSystemColor(SWT.COLOR_LIST_SELECTION_TEXT): foreground);
+	}
+
+	/** the setting a third from the top of its scrolled tab */
+	private void scrollTo(Control c) {
+		if (c.isDisposed())
+			return;
+		for (Control p = c.getParent(); p != null; p = p.getParent())
+			if (p instanceof org.eclipse.swt.custom.ScrolledComposite sc && sc.getContent() != null) {
+				org.eclipse.swt.graphics.Point at = display_.map(c, sc.getContent(), 0, 0);
+				sc.setOrigin(sc.getOrigin().x, Math.max(0, at.y - sc.getClientArea().height / 3));
+			}
 	}
 
 	/** goes through all controls, until the test says stop */

@@ -107,7 +107,11 @@ Geändert
   seine Spiele an den Prüfsummen ihrer Dateien). Spiele ohne Profil bietet
   es in einer Liste an; die markierten trägt es wie „Spiel hinzufügen“ in
   ScummVM ein und legt je ein Profil an. Die Liste des ScummVM-Imports ist
-  zu Beginn nach Titel sortiert.
+  zu Beginn nach Titel sortiert. Ist ScummVM eingeschaltet, heißt der
+  Menüpunkt „DOSBox/ScummVM herunterladen...“ und bietet auch ScummVM an:
+  unter Windows das portable ZIP von scummvm.org (mit Prüfsumme), das DBGL
+  auspackt und einträgt (ein schon eingetragener ScummVM startet danach den
+  neuen), sonst die Download-Seite; ebenso bei der täglichen Update-Suche.
 - Für die Entwicklung: tools/mkrelease.py baut alle Pakete eines Releases
   (Update, Quellcode, Windows mit und ohne Java, Linux, macOS, SHA256SUMS)
   aus einem Commit; aus dem Release-Commit von alpha 53 ergibt es dieselben
@@ -122,7 +126,10 @@ Fehler behoben
   ihr Platz zählte nicht mit. Jetzt geht der Ordner mit, daneben eine
   eigene scummvm.ini für den ScummVM auf dem Stick (ohne Pfade dieses
   Computers, Spielstände im Ordner saves daneben, zurück mit dem Rückweg),
-  und der Platz wird mitgezählt. Eine Größe, die DBGL nicht bestimmen
+  und der Platz wird mitgezählt. Die DOSBox-Versionen im Ordner dosbox
+  stehen beim Inhalt des Sticks einzeln da (auch ScummVM); mit kommt nur,
+  was ein gewähltes Spiel braucht oder angehakt ist, statt des ganzen
+  Ordners. Eine Größe, die DBGL nicht bestimmen
   konnte (etwa bei ScummVM-Spielen von vor alpha 52), sucht es nach einem
   Tag erneut, auch für die Statistik.
 - Einstellungen > Allgemein: Die Felder für den Ordner der Sicherungen und
