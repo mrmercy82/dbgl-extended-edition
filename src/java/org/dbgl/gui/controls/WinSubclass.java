@@ -320,7 +320,7 @@ final class WinSubclass {
 				pressed = py < h / 2 ? 0: 1;
 		}
 		int field = colorRef(DarkTheme.fieldBackground.getRGB()), button = colorRef(DarkTheme.buttonBackground.getRGB()),
-				down = colorRef(DarkTheme.frameForeground.getRGB()), line = colorRef(DarkTheme.dialogBackground.getRGB()),
+				down = colorRef(mix(DarkTheme.buttonBackground.getRGB(), DarkTheme.boxBorder.getRGB())), line = colorRef(DarkTheme.dialogBackground.getRGB()),
 				arrow = colorRef((enabled ? DarkTheme.defaultForeground: DarkTheme.dimForeground).getRGB());
 		fillColor(dc, 0, 0, w, h, field);
 		int half = h / 2;
@@ -342,6 +342,11 @@ final class WinSubclass {
 			deleteObject_.invoke(null, pen);
 		}
 		fillColor(dc, 1, half, w - 1, half + 1, line); // between the two
+	}
+
+	/** halfway between two colours (TEST24: the pressed half in the colour of a frame could not be told from the other) */
+	private static org.eclipse.swt.graphics.RGB mix(org.eclipse.swt.graphics.RGB a, org.eclipse.swt.graphics.RGB b) {
+		return new org.eclipse.swt.graphics.RGB((a.red + b.red) / 2, (a.green + b.green) / 2, (a.blue + b.blue) / 2);
 	}
 
 	private void fillColor(long dc, int left, int top, int right, int bottom, int color) throws ReflectiveOperationException {
