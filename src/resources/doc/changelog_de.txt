@@ -76,6 +76,13 @@ Neu
   Neben der Konfigurationsdatei und der DOSBox-Version kommen auch Titel,
   Angaben, Notizen, Links, eigene Felder und Reihe zurück; die Vorschau und
   das Fenster von Rückgängig zeigen diese Änderungen mit.
+- macOS: DOSBox SVN r4484 als Universal-App (Intel und Apple Silicon) im
+  Paket – gebaut, signiert und von Apple beglaubigt von Dominus, unverändert
+  übernommen (DBGL prüft die Signatur beim Bauen des Pakets). Neue
+  Installationen nehmen es als Standard, DOSBox 0.74-3 bleibt daneben; eine
+  bestehende Installation fragt einmal, mit Gründen (ohne Rosetta, kein
+  Absturz im Vollbild) und Auswirkungen auf die Profile. Danke an Dominus,
+  der DOSBox auf dem Mac seit Jahren am Leben hält.
 - Befehl oder Einstellung suchen (Strg+K, auf dem Mac Cmd+K, oder Hilfe >
   „Befehl oder Einstellung suchen...“): ein Wort eintippen, und DBGL zeigt
   alle passenden Befehle aus den Menüs (auch dem Kontextmenü eines Profils)

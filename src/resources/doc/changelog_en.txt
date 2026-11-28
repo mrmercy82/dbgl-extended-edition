@@ -68,6 +68,13 @@ New
   and the DOSBox version it brings back title, details, notes, links, own
   fields and series; the preview and the window of the undo show these
   changes too.
+- macOS: DOSBox SVN r4484 as a universal app (Intel and Apple Silicon) in
+  the package – built, signed and notarized by Dominus, included unchanged
+  (DBGL checks the signature when the package is made). New installations
+  take it as the default, DOSBox 0.74-3 stays beside it; an existing one asks
+  once, with the reasons (no Rosetta, no crash in full screen) and what it
+  means for the profiles. Thanks to Dominus for keeping DOSBox alive on the
+  Mac for years.
 - Find a command or setting (Ctrl+K, on the Mac Cmd+K, or Help > "Find
   command or setting..."): type a word, and DBGL shows all fitting commands
   of the menus (also the context menu of a profile) and all settings, with
