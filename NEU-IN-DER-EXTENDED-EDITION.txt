@@ -26,6 +26,27 @@ WICHTIG: JAVA 21 IST NÖTIG
   Windows bringt Java 21 mit (ab 0.101 alpha 52).
 
 
+DAS NEUESTE IN 0.101 ALPHA 54
+-----------------------------
+  - macOS: DOSBox SVN r4484 als Universal-App (Intel und Apple Silicon) im
+    Paket, gebaut, signiert und beglaubigt von Dominus; neue Installationen
+    nehmen es als Standard, bestehende fragen einmal.
+  - Spiele aus einem ZIP starten, mit jeder DOSBox-Version (Profile >
+    Importieren > "Spiel(e) aus ZIP-Datei(en) importieren..." oder ZIPs auf
+    DBGL ziehen); Spielstände kommen in einen eigenen Ordner, das ZIP bleibt
+    unverändert.
+  - Befehl oder Einstellung suchen mit Strg+K (Hilfe > "Befehl oder
+    Einstellung suchen...").
+  - Community-Liste bekannter Spiele in "Gemerkte Spiele verwalten...":
+    exportieren, übernehmen, laden und beitragen.
+  - USB-Stick: ROMs, SoundFonts, Shader und Handbücher eines Profils kommen
+    mit; ScummVM-Spiele mit eigener scummvm.ini.
+  - Ein Ordner für alle Sicherungen (auch OneDrive oder Dropbox); Rückgängig
+    bis zu fünf Schritte; nach einem Update sagt DBGL, wo die Sicherung liegt.
+  - ScummVM: Der Import aus einem Ordner lässt ScummVM nach seinen Spielen
+    suchen; unter Windows lädt DBGL ScummVM selbst herunter.
+
+
 DAS NEUESTE IN 0.101 ALPHA 53
 -----------------------------
   - Ein Import aus einem Ordner statt zwei: bekannte Spiele werden an ihren

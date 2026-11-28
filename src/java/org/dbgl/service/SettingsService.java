@@ -210,6 +210,8 @@ public class SettingsService {
 		settings_.setValue("gui", "dosboxdialog_width", "600");
 		settings_.setValue("gui", "replacevaluesdialog_width", "820");
 		settings_.setValue("gui", "replacevaluesdialog_height", "640");
+		settings_.setValue("gui", "knowngamesdialog_width", "1120"); // alpha 54: wide enough for the MD5 column
+		settings_.setValue("gui", "knowngamesdialog_height", "620");
 		settings_.setValue("gui", "extrasdialog_width", "920");
 		settings_.setValue("gui", "extrasdialog_height", "600");
 		settings_.setValue("gui", "switchdosboxdialog_width", "760");

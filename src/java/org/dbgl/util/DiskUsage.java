@@ -417,6 +417,11 @@ public final class DiskUsage {
 	}
 
 	/** "740 KB", "1.2 GB" (1 KB = 1024 bytes), with the decimal sign of the language */
+	/** alpha 54: a size in the language of DBGL ("66 B", "1,5 MB"), instead of the English "66 bytes" some windows showed */
+	public static String shown(long bytes) {
+		return format(bytes, uiLocale());
+	}
+
 	public static String format(long bytes, Locale locale) {
 		String[] units = {"B", "KB", "MB", "GB", "TB"};
 		double value = Math.max(0, bytes);

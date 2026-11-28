@@ -6523,7 +6523,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		StringBuilder list = new StringBuilder();
 		for (java.util.Map.Entry<Profile, org.dbgl.util.ZipStart.WriteBack> e: pending)
 			list.append(text_.get("dialog.zipwriteback.line", new Object[] {e.getKey().getTitle(), e.getValue().archive().getName(), e.getValue().files().size(),
-					org.apache.commons.io.FileUtils.byteCountToDisplaySize(e.getValue().bytes()), String.join(", ", e.getValue().files().stream().limit(8).toList())
+					org.dbgl.util.DiskUsage.shown(e.getValue().bytes()), String.join(", ", e.getValue().files().stream().limit(8).toList())
 							+ (e.getValue().files().size() > 8 ? ", ...": "")})).append('\n');
 		File backups = org.dbgl.util.ZipStart.backupDir(0).getParentFile();
 		if (!Mess_.on(shell_).key("dialog.zipwriteback.confirm", new Object[] {list.toString().trim(), backups.getPath()}).confirm())

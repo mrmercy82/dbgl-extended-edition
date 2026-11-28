@@ -27,7 +27,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import org.apache.commons.io.FileUtils;
 import org.dbgl.gui.abstractdialog.BaseDialog;
 import org.dbgl.gui.controls.DarkTheme;
 import org.dbgl.gui.controls.Mess_;
@@ -323,9 +322,9 @@ public final class PortableDialog {
 							}
 						});
 			}
-			dataItem.setText(1, n == 0 ? "": FileUtils.byteCountToDisplaySize(data));
+			dataItem.setText(1, n == 0 ? "": org.dbgl.util.DiskUsage.shown(data));
 			long needed = games + common + data + (java.getSelection() ? JAVA_BYTES: 0);
-			String sizeText = (allKnown ? "": "\u2265 ") + FileUtils.byteCountToDisplaySize(games);
+			String sizeText = (allKnown ? "": "\u2265 ") + org.dbgl.util.DiskUsage.shown(games);
 			count.setText(text.get("dialog.portable.count2", new Object[] {n, sizeText}));
 			gamesItem.setText(1, n == 0 ? "": sizeText);
 			boolean locked = n > 0;
@@ -334,21 +333,21 @@ public final class PortableDialog {
 			// only chosen profiles show their size
 			for (TableItem i: table.getItems()) {
 				Long s = sizes.get(((Profile)i.getData()).getId());
-				String shown = i.getChecked() && s != null ? FileUtils.byteCountToDisplaySize(s): "";
+				String shown = i.getChecked() && s != null ? org.dbgl.util.DiskUsage.shown(s): "";
 				if (!shown.equals(i.getText(2)))
 					i.setText(2, shown);
 			}
 			File dir = new File(zip.getText().strip()).getAbsoluteFile().getParentFile();
 			long free = (dir != null && dir.isDirectory()) ? dir.getUsableSpace(): -1;
-			String neededText = (allKnown && partsKnown[0] ? "": "\u2265 ") + FileUtils.byteCountToDisplaySize(needed);
+			String neededText = (allKnown && partsKnown[0] ? "": "\u2265 ") + org.dbgl.util.DiskUsage.shown(needed);
 			if (free < 0) {
 				space.setText(text.get("dialog.portable.space.nodir", new Object[] {neededText}));
 				space.setForeground(warn);
 			} else if (needed > free) {
-				space.setText(text.get("dialog.portable.space.toolittle", new Object[] {neededText, FileUtils.byteCountToDisplaySize(free)}));
+				space.setText(text.get("dialog.portable.space.toolittle", new Object[] {neededText, org.dbgl.util.DiskUsage.shown(free)}));
 				space.setForeground(warn);
 			} else {
-				space.setText(text.get("dialog.portable.space", new Object[] {neededText, FileUtils.byteCountToDisplaySize(free)}));
+				space.setText(text.get("dialog.portable.space", new Object[] {neededText, org.dbgl.util.DiskUsage.shown(free)}));
 				space.setForeground(dim);
 			}
 			count.getParent().layout();
@@ -378,7 +377,7 @@ public final class PortableDialog {
 					return;
 				for (PortableExport.Part part: found) {
 					TableItem item = new TableItem(parts, SWT.NONE);
-					item.setText(new String[] {part.file() == null ? text.get("dialog.portable.content.files", new Object[] {part.name()}): part.name(), FileUtils.byteCountToDisplaySize(part.bytes())});
+					item.setText(new String[] {part.file() == null ? text.get("dialog.portable.content.files", new Object[] {part.name()}): part.name(), org.dbgl.util.DiskUsage.shown(part.bytes())});
 					item.setData(part);
 					checks.add(item, part.required(), part.required()); // alpha 50: at first only what is needed is ticked
 					if (part.required())
@@ -521,10 +520,10 @@ public final class PortableDialog {
 		sb.append(text.get("dialog.portable.report.result")).append('\n');
 		sb.append(text.get("dialog.portable.report.profiles")).append('\t').append(r.profiles()).append('\n');
 		sb.append(text.get("dialog.portable.zip")).append('\t').append(target.getPath()).append('\n');
-		sb.append(text.get("dialog.portable.column.size")).append('\t').append(FileUtils.byteCountToDisplaySize(r.bytes())).append("\n\n");
+		sb.append(text.get("dialog.portable.column.size")).append('\t').append(org.dbgl.util.DiskUsage.shown(r.bytes())).append("\n\n");
 		sb.append(text.get("dialog.portable.report.transferred")).append('\n');
 		for (PortableExport.Transferred t: r.transferred())
-			sb.append("ID ").append(t.id()).append("  \u00b7  ").append(FileUtils.byteCountToDisplaySize(t.bytes())).append('\t').append(t.title().replace('\t', ' ').replace('\n', ' ')).append('\n');
+			sb.append("ID ").append(t.id()).append("  \u00b7  ").append(org.dbgl.util.DiskUsage.shown(t.bytes())).append('\t').append(t.title().replace('\t', ' ').replace('\n', ' ')).append('\n');
 		sb.append('\n').append(text.get("dialog.portable.report.next")).append('\n').append(text.get("dialog.portable.next")).append('\n');
 		if (!r.notes().isEmpty()) {
 			sb.append('\n').append(text.get("dialog.portable.report.notes")).append('\n');

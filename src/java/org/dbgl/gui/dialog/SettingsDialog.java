@@ -1449,7 +1449,7 @@ public class SettingsDialog extends SizeControlledTabbedDialog<Boolean> {
 		if (there.isEmpty())
 			return;
 		long bytes = there.stream().mapToLong(f -> f.isDirectory() ? org.apache.commons.io.FileUtils.sizeOfDirectory(f): f.length()).sum();
-		if (!Mess_.on(shell_).key("dialog.settings.autobackup.move", new Object[] {there.size(), org.apache.commons.io.FileUtils.byteCountToDisplaySize(bytes), was.getPath(), now.getPath()}).confirm())
+		if (!Mess_.on(shell_).key("dialog.settings.autobackup.move", new Object[] {there.size(), org.dbgl.util.DiskUsage.shown(bytes), was.getPath(), now.getPath()}).confirm())
 			return;
 		try {
 			int moved = org.dbgl.gui.controls.BusyTask.runToEnd(shell_, text_.get("dialog.settings.autobackup.moving"), () -> org.dbgl.service.BackupService.moveBackups(was, now));

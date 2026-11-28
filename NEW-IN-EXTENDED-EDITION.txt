@@ -24,6 +24,26 @@ IMPORTANT: JAVA 21 IS NEEDED
   brings Java 21 along (from 0.101 alpha 52 on).
 
 
+NEWEST IN 0.101 ALPHA 54
+------------------------
+  - macOS: DOSBox SVN r4484 as a universal app (Intel and Apple Silicon) in
+    the package, built, signed and notarized by Dominus; new installations
+    take it as the default, existing ones ask once.
+  - Start games from a ZIP, with every DOSBox version (Profiles > Import >
+    "Import game(s) from ZIP file(s)..." or drop ZIPs on DBGL); saved games go
+    to a folder of their own, the ZIP stays unchanged.
+  - Find a command or setting with Ctrl+K (Help > "Find command or
+    setting...").
+  - Community list of known games in "Manage learned games...": export, take
+    over, load and contribute.
+  - USB stick: ROMs, SoundFonts, shaders and manuals of a profile go along;
+    ScummVM games with a scummvm.ini of their own.
+  - One folder for all backups (also OneDrive or Dropbox); undo up to five
+    steps; after an update DBGL says where the backup is.
+  - ScummVM: the import from a folder lets ScummVM look for its games; on
+    Windows DBGL downloads ScummVM itself.
+
+
 NEWEST IN 0.101 ALPHA 53
 ------------------------
   - One import from a folder instead of two: known games are recognized by
