@@ -7016,12 +7016,17 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 	 * window that shows every change before
 	 */
 	private void offerSvnMacIfDue() {
-		if (shell_.isDisposed() || !SystemUtils.IS_OSX || settings_.getBooleanValue("gui", "svnmacoffered"))
+		if (shell_.isDisposed() || !SystemUtils.IS_OSX)
 			return;
+		if (FileLocationService.isTranslocated()) // alpha 54 (TEST21): explained first, the rest would fail
+			Mess_.on(shell_).key("dialog.main.notice.translocated").warning();
 		SearchResult svn = FileLocationService.getInstance().findSvnMac();
 		if (svn == null)
 			return;
 		File svnDir = svn.dosbox_.getCanonicalPath();
+		moveSvnMacConf(svnDir);
+		if (settings_.getBooleanValue("gui", "svnmacoffered"))
+			return;
 		if (dbversionsList_.stream().anyMatch(v -> svnDir.equals(v.getCanonicalPath()))) {
 			settings_.setBooleanValue("gui", "svnmacoffered", true);
 			return;
@@ -7052,7 +7057,32 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 	}
 
 	/** alpha 54: a DOSBox found without its configuration file writes it now (DOSBox SVN of the Mac package, the first time) */
+	/**
+	 * alpha 54 (TEST21): DOSBox SVN of the Mac package entered by a test version kept its configuration file in DBGL.app: moved to
+	 * the data folder (copied when it is there, else DOSBox writes it anew)
+	 */
+	private void moveSvnMacConf(File svnDir) {
+		File conf = FileLocationService.getInstance().svnMacConf();
+		for (DosboxVersion v: dbversionsList_) {
+			if (!svnDir.equals(v.getCanonicalPath()) || conf.equals(v.getConfigurationCanonicalFile()))
+				continue;
+			try {
+				File old = v.getConfigurationCanonicalFile();
+				conf.getParentFile().mkdirs();
+				if (FilesUtils.isReadableFile(old) && !conf.exists())
+					java.nio.file.Files.copy(old.toPath(), conf.toPath());
+				v.setConfigurationFileLocation(conf.getPath());
+				new DosboxVersionRepository().update(v);
+				createMissingDosboxConf(v);
+			} catch (IOException | SQLException e) {
+				Mess_.on(shell_).exception(e).warning();
+			}
+		}
+	}
+
 	private void createMissingDosboxConf(DosboxVersion dbversion) {
+		if ((dbversion != null) && SystemUtils.IS_OSX && (dbversion.getConfigurationCanonicalFile() != null))
+			dbversion.getConfigurationCanonicalFile().getParentFile().mkdirs(); // alpha 54: the folder config of the data
 		if ((dbversion == null) || FilesUtils.isExistingFile(dbversion.getConfigurationCanonicalFile()))
 			return;
 		try {

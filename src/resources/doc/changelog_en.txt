@@ -103,6 +103,10 @@ New
   context menu under Tools).
 
 Changed
+- macOS: the configuration file of DOSBox SVN is kept in the data folder
+  (config), not in DBGL.app, so an update does not lose it. When macOS runs
+  DBGL from a read-only copy ("App Translocation" after a download), DBGL
+  says at the start what to do.
 - macOS: "Check profiles..." warns about profiles that start in full screen
   with DOSBox 0.74-3, which closes on newer macOS when it goes to full
   screen, and recommends switching to the included DOSBox SVN universal

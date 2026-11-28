@@ -115,6 +115,10 @@ Neu
   Werkzeuge).
 
 Geändert
+- macOS: Die Konfigurationsdatei von DOSBox SVN liegt im Datenordner
+  (config), nicht in DBGL.app; so geht sie bei einem Update nicht verloren.
+  Startet macOS DBGL aus einer schreibgeschützten Kopie („App Translocation“
+  nach einem Download), erklärt DBGL beim Start, was zu tun ist.
 - macOS: „Profile prüfen...“ warnt bei Profilen, die mit DOSBox 0.74-3 im
   Vollbild starten (0.74-3 beendet sich auf neuerem macOS beim Wechsel ins
   Vollbild), und empfiehlt den Wechsel auf den mitgelieferten

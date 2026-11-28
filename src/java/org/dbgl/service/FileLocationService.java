@@ -379,6 +379,24 @@ public class FileLocationService {
 		return SystemUtils.IS_OSX ? svnMacIn(dosboxDir_): null;
 	}
 
+	/**
+	 * alpha 54 (TEST21): the configuration file of that DOSBox SVN on a Mac, in the data folder ("config"), not next to it in
+	 * DBGL.app: there it was lost with each update of DBGL.app, and could not be written at all when macOS started DBGL from a
+	 * copy that cannot be written (App Translocation, after a download)
+	 */
+	public File svnMacConf() {
+		return new File(new File(dataDir_, org.dbgl.util.Scummvm.CONF_DIR), SVN_MAC_CONF);
+	}
+
+	/**
+	 * alpha 54 (TEST21): macOS starts DBGL from a hidden copy that cannot be written ("App Translocation"), because the package
+	 * came from the internet and DBGL.app was not moved since: DBGL cannot write into its program folder then (DOSBox files,
+	 * updates), and the place changes with each start
+	 */
+	public static boolean isTranslocated() {
+		return SystemUtils.IS_OSX && new File(".").getAbsolutePath().contains("/AppTranslocation/");
+	}
+
 	/** the same for a folder of DOSBox versions given (for tests on any system) */
 	public SearchResult svnMacIn(File dosboxDir) {
 		if (dosboxDir == null)
@@ -390,7 +408,7 @@ public class FileLocationService {
 		String last = SettingsService.SVN_DOSBOX_FAM.versions_.get(SettingsService.SVN_DOSBOX_FAM.versions_.size() - 1);
 		DosboxVersion db = DosboxVersionFactory.create("DOSBox SVN r4484", SettingsService.SVN_DOSBOX_FAM.title_, last, true, true, false, null,
 			new FileLocation(dir.getPath(), dosboxRelative()).getFile().getPath(), new FileLocation(exe.getPath(), dosboxRelative()).getFile().getPath(), StringUtils.EMPTY,
-			new FileLocation(new File(dosboxDir, SVN_MAC_CONF).getPath(), dosboxRelative()).getFile().getPath());
+			SystemUtils.IS_OSX ? svnMacConf().getPath(): new FileLocation(new File(dosboxDir, SVN_MAC_CONF).getPath(), dosboxRelative()).getFile().getPath());
 		return new SearchResult(ResultType.COMPLETE, db);
 	}
 
