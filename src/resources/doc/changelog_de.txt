@@ -13,7 +13,8 @@ Neu
   Installationen nehmen es als Standard, DOSBox 0.74-3 bleibt daneben; eine
   bestehende Installation fragt einmal, mit Gründen (ohne Rosetta, kein
   Absturz im Vollbild) und Auswirkungen auf die Profile. Danke an Dominus,
-  der DOSBox auf dem Mac seit Jahren am Leben hält.
+  der DOSBox auf dem Mac seit Jahren am Leben hält:
+  https://www.vogons.org/viewtopic.php?t=88211
 - Spiele aus einem ZIP starten, mit jeder DOSBox-Version: Profile >
   Importieren > „Spiel(e) aus ZIP-Datei(en) importieren...“ (oder ein ZIP auf
   DBGL ziehen, das kein Export von DBGL ist) öffnet ein neues Profil mit dem

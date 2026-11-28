@@ -81,7 +81,7 @@ Please compare the SHA-256 checksums of the downloads with those published next 
 
 ## Acknowledgements
 
-- **Ronald Blankendaal** for DBGL, the foundation of this edition.
+- **Ronald Blankendaal** for [DBGL](https://dbgl.org), the foundation of this edition.
 - **DOSBox SVN for macOS:** the universal build by Dominus (DOSBox team), included unchanged in the macOS packages ([VOGONS thread](https://www.vogons.org/viewtopic.php?t=88211)).
 
 ## License

@@ -13,7 +13,7 @@ New
   take it as the default, DOSBox 0.74-3 stays beside it; an existing one asks
   once, with the reasons (no Rosetta, no crash in full screen) and what it
   means for the profiles. Thanks to Dominus for keeping DOSBox alive on the
-  Mac for years.
+  Mac for years: https://www.vogons.org/viewtopic.php?t=88211
 - Start games from a ZIP, with every DOSBox version: Profiles > Import >
   "Import game(s) from ZIP file(s)..." (or dropping a ZIP on DBGL that is not
   an export of DBGL) opens a new profile with the archive as drive C: and its
