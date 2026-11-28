@@ -717,18 +717,55 @@ public final class PortableExport {
 
 	/** files of DBGL that go into the ZIP file for all profiles: not the data of the profiles, no games, no ZIP files at the top */
 	private java.util.function.Predicate<File> commonFiles() {
+		List<File> games = gameFolders();
+		return f -> !(isChosenData(data_, f)) && !(program_.equals(data_) && isChosenData(program_, f)) && !isZipAtTop(program_, f) && !isZipAtTop(data_, f)
+				&& games.stream().noneMatch(g -> g.equals(f) || inside(g, f));
+	}
+
+	/**
+	 * the folders of all games (of all profiles, and alpha 54 (TEST16): all games in the scummvm.ini of ScummVM, with a profile
+	 * or not): never part of DBGL or of a DOSBox/ScummVM on the stick; only the games of the chosen profiles come along, below
+	 */
+	private List<File> gameFolders() {
+		if (gameFolders_ != null)
+			return gameFolders_;
 		List<File> games = new ArrayList<>();
+		Set<File> inis = new LinkedHashSet<>();
 		for (Profile p: options_.all()) {
 			try {
 				for (Need n: needs(p))
 					if (n.root() != null && !n.root().equals(program_) && !n.root().equals(data_))
 						games.add(n.dir() ? n.path(): n.root());
+				if (Scummvm.is(p.getDosboxVersion())) {
+					File ini = Scummvm.configFile(p);
+					if (ini != null)
+						inis.add(ini);
+					File own = Scummvm.iniOf(p.getDosboxVersion());
+					if (own != null)
+						inis.add(own);
+				}
 			} catch (IOException | RuntimeException e) {
 				// that profile then just has no games to leave out
 			}
 		}
-		return f -> !(isChosenData(data_, f)) && !(program_.equals(data_) && isChosenData(program_, f)) && !isZipAtTop(program_, f) && !isZipAtTop(data_, f)
-				&& games.stream().noneMatch(g -> g.equals(f) || inside(g, f));
+		for (File ini: inis)
+			try {
+				if (ini.isFile())
+					for (Scummvm.Game g: Scummvm.readIni(ini))
+						if ((g.path() != null) && g.path().isDirectory())
+							games.add(g.path().getCanonicalFile());
+			} catch (IOException | RuntimeException e) {
+				// without them
+			}
+		gameFolders_ = games;
+		return games;
+	}
+
+	private List<File> gameFolders_;
+
+	/** a file that is not in the folder of any game */
+	private boolean notOfAGame(File f) {
+		return gameFolders().stream().noneMatch(g -> g.equals(f) || inside(g, f));
 	}
 
 	/**
@@ -795,7 +832,7 @@ public final class PortableExport {
 			try {
 				File dir = v.getCanonicalPath().getCanonicalFile();
 				if (dir.isDirectory() && !inside(program_, dir) && !inside(data_, dir) && !program_.equals(dir) && !data_.equals(dir))
-					parts.add(new Part(dir, "dosbox/" + dir.getName() + "/", sizeOfQuietly(dir), false, false));
+					parts.add(new Part(dir, "dosbox/" + dir.getName() + "/", sizeOfFiles(dir, this::notOfAGame), false, false)); // without the games in it
 			} catch (IOException | RuntimeException e) {
 				// without it
 			}
@@ -1003,7 +1040,9 @@ public final class PortableExport {
 			return;
 		}
 		String folder = "dosbox/" + dir.getName();
-		addPath(dir, ROOT + folder);
+		// alpha 54 (TEST16): without the games kept in its folder (e.g. all games of ScummVM below its program, 13 GB): those of the
+		// chosen profiles come along with them, into the DOSroot of the stick
+		addTree(dir, ROOT + folder + "/", this::notOfAGame);
 		Path from = Path.of(dosboxDirInZip.isEmpty() ? ".": dosboxDirInZip);
 		String newPath = from.relativize(Path.of(folder)).toString();
 		String exe = v.getExe().getPath().isBlank() ? "": Path.of(newPath, relative(dir, v.getCanonicalExe().getCanonicalFile())).toString();

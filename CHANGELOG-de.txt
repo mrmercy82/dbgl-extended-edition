@@ -136,7 +136,8 @@ Fehler behoben
   und der Platz wird mitgezählt. Die DOSBox-Versionen im Ordner dosbox
   stehen beim Inhalt des Sticks einzeln da (auch ScummVM); mit kommt nur,
   was ein gewähltes Spiel braucht oder angehakt ist, statt des ganzen
-  Ordners. Eine Größe, die DBGL nicht bestimmen
+  Ordners. Spiele, die im Ordner einer DOSBox oder von ScummVM liegen,
+  kommen dabei nicht mit, nur die der gewählten Profile. Eine Größe, die DBGL nicht bestimmen
   konnte (etwa bei ScummVM-Spielen von vor alpha 52), sucht es nach einem
   Tag erneut, auch für die Statistik.
 - Einstellungen > Allgemein: Die Felder für den Ordner der Sicherungen und

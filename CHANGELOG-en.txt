@@ -125,7 +125,9 @@ Fixed
   saved games in the folder saves next to it, back with the way back), and
   the room is counted. The DOSBox versions in the folder dosbox are listed
   one by one in the content of the stick (ScummVM too); only what a chosen
-  game needs or what is ticked goes along, not the whole folder. A size DBGL could not find (e.g. for ScummVM games
+  game needs or what is ticked goes along, not the whole folder. Games kept
+  in the folder of a DOSBox or of ScummVM do not come along with it, only
+  those of the chosen profiles. A size DBGL could not find (e.g. for ScummVM games
   from before alpha 52) is looked for again a day later, also for the
   statistics.
 - Settings > General: the fields for the folder of the backups and the
