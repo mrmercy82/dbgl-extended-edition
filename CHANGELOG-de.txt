@@ -132,6 +132,9 @@ Geändert
   die Maus über ihrer Zeile steht; unten steht weiter die ganze Meldung.
 - USB-Stick: Das ZIP wird zuerst im Ordner export vorgeschlagen statt
   direkt im Datenordner.
+- Profil bearbeiten: Beim ersten Öffnen mit einer DOSBox-Version (nach einem
+  Update einmal je Version) verschwinden die Seiten ohne passende
+  Einstellungen schneller, weil DBGL mehrere Seiten auf einmal aufbaut.
 - macOS: „Profile prüfen...“ weist bei Profilen, die mit DOSBox 0.74-3 im
   Vollbild starten, darauf hin, dass sich 0.74-3 auf neuerem macOS beim
   Wechsel ins Vollbild beendet, mit dem Weg zu DOSBox SVN.
@@ -156,7 +159,7 @@ Fehler behoben
   den zweiten Sicherungsort enden rechts gleich. Ist ScummVM eingeschaltet,
   heißt die Update-Suche „nach neuen DOSBox- und ScummVM-Versionen suchen“.
 - Windows: Ein Ordner, der im Mount anders geschrieben ist als auf der
-  Platte (z. B. „D:\SPIELE“ statt „D:\Spiele“), galt als anderer Ordner.
+  Platte (z. B. „D:\GAMES“ statt „D:\Games“), galt als anderer Ordner.
   Eine Startdatei darin fragte deshalb nach einem eigenen Mount, statt den
   vorhandenen zu nutzen. Groß- und Kleinschreibung zählen unter Windows
   jetzt nicht mehr, wie bei Windows und DOSBox selbst.

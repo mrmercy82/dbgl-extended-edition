@@ -425,7 +425,7 @@ public class Dbgl0102Tests {
 		String mode = settings.getValue("autoexec", "unknownlines");
 		try {
 			settings.setValue("autoexec", "unknownlines", "ask"); // kept in place until the user decides
-			String cd = "mount D \"D:\\Spiele\\DOS\\SPIELE\\MEGA2\\iso\\Mega2_DEU1.iso\" \"D:\\Spiele\\DOS\\SPIELE\\MEGA2\\iso\\Mega2_DEU2.iso\" -t cdrom";
+			String cd = "mount D \"D:\\Games\\DOS\\MEGA2\\iso\\Mega2_DEU1.iso\" \"D:\\Games\\DOS\\MEGA2\\iso\\Mega2_DEU2.iso\" -t cdrom";
 			String odd = "mount E"; // no folder or image: DBGL cannot read it
 			// the game folder relative, as the test also runs on Linux
 			List<String> lines = List.of("@echo off", "mount C \"games\\MEGA2\"", cd, odd, "C:", "cd \\", "cls", "MEGARACE.EXE", "exit");
@@ -732,7 +732,7 @@ public class Dbgl0102Tests {
 	@Test
 	public void testDeathGateLikeCases() throws IOException {
 		File dir = java.nio.file.Files.createTempDirectory("dbgldg").toFile();
-		File games = new File(dir, "SPIELE"), longDir = new File(games, "DEATHGATE"), shortDir = new File(games, "DGATE"), spaces = new File(dir, "Spiele DOS"), cds = new File(dir, "CD Images");
+		File games = new File(dir, "GAMES"), longDir = new File(games, "DEATHGATE"), shortDir = new File(games, "DGATE"), spaces = new File(dir, "Games DOS"), cds = new File(dir, "CD Images");
 		longDir.mkdirs();
 		shortDir.mkdirs();
 		spaces.mkdirs();
@@ -757,7 +757,7 @@ public class Dbgl0102Tests {
 		assertNull(org.dbgl.util.ProfileChecks.withQuotes("mount C \"" + spaces.getPath() + "\""));
 
 		c = new Configuration();
-		c.loadDataWithAutoexec(GenericTextService.getInstance(), "[autoexec]\nmount c SPIELE -pr\nmount d \"" + games.getPath() + "\" -pr\nmount e SPIELE\n", null, null);
+		c.loadDataWithAutoexec(GenericTextService.getInstance(), "[autoexec]\nmount c GAMES -pr\nmount d \"" + games.getPath() + "\" -pr\nmount e GAMES\n", null, null);
 		List<org.dbgl.model.conf.mount.Mount> mounts = c.getAutoexec().getMountingpoints();
 		assertTrue(mounts.get(0).toString(), org.dbgl.util.ProfileChecks.relativeToConf(mounts.get(0)));
 		assertFalse(mounts.get(1).toString(), org.dbgl.util.ProfileChecks.relativeToConf(mounts.get(1))); // absolute: -pr does nothing
@@ -995,7 +995,7 @@ public class Dbgl0102Tests {
 		assertTrue(org.dbgl.util.ProfileChecks.isDosName("GAMES/C&C"));
 		assertFalse(org.dbgl.util.ProfileChecks.isDosName("Death Gate"));
 		assertFalse(org.dbgl.util.ProfileChecks.isDosName("DEATHGATE1"));
-		String base = File.separator + "spiele" + File.separator + "SPIELE";
+		String base = File.separator + "games" + File.separator + "GAMES";
 		assertEquals("DGATE", org.dbgl.util.ProfileChecks.subPathIgnoringCase(base, base + File.separator + "DGATE"));
 		assertNull(org.dbgl.util.ProfileChecks.subPathIgnoringCase(base, base + "X" + File.separator + "DGATE"));
 		assertNull(org.dbgl.util.ProfileChecks.subPathIgnoringCase(base, base));
@@ -1735,10 +1735,10 @@ public class Dbgl0102Tests {
 		assertTrue(dbinfo, dbinfo.contains("cd \\DB-INFO\ndb-info.bat\n") && !dbinfo.contains("exit"));
 		// two CD images on D: (one line each in D-Fend) become one imgmount to swap them; the program on E:, a folder outside of D-Fend
 		org.dbgl.model.conf.dfend.DFendProfConverter.Result cds = conv.apply("cdimages.prof");
-		String isoDir = new File("D:\\Spiele\\DOS\\SPIELE\\C&C\\iso".replace('\\', File.separatorChar)).getPath();
+		String isoDir = new File("D:\\Games\\DOS\\C&C\\iso".replace('\\', File.separatorChar)).getPath();
 		assertTrue(cds.conf(), cds.conf().contains("imgmount D \"" + new File(isoDir, "GDI.iso").getPath() + "\" \"" + new File(isoDir, "NOD.iso").getPath() + "\" -t iso\n"));
 		assertEquals(cds.conf(), 1, cds.conf().split("imgmount D", -1).length - 1);
-		assertTrue(cds.conf(), cds.conf().contains("mount E \"" + new File("D:\\Spiele\\DOS\\SPIELE\\AODCD".replace('\\', File.separatorChar)).getPath() + "\"\n")
+		assertTrue(cds.conf(), cds.conf().contains("mount E \"" + new File("D:\\Games\\DOS\\AODCD".replace('\\', File.separatorChar)).getPath() + "\"\n")
 				&& cds.conf().contains("E:\ncd \\\nAODCD.EXE\nexit\n"));
 		assertTrue(cds.notes().toString(), cds.notes().isEmpty());
 		// DOSBox DOS: no program, a batch file in the autoexec (labels, goto, if exist), DOSBox stays open
@@ -3156,7 +3156,7 @@ public class Dbgl0102Tests {
 		File dir = Files.createTempDirectory("dbgl-svm-").toFile();
 		File ini = new File(dir, "scummvm.ini");
 		Files.writeString(ini.toPath(), "[scummvm]\r\nlastselectedgame=monkey2\r\nversioninfo=2.9.1\r\n\r\n[monkey2]\r\ndescription=Monkey Island 2: LeChuck\u2019s Revenge (DOS/Deutsch)\r\n"
-				+ "path=C:\\Spiele\\Monkey2\r\nengineid=scumm\r\ngameid=monkey2\r\nlanguage=de\r\nplatform=pc\r\n\r\n# a comment\r\n[sky]\r\ngameid=sky\r\npath=sky\r\n"
+				+ "path=C:\\Games\\Monkey2\r\nengineid=scumm\r\ngameid=monkey2\r\nlanguage=de\r\nplatform=pc\r\n\r\n# a comment\r\n[sky]\r\ngameid=sky\r\npath=sky\r\n"
 				+ "description=Beneath a Steel Sky (v0.0372 CD/DOS)\r\n\r\n[keymapper]\r\nkeymap_global_MENU=F5\r\n\r\n[bad target]\r\ngameid=x\r\n\r\n[nogame]\r\npath=x\r\n",
 				StandardCharsets.UTF_8);
 		java.util.List<org.dbgl.util.Scummvm.Game> games = org.dbgl.util.Scummvm.readIni(ini);
@@ -3825,7 +3825,7 @@ public class Dbgl0102Tests {
 	/** alpha 53: the start program guessed for a game recognized by other files */
 	@Test
 	public void testImportGuessMain() {
-		File dir = new File("SPIELE", "BLOOD");
+		File dir = new File("GAMES", "BLOOD");
 		java.util.function.Function<String, File> f = n -> new File(dir, n);
 		java.util.function.BiFunction<List<File>, List<String>, String> guess = (exes, names) -> org.dbgl.gui.dialog.wizard.ImportDirDialog.guessMain(dir, exes, names).map(
 			x -> dir.toPath().relativize(x.toPath()).toString().replace('\\', '/')).orElse("-");
@@ -4137,14 +4137,14 @@ public class Dbgl0102Tests {
 	public void testCheckExportAnonymous() throws Exception {
 		// alpha 53: the folders and names of the user replaced, paths with \\ and / and in any case
 		java.util.Map<String, String> r = new java.util.LinkedHashMap<>();
-		r.put("D:\\Spiele\\DOS\\dosroot", "<DOSROOT>");
-		r.put("D:\\Spiele\\DOS", "<DBGL>");
+		r.put("D:\\Games\\DOS\\dosroot", "<DOSROOT>");
+		r.put("D:\\Games\\DOS", "<DBGL>");
 		r.put("C:\\Users\\Erika", "<HOME>");
 		r.put("Erika", "<USER>");
 		r.put("ab", "<SHORT>"); // too short to be replaced safely
 		java.lang.reflect.Method m = org.dbgl.util.CheckExport.class.getDeclaredMethod("anonymous", String.class, java.util.Map.class);
 		m.setAccessible(true);
-		String out = (String)m.invoke(null, "mount C \"d:/spiele/dos/dosroot/KEEN\"\nconf D:\\Spiele\\DOS\\profiles\\1.conf\nC:\\Users\\Erika\\x erika@example.org Erikas Erika\nabc", r);
+		String out = (String)m.invoke(null, "mount C \"d:/games/dos/dosroot/KEEN\"\nconf D:\\Games\\DOS\\profiles\\1.conf\nC:\\Users\\Erika\\x erika@example.org Erikas Erika\nabc", r);
 		assertEquals("set PATH=<HOME>\\games;<HOME>\\x\n\"<HOME>\"", m.invoke(null, "set PATH=C:\\Users\\Max Muster\\games;/home/max\\x\n\"C:\\Documents and Settings\\Max\"", r));
 		assertEquals("mount C \"<DOSROOT>/KEEN\"\nconf <DBGL>\\profiles\\1.conf\n<HOME>\\x <EMAIL> Erikas <USER>\nabc", out);
 	}
@@ -6704,7 +6704,7 @@ public class Dbgl0102Tests {
 		// what the pictures of the windows paint over
 		assertTrue(org.dbgl.gui.controls.WindowTour.looksLikeKey("8364ae0f983f8484afbb70a4d1030292"));
 		assertTrue(org.dbgl.gui.controls.WindowTour.looksLikeKey(" abcDEF123456ghijkl "));
-		assertFalse(org.dbgl.gui.controls.WindowTour.looksLikeKey("D:\\Spiele\\DOS\\dosroot"));
+		assertFalse(org.dbgl.gui.controls.WindowTour.looksLikeKey("D:\\Games\\DOS\\dosroot"));
 		assertFalse(org.dbgl.gui.controls.WindowTour.looksLikeKey("https://www.mobygames.com/game/123"));
 		assertFalse(org.dbgl.gui.controls.WindowTour.looksLikeKey("DOSBox Staging 0.83.1"));
 		assertFalse(org.dbgl.gui.controls.WindowTour.looksLikeKey("DOSBox-Staging-0.83.1"));
@@ -6974,21 +6974,21 @@ public class Dbgl0102Tests {
 		}
 	}
 
-	/** alpha 54: on Windows "D:\SPIELE" and "D:\Spiele" are the same folder (a start file in a mounted folder needs no mount of its own) */
+	/** alpha 54: on Windows "D:\GAMES" and "D:\Games" are the same folder (a start file in a mounted folder needs no mount of its own) */
 	@Test
 	public void testSamePathIgnoresCaseOnWindows() throws Exception {
 		java.lang.reflect.Method m = org.dbgl.util.FilesUtils.class.getDeclaredMethod("samePath", File.class, File.class, boolean.class);
 		m.setAccessible(true);
-		assertTrue((Boolean)m.invoke(null, new File("/D/SPIELE/BADMOJO"), new File("/D/Spiele/BADMOJO"), true));
-		assertFalse((Boolean)m.invoke(null, new File("/D/SPIELE/BADMOJO"), new File("/D/Spiele/BADMOJO"), false));
-		assertTrue((Boolean)m.invoke(null, new File("/D/Spiele/BADMOJO"), new File("/D/Spiele/BADMOJO"), false));
-		assertFalse((Boolean)m.invoke(null, new File("/D/Spiele/BADMOJO"), new File("/D/Spiele/BADMOJ"), true));
+		assertTrue((Boolean)m.invoke(null, new File("/D/GAMES/BADMOJO"), new File("/D/Games/BADMOJO"), true));
+		assertFalse((Boolean)m.invoke(null, new File("/D/GAMES/BADMOJO"), new File("/D/Games/BADMOJO"), false));
+		assertTrue((Boolean)m.invoke(null, new File("/D/Games/BADMOJO"), new File("/D/Games/BADMOJO"), false));
+		assertFalse((Boolean)m.invoke(null, new File("/D/Games/BADMOJO"), new File("/D/Games/BADMOJ"), true));
 		if (org.dbgl.util.SystemUtils.IS_WINDOWS) {
-			assertTrue(org.dbgl.util.FilesUtils.areRelated(new File("D:\\SPIELE\\BADMOJO"), new File("D:\\Spiele\\BADMOJO\\WINDOWS\\WIN.COM")));
-			assertEquals(new File("WINDOWS\\WIN.COM"), org.dbgl.util.FilesUtils.makeRelativeTo(new File("D:\\SPIELE\\BADMOJO"), new File("D:\\Spiele\\BADMOJO\\WINDOWS\\WIN.COM")));
+			assertTrue(org.dbgl.util.FilesUtils.areRelated(new File("D:\\GAMES\\BADMOJO"), new File("D:\\Games\\BADMOJO\\WINDOWS\\WIN.COM")));
+			assertEquals(new File("WINDOWS\\WIN.COM"), org.dbgl.util.FilesUtils.makeRelativeTo(new File("D:\\GAMES\\BADMOJO"), new File("D:\\Games\\BADMOJO\\WINDOWS\\WIN.COM")));
 		} else {
-			assertTrue(org.dbgl.util.FilesUtils.areRelated(new File("/d/spiele/badmojo"), new File("/d/spiele/badmojo/WINDOWS/WIN.COM")));
-			assertFalse(org.dbgl.util.FilesUtils.areRelated(new File("/d/SPIELE/badmojo"), new File("/d/spiele/badmojo/WINDOWS/WIN.COM")));
+			assertTrue(org.dbgl.util.FilesUtils.areRelated(new File("/d/games/badmojo"), new File("/d/games/badmojo/WINDOWS/WIN.COM")));
+			assertFalse(org.dbgl.util.FilesUtils.areRelated(new File("/d/GAMES/badmojo"), new File("/d/games/badmojo/WINDOWS/WIN.COM")));
 		}
 	}
 

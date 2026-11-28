@@ -758,7 +758,7 @@ public final class ProfileChecks {
 		if (umlaut != null)
 			result.add(new Problem(ConfCharset.umlautProblem(prof.getDosboxVersion()), umlaut, prof.getDosboxVersion().getTitle()));
 
-		// "mount C SPIELE -pr": relative to the folder of the configuration file DOSBox read last, DBGL cannot check that
+		// "mount C GAMES -pr": relative to the folder of the configuration file DOSBox read last, DBGL cannot check that
 		for (Mount m: autoexec.getMountingpoints())
 			if (relativeToConf(m))
 				result.add(new Problem("mountpr", m.toString()));
@@ -882,7 +882,7 @@ public final class ProfileChecks {
 	}
 
 	/**
-	 * "mount C D:\\Spiele DOS\\DGATE": a path with spaces, without quotes, that exists as a whole
+	 * "mount C D:\\Games DOS\\DGATE": a path with spaces, without quotes, that exists as a whole
 	 *
 	 * @return the line with the path in quotes, or null
 	 */
@@ -908,7 +908,7 @@ public final class ProfileChecks {
 
 	private static final Pattern PR_OPTION = Pattern.compile("(?:^|\\s)-pr(?:\\s|$)", Pattern.CASE_INSENSITIVE);
 
-	/** "mount C SPIELE -pr": DOSBox takes the relative path from the folder of the configuration file it read last */
+	/** "mount C GAMES -pr": DOSBox takes the relative path from the folder of the configuration file it read last */
 	public static boolean relativeToConf(Mount m) {
 		if (m.isUnmounted() || !PR_OPTION.matcher(m.toString()).find())
 			return false;
@@ -1448,7 +1448,7 @@ public final class ProfileChecks {
 
 	/**
 	 * "not on a mounted drive"; on Windows, where a folder is the same whatever the case of its name, the cause may be just
-	 * that: DBGL compares the names exactly (e.g. "d:\spiele" typed in a DOSBox configuration, "D:\Spiele\..." chosen in DBGL)
+	 * that: DBGL compares the names exactly (e.g. "d:\games" typed in a DOSBox configuration, "D:\Games\..." chosen in DBGL)
 	 */
 	static Problem notReachable(Profile prof, File file, List<Mount> netto, boolean windows) {
 		if (windows) {

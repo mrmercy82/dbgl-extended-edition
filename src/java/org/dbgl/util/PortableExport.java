@@ -73,7 +73,7 @@ public final class PortableExport {
 	/**
 	 * what goes into the ZIP file
 	 *
-	 * @param all all profiles: the games of the others are left out of the program folder (e.g. a folder "Spiele" next to DBGL)
+	 * @param all all profiles: the games of the others are left out of the program folder (e.g. a folder "Games" next to DBGL)
 	 * @param excluded parts of DBGL (from {@link #parts()}) that are not wanted, e.g. a folder of backups
 	 */
 	public record Options(List<Profile> profiles, List<Profile> all, File zip, boolean java, Set<File> excluded) {
@@ -136,7 +136,7 @@ public final class PortableExport {
 		profiles.forEach(p -> ids.add(p.getId()));
 
 		// the program, and the data that is the same for all profiles, without the parts not wanted; without the games of any
-		// profile (e.g. a folder "Spiele" next to DBGL): only those of the chosen ones come along, below
+		// profile (e.g. a folder "Games" next to DBGL): only those of the chosen ones come along, below
 		java.util.function.Predicate<File> common = commonFiles();
 		java.util.function.Predicate<File> wanted = f -> options_.excluded().stream().noneMatch(x -> f.equals(x) || inside(x, f));
 		addTree(program_, ROOT, f -> common.test(f) && wanted.test(f));
@@ -198,8 +198,8 @@ public final class PortableExport {
 			for (Need n: needs.get(p.getId()))
 				if (!n.dir() && n.files().isEmpty())
 					notes_.add(p.getTitle() + ": " + n.path().getPath());
-			// the paths may be written in another case than the folder really has (D:\SPIELE for D:\Spiele, Windows does not
-			// mind): each spelling found is moved (test 13: "mount d D:\SPIELE\...\congo.iso" stayed as it was)
+			// the paths may be written in another case than the folder really has (D:\GAMES for D:\Games, Windows does not
+			// mind): each spelling found is moved (test 13: "mount d D:\GAMES\...\congo.iso" stayed as it was)
 			for (Map.Entry<File, String> moved: roots.entrySet())
 				for (String spelling: spellings(p, moved.getKey()))
 					p.migrate(new FileLocation(spelling, FileLocationService.standard()), new FileLocation(moved.getValue(), FileLocationService.getInstance().dosrootRelative()));

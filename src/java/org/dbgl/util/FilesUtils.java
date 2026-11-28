@@ -594,8 +594,8 @@ public class FilesUtils {
 	}
 
 	/**
-	 * EE alpha 54: the same folder. Ronald's code compared the paths also letter by letter, so that on Windows "D:\SPIELE" (typed
-	 * into a mount) and "D:\Spiele" (as the file dialog gives it) were different folders, and a start file in the mounted folder
+	 * EE alpha 54: the same folder. Ronald's code compared the paths also letter by letter, so that on Windows "D:\GAMES" (typed
+	 * into a mount) and "D:\Games" (as the file dialog gives it) were different folders, and a start file in the mounted folder
 	 * asked for a mount of its own. On Windows the case does not count (as for Windows itself and DOSBox there); elsewhere as before.
 	 */
 	public static boolean samePath(File a, File b) {

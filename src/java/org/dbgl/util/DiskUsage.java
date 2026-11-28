@@ -59,7 +59,7 @@ public final class DiskUsage {
 	private static final String FILE = "disksizes.properties", FORMAT = "2";
 	/**
 	 * alpha 49: the folders the games are in ("games folders": a folder with the game folders of two or more profiles directly
-	 * in it, e.g. D:\\SPIELE), each with its whole size; kept in the file as "root|<path>"
+	 * in it, e.g. D:\\GAMES), each with its whole size; kept in the file as "root|<path>"
 	 */
 	private static final Map<String, Entry> ROOTS = new ConcurrentHashMap<>();
 	private static final String ROOT_KEY = "root|";
@@ -175,7 +175,7 @@ public final class DiskUsage {
 
 	/**
 	 * alpha 49: the games folders: the folders that hold the game folders of two or more profiles directly (not one inside
-	 * another one of them), e.g. D:\\SPIELE with a folder per game
+	 * another one of them), e.g. D:\\GAMES with a folder per game
 	 */
 	public static List<String> rootPaths(java.util.Collection<String> gameFolders) {
 		Map<String, Set<String>> children = new HashMap<>();

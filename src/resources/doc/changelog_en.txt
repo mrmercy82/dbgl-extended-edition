@@ -122,6 +122,9 @@ Changed
   is over their line; the whole message is still shown below.
 - USB stick: the ZIP is first proposed in the folder export instead of the
   data folder itself.
+- Edit profile: the first time it opens with a DOSBox version (once per
+  version after an update) the pages without settings for it go away
+  sooner, as DBGL builds several pages at a time.
 - macOS: "Check profiles..." tells of profiles that start in full screen with
   DOSBox 0.74-3 that 0.74-3 closes on newer macOS when it goes to full screen,
   with the way to DOSBox SVN.
@@ -146,7 +149,7 @@ Fixed
   second place end at the same right edge. With ScummVM on, the update
   check reads "Look for new DOSBox and ScummVM versions once a day".
 - Windows: a folder written differently in a mount than on the disk (e.g.
-  "D:\SPIELE" instead of "D:\Spiele") counted as another folder, so a
+  "D:\GAMES" instead of "D:\Games") counted as another folder, so a
   start file in it asked for a mount of its own instead of using the one
   there. On Windows the case no longer counts, as for Windows and DOSBox
   themselves.

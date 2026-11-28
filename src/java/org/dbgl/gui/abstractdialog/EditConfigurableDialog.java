@@ -439,15 +439,24 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 	 * the pages one by one, DBGL answering in between (alpha 48: all at once froze it for about two seconds the first time a
 	 * DOSBox version was shown); then the empty ones are left out
 	 */
+	private static final long SLICE_NANOS = 60_000_000L;
+
 	private void buildPagesStepwise() {
 		stepwise_ = true;
-		display_.timerExec(20, () -> { // a pause in between: what the user does, and painting, come first
+		display_.timerExec(10, () -> { // a pause in between: what the user does, and painting, come first
 			if (shell_.isDisposed() || closedAhead_) { // closed meanwhile: its controls go away in parts
 				stepwise_ = false;
 				afterPages_.clear();
 				return;
 			}
-			if (computeNextPage(currentConfigurable())) {
+			// alpha 54: as many pages as fit into a short time slice (one page per 20 ms took a few seconds until the empty pages
+			// went away); then a pause again, so that what the user does and painting still come in between
+			long until = System.nanoTime() + SLICE_NANOS;
+			boolean more;
+			do
+				more = computeNextPage(currentConfigurable());
+			while (more && (System.nanoTime() < until));
+			if (more) {
 				buildPagesStepwise();
 				return;
 			}
