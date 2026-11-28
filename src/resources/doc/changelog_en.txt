@@ -7,9 +7,16 @@ Based on DBGL 0.100 beta 17 by Ronald Blankendaal (https://dbgl.org), source cod
 0.101 alpha 54 (in progress)
 ----------------------------
 New
+- macOS: DOSBox SVN r4484 as a universal app (Intel and Apple Silicon) in
+  the package – built, signed and notarized by Dominus, included unchanged
+  (DBGL checks the signature when the package is made). New installations
+  take it as the default, DOSBox 0.74-3 stays beside it; an existing one asks
+  once, with the reasons (no Rosetta, no crash in full screen) and what it
+  means for the profiles. Thanks to Dominus for keeping DOSBox alive on the
+  Mac for years.
 - Start games from a ZIP, with every DOSBox version: Profiles > Import >
-  "Game from a ZIP file..." (or dropping a ZIP on DBGL that is not an export
-  of DBGL) opens a new profile with the archive as drive C: and its most
+  "Import game(s) from ZIP file(s)..." (or dropping a ZIP on DBGL that is not
+  an export of DBGL) opens a new profile with the archive as drive C: and its most
   likely start program, as the profile dialog of Ronald Blankendaal's DBGL
   could do already ("Mount Zip"). At the start:
   - DOSBox-X 0.84.1 and newer mounts the archive itself (read-only); what
@@ -29,9 +36,9 @@ New
   7z archives start with DOSBox-X only;
   "Check" says so for other versions. The fields "Zip" and "Write" in the
   mount dialog have tooltips.
-- Several ZIPs at once: the file dialog of "Game from a ZIP file..." takes
-  several (or drop several on DBGL); DBGL shows the list with title (from the
-  file name) and start program and, when confirmed, creates all profiles
+- Several ZIPs at once: the file dialog of "Import game(s) from ZIP
+  file(s)..." takes several (or drop several on DBGL); DBGL shows the list
+  with title (from the file name) and start program and, when confirmed, creates all profiles
   without the profile dialog, with the default template and DOSBox version.
   ZIPs without a DOS program are named and left out. Titles, details and
   covers then come with "Complete profiles...".
@@ -68,13 +75,6 @@ New
   and the DOSBox version it brings back title, details, notes, links, own
   fields and series; the preview and the window of the undo show these
   changes too.
-- macOS: DOSBox SVN r4484 as a universal app (Intel and Apple Silicon) in
-  the package – built, signed and notarized by Dominus, included unchanged
-  (DBGL checks the signature when the package is made). New installations
-  take it as the default, DOSBox 0.74-3 stays beside it; an existing one asks
-  once, with the reasons (no Rosetta, no crash in full screen) and what it
-  means for the profiles. Thanks to Dominus for keeping DOSBox alive on the
-  Mac for years.
 - After an update DBGL says at the first start that it backed up the data
   before (database, configurations, settings), where the backup is and how
   to get it back. It did so before as well, only without saying it; this
