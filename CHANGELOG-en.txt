@@ -124,7 +124,9 @@ Changed
   data folder itself.
 - Edit profile: the first time it opens with a DOSBox version (once per
   version after an update) the pages without settings for it go away
-  sooner, as DBGL builds several pages at a time.
+  sooner, as DBGL builds several pages at a time. When it takes longer, a
+  small bar next to the buttons tells that the pages are being prepared and
+  why.
 - macOS: "Check profiles..." tells of profiles that start in full screen with
   DOSBox 0.74-3 that 0.74-3 closes on newer macOS when it goes to full screen,
   with the way to DOSBox SVN.

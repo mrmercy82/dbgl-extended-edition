@@ -135,6 +135,8 @@ Geändert
 - Profil bearbeiten: Beim ersten Öffnen mit einer DOSBox-Version (nach einem
   Update einmal je Version) verschwinden die Seiten ohne passende
   Einstellungen schneller, weil DBGL mehrere Seiten auf einmal aufbaut.
+  Dauert es länger, zeigt ein kleiner Balken neben den Knöpfen, dass die
+  Seiten vorbereitet werden und warum.
 - macOS: „Profile prüfen...“ weist bei Profilen, die mit DOSBox 0.74-3 im
   Vollbild starten, darauf hin, dass sich 0.74-3 auf neuerem macOS beim
   Wechsel ins Vollbild beendet, mit dem Weg zu DOSBox SVN.

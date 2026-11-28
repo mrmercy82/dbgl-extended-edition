@@ -440,8 +440,46 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 	 * DOSBox version was shown); then the empty ones are left out
 	 */
 	private static final long SLICE_NANOS = 60_000_000L;
+	/** alpha 54: the bar is shown only when the pages take longer than this (no flicker when it is quick) */
+	private static final long PROGRESS_AFTER_NANOS = 300_000_000L;
+	private long stepwiseStart_;
+	private int pagesTotal_;
+	private Composite pagesProgress_;
+	private org.eclipse.swt.widgets.Label pagesLabel_;
+	private org.eclipse.swt.widgets.ProgressBar pagesBar_;
+
+	/**
+	 * alpha 54: while the pages are built the first time (for this DOSBox version, after an update): a small bar next to the
+	 * buttons that says why the window still changes
+	 */
+	private void showPagesProgress() {
+		if ((pagesProgress_ == null) || pagesProgress_.isDisposed() || (System.nanoTime() - stepwiseStart_ < PROGRESS_AFTER_NANOS))
+			return;
+		if (!pagesProgress_.getVisible()) {
+			DosboxVersion db = currentConfigurable().getDosboxVersion();
+			pagesLabel_.setText(TextService.getInstance().get("dialog.template.preparingpages", new Object[] {db == null ? "DOSBox": db.getTitle()}));
+			pagesLabel_.setToolTipText(TextService.getInstance().get("dialog.template.preparingpages.tooltip"));
+			pagesBar_.setMaximum(pagesTotal_);
+			pagesProgress_.setVisible(true);
+			((GridData)pagesProgress_.getLayoutData()).exclude = false;
+			okCancelButtons_.getParent().layout(true, true);
+		}
+		pagesBar_.setSelection(Math.max(0, pagesTotal_ - pagesToCompute()));
+	}
+
+	private void hidePagesProgress() {
+		if ((pagesProgress_ == null) || pagesProgress_.isDisposed() || !pagesProgress_.getVisible())
+			return;
+		pagesProgress_.setVisible(false);
+		((GridData)pagesProgress_.getLayoutData()).exclude = true;
+		okCancelButtons_.getParent().layout(true, true);
+	}
 
 	private void buildPagesStepwise() {
+		if (!stepwise_) {
+			stepwiseStart_ = System.nanoTime();
+			pagesTotal_ = Math.max(1, pagesToCompute());
+		}
 		stepwise_ = true;
 		display_.timerExec(10, () -> { // a pause in between: what the user does, and painting, come first
 			if (shell_.isDisposed() || closedAhead_) { // closed meanwhile: its controls go away in parts
@@ -449,6 +487,7 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 				afterPages_.clear();
 				return;
 			}
+			showPagesProgress();
 			// alpha 54: as many pages as fit into a short time slice (one page per 20 ms took a few seconds until the empty pages
 			// went away); then a pause again, so that what the user does and painting still come in between
 			long until = System.nanoTime() + SLICE_NANOS;
@@ -461,6 +500,7 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 				return;
 			}
 			stepwise_ = false;
+			hidePagesProgress();
 			updatePageTree(currentConfigurable(), true);
 			List<Runnable> after = new ArrayList<>(afterPages_);
 			afterPages_.clear();
@@ -483,6 +523,22 @@ public abstract class EditConfigurableDialog<T> extends SizeControlledPagedDialo
 		GridData data = new GridData(SWT.BEGINNING, SWT.CENTER, false, false);
 		data.horizontalIndent = 16;
 		showAll.setLayoutData(data);
+		// alpha 54: the bar for the first building of the pages, hidden until needed
+		layout.numColumns++;
+		pagesProgress_ = new Composite(okCancelButtons_, SWT.NONE);
+		GridLayout pl = new GridLayout(2, false);
+		pl.marginHeight = 0;
+		pagesProgress_.setLayout(pl);
+		GridData pd = new GridData(SWT.BEGINNING, SWT.CENTER, false, false);
+		pd.horizontalIndent = 16;
+		pd.exclude = true;
+		pagesProgress_.setLayoutData(pd);
+		pagesProgress_.setVisible(false);
+		pagesLabel_ = new org.eclipse.swt.widgets.Label(pagesProgress_, SWT.NONE);
+		pagesBar_ = new org.eclipse.swt.widgets.ProgressBar(pagesProgress_, SWT.SMOOTH);
+		GridData bd = new GridData(SWT.BEGINNING, SWT.CENTER, false, false);
+		bd.widthHint = 120;
+		pagesBar_.setLayoutData(bd);
 		showAll.setSelection(!SettingsService.getInstance().getBooleanValue("gui", "hideunsupportedsettings"));
 		showAll.addListener(SWT.Selection, e -> {
 			SettingsService.getInstance().setBooleanValue("gui", "hideunsupportedsettings", !showAll.getSelection());
