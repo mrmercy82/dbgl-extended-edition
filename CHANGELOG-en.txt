@@ -11,9 +11,9 @@ New
   the package – built, signed and notarized by Dominus, included unchanged
   (DBGL checks the signature when the package is made). New installations
   take it as the default, DOSBox 0.74-3 stays beside it; an existing one asks
-  once, with the reasons (no Rosetta, no crash in full screen) and what it
-  means for the profiles. Thanks to Dominus for keeping DOSBox alive on the
-  Mac for years: https://www.vogons.org/viewtopic.php?t=88211
+  once, with the reasons (no Rosetta, no more crashing in full screen) and
+  what it means for the profiles. Thanks to Dominus for keeping DOSBox alive
+  on the Mac for years: https://www.vogons.org/viewtopic.php?t=88211
 - Start games from a ZIP, with every DOSBox version: Profiles > Import >
   "Import game(s) from ZIP file(s)..." (or dropping a ZIP on DBGL that is not
   an export of DBGL) opens a new profile with the archive as drive C: and its
@@ -103,9 +103,10 @@ New
   context menu under Tools).
 
 Changed
-- macOS: "Check profiles..." tells of profiles that start in full screen with
-  DOSBox 0.74-3 that 0.74-3 closes on newer macOS when it goes to full screen,
-  with the way to DOSBox SVN.
+- macOS: "Check profiles..." warns about profiles that start in full screen
+  with DOSBox 0.74-3, which closes on newer macOS when it goes to full
+  screen, and recommends switching to the included DOSBox SVN universal
+  build.
 - ScummVM in the import from a folder: when ScummVM is entered in DBGL, DBGL
   lets ScummVM look through the folder after the import (it recognizes its
   games by the checksums of their files). Games without a profile are

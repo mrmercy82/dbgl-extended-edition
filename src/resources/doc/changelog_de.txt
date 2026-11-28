@@ -11,9 +11,9 @@ Neu
   Paket – gebaut, signiert und von Apple beglaubigt von Dominus, unverändert
   übernommen (DBGL prüft die Signatur beim Bauen des Pakets). Neue
   Installationen nehmen es als Standard, DOSBox 0.74-3 bleibt daneben; eine
-  bestehende Installation fragt einmal, mit Gründen (ohne Rosetta, kein
-  Absturz im Vollbild) und Auswirkungen auf die Profile. Danke an Dominus,
-  der DOSBox auf dem Mac seit Jahren am Leben hält:
+  bestehende Installation fragt einmal, mit Gründen (ohne Rosetta, keine
+  Abstürze mehr im Vollbild) und Auswirkungen auf die Profile. Danke an
+  Dominus, der DOSBox auf dem Mac seit Jahren am Leben hält:
   https://www.vogons.org/viewtopic.php?t=88211
 - Spiele aus einem ZIP starten, mit jeder DOSBox-Version: Profile >
   Importieren > „Spiel(e) aus ZIP-Datei(en) importieren...“ (oder ein ZIP auf
@@ -115,9 +115,10 @@ Neu
   Werkzeuge).
 
 Geändert
-- macOS: „Profile prüfen...“ weist bei Profilen, die mit DOSBox 0.74-3 im
-  Vollbild starten, darauf hin, dass sich 0.74-3 auf neuerem macOS beim
-  Wechsel ins Vollbild beendet, mit dem Weg zu DOSBox SVN.
+- macOS: „Profile prüfen...“ warnt bei Profilen, die mit DOSBox 0.74-3 im
+  Vollbild starten (0.74-3 beendet sich auf neuerem macOS beim Wechsel ins
+  Vollbild), und empfiehlt den Wechsel auf den mitgelieferten
+  Universal-Build von DOSBox SVN.
 - ScummVM beim Import aus einem Ordner: Ist ScummVM in DBGL eingetragen,
   lässt DBGL nach dem Import ScummVM selbst im Ordner suchen (es erkennt
   seine Spiele an den Prüfsummen ihrer Dateien). Spiele ohne Profil bietet
