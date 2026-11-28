@@ -359,6 +359,7 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		display_.asyncExec(this::moveSavegames); // alpha 52: before the automatic backup, so that it has them at their new place
 		display_.asyncExec(this::welcomeIfDue); // alpha 53
 		display_.asyncExec(this::offerSvnMacIfDue); // alpha 55
+		display_.asyncExec(this::tellVersionBackup); // alpha 54 (TEST18)
 		display_.asyncExec(this::autoBackupIfDue);
 		display_.asyncExec(this::cleanUpAfterEditionUpdate);
 		applyScreenshotRule(); // alpha 49: shown or hidden as the settings say for this view
@@ -6985,6 +6986,18 @@ public class MainWindow extends SizeControlledDialog<Boolean> implements ReOrder
 		} catch (SQLException e) {
 			Mess_.on(shell_).exception(e).warning();
 		}
+	}
+
+	/**
+	 * alpha 54 (TEST18): the data was kept before this version ran for the first time (VersionBackup, before the database was
+	 * opened): said once, with where it is and how to get it back, so that nobody has to back up by hand before an update
+	 */
+	private void tellVersionBackup() {
+		File made = org.dbgl.util.VersionBackup.made();
+		if (shell_.isDisposed() || (made == null) || !made.isFile())
+			return;
+		Mess_.on(shell_).key("dialog.main.notice.versionbackup", new Object[] {org.dbgl.util.EditionUpdateChecker.readable(Constants.PROGRAM_VERSION), made.getPath(),
+			SettingsDialog.placeText(text_.get("dialog.backups.menu"))}).display();
 	}
 
 	/**

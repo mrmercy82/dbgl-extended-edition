@@ -83,6 +83,11 @@ Neu
   bestehende Installation fragt einmal, mit Gründen (ohne Rosetta, kein
   Absturz im Vollbild) und Auswirkungen auf die Profile. Danke an Dominus,
   der DOSBox auf dem Mac seit Jahren am Leben hält.
+- Nach einem Update sagt DBGL beim ersten Start, dass es die Daten vorher
+  gesichert hat (Datenbank, Konfigurationen, Einstellungen), wo die
+  Sicherung liegt und wie man sie zurückholt. Gesichert hat es schon
+  bisher, nur ohne es zu sagen; das gilt auch, wenn man ein Update von Hand
+  entpackt oder auf dem Mac die App ersetzt.
 - Befehl oder Einstellung suchen (Strg+K, auf dem Mac Cmd+K, oder Hilfe >
   „Befehl oder Einstellung suchen...“): ein Wort eintippen, und DBGL zeigt
   alle passenden Befehle aus den Menüs (auch dem Kontextmenü eines Profils)

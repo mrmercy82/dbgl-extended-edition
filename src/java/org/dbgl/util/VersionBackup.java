@@ -49,6 +49,12 @@ public final class VersionBackup {
 	static final int KEEP = 3;
 
 	private static boolean done_;
+	/** alpha 54 (TEST18): the backup made at this start (to tell the user), or null */
+	private static File made_;
+
+	public static File made() {
+		return made_;
+	}
 
 	private VersionBackup() {
 	}
@@ -67,6 +73,7 @@ public final class VersionBackup {
 			boolean existing = (dbDir != null) && dbDir.isDirectory() && (databaseFiles(dbDir).length > 0);
 			if (existing) {
 				File zip = backup(dbDir, last);
+				made_ = zip;
 				System.out.println("Before the first start of " + Constants.PROGRAM_VERSION + " (last run: " + (last == null || last.isEmpty() ? "unknown": last) + "), data kept in " + zip);
 			}
 			settings.setValue(SECTION, ITEM, Constants.PROGRAM_VERSION);

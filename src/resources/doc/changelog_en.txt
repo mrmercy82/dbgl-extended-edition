@@ -75,6 +75,11 @@ New
   once, with the reasons (no Rosetta, no crash in full screen) and what it
   means for the profiles. Thanks to Dominus for keeping DOSBox alive on the
   Mac for years.
+- After an update DBGL says at the first start that it backed up the data
+  before (database, configurations, settings), where the backup is and how
+  to get it back. It did so before as well, only without saying it; this
+  also holds when an update is unpacked by hand or the app is replaced on
+  the Mac.
 - Find a command or setting (Ctrl+K, on the Mac Cmd+K, or Help > "Find
   command or setting..."): type a word, and DBGL shows all fitting commands
   of the menus (also the context menu of a profile) and all settings, with
