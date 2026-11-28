@@ -45,8 +45,10 @@ final class WinSubclass {
 	private static final int WM_ENABLE = 0x000A, WM_SETTEXT = 0x000C;
 	private static final int HTNOWHERE = 0, HTCLIENT = 1, HTBORDER = 18;
 
-	private record Entry(long oldProc, Control control, int lineHeight, boolean ownerDraw, long comboHandle) {
+	private record Entry(long oldProc, Control control, int lineHeight, boolean ownerDraw, long comboHandle, boolean upDown) {
 	}
+
+	private static final int WM_PAINT = 0x000F, WM_ERASEBKGND = 0x0014, WM_LBUTTONDOWN = 0x0201, WM_LBUTTONUP = 0x0202, WM_CAPTURECHANGED = 0x0215;
 
 	private static WinSubclass instance_;
 	private static boolean failed_;
@@ -254,6 +256,103 @@ final class WinSubclass {
 		}
 	}
 
+	/**
+	 * alpha 54 (TEST23): the arrows of a spinner: Windows draws them light also in dark mode (SWT cannot change that). The
+	 * window of the arrows is painted by DBGL instead: two dark halves with an arrow each, the pressed one lighter.
+	 */
+	static void darkUpDown(org.eclipse.swt.widgets.Spinner s) {
+		WinSubclass w = get();
+		if (w == null)
+			return;
+		try {
+			java.lang.reflect.Field f = org.eclipse.swt.widgets.Spinner.class.getDeclaredField("hwndUpDown");
+			f.setAccessible(true);
+			long hwnd = f.getLong(s);
+			if ((hwnd == 0) || w.entries_.containsKey(hwnd))
+				return;
+			long old = (Long)w.get_.invoke(null, hwnd, w.gwlpWndProc_);
+			if (old == 0 || old == w.address_)
+				return;
+			w.entries_.put(hwnd, new Entry(old, s, 0, false, 0, true));
+			w.set_.invoke(null, hwnd, w.gwlpWndProc_, w.address_);
+			w.os_.getMethod("InvalidateRect", long.class, w.rect_, boolean.class).invoke(null, hwnd, null, true);
+		} catch (ReflectiveOperationException | RuntimeException e) {
+			// as it is
+		}
+	}
+
+	private long upDownProc(long hwnd, Entry e, long msg, long wParam, long lParam) throws ReflectiveOperationException {
+		if (msg == WM_ERASEBKGND)
+			return 1; // all of it is painted below
+		if (msg == WM_PAINT) {
+			Class<?> psClass = Class.forName("org.eclipse.swt.internal.win32.PAINTSTRUCT");
+			Object ps = psClass.getConstructor().newInstance();
+			long dc = (Long)os_.getMethod("BeginPaint", long.class, psClass).invoke(null, hwnd, ps);
+			try {
+				paintUpDown(hwnd, dc, e);
+			} finally {
+				os_.getMethod("EndPaint", long.class, psClass).invoke(null, hwnd, ps);
+			}
+			return 0;
+		}
+		long result = (Long)call_.invoke(null, e.oldProc(), hwnd, (int)msg, wParam, lParam);
+		if ((msg == WM_LBUTTONDOWN) || (msg == WM_LBUTTONUP) || (msg == WM_CAPTURECHANGED) || (msg == WM_ENABLE))
+			os_.getMethod("InvalidateRect", long.class, rect_, boolean.class).invoke(null, hwnd, null, false); // pressed or not
+		return result;
+	}
+
+	private void paintUpDown(long hwnd, long dc, Entry e) throws ReflectiveOperationException {
+		Object cr = rect_.getConstructor().newInstance();
+		getClientRect_.invoke(null, hwnd, cr);
+		int w = rect_.getField("right").getInt(cr), h = rect_.getField("bottom").getInt(cr);
+		if (w <= 0 || h <= 0)
+			return;
+		boolean enabled = (Boolean)os_.getMethod("IsWindowEnabled", long.class).invoke(null, hwnd) && !e.control().isDisposed() && e.control().isEnabled();
+		// which half the mouse holds down (the control has the mouse captured while a button is pressed)
+		int pressed = -1;
+		if (enabled && ((Short)os_.getMethod("GetKeyState", int.class).invoke(null, 0x01 /* VK_LBUTTON */) < 0)) {
+			Class<?> pointClass = Class.forName("org.eclipse.swt.internal.win32.POINT");
+			Object p = pointClass.getConstructor().newInstance();
+			os_.getMethod("GetCursorPos", pointClass).invoke(null, p);
+			os_.getMethod("ScreenToClient", long.class, pointClass).invoke(null, hwnd, p);
+			int px = pointClass.getField("x").getInt(p), py = pointClass.getField("y").getInt(p);
+			if (px >= 0 && px < w && py >= 0 && py < h)
+				pressed = py < h / 2 ? 0: 1;
+		}
+		int field = colorRef(DarkTheme.fieldBackground.getRGB()), button = colorRef(DarkTheme.buttonBackground.getRGB()),
+				down = colorRef(DarkTheme.frameForeground.getRGB()), line = colorRef(DarkTheme.dialogBackground.getRGB()),
+				arrow = colorRef((enabled ? DarkTheme.defaultForeground: DarkTheme.dimForeground).getRGB());
+		fillColor(dc, 0, 0, w, h, field);
+		int half = h / 2;
+		for (int i = 0; i < 2; i++) {
+			int top = i == 0 ? 0: half, bottom = i == 0 ? half: h;
+			fillColor(dc, 1, top + (i == 0 ? 1: 0), w - 1, bottom - (i == 1 ? 1: 0), pressed == i ? down: button);
+			// the arrow: a small triangle in the middle of its half
+			int aw = Math.max(5, Math.min(w - 6, (bottom - top) * 4 / 5)) | 1, ah = (aw + 1) / 2, cx = w / 2, cy = (top + bottom) / 2;
+			int[] pts = i == 0 ? new int[] {cx - aw / 2, cy + ah / 2, cx + aw / 2, cy + ah / 2, cx, cy - ah / 2}
+					: new int[] {cx - aw / 2, cy - ah / 2, cx + aw / 2, cy - ah / 2, cx, cy + ah / 2};
+			long brush = (Long)createBrush_.invoke(null, arrow);
+			long pen = (Long)os_.getMethod("CreatePen", int.class, int.class, int.class).invoke(null, 0, 1, arrow);
+			Method select = os_.getMethod("SelectObject", long.class, long.class);
+			long oldBrush = (Long)select.invoke(null, dc, brush), oldPen = (Long)select.invoke(null, dc, pen);
+			os_.getMethod("Polygon", long.class, int[].class, int.class).invoke(null, dc, pts, 3);
+			select.invoke(null, dc, oldBrush);
+			select.invoke(null, dc, oldPen);
+			deleteObject_.invoke(null, brush);
+			deleteObject_.invoke(null, pen);
+		}
+		fillColor(dc, 1, half, w - 1, half + 1, line); // between the two
+	}
+
+	private void fillColor(long dc, int left, int top, int right, int bottom, int color) throws ReflectiveOperationException {
+		long brush = (Long)createBrush_.invoke(null, color);
+		try {
+			fill(dc, brush, left, top, right, bottom);
+		} finally {
+			deleteObject_.invoke(null, brush);
+		}
+	}
+
 	/** a push button drawn only by DBGL (its paint listener) */
 	static void ownerDraw(Button b) {
 		WinSubclass w = get();
@@ -310,7 +409,7 @@ final class WinSubclass {
 		long old = (Long)get_.invoke(null, hwnd, gwlpWndProc_);
 		if (old == 0 || old == address_)
 			return;
-		entries_.put(hwnd, new Entry(old, c, lineHeight, ownerDraw, combo));
+		entries_.put(hwnd, new Entry(old, c, lineHeight, ownerDraw, combo, false));
 		set_.invoke(null, hwnd, gwlpWndProc_, address_);
 		if (ownerDraw)
 			return;
@@ -336,6 +435,8 @@ final class WinSubclass {
 				set_.invoke(null, hwnd, gwlpWndProc_, e.oldProc());
 				return (Long)call_.invoke(null, e.oldProc(), hwnd, (int)msg, wParam, lParam);
 			}
+			if (e.upDown())
+				return upDownProc(hwnd, e, msg, wParam, lParam);
 			if (e.ownerDraw() && msg == BM_SETSTYLE) // SWT makes a button the default one this way: it stays drawn by DBGL
 				wParam = (wParam & ~BS_TYPEMASK) | BS_OWNERDRAW;
 			if (e.comboHandle() != 0 && msg == WM_WINDOWPOSCHANGING && lParam != 0)

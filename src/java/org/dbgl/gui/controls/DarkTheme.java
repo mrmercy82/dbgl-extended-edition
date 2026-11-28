@@ -272,6 +272,8 @@ public class DarkTheme {
 			centerText(t);
 		} else if (c instanceof org.eclipse.swt.widgets.Spinner) {
 			centerText(c); // alpha 49: the number of a spinner too (test 11: it stood at the top of its field)
+			if (org.dbgl.util.SystemUtils.IS_WINDOWS)
+				WinSubclass.darkUpDown((org.eclipse.swt.widgets.Spinner)c); // alpha 54: its arrows dark too
 		}
 	}
 

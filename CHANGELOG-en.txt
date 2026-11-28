@@ -104,6 +104,9 @@ New
   context menu under Tools).
 
 Changed
+- macOS: "Check profiles..." tells of profiles that start in full screen with
+  DOSBox 0.74-3 that 0.74-3 closes on newer macOS when it goes to full screen,
+  with the way to DOSBox SVN.
 - ScummVM in the import from a folder: when ScummVM is entered in DBGL, DBGL
   lets ScummVM look through the folder after the import (it recognizes its
   games by the checksums of their files). Games without a profile are
@@ -127,11 +130,10 @@ Changed
   sooner, as DBGL builds several pages at a time. When it takes longer, a
   small bar next to the buttons tells that the pages are being prepared and
   why.
-- macOS: "Check profiles..." tells of profiles that start in full screen with
-  DOSBox 0.74-3 that 0.74-3 closes on newer macOS when it goes to full screen,
-  with the way to DOSBox SVN.
 
 Fixed
+- Dark mode on Windows: the arrows of number fields (e.g. "Part" in the
+  profile) were light. DBGL now draws them dark itself.
 - USB stick: games of ScummVM came onto the stick without their folder, and
   their room was not counted. Now the folder goes along, with a scummvm.ini
   of its own for the ScummVM on the stick (without paths of this computer,

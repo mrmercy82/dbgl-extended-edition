@@ -114,6 +114,9 @@ Neu
   Werkzeuge).
 
 Geändert
+- macOS: „Profile prüfen...“ weist bei Profilen, die mit DOSBox 0.74-3 im
+  Vollbild starten, darauf hin, dass sich 0.74-3 auf neuerem macOS beim
+  Wechsel ins Vollbild beendet, mit dem Weg zu DOSBox SVN.
 - ScummVM beim Import aus einem Ordner: Ist ScummVM in DBGL eingetragen,
   lässt DBGL nach dem Import ScummVM selbst im Ordner suchen (es erkennt
   seine Spiele an den Prüfsummen ihrer Dateien). Spiele ohne Profil bietet
@@ -137,11 +140,10 @@ Geändert
   Einstellungen schneller, weil DBGL mehrere Seiten auf einmal aufbaut.
   Dauert es länger, zeigt ein kleiner Balken neben den Knöpfen, dass die
   Seiten vorbereitet werden und warum.
-- macOS: „Profile prüfen...“ weist bei Profilen, die mit DOSBox 0.74-3 im
-  Vollbild starten, darauf hin, dass sich 0.74-3 auf neuerem macOS beim
-  Wechsel ins Vollbild beendet, mit dem Weg zu DOSBox SVN.
 
 Fehler behoben
+- Dunkelmodus unter Windows: Die Pfeile der Zahlenfelder (z. B. „Teil“ im
+  Profil) waren hell. DBGL zeichnet sie jetzt selbst dunkel.
 - USB-Stick: Spiele von ScummVM kamen ohne ihren Ordner auf den Stick, und
   ihr Platz zählte nicht mit. Jetzt geht der Ordner mit, daneben eine
   eigene scummvm.ini für den ScummVM auf dem Stick (ohne Pfade dieses
